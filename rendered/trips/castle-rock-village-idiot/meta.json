@@ -1,0 +1,89 @@
+{
+ "hash": "0b5d4f14f3038c0fff714bb8cd5759f224bbe6dc",
+ "slug": "castle-rock-village-idiot",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 40,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 7775.59,
+   "min_ft": 7559.06,
+   "total_mi": 2.14,
+   "gx": 72.0,
+   "gy": 19.38,
+   "gps_max_mi": 0.0,
+   "y_lo": 7546.1,
+   "y_hi": 7796.52,
+   "pad_l": 72,
+   "vx": 5.07,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 7775.59,
+   "min_ft": 7559.06,
+   "total_mi": 2.14,
+   "gx": 72.0,
+   "gy": 16.79,
+   "gps_max_mi": 0.0,
+   "y_lo": 7546.1,
+   "y_hi": 7796.52,
+   "pad_l": 72,
+   "vx": 7.14,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 7775.59,
+   "min_ft": 7559.06,
+   "total_mi": 2.14,
+   "gx": 72.0,
+   "gy": 15.93,
+   "gps_max_mi": 0.0,
+   "y_lo": 7546.1,
+   "y_hi": 7796.52,
+   "pad_l": 72,
+   "vx": 14.54,
+   "h": 122
+  }
+ },
+ "start": [
+  38.99579,
+  -119.896382
+ ],
+ "end": [
+  38.996145,
+  -119.89654
+ ],
+ "bbox": [
+  38.98916,
+  -119.908599,
+  38.99617,
+  -119.896336
+ ]
+}

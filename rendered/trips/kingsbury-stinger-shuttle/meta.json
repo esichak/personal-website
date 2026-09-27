@@ -1,0 +1,89 @@
+{
+ "hash": "5f6f65a88c4e913f60c052be15a5a3e5a0a24dc3",
+ "slug": "kingsbury-stinger-shuttle",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 7998.69,
+   "min_ft": 6381.23,
+   "total_mi": 5.34,
+   "gx": 139.92,
+   "gy": 19.38,
+   "gps_max_mi": 0.31,
+   "y_lo": 6284.21,
+   "y_hi": 8160.07,
+   "pad_l": 72,
+   "vx": 1.69,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 7998.69,
+   "min_ft": 6381.23,
+   "total_mi": 5.34,
+   "gx": 109.31,
+   "gy": 16.79,
+   "gps_max_mi": 0.31,
+   "y_lo": 6284.21,
+   "y_hi": 8160.07,
+   "pad_l": 72,
+   "vx": 2.37,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 7998.69,
+   "min_ft": 6381.23,
+   "total_mi": 5.34,
+   "gx": 88.52,
+   "gy": 15.93,
+   "gps_max_mi": 0.31,
+   "y_lo": 6284.21,
+   "y_hi": 8160.07,
+   "pad_l": 72,
+   "vx": 4.84,
+   "h": 122
+  }
+ },
+ "start": [
+  38.996575,
+  -119.896619
+ ],
+ "end": [
+  38.983087,
+  -119.937154
+ ],
+ "bbox": [
+  38.982878,
+  -119.937154,
+  39.00238,
+  -119.89561
+ ]
+}

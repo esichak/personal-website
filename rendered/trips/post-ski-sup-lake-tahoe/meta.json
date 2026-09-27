@@ -1,0 +1,74 @@
+{
+ "hash": "e56c3679c8ff0f483dcaeea737962489d123ba1a",
+ "slug": "post-ski-sup-lake-tahoe",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 40,
+   "outbound_only": null
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 40,
+   "outbound_only": null
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "speed-wide": {
+   "w": 1248,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 63.86666666666667,
+    "vmax_mph": 21.958388378360205,
+    "stopped_s": 0
+   }
+  },
+  "speed-col": {
+   "w": 718,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 63.86666666666667,
+    "vmax_mph": 21.958388378360205,
+    "stopped_s": 0
+   }
+  },
+  "speed-phone": {
+   "w": 358,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 63.86666666666667,
+    "vmax_mph": 21.958388378360205,
+    "stopped_s": 0
+   }
+  }
+ },
+ "start": [
+  39.120816,
+  -120.161316
+ ],
+ "end": [
+  39.121047,
+  -120.16139
+ ],
+ "bbox": [
+  39.117269,
+  -120.161421,
+  39.121195,
+  -120.155143
+ ]
+}

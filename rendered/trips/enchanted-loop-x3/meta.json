@@ -1,0 +1,89 @@
+{
+ "hash": "ac6a9c0f4a061d656bbb077b4c48408e493f453a",
+ "slug": "enchanted-loop-x3",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 672.57,
+   "min_ft": 54.46,
+   "total_mi": 17.12,
+   "gx": 337.73,
+   "gy": 19.38,
+   "gps_max_mi": 3.87,
+   "y_lo": 17.49,
+   "y_hi": 732.22,
+   "pad_l": 72,
+   "vx": 14.2,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 672.57,
+   "min_ft": 54.46,
+   "total_mi": 17.12,
+   "gx": 217.97,
+   "gy": 16.79,
+   "gps_max_mi": 3.87,
+   "y_lo": 17.49,
+   "y_hi": 732.22,
+   "pad_l": 72,
+   "vx": 19.98,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 672.57,
+   "min_ft": 54.46,
+   "total_mi": 17.12,
+   "gx": 136.62,
+   "gy": 15.93,
+   "gps_max_mi": 3.87,
+   "y_lo": 17.49,
+   "y_hi": 732.22,
+   "pad_l": 72,
+   "vx": 40.7,
+   "h": 122
+  }
+ },
+ "start": [
+  36.962196,
+  -122.085043
+ ],
+ "end": [
+  36.962072,
+  -122.085345
+ ],
+ "bbox": [
+  36.962072,
+  -122.111446,
+  36.992417,
+  -122.079676
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "hash": "a052041977d5608614581c0a635fcc9023d647fc",
+ "slug": "pacific-crest-trail-2024",
+ "kind": "series",
+ "maps": {
+  "overview-tall": {
+   "w": 560,
+   "h": 860,
+   "png": "overview-tall.webp"
+  },
+  "overview-phone": {
+   "w": 390,
+   "h": 600,
+   "png": "overview-phone.webp"
+  }
+ },
+ "charts": {},
+ "start": [
+  32.590139,
+  -116.467377
+ ],
+ "end": [
+  38.976317,
+  -119.888371
+ ],
+ "bbox": [
+  32.590071,
+  -123.2211,
+  49.064083,
+  -116.413561
+ ]
+}

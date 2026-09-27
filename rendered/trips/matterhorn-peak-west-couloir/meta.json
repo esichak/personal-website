@@ -1,0 +1,89 @@
+{
+ "hash": "261ce200f87a320062996262fbc0f315bc30e060",
+ "slug": "matterhorn-peak-west-couloir",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 400,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 11952.1,
+   "min_ft": 7108.76,
+   "total_mi": 12.78,
+   "gx": 732.76,
+   "gy": 19.38,
+   "gps_max_mi": 7.18,
+   "y_lo": 6818.38,
+   "y_hi": 12432.46,
+   "pad_l": 72,
+   "vx": 1.35,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 11952.1,
+   "min_ft": 7108.76,
+   "total_mi": 12.78,
+   "gx": 434.97,
+   "gy": 16.79,
+   "gps_max_mi": 7.18,
+   "y_lo": 6818.38,
+   "y_hi": 12432.46,
+   "pad_l": 72,
+   "vx": 1.9,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 11952.1,
+   "min_ft": 7108.76,
+   "total_mi": 12.78,
+   "gx": 232.7,
+   "gy": 15.93,
+   "gps_max_mi": 7.18,
+   "y_lo": 6818.38,
+   "y_hi": 12432.46,
+   "pad_l": 72,
+   "vx": 3.87,
+   "h": 122
+  }
+ },
+ "start": [
+  38.148842,
+  -119.377104
+ ],
+ "end": [
+  38.149179,
+  -119.376138
+ ],
+ "bbox": [
+  38.093943,
+  -119.382661,
+  38.149198,
+  -119.371465
+ ]
+}

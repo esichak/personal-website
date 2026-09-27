@@ -1,0 +1,187 @@
+/* Series (kind: series) — one log of recorded days, e.g. Pacific Crest Trail 2024. Title block + strip come from report.css.
+   Day rows: cards on phone/tablet (< 1000px), a table-like grid with a column header per month from 1000px up. */
+body.p-series { --ser-track: #C9C5BA; --ser-nav-h: 52px; }
+@media (min-width: 760px) { body.p-series { --ser-nav-h: 64px; } }
+
+/* ---------------------------------------------------------------- intro row: overview map · overview + month index */
+.ser-intro { margin-top: 32px; display: grid; row-gap: 40px; }
+.ser-intro-map { min-width: 0; }
+.ser-mapcap { padding-top: 12px; }
+.ser-mapcap .ser-nw { white-space: nowrap; }
+/* below desktop the map column is too narrow for the two caption lines: let them run on as one paragraph */
+@media (max-width: 1199.98px) {
+  .ser-mapcap { display: block; }
+  .ser-mapcap > span + span::before { content: " · "; }
+}
+@media (max-width: 559.98px) { .ser-mapcap .ser-nw { white-space: normal; } .ser-mapcap { text-wrap: pretty; } }
+@media (max-width: 559.98px) { .ser-intro-map .ser-map { margin-inline: calc(-1 * var(--m)); } }
+@media (min-width: 560px) and (max-width: 899.98px) { .ser-intro-map { width: 100%; max-width: 560px; } }
+@media (min-width: 900px) {
+  .ser-intro { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: 40px; align-items: start; }
+}
+@media (min-width: 1200px) {
+  .ser-intro { margin-top: 48px; grid-template-columns: 560px minmax(0, 1fr); column-gap: 72px; }
+}
+.ser-intro-t { min-width: 0; }
+.ser-lede { margin-top: 20px; max-width: 600px; font: 400 17px/27px var(--sans); color: var(--ink-2); }
+.ser-lede-prose { margin-top: 20px; }
+.ser-bym { display: block; margin-top: 40px; padding-bottom: 8px; }
+.ser-mi { border-top: 1px solid var(--rule); }
+.ser-mi li { border-bottom: 1px solid var(--rule); }
+.ser-mi-a { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 16px; row-gap: 12px;
+  min-height: 44px; padding: 14px 0 16px; color: var(--ink); }
+.ser-mi-a:hover { color: var(--ink); background: var(--surface); }
+.ser-mi-a:hover .ser-mi-m { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.ser-mi-h { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 2px; min-width: 0; }
+.ser-mi-m { font: 600 18px/24px var(--sans); }
+.ser-mi-s { text-transform: uppercase; }
+.ser-mi-v { font: 500 17px/22px var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.ser-mi-v .unit { font: 400 12px/16px var(--mono); }
+.ser-rl { grid-column: 1 / -1; display: flex; gap: 1px; height: 10px; min-width: 24px; }
+.ser-rl i { flex-basis: 0; min-width: 1px; background: var(--ser-track); }
+.ser-rl i.w { background: var(--ink-2); }
+.ser-key { margin-top: 12px; }
+.ser-key .ser-key-n { color: var(--ink-3); }
+@media (min-width: 1200px) { .ser-mi-a { padding: 16px 0 18px; } }
+/* phones: the day range / write-up count sits on its own line under the month name, the same on every row */
+@media (max-width: 559.98px) { .ser-mi-h { flex-direction: column; align-items: flex-start; } .ser-mi-a { row-gap: 10px; } }
+
+/* ---------------------------------------------------------------- day log: head, filter, sticky month nav */
+.ser-log-h { align-items: center; padding-bottom: 8px; }
+.ser-only { flex-shrink: 0; }
+.ser-only-l { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font: 500 15px/20px var(--sans);
+  color: var(--ink); white-space: nowrap; }
+.ser-only input { -webkit-appearance: none; appearance: none; flex-shrink: 0; margin: 0; width: 20px; height: 20px; display: grid;
+  place-content: center; background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px; cursor: pointer; }
+.ser-only input::before { content: ""; width: 10px; height: 5px; margin-top: -3px; border: solid var(--paper); border-width: 0 0 2px 2px;
+  transform: rotate(-45deg); opacity: 0; }
+.ser-only input:checked { background: var(--ink); border-color: var(--ink); }
+.ser-only input:checked::before { opacity: 1; }
+.ser-only-l:hover input { border-color: var(--ink); }
+.ser-only-short { display: none; }
+@media (max-width: 759.98px) { .ser-only-long { display: none; } .ser-only-short { display: inline; } }
+
+.ser-mnav { position: sticky; top: var(--header-h); z-index: 30; margin-top: 24px; background: var(--surface);
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.ser-mnav ol { display: grid; grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr)); }
+.ser-mnav li { min-width: 0; }
+.ser-mnav li + li { border-left: 1px solid var(--rule); }
+.ser-mnav a { position: relative; height: var(--ser-nav-h); display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 0 16px; color: var(--ink-2); white-space: nowrap; }
+.ser-mnav a:hover { color: var(--ink); background: var(--paper); }
+.ser-mn-m { font: 500 15px/20px var(--sans); }
+.ser-mn-s { font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); }
+.ser-mnav a[aria-current] { color: var(--ink); }
+.ser-mnav a[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--route); }
+.ser-mnav a[aria-disabled="true"] { pointer-events: none; color: var(--rule-strong); }
+.ser-mnav a[aria-disabled="true"] .ser-mn-s { color: var(--rule-strong); }
+@media (max-width: 759.98px) {
+  .ser-mnav { margin-inline: calc(-1 * var(--m)); }
+  .ser-mnav a { align-items: center; padding: 0 4px; }
+  .ser-mn-x { display: none; }
+}
+
+/* ---------------------------------------------------------------- months */
+.ser-month { margin-top: 56px; scroll-margin-top: calc(var(--ser-nav-h) + 8px); }
+.ser-month:first-of-type { margin-top: 32px; }
+.ser-mh { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: 16px; row-gap: 4px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
+.ser-mh-t { font: 650 22px/28px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; }
+.ser-mh-m { text-transform: uppercase; }
+@media (min-width: 760px) { .ser-month { margin-top: 72px; } .ser-mh-t { font-size: 24px; line-height: 30px; } }
+.ser-cols { display: none; }
+
+/* ---------------------------------------------------------------- day rows (phone: glyph · text · GPX; sparkline under the glyph) */
+.ser-day { border-bottom: 1px solid var(--rule); scroll-margin-top: calc(var(--ser-nav-h) + 8px); }
+.ser-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 44px; grid-template-areas: "g n x" "g t x" "sp st st";
+  column-gap: 16px; row-gap: 2px; align-items: start; padding: 14px 0; }
+.ser-g { grid-area: g; }
+.ser-g svg { width: 64px; height: 48px; background: var(--surface); }
+.ser-n { grid-area: n; font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); text-transform: uppercase; }
+.ser-dd:not(:empty)::before { content: " · "; }
+/* cards (< 1000px): a day without a Strava title already reads "Day N" in its title line, so the label line keeps only the date */
+@media (max-width: 999.98px) {
+  .ser-day.no-title .ser-dn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ser-day.no-title .ser-dd::before { content: none; }
+}
+.ser-t { grid-area: t; font: 600 17px/22px var(--sans); color: var(--ink); }
+.ser-day.no-title .ser-t { font-weight: 500; color: var(--ink-2); }
+.ser-st { grid-area: st; display: flex; flex-wrap: wrap; column-gap: 6px; margin-top: 2px; font: 400 12px/16px var(--mono);
+  letter-spacing: 0.02em; color: var(--ink-2); text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.ser-st > div + div::before { content: "· "; color: var(--ink-3); }
+.ser-st dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ser-st .unit { color: inherit; }
+.ser-st dd { display: inline; }
+.ser-sp { grid-area: sp; align-self: center; }
+.ser-sp svg { width: 64px; height: 16px; }
+.ser-gpx { grid-area: x; width: 44px; height: 44px; margin-top: 2px; display: flex; align-items: center; justify-content: center;
+  border-radius: 2px; color: var(--ink-2); }
+.ser-gpx:hover { color: var(--ink); background: var(--sunk); }
+
+.ser-body { padding: 6px 0 32px; }
+/* skipped day numbers (no recording) */
+.ser-gap { padding: 10px 0 10px 80px; border-bottom: 1px solid var(--rule); font: 400 12px/16px var(--mono); letter-spacing: 0.02em;
+  color: var(--ink-3); text-transform: uppercase; }
+.ser-wu { max-width: 620px; }
+.ser-phs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.ser-body > .ser-phs:first-child { margin-top: 2px; }
+.ser-ph { display: block; }
+.ser-ph img { height: 104px; width: auto; max-width: 100%; object-fit: cover; background: var(--sunk); }
+.ser-ph:hover img { filter: brightness(1.05); }
+
+@media (min-width: 760px) {
+  .ser-row { grid-template-columns: 64px minmax(0, 1fr) 96px 44px; grid-template-areas: "g n sp x" "g t sp x" "g st sp x";
+    column-gap: 24px; padding: 16px 0; }
+  .ser-sp svg { width: 96px; height: 24px; }
+  .ser-gpx { align-self: center; margin-top: 0; }
+  .ser-body { padding-left: 88px; }
+  .ser-gap { padding-left: 88px; }
+  .ser-phs { gap: 12px; }
+  .ser-ph img { height: 120px; }
+}
+
+/* ---------------------------------------------------------------- table rows (≥ 1000): glyph | day | date | title | dist | gain | moving | elevation | GPX */
+@media (min-width: 1000px) {
+  body.p-series { --ser-c: 64px 40px 104px minmax(0, 1fr) 64px 72px 56px 96px 44px; --ser-g: 16px; }
+  .ser-cols { display: grid; grid-template-columns: var(--ser-c); column-gap: var(--ser-g); align-items: center; min-height: 32px;
+    border-bottom: 1px solid var(--rule); font: 600 11px/14px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+  .ser-cols .num { text-align: right; }
+  .ser-row { grid-template-columns: var(--ser-c); grid-template-areas: none; column-gap: var(--ser-g); row-gap: 0; align-items: center;
+    padding: 12px 0; }
+  .ser-g, .ser-n, .ser-t, .ser-st, .ser-sp, .ser-gpx { grid-area: auto; }
+  .ser-g { grid-column: 1; }
+  .ser-n { grid-column: 2 / span 2; display: grid; grid-template-columns: 40px 104px; column-gap: var(--ser-g); align-items: baseline; }
+  .ser-dn { font: 500 15px/20px var(--mono); color: var(--ink); }
+  .ser-dw { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ser-dd::before, .ser-dd:not(:empty)::before { content: none; }
+  .ser-dd { font: 400 13px/18px var(--mono); }
+  .ser-t { grid-column: 4; font-size: 16px; line-height: 21px; }
+  .ser-st { grid-column: 5 / span 3; display: grid; grid-template-columns: 64px 72px 56px; column-gap: var(--ser-g); margin: 0;
+    font: 500 15px/20px var(--mono); letter-spacing: 0; color: var(--ink); text-transform: none; }
+  .ser-st > div + div::before { content: none; }
+  .ser-st > div { text-align: right; }
+  .ser-st .unit { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ser-sp { grid-column: 8; }
+  .ser-gpx { grid-column: 9; justify-self: end; margin-right: -10px; }
+  .ser-body { padding: 4px 0 40px calc(64px + 40px + 104px + 3 * var(--ser-g)); }
+  .ser-gap { padding-left: calc(64px + var(--ser-g)); font-size: 13px; line-height: 18px; }
+  .ser-ph img { height: 128px; }
+}
+@media (min-width: 1200px) {
+  body.p-series { --ser-c: 64px 64px 118px minmax(0, 1fr) 80px 88px 72px 96px 44px; --ser-g: 24px; }
+  .ser-n { grid-template-columns: 64px 118px; }
+  .ser-st { grid-template-columns: 80px 88px 72px; }
+  .ser-t { font-size: 17px; line-height: 22px; }
+  .ser-body { padding-left: calc(64px + 64px + 118px + 3 * var(--ser-g)); }
+  .ser-ph img { height: 160px; }
+}
+
+/* ---------------------------------------------------------------- "Show days with write-ups only" (series.js) */
+.ser-log.is-wu .ser-day:not(.has-wu), .ser-log.is-wu .ser-month:not(.has-wu), .ser-log.is-wu .ser-gap { display: none; }
+
+/* slimmed day glyphs / sparklines (inline styles stripped in series.py) and the shared download icon */
+.ser-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ser-g svg, .ser-sp svg { display: block; flex-shrink: 0; }
+.ser-g .gl-trk { stroke: var(--ser-act, var(--hik)); stroke-width: 2; }
+.ser-spl { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linejoin: round; }
+.ser-gpx svg { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }

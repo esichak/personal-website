@@ -1,0 +1,89 @@
+{
+ "hash": "b195822e1fc571521270773e07fac43449cb1d49",
+ "slug": "emerald-chute-y-chute-combo",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9166.67,
+   "min_ft": 6841.21,
+   "total_mi": 5.13,
+   "gx": 900.76,
+   "gy": 19.38,
+   "gps_max_mi": 3.62,
+   "y_lo": 6702.64,
+   "y_hi": 9381.53,
+   "pad_l": 72,
+   "vx": 1.14,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9166.67,
+   "min_ft": 6841.21,
+   "total_mi": 5.13,
+   "gx": 527.25,
+   "gy": 16.79,
+   "gps_max_mi": 3.62,
+   "y_lo": 6702.64,
+   "y_hi": 9381.53,
+   "pad_l": 72,
+   "vx": 1.6,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9166.67,
+   "min_ft": 6841.21,
+   "total_mi": 5.13,
+   "gx": 273.55,
+   "gy": 15.93,
+   "gps_max_mi": 3.62,
+   "y_lo": 6702.64,
+   "y_hi": 9381.53,
+   "pad_l": 72,
+   "vx": 3.25,
+   "h": 122
+  }
+ },
+ "start": [
+  38.959144,
+  -120.113961
+ ],
+ "end": [
+  38.961095,
+  -120.102657
+ ],
+ "bbox": [
+  38.956953,
+  -120.124696,
+  38.964609,
+  -120.102657
+ ]
+}

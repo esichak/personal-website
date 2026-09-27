@@ -1,0 +1,619 @@
+{
+ "hash": "d6002803d0a70364129e8debd38fc85b390e928d",
+ "maps": {
+  "region-lake-tahoe-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-lake-tahoe-desktop.webp",
+   "region": "Lake Tahoe",
+   "trips": [
+    "lovers-leap-napsack-haystack",
+    "lovers-leap-knapsack-crack",
+    "castle-rock-village-idiot",
+    "lovers-leap-corrugation-corner",
+    "return-to-emerald-chute",
+    "tallac-cathedral-bowl-solo",
+    "freel-jobs-job-sister-loop",
+    "mount-tallac-sunrise",
+    "kingsbury-stinger-loop",
+    "kingsbury-stinger-shuttle",
+    "emerald-chute-y-chute-combo",
+    "y-chute-solo",
+    "jakes-peak-to-emerald-bay",
+    "post-ski-sup-lake-tahoe",
+    "crystal-range-to-bayview"
+   ],
+   "clusters": [
+    {
+     "x": 223.3645850761328,
+     "y": 549.1367382186011,
+     "n": 4,
+     "keys": [
+      "lovers-leap-napsack-haystack",
+      "lovers-leap-knapsack-crack",
+      "lovers-leap-corrugation-corner",
+      "crystal-range-to-bayview"
+     ]
+    },
+    {
+     "x": 505.03242956576037,
+     "y": 253.83592400690756,
+     "n": 2,
+     "keys": [
+      "castle-rock-village-idiot",
+      "kingsbury-stinger-shuttle"
+     ]
+    },
+    {
+     "x": 258.1721901879748,
+     "y": 306.92065136935906,
+     "n": 4,
+     "keys": [
+      "return-to-emerald-chute",
+      "emerald-chute-y-chute-combo",
+      "y-chute-solo",
+      "jakes-peak-to-emerald-bay"
+     ]
+    },
+    {
+     "x": 288.5201681947219,
+     "y": 349.98411053539934,
+     "n": 2,
+     "keys": [
+      "tallac-cathedral-bowl-solo",
+      "mount-tallac-sunrise"
+     ]
+    },
+    {
+     "x": 499.9907995677947,
+     "y": 506.7188255613095,
+     "n": 1,
+     "keys": [
+      "freel-jobs-job-sister-loop"
+     ]
+    },
+    {
+     "x": 456.1609520795556,
+     "y": 273.52203306193144,
+     "n": 1,
+     "keys": [
+      "kingsbury-stinger-loop"
+     ]
+    },
+    {
+     "x": 177.52066092258272,
+     "y": 47.77876506051397,
+     "n": 1,
+     "keys": [
+      "post-ski-sup-lake-tahoe"
+     ]
+    }
+   ]
+  },
+  "region-lake-tahoe-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-lake-tahoe-phone.webp",
+   "region": "Lake Tahoe",
+   "trips": [
+    "lovers-leap-napsack-haystack",
+    "lovers-leap-knapsack-crack",
+    "castle-rock-village-idiot",
+    "lovers-leap-corrugation-corner",
+    "return-to-emerald-chute",
+    "tallac-cathedral-bowl-solo",
+    "freel-jobs-job-sister-loop",
+    "mount-tallac-sunrise",
+    "kingsbury-stinger-loop",
+    "kingsbury-stinger-shuttle",
+    "emerald-chute-y-chute-combo",
+    "y-chute-solo",
+    "jakes-peak-to-emerald-bay",
+    "post-ski-sup-lake-tahoe",
+    "crystal-range-to-bayview"
+   ],
+   "clusters": [
+    {
+     "x": 89.9919368331351,
+     "y": 425.13811991117507,
+     "n": 4,
+     "keys": [
+      "lovers-leap-napsack-haystack",
+      "lovers-leap-knapsack-crack",
+      "lovers-leap-corrugation-corner",
+      "crystal-range-to-bayview"
+     ]
+    },
+    {
+     "x": 308.0573648251048,
+     "y": 196.5181347150252,
+     "n": 2,
+     "keys": [
+      "castle-rock-village-idiot",
+      "kingsbury-stinger-shuttle"
+     ]
+    },
+    {
+     "x": 116.93976014552888,
+     "y": 237.61598815692315,
+     "n": 4,
+     "keys": [
+      "return-to-emerald-chute",
+      "emerald-chute-y-chute-combo",
+      "y-chute-solo",
+      "jakes-peak-to-emerald-bay"
+     ]
+    },
+    {
+     "x": 140.43496892494602,
+     "y": 270.95544041450273,
+     "n": 2,
+     "keys": [
+      "tallac-cathedral-bowl-solo",
+      "mount-tallac-sunrise"
+     ]
+    },
+    {
+     "x": 304.1541674073249,
+     "y": 392.29844559585246,
+     "n": 1,
+     "keys": [
+      "freel-jobs-job-sister-loop"
+     ]
+    },
+    {
+     "x": 270.2213822551398,
+     "y": 211.7589933382695,
+     "n": 1,
+     "keys": [
+      "kingsbury-stinger-loop"
+     ]
+    },
+    {
+     "x": 52.18680691800924,
+     "y": 33.64784968918332,
+     "n": 1,
+     "keys": [
+      "post-ski-sup-lake-tahoe"
+     ]
+    }
+   ]
+  },
+  "ski-lake-tahoe-desktop": {
+   "w": 506,
+   "h": 680,
+   "png": "ski-lake-tahoe-desktop.webp",
+   "region": "Lake Tahoe",
+   "trips": [
+    "return-to-emerald-chute",
+    "tallac-cathedral-bowl-solo",
+    "emerald-chute-y-chute-combo",
+    "y-chute-solo",
+    "jakes-peak-to-emerald-bay"
+   ],
+   "clusters": [
+    {
+     "x": 244.2655825265002,
+     "y": 173.33552520878047,
+     "n": 2,
+     "keys": [
+      "return-to-emerald-chute",
+      "y-chute-solo"
+     ]
+    },
+    {
+     "x": 384.0052337981043,
+     "y": 371.56404116239605,
+     "n": 1,
+     "keys": [
+      "tallac-cathedral-bowl-solo"
+     ]
+    },
+    {
+     "x": 181.18919270337665,
+     "y": 187.02442560353884,
+     "n": 1,
+     "keys": [
+      "emerald-chute-y-chute-combo"
+     ]
+    },
+    {
+     "x": 256.5676566321856,
+     "y": 71.96442948678708,
+     "n": 1,
+     "keys": [
+      "jakes-peak-to-emerald-bay"
+     ]
+    }
+   ]
+  },
+  "ski-lake-tahoe-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "ski-lake-tahoe-phone.webp",
+   "region": "Lake Tahoe",
+   "trips": [
+    "return-to-emerald-chute",
+    "tallac-cathedral-bowl-solo",
+    "emerald-chute-y-chute-combo",
+    "y-chute-solo",
+    "jakes-peak-to-emerald-bay"
+   ],
+   "clusters": [
+    {
+     "x": 188.83452884223544,
+     "y": 122.35448838266858,
+     "n": 2,
+     "keys": [
+      "return-to-emerald-chute",
+      "y-chute-solo"
+     ]
+    },
+    {
+     "x": 287.4742826810148,
+     "y": 262.28049964404426,
+     "n": 1,
+     "keys": [
+      "tallac-cathedral-bowl-solo"
+     ]
+    },
+    {
+     "x": 144.31001837885412,
+     "y": 132.01724160249802,
+     "n": 1,
+     "keys": [
+      "emerald-chute-y-chute-combo"
+     ]
+    },
+    {
+     "x": 197.5183458580134,
+     "y": 50.79842081420264,
+     "n": 1,
+     "keys": [
+      "jakes-peak-to-emerald-bay"
+     ]
+    }
+   ]
+  },
+  "region-eastern-sierra-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-eastern-sierra-desktop.webp",
+   "region": "Eastern Sierra",
+   "trips": [
+    "dunderberg-peak-and-black-mountain",
+    "mount-wood",
+    "matterhorn-peak-west-couloir",
+    "green-creek-virginia-pass"
+   ],
+   "clusters": [
+    {
+     "x": 348.3463788108363,
+     "y": 192.14894023996118,
+     "n": 1,
+     "keys": [
+      "dunderberg-peak-and-black-mountain"
+     ]
+    },
+    {
+     "x": 492.57208392648283,
+     "y": 557.9324185167858,
+     "n": 1,
+     "keys": [
+      "mount-wood"
+     ]
+    },
+    {
+     "x": 230.35084435032044,
+     "y": 62.448377148271874,
+     "n": 1,
+     "keys": [
+      "matterhorn-peak-west-couloir"
+     ]
+    },
+    {
+     "x": 335.4221446423625,
+     "y": 109.95166163141869,
+     "n": 1,
+     "keys": [
+      "green-creek-virginia-pass"
+     ]
+    }
+   ]
+  },
+  "region-eastern-sierra-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-eastern-sierra-phone.webp",
+   "region": "Eastern Sierra",
+   "trips": [
+    "dunderberg-peak-and-black-mountain",
+    "mount-wood",
+    "matterhorn-peak-west-couloir",
+    "green-creek-virginia-pass"
+   ],
+   "clusters": [
+    {
+     "x": 186.75203520838937,
+     "y": 148.76046986319577,
+     "n": 1,
+     "keys": [
+      "dunderberg-peak-and-black-mountain"
+     ]
+    },
+    {
+     "x": 298.41064562050286,
+     "y": 431.94767885170506,
+     "n": 1,
+     "keys": [
+      "mount-wood"
+     ]
+    },
+    {
+     "x": 95.40065369057068,
+     "y": 48.347130695436306,
+     "n": 1,
+     "keys": [
+      "matterhorn-peak-west-couloir"
+     ]
+    },
+    {
+     "x": 176.74617649731292,
+     "y": 85.12386706948544,
+     "n": 1,
+     "keys": [
+      "green-creek-virginia-pass"
+     ]
+    }
+   ]
+  },
+  "ski-eastern-sierra-desktop": {
+   "w": 506,
+   "h": 680,
+   "png": "ski-eastern-sierra-desktop.webp",
+   "region": "Eastern Sierra",
+   "trips": [
+    "dunderberg-peak-and-black-mountain",
+    "mount-wood",
+    "matterhorn-peak-west-couloir"
+   ],
+   "clusters": [
+    {
+     "x": 241.31538321188495,
+     "y": 210.74399897286065,
+     "n": 1,
+     "keys": [
+      "dunderberg-peak-and-black-mountain"
+     ]
+    },
+    {
+     "x": 399.49841462904567,
+     "y": 611.9258783732489,
+     "n": 1,
+     "keys": [
+      "mount-wood"
+     ]
+    },
+    {
+     "x": 111.90092606164177,
+     "y": 68.49176848520142,
+     "n": 1,
+     "keys": [
+      "matterhorn-peak-west-couloir"
+     ]
+    }
+   ]
+  },
+  "ski-eastern-sierra-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "ski-eastern-sierra-phone.webp",
+   "region": "Eastern Sierra",
+   "trips": [
+    "dunderberg-peak-and-black-mountain",
+    "mount-wood",
+    "matterhorn-peak-west-couloir"
+   ],
+   "clusters": [
+    {
+     "x": 186.75203520838937,
+     "y": 148.76046986319577,
+     "n": 1,
+     "keys": [
+      "dunderberg-peak-and-black-mountain"
+     ]
+    },
+    {
+     "x": 298.41064562050286,
+     "y": 431.94767885170506,
+     "n": 1,
+     "keys": [
+      "mount-wood"
+     ]
+    },
+    {
+     "x": 95.40065369057068,
+     "y": 48.347130695436306,
+     "n": 1,
+     "keys": [
+      "matterhorn-peak-west-couloir"
+     ]
+    }
+   ]
+  },
+  "region-alps-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-alps-desktop.webp",
+   "region": "Alps",
+   "trips": [
+    "gran-paradiso-haute-route",
+    "chamonix-zermatt-haute-route"
+   ],
+   "clusters": [
+    {
+     "x": 239.6570632551395,
+     "y": 480.64526296873214,
+     "n": 1,
+     "keys": [
+      "gran-paradiso-haute-route"
+     ]
+    },
+    {
+     "x": 133.69351609175436,
+     "y": 154.17870836719317,
+     "n": 1,
+     "keys": [
+      "chamonix-zermatt-haute-route"
+     ]
+    }
+   ]
+  },
+  "region-alps-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-alps-phone.webp",
+   "region": "Alps",
+   "trips": [
+    "gran-paradiso-haute-route",
+    "chamonix-zermatt-haute-route"
+   ],
+   "clusters": [
+    {
+     "x": 112.62747745209249,
+     "y": 357.7822597212971,
+     "n": 1,
+     "keys": [
+      "gran-paradiso-haute-route"
+     ]
+    },
+    {
+     "x": 39.48963690579728,
+     "y": 132.44949715031873,
+     "n": 1,
+     "keys": [
+      "chamonix-zermatt-haute-route"
+     ]
+    }
+   ]
+  },
+  "ski-alps-desktop": {
+   "w": 506,
+   "h": 680,
+   "png": "ski-alps-desktop.webp",
+   "region": "Alps",
+   "trips": [
+    "gran-paradiso-haute-route",
+    "chamonix-zermatt-haute-route"
+   ],
+   "clusters": [
+    {
+     "x": 146.1269322839969,
+     "y": 492.81493184352917,
+     "n": 1,
+     "keys": [
+      "gran-paradiso-haute-route"
+     ]
+    },
+    {
+     "x": 51.23527249829081,
+     "y": 200.4601168155417,
+     "n": 1,
+     "keys": [
+      "chamonix-zermatt-haute-route"
+     ]
+    }
+   ]
+  },
+  "ski-alps-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "ski-alps-phone.webp",
+   "region": "Alps",
+   "trips": [
+    "gran-paradiso-haute-route",
+    "chamonix-zermatt-haute-route"
+   ],
+   "clusters": [
+    {
+     "x": 112.62747745209249,
+     "y": 357.7822597212971,
+     "n": 1,
+     "keys": [
+      "gran-paradiso-haute-route"
+     ]
+    },
+    {
+     "x": 39.48963690579728,
+     "y": 132.44949715031873,
+     "n": 1,
+     "keys": [
+      "chamonix-zermatt-haute-route"
+     ]
+    }
+   ]
+  },
+  "region-santa-cruz-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-santa-cruz-desktop.webp",
+   "region": "Santa Cruz",
+   "trips": [
+    "enchanted-loop-x3",
+    "soquel-demo-forest"
+   ],
+   "clusters": [
+    {
+     "x": 129.60992217679373,
+     "y": 485.22985822020917,
+     "n": 1,
+     "keys": [
+      "enchanted-loop-x3"
+     ]
+    },
+    {
+     "x": 645.6458832994751,
+     "y": 161.7092970299906,
+     "n": 1,
+     "keys": [
+      "soquel-demo-forest"
+     ]
+    }
+   ]
+  },
+  "region-santa-cruz-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-santa-cruz-phone.webp",
+   "region": "Santa Cruz",
+   "trips": [
+    "enchanted-loop-x3",
+    "soquel-demo-forest"
+   ],
+   "clusters": [
+    {
+     "x": 70.40093265870411,
+     "y": 335.1805636572167,
+     "n": 1,
+     "keys": [
+      "enchanted-loop-x3"
+     ]
+    },
+    {
+     "x": 350.69901739107985,
+     "y": 159.45212512771076,
+     "n": 1,
+     "keys": [
+      "soquel-demo-forest"
+     ]
+    }
+   ]
+  }
+ },
+ "regions": [
+  "Alps",
+  "Eastern Sierra",
+  "Lake Tahoe",
+  "Santa Cruz"
+ ]
+}

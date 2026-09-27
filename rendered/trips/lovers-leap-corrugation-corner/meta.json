@@ -1,0 +1,89 @@
+{
+ "hash": "a7bcabc99a7da1e06bfd7f1459b5f3f685a52a6b",
+ "slug": "lovers-leap-corrugation-corner",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 6774.93,
+   "min_ft": 5780.84,
+   "total_mi": 1.75,
+   "gx": 108.61,
+   "gy": 19.38,
+   "gps_max_mi": 0.05,
+   "y_lo": 5722.65,
+   "y_hi": 6847.64,
+   "pad_l": 72,
+   "vx": 0.92,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 6774.93,
+   "min_ft": 5780.84,
+   "total_mi": 1.75,
+   "gx": 92.11,
+   "gy": 16.79,
+   "gps_max_mi": 0.05,
+   "y_lo": 5722.65,
+   "y_hi": 6847.64,
+   "pad_l": 72,
+   "vx": 1.29,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 6774.93,
+   "min_ft": 5780.84,
+   "total_mi": 1.75,
+   "gx": 80.9,
+   "gy": 15.93,
+   "gps_max_mi": 0.05,
+   "y_lo": 5722.65,
+   "y_hi": 6847.64,
+   "pad_l": 72,
+   "vx": 2.64,
+   "h": 122
+  }
+ },
+ "start": [
+  38.800021,
+  -120.13462
+ ],
+ "end": [
+  38.797292,
+  -120.142654
+ ],
+ "bbox": [
+  38.797292,
+  -120.142744,
+  38.804538,
+  -120.129993
+ ]
+}

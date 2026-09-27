@@ -1,0 +1,89 @@
+{
+ "hash": "b2e494d8f6278b14b150415f020f606c5714d5a6",
+ "slug": "lovers-leap-napsack-haystack",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 40,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 6345.14,
+   "min_ft": 5767.72,
+   "total_mi": 1.38,
+   "gx": 72.0,
+   "gy": 19.38,
+   "gps_max_mi": 0.0,
+   "y_lo": 5733.24,
+   "y_hi": 6399.76,
+   "pad_l": 72,
+   "vx": 1.23,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 6345.14,
+   "min_ft": 5767.72,
+   "total_mi": 1.38,
+   "gx": 72.0,
+   "gy": 16.79,
+   "gps_max_mi": 0.0,
+   "y_lo": 5733.24,
+   "y_hi": 6399.76,
+   "pad_l": 72,
+   "vx": 1.73,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 6345.14,
+   "min_ft": 5767.72,
+   "total_mi": 1.38,
+   "gx": 72.0,
+   "gy": 15.93,
+   "gps_max_mi": 0.0,
+   "y_lo": 5733.24,
+   "y_hi": 6399.76,
+   "pad_l": 72,
+   "vx": 3.52,
+   "h": 122
+  }
+ },
+ "start": [
+  38.802749,
+  -120.131588
+ ],
+ "end": [
+  38.797289,
+  -120.142634
+ ],
+ "bbox": [
+  38.797271,
+  -120.142717,
+  38.804637,
+  -120.129459
+ ]
+}

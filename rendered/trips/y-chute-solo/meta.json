@@ -1,0 +1,89 @@
+{
+ "hash": "b375d8cb052beb0e42f960b61beb1c029009cce0",
+ "slug": "y-chute-solo",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9156.82,
+   "min_ft": 6845.8,
+   "total_mi": 6.31,
+   "gx": 474.36,
+   "gy": 19.38,
+   "gps_max_mi": 2.16,
+   "y_lo": 6707.53,
+   "y_hi": 9380.71,
+   "pad_l": 72,
+   "vx": 1.4,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9156.82,
+   "min_ft": 6845.8,
+   "total_mi": 6.31,
+   "gx": 293.03,
+   "gy": 16.79,
+   "gps_max_mi": 2.16,
+   "y_lo": 6707.53,
+   "y_hi": 9380.71,
+   "pad_l": 72,
+   "vx": 1.97,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9156.82,
+   "min_ft": 6845.8,
+   "total_mi": 6.31,
+   "gx": 169.85,
+   "gy": 15.93,
+   "gps_max_mi": 2.16,
+   "y_lo": 6707.53,
+   "y_hi": 9380.71,
+   "pad_l": 72,
+   "vx": 4.01,
+   "h": 122
+  }
+ },
+ "start": [
+  38.961117,
+  -120.102482
+ ],
+ "end": [
+  38.961125,
+  -120.102491
+ ],
+ "bbox": [
+  38.95727,
+  -120.122713,
+  38.966408,
+  -120.102482
+ ]
+}

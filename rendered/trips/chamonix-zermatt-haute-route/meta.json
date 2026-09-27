@@ -1,0 +1,323 @@
+{
+ "hash": "7a1ed352f17cca88b6a581e5e2e09011399e560d",
+ "slug": "chamonix-zermatt-haute-route",
+ "kind": "multi-day",
+ "maps": {
+  "overview-wide": {
+   "w": 1440,
+   "h": 560,
+   "png": "overview-wide.webp"
+  },
+  "overview-col": {
+   "w": 718,
+   "h": 440,
+   "png": "overview-col.webp"
+  },
+  "overview-phone": {
+   "w": 390,
+   "h": 260,
+   "png": "overview-phone.webp"
+  },
+  "day-01-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-01-col.webp"
+  },
+  "day-01-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-01-phone.webp"
+  },
+  "day-02-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-02-col.webp"
+  },
+  "day-02-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-02-phone.webp"
+  },
+  "day-03-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-03-col.webp"
+  },
+  "day-03-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-03-phone.webp"
+  },
+  "day-04-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-04-col.webp"
+  },
+  "day-04-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-04-phone.webp"
+  },
+  "day-05-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-05-col.webp"
+  },
+  "day-05-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-05-phone.webp"
+  },
+  "day-06-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-06-col.webp"
+  },
+  "day-06-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-06-phone.webp"
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 12450.79,
+   "min_ft": 2702.46,
+   "total_mi": 66.33,
+   "gx": 853.25,
+   "gy": 34.0,
+   "gps_max_mi": 44.06,
+   "y_lo": 2118.22,
+   "y_hi": 13413.59,
+   "pad_l": 72,
+   "vx": 3.06,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 12450.79,
+   "min_ft": 2702.46,
+   "total_mi": 66.33,
+   "gx": 501.15,
+   "gy": 32.28,
+   "gps_max_mi": 44.06,
+   "y_lo": 2118.22,
+   "y_hi": 13413.59,
+   "pad_l": 72,
+   "vx": 4.61,
+   "h": 142
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 12450.79,
+   "min_ft": 2702.46,
+   "total_mi": 66.33,
+   "gx": 262.0,
+   "gy": 31.41,
+   "gps_max_mi": 44.06,
+   "y_lo": 2118.22,
+   "y_hi": 13413.59,
+   "pad_l": 72,
+   "vx": 9.32,
+   "h": 132
+  },
+  "day-01-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9091.21,
+   "min_ft": 4044.62,
+   "total_mi": 8.02,
+   "gx": 715.04,
+   "gy": 15.59,
+   "gps_max_mi": 7.98,
+   "y_lo": 3738.87,
+   "y_hi": 9650.0,
+   "pad_l": 72,
+   "vx": 0.98,
+   "h": 118
+  },
+  "day-01-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9091.21,
+   "min_ft": 4044.62,
+   "total_mi": 8.02,
+   "gx": 356.69,
+   "gy": 14.9,
+   "gps_max_mi": 7.98,
+   "y_lo": 3738.87,
+   "y_hi": 9650.0,
+   "pad_l": 72,
+   "vx": 2.0,
+   "h": 110
+  },
+  "day-02-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9957.35,
+   "min_ft": 4860.89,
+   "total_mi": 9.02,
+   "gx": 368.59,
+   "gy": 15.59,
+   "gps_max_mi": 4.14,
+   "y_lo": 4555.28,
+   "y_hi": 10463.75,
+   "pad_l": 72,
+   "vx": 1.1,
+   "h": 118
+  },
+  "day-02-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9957.35,
+   "min_ft": 4860.89,
+   "total_mi": 9.02,
+   "gx": 203.31,
+   "gy": 14.9,
+   "gps_max_mi": 4.14,
+   "y_lo": 4555.28,
+   "y_hi": 10463.75,
+   "pad_l": 72,
+   "vx": 2.25,
+   "h": 110
+  },
+  "day-03-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 10767.72,
+   "min_ft": 2702.46,
+   "total_mi": 14.55,
+   "gx": 615.25,
+   "gy": 15.59,
+   "gps_max_mi": 12.24,
+   "y_lo": 2212.42,
+   "y_hi": 11686.6,
+   "pad_l": 72,
+   "vx": 1.1,
+   "h": 118
+  },
+  "day-03-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 10767.72,
+   "min_ft": 2702.46,
+   "total_mi": 14.55,
+   "gx": 312.51,
+   "gy": 14.9,
+   "gps_max_mi": 12.24,
+   "y_lo": 2212.42,
+   "y_hi": 11686.6,
+   "pad_l": 72,
+   "vx": 2.27,
+   "h": 110
+  },
+  "day-04-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9639.11,
+   "min_ft": 7815.62,
+   "total_mi": 7.71,
+   "gx": 716.44,
+   "gy": 15.59,
+   "gps_max_mi": 7.69,
+   "y_lo": 7706.48,
+   "y_hi": 9816.4,
+   "pad_l": 72,
+   "vx": 2.63,
+   "h": 118
+  },
+  "day-04-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9639.11,
+   "min_ft": 7815.62,
+   "total_mi": 7.71,
+   "gx": 357.31,
+   "gy": 14.9,
+   "gps_max_mi": 7.69,
+   "y_lo": 7706.48,
+   "y_hi": 9816.4,
+   "pad_l": 72,
+   "vx": 5.4,
+   "h": 110
+  },
+  "day-05-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 12450.79,
+   "min_ft": 9270.53,
+   "total_mi": 6.73,
+   "gx": 529.51,
+   "gy": 15.59,
+   "gps_max_mi": 4.77,
+   "y_lo": 9080.37,
+   "y_hi": 12756.78,
+   "pad_l": 72,
+   "vx": 1.32,
+   "h": 118
+  },
+  "day-05-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 12450.79,
+   "min_ft": 9270.53,
+   "total_mi": 6.73,
+   "gx": 274.55,
+   "gy": 14.9,
+   "gps_max_mi": 4.77,
+   "y_lo": 9080.37,
+   "y_hi": 12756.78,
+   "pad_l": 72,
+   "vx": 2.7,
+   "h": 110
+  },
+  "day-06-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 11725.72,
+   "min_ft": 5370.74,
+   "total_mi": 20.3,
+   "gx": 372.16,
+   "gy": 15.59,
+   "gps_max_mi": 9.43,
+   "y_lo": 4990.63,
+   "y_hi": 12339.24,
+   "pad_l": 72,
+   "vx": 1.99,
+   "h": 118
+  },
+  "day-06-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 11725.72,
+   "min_ft": 5370.74,
+   "total_mi": 20.3,
+   "gx": 204.89,
+   "gy": 14.9,
+   "gps_max_mi": 9.43,
+   "y_lo": 4990.63,
+   "y_hi": 12339.24,
+   "pad_l": 72,
+   "vx": 4.08,
+   "h": 110
+  }
+ },
+ "start": [
+  45.982771,
+  6.92655
+ ],
+ "end": [
+  46.014973,
+  7.741531
+ ],
+ "bbox": [
+  45.945731,
+  6.925269,
+  46.09963,
+  7.741531
+ ]
+}

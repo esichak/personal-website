@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Eric Sichak trip reports" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>PCT Day 5.2- Julian</name><time>2024-04-27T00:01:04Z</time></metadata>
+<trk><name>PCT Day 5.2- Julian</name><type>hike</type><trkseg>
+<trkpt lat="33.068222" lon="-116.503363"><ele>959.2</ele><time>2024-04-27T00:01:04Z</time></trkpt>
+<trkpt lat="33.068270" lon="-116.503313"><ele>959.6</ele><time>2024-04-27T00:01:09Z</time></trkpt>
+<trkpt lat="33.068171" lon="-116.503232"><ele>959.2</ele><time>2024-04-27T00:01:21Z</time></trkpt>
+<trkpt lat="33.067988" lon="-116.503317"><ele>965.0</ele><time>2024-04-27T00:01:44Z</time></trkpt>
+<trkpt lat="33.067924" lon="-116.503012"><ele>967.8</ele><time>2024-04-27T00:02:09Z</time></trkpt>
+<trkpt lat="33.067687" lon="-116.502395"><ele>979.0</ele><time>2024-04-27T00:03:47Z</time></trkpt>
+<trkpt lat="33.067322" lon="-116.501734"><ele>978.2</ele><time>2024-04-27T00:04:39Z</time></trkpt>
+<trkpt lat="33.067087" lon="-116.501491"><ele>987.4</ele><time>2024-04-27T00:05:42Z</time></trkpt>
+<trkpt lat="33.067055" lon="-116.501540"><ele>988.2</ele><time>2024-04-27T00:05:56Z</time></trkpt>
+<trkpt lat="33.067201" lon="-116.501660"><ele>987.4</ele><time>2024-04-27T00:07:43Z</time></trkpt>
+<trkpt lat="33.067228" lon="-116.501551"><ele>987.4</ele><time>2024-04-27T00:07:53Z</time></trkpt>
+<trkpt lat="33.066410" lon="-116.501169"><ele>992.8</ele><time>2024-04-27T00:09:01Z</time></trkpt>
+<trkpt lat="33.066239" lon="-116.500883"><ele>994.0</ele><time>2024-04-27T00:09:43Z</time></trkpt>
+<trkpt lat="33.066272" lon="-116.500842"><ele>994.8</ele><time>2024-04-27T00:09:51Z</time></trkpt>
+</trkseg></trk>
+</gpx>

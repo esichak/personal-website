@@ -1,0 +1,264 @@
+/* Home (/) — hero + featured, latest reports, by activity, where I've been.
+   Phone < 760 follows Phone-Home-A/B. Tablet stacks the hero above the featured report (≥ 1000: H1 beside the lead,
+   photo beside the map). Desktop ≥ 1200 is the Main artboard: one 12-column grid with hero (1–5) beside the featured
+   map (6–12), then the photo (1–5) beside the details (6–12). */
+
+/* ---------------------------------------------------------------- hero */
+.hom-top { padding-top: 16px; }
+.hom-kicker { display: block; }
+.hom-h1 { margin-top: 8px; }
+@media (min-width: 360px) { .hom-l { display: block; } }
+.hom-lead { margin-top: 12px; max-width: 480px; font: 400 17px/27px var(--serif); color: var(--ink-2); text-wrap: pretty; }
+.hom-cta { display: none; }
+.hom-down { display: flex; transform: rotate(90deg); }
+@media (min-width: 760px) {
+  .hom-top { padding-top: 40px; }
+  .hom-h1 { margin-top: 20px; }
+  .hom-lead { margin-top: 20px; font-size: 19px; line-height: 30px; }
+  .hom-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+}
+@media (min-width: 1000px) and (max-width: 1199.98px) {
+  .hom-hero { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
+  .hom-kicker { grid-column: 1 / -1; }
+  .hom-h1 { grid-column: 1 / span 7; }
+  .hom-hero-b { grid-column: 8 / -1; align-self: start; padding-top: 6px; }
+  .hom-lead { margin-top: 0; }
+  .hom-cta { margin-top: 24px; }
+}
+@media (min-width: 1200px) {
+  .hom-top { padding-top: 56px; }
+  .hom-h1 { margin-top: 24px; font-size: clamp(44px, 3.4vw, 48px); line-height: 1.084; }
+  .hom-lead { margin-top: 24px; }
+  .hom-cta { margin-top: 32px; }
+}
+
+/* ---------------------------------------------------------------- featured */
+.hom-feat { margin-top: 24px; display: flex; flex-direction: column; }
+.hom-fmap { position: relative; }
+.hom-maplink { display: block; position: relative; color: inherit; }
+.hom-maplink:hover { color: inherit; }
+.hom-ftag { position: absolute; left: 12px; top: 12px; z-index: 2; display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 2px;
+  font: 500 12px/16px var(--mono); letter-spacing: 0.06em; color: var(--ink); }
+.hom-fcap { margin-top: 12px; }
+.hom-fcap span { display: block; }
+.hom-fmap--tall .map { max-width: 460px; }
+.hom-det { display: flex; flex-direction: column; padding-top: 16px; }
+.hom-chips { row-gap: 8px; }
+.hom-ft { margin-top: 8px; text-wrap: balance; }
+.hom-ft a { color: var(--ink); }
+.hom-ft a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.hom-nw { display: inline-block; }
+.hom-pmeta { margin-top: 4px; text-transform: uppercase; }
+.hom-place { margin-top: 2px; }
+.hom-strip { margin-top: 16px; }
+/* phone (Phone-Home-A): chips-only chip row, then title → "DATE · DIST · GAIN" line → place; no strip */
+@media (max-width: 759.98px) {
+  .hom-cdate, .hom-strip { display: none; }
+  .hom-ex { margin-top: 12px; }
+}
+.hom-strip .strip-v .unit { font-size: 13px; }
+.hom-ex { margin-top: 16px; max-width: 680px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hom-read { margin-top: 4px; align-self: flex-start; }
+.hom-fphoto { display: none; }
+.hom-fphoto img { background: var(--sunk); }
+
+/* phone: full-bleed map with FEATURED tag + attribution inside; the caption is dropped (the map carries © OSM) */
+@media (max-width: 559.98px) {
+  .hom-fmap { margin-inline: calc(-1 * var(--m)); }
+  .hom-ftag { left: 16px; }
+  .hom-fcap { display: none; }
+}
+
+@media (min-width: 760px) {
+  .hom-feat { margin-top: 48px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
+  .hom-fmap, .hom-fcap, .hom-det { grid-column: 1 / -1; }
+  .hom-det { margin-top: 28px; padding-top: 0; }
+  .hom-ft { margin-top: 12px; max-width: 620px; }
+  .hom-pmeta { display: none; }
+  .hom-place { margin-top: 12px; }
+  .hom-strip { margin-top: 24px; }
+  .hom-strip .strip-c { padding: 14px 16px; gap: 4px; }
+  .hom-strip .strip-c:first-child { padding-left: 0; }
+  .hom-strip .strip-c:last-child { padding-right: 0; }
+}
+/* the photo shows once it can sit beside the map (tablet) or the details (desktop), cropped to fill its cell */
+@media (min-width: 1000px) {
+  .hom-fphoto { display: block; position: relative; min-height: 240px; }
+  .hom-fphoto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+}
+@media (min-width: 1000px) and (max-width: 1199.98px) {
+  .hom-fphoto { grid-column: 1 / span 4; grid-row: 1; }
+  .hom-fmap { grid-column: 5 / -1; grid-row: 1; }
+  .hom-fcap { grid-column: 5 / -1; grid-row: 2; }
+  .hom-det { grid-row: 3; }
+  .hom-feat--nophoto .hom-fmap, .hom-feat--nophoto .hom-fcap { grid-column: 1 / -1; }
+}
+
+/* desktop: hero (1–5) spans the map + caption rows; the article is a subgrid so its photo and details share row 3 */
+@media (min-width: 1200px) {
+  .hom-top { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto auto; column-gap: var(--gap); }
+  .hom-hero { grid-column: 1 / span 5; grid-row: 1 / span 2; position: relative; z-index: 1; }
+  .hom-feat { grid-column: 1 / -1; grid-row: 1 / span 3; margin-top: 0;
+    grid-template-columns: subgrid; grid-template-rows: subgrid; row-gap: 0; }
+  .hom-fmap { grid-column: 6 / -1; grid-row: 1; }
+  .hom-fcap { grid-column: 6 / -1; grid-row: 2; }
+  .hom-fphoto { grid-column: 1 / span 5; grid-row: 3; margin-top: 28px; min-height: 300px; }
+  .hom-det { grid-column: 6 / -1; grid-row: 3; }
+  .hom-feat--nophoto .hom-det { grid-column: 6 / -1; }
+}
+
+/* ---------------------------------------------------------------- latest reports */
+@media (max-width: 359.98px) { .hom-latest .shead-m { display: none; } }
+.hom-rtab { margin-top: 12px; }
+.hom-rtab .rtab-g svg { background: none; }
+.hom-rtab .rtab-r:hover .rtab-tt { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.hom-all { margin-top: 24px; }
+@media (min-width: 760px) { .hom-rtab { margin-top: 24px; } }
+
+/* phone + small tablet: Phone-Home-B rows — track glyph, title, then icon · date · distance, chevron */
+@media (max-width: 899.98px) {
+  .hom-rtab { margin-top: 0; }
+  .hom-rtab .rtab-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .hom-rtab .rtab-r { grid-template-columns: 64px auto auto minmax(0, 1fr) 20px; grid-template-rows: auto auto; column-gap: 0; row-gap: 4px;
+    min-height: 88px; padding: 12px 0; align-content: center; }
+  .hom-rtab .rtab-r:first-of-type { border-top: 0; }
+  .hom-rtab .rtab-r > .rtab-g { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+  .hom-rtab .rtab-g svg { width: 64px; }
+  .hom-rtab .rtab-r > .rtab-title { grid-column: 2 / 5; grid-row: 1; padding-left: 14px; }
+  .hom-rtab .rtab-tt { font: 600 17px/22px var(--sans); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .hom-rtab .rtab-loc { display: none; }
+  .hom-rtab .rtab-r > :nth-child(2) { display: flex; grid-column: 2; grid-row: 2; padding-left: 14px; margin-right: 6px; align-items: center; }
+  .hom-rtab .rtab-r > :nth-child(2) .chip-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .hom-rtab .rtab-r > :nth-child(2) .ic { width: 14px; height: 14px; }
+  .hom-rtab .rtab-r > :nth-child(4) { display: block; grid-column: 3; grid-row: 2; white-space: nowrap; }
+  .hom-rtab .rtab-r > :nth-child(5) { grid-column: 4; grid-row: 2; text-align: left; white-space: nowrap;
+    font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); }
+  .hom-rtab .rtab-r > :nth-child(5)::before { content: "\00a0·\00a0"; }
+  .hom-rtab .rtab-r > :nth-child(5)::after { content: "\00a0MI"; }
+  html.km .hom-rtab .rtab-r > :nth-child(5)::after { content: "\00a0KM"; }
+  .hom-rtab .hom-nodist > :nth-child(5) { display: none; }
+  .hom-rtab .rtab-r > :nth-child(6), .hom-rtab .rtab-r > :nth-child(7) { display: none; }
+  .hom-rtab .rtab-r::after { content: ""; grid-column: 5; grid-row: 1 / span 2; justify-self: end; width: 8px; height: 8px; margin-right: 4px;
+    border-top: 1.5px solid var(--ink-3); border-right: 1.5px solid var(--ink-3); transform: rotate(45deg); }
+}
+@media (min-width: 760px) and (max-width: 899.98px) {
+  .hom-rtab .rtab-g svg { width: 88px; }
+  .hom-rtab .rtab-r { grid-template-columns: 88px auto auto minmax(0, 1fr) 20px; }
+  .hom-rtab .rtab-r > .rtab-title, .hom-rtab .rtab-r > :nth-child(2) { padding-left: 20px; }
+  .hom-rtab .rtab-loc { display: block; }
+}
+/* ≥ 900: the Round-3 table grid has no column gaps — the tracks carry the spacing (title keeps 32 / 24 on its right) */
+@media (min-width: 900px) {
+  .hom-rtab .rtab-h, .hom-rtab .rtab-r { column-gap: 0; }
+  .hom-rtab .rtab-r > .rtab-title { padding-right: 32px; }
+  .hom-rtab .rtab-r > :nth-child(4) { white-space: nowrap; }
+  /* table titles as on the archive table (Main artboard: Archivo 15/20 500 at 1248) */
+  .hom-rtab .rtab-tt { font-weight: 500; font-size: 16px; line-height: 21px; }
+}
+@media (min-width: 900px) and (max-width: 1199.98px) {
+  .hom-rtab .rtab-h, .hom-rtab .rtab-r { grid-template-columns: 112px 136px minmax(0, 1fr) 120px 72px 80px 96px; }
+  .hom-rtab .rtab-g svg { width: 96px; }
+  .hom-rtab .rtab-r > .rtab-title { padding-right: 24px; }
+}
+@media (min-width: 1200px) {
+  .hom-rtab .rtab-h, .hom-rtab .rtab-r { grid-template-columns: 128px 168px minmax(0, 1fr) 128px 96px 96px 120px; }
+  .hom-rtab .rtab-tt { font-size: 15px; line-height: 20px; }
+}
+
+/* ---------------------------------------------------------------- by activity */
+.hom-tile { min-height: 64px; padding: 12px 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--rule); color: var(--ink); }
+.hom-tile:hover { color: var(--ink); }
+.hom-tile:hover .hom-tile-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.hom-tile-top { display: contents; }
+.hom-tile-top .hom-arr { display: none; }
+.hom-tile-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hom-tile-n { font: 600 17px/22px var(--sans); }
+.hom-tile-sub { font: 400 13px/18px var(--sans); color: var(--ink-3); }
+.hom-tile-latest { display: none; }
+.hom-tile-count { flex-shrink: 0; display: flex; align-items: center; }
+.hom-tile-c { display: flex; gap: 0.5ch; font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+.hom-tile-s { display: none; }
+.hom-tile > .hom-chev { color: var(--ink-3); }
+
+/* tablet: one row per activity — disc · name · latest · count · arrow */
+@media (min-width: 760px) {
+  .hom-tile { display: grid; grid-template-columns: 32px minmax(0, 10fr) minmax(0, 17fr) minmax(0, 11fr) 20px; column-gap: 24px;
+    align-items: center; padding: 20px 0; min-height: 0; }
+  .hom-tile-top .disc { grid-column: 1; grid-row: 1; }
+  .hom-tile-top .hom-arr { display: block; grid-column: 5; grid-row: 1; }
+  .hom-tile > .hom-chev { display: none; }
+  .hom-tile-name { grid-column: 2; grid-row: 1; }
+  .hom-tile-n { font: 600 22px/28px var(--sans); font-stretch: 104%; letter-spacing: -0.01em; }
+  .hom-tile-latest { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .hom-tile-t { font: 500 15px/20px var(--sans); color: var(--ink); overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .hom-tile-latest--none .hom-tile-t { color: var(--ink-3); }
+  .hom-tile-count { grid-column: 4; grid-row: 1; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .hom-tile-c { align-items: baseline; gap: 8px; }
+  .hom-tile-num { font: 500 30px/34px var(--mono); letter-spacing: -0.02em; color: var(--ink); }
+  .hom-tile-u { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; color: var(--ink-3); }
+  .hom-tile-c--none { font: 500 15px/20px var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink-2); white-space: normal; }
+  .hom-tile-s { display: block; text-transform: uppercase; letter-spacing: 0; }
+  .hom-tile-s:empty { display: none; }
+  .hom-tile:hover .hom-arr { color: var(--route-ink); }
+}
+
+@media (min-width: 760px) and (max-width: 999.98px) {
+  .hom-tile { grid-template-columns: 32px minmax(0, 13fr) minmax(0, 14fr) minmax(0, 11fr) 20px; column-gap: 20px; }
+  .hom-tile-n { font-size: 20px; line-height: 26px; }
+}
+
+/* desktop: five tiles in a row (Main artboard) */
+@media (min-width: 1200px) {
+  .hom-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
+  .hom-tiles li + li .hom-tile { border-left: 1px solid var(--rule); padding-left: 20px; }
+  .hom-tile { height: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 24px 20px 24px 0; border-bottom: 0; }
+  .hom-tiles li:last-child .hom-tile { padding-right: 0; }
+  .hom-tile-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .hom-tile-name { flex: none; margin-top: 16px; }
+  .hom-tile-n { font-size: 24px; line-height: 30px; white-space: nowrap; }
+  .hom-tile-sub { display: none; }
+  .hom-tile-latest { margin-top: 16px; }
+  .hom-tile-t { min-height: 40px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .hom-tile-count { margin-top: 24px; }
+  .hom-tile-num { font-size: 36px; line-height: 40px; }
+  .hom-tile-s:empty { display: block; min-height: 18px; }
+}
+
+/* ---------------------------------------------------------------- where I've been */
+.hom-regions { margin-top: 12px; display: grid; gap: 32px; }
+.hom-reg-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 2px; padding-bottom: 8px; }
+.hom-reg-n { grid-column: 1; font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.hom-reg-c { grid-column: 1; text-transform: uppercase; }
+.hom-reg-a { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;
+  font: 500 14px/20px var(--sans); color: var(--ink); white-space: nowrap; }
+.hom-reg-a .ic { width: 16px; height: 16px; }
+.hom-attr { margin-top: 12px; }
+.hom-also { margin-top: 8px; display: flex; align-items: flex-start; column-gap: 20px; }
+.hom-also > .t-mono-s { flex-shrink: 0; display: flex; align-items: center; min-height: 44px; }
+.hom-also ul { display: flex; flex-wrap: wrap; column-gap: 20px; min-width: 0; }
+.hom-also a { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font: 500 14px/20px var(--sans); color: var(--ink); }
+.hom-also-w { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.hom-also-c { font: 400 12px/16px var(--mono); color: var(--ink-3); }
+@media (max-width: 559.98px) {
+  .hom-reg .map { margin-inline: calc(-1 * var(--m)); }
+}
+@media (min-width: 560px) and (max-width: 759.98px) { .hom-reg { max-width: 718px; } }
+@media (min-width: 760px) {
+  .hom-regions { margin-top: 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--gap); }
+  /* keep both maps on one baseline when one caption wraps */
+  .hom-reg { display: flex; flex-direction: column; }
+  .hom-reg-h { flex: 1; align-content: end; }
+  .hom-reg-a { align-self: end; }
+}
+/* two tablet columns are too narrow for the 718px desktop render: use the 390px phone render there */
+@media (min-width: 760px) and (max-width: 1199.98px) {
+  .hom-reg .mv--desktop { display: none; }
+  .hom-reg .mv--phone { display: block; }
+}
+/* desktop: one caption line per map — REGION · count … Open the map → (Main artboard) */
+@media (min-width: 1200px) {
+  .hom-reg-h { display: flex; align-items: baseline; padding-bottom: 12px; }
+  .hom-reg-a { margin-left: auto; margin-block: -14px; }
+}

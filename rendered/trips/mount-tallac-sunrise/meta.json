@@ -1,0 +1,89 @@
+{
+ "hash": "81eef83ad2d3373f50aeb3ad3ffbbf4b743f7dca",
+ "slug": "mount-tallac-sunrise",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9714.57,
+   "min_ft": 6417.98,
+   "total_mi": 10.84,
+   "gx": 700.73,
+   "gy": 19.38,
+   "gps_max_mi": 5.79,
+   "y_lo": 6220.68,
+   "y_hi": 10035.08,
+   "pad_l": 72,
+   "vx": 1.68,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9714.57,
+   "min_ft": 6417.98,
+   "total_mi": 10.84,
+   "gx": 417.38,
+   "gy": 16.79,
+   "gps_max_mi": 5.79,
+   "y_lo": 6220.68,
+   "y_hi": 10035.08,
+   "pad_l": 72,
+   "vx": 2.37,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9714.57,
+   "min_ft": 6417.98,
+   "total_mi": 10.84,
+   "gx": 224.91,
+   "gy": 15.93,
+   "gps_max_mi": 5.79,
+   "y_lo": 6220.68,
+   "y_hi": 10035.08,
+   "pad_l": 72,
+   "vx": 4.83,
+   "h": 122
+  }
+ },
+ "start": [
+  38.921239,
+  -120.068245
+ ],
+ "end": [
+  38.921359,
+  -120.068239
+ ],
+ "bbox": [
+  38.893377,
+  -120.101238,
+  38.921359,
+  -120.068189
+ ]
+}

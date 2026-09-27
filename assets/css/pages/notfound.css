@@ -1,0 +1,24 @@
+/* 404 (/404.html) — "Off route": message left, the way back (sections + map) right. Rows reuse .abo-act from about.css. */
+.nf { padding-top: 32px; }
+.nf-grid { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 48px; }
+.nf-intro { display: flex; flex-direction: column; align-items: flex-start; }
+.nf-h { margin-top: 12px; }
+.nf-line { margin-top: 16px; max-width: 620px; font: 400 18px/28px var(--serif); font-optical-sizing: auto; color: var(--ink-2); text-wrap: pretty; }
+.nf-home { margin-top: 28px; }
+.nf-l { display: block; padding-bottom: 8px; }
+.nf-l2 { margin-top: 32px; }
+.nf-ic { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--rule-strong); border-radius: 999px; color: var(--ink); background: var(--paper); }
+@media (min-width: 760px) {
+  .nf { padding-top: 56px; }
+  .nf-line { font-size: 19px; line-height: 30px; }
+}
+@media (min-width: 1000px) {
+  .nf-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); align-items: start; }
+  .nf-intro { grid-column: 1 / span 6; }
+  .nf-nav { grid-column: 8 / span 5; }
+}
+@media (min-width: 1200px) {
+  .nf { padding-top: 72px; }
+  .nf-line { font-size: 20px; line-height: 32px; }
+}

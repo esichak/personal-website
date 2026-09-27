@@ -1,0 +1,89 @@
+{
+ "hash": "6205d56b96bb135f46b7a520195d91a07993d4b4",
+ "slug": "mount-wood",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 12664.04,
+   "min_ft": 7239.5,
+   "total_mi": 11.76,
+   "gx": 692.24,
+   "gy": 19.38,
+   "gps_max_mi": 6.2,
+   "y_lo": 6914.89,
+   "y_hi": 13190.76,
+   "pad_l": 72,
+   "vx": 1.11,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 12664.04,
+   "min_ft": 7239.5,
+   "total_mi": 11.76,
+   "gx": 412.71,
+   "gy": 16.79,
+   "gps_max_mi": 6.2,
+   "y_lo": 6914.89,
+   "y_hi": 13190.76,
+   "pad_l": 72,
+   "vx": 1.56,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 12664.04,
+   "min_ft": 7239.5,
+   "total_mi": 11.76,
+   "gx": 222.84,
+   "gy": 15.93,
+   "gps_max_mi": 6.2,
+   "y_lo": 6914.89,
+   "y_hi": 13190.76,
+   "pad_l": 72,
+   "vx": 3.18,
+   "h": 122
+  }
+ },
+ "start": [
+  37.767596,
+  -119.122922
+ ],
+ "end": [
+  37.767544,
+  -119.122869
+ ],
+ "bbox": [
+  37.767544,
+  -119.162706,
+  37.809729,
+  -119.122137
+ ]
+}

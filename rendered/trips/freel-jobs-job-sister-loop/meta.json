@@ -1,0 +1,89 @@
+{
+ "hash": "ad912413d3c763dd40311a19b7b0ff03d4b42516",
+ "slug": "freel-jobs-job-sister-loop",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 10856.3,
+   "min_ft": 8290.03,
+   "total_mi": 11.95,
+   "gx": 590.5,
+   "gy": 19.38,
+   "gps_max_mi": 5.27,
+   "y_lo": 8136.29,
+   "y_hi": 11108.6,
+   "pad_l": 72,
+   "vx": 2.38,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 10856.3,
+   "min_ft": 8290.03,
+   "total_mi": 11.95,
+   "gx": 356.82,
+   "gy": 16.79,
+   "gps_max_mi": 5.27,
+   "y_lo": 8136.29,
+   "y_hi": 11108.6,
+   "pad_l": 72,
+   "vx": 3.35,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 10856.3,
+   "min_ft": 8290.03,
+   "total_mi": 11.95,
+   "gx": 198.1,
+   "gy": 15.93,
+   "gps_max_mi": 5.27,
+   "y_lo": 8136.29,
+   "y_hi": 11108.6,
+   "pad_l": 72,
+   "vx": 6.83,
+   "h": 122
+  }
+ },
+ "start": [
+  38.830478,
+  -119.900592
+ ],
+ "end": [
+  38.830563,
+  -119.900545
+ ],
+ "bbox": [
+  38.828678,
+  -119.919077,
+  38.863486,
+  -119.861382
+ ]
+}
