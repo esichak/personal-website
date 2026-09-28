@@ -1,5 +1,5 @@
 {
- "hash": "58a31be29718359993f91d00223a35853daede90",
+ "hash": "cb9440feee626f9b5c9e18a90aa0c26fa5a89b22",
  "slug": "lovers-leap-knapsack-crack",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 40,
    "outbound_only": true
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 80,
    "outbound_only": true
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 80,
    "outbound_only": null
   }

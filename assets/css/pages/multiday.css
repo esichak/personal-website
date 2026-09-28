@@ -29,12 +29,17 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-strip .strip-s { font-size: 11px; line-height: 16px; }
 }
 
-/* ---------------------------------------------------------------- overview map key rows (desktop map vs phone map) */
-.mul-key-p { display: none; }
-@media (max-width: 559.98px) { .mul-key-d { display: none; } .mul-key-p { display: flex; } }
+/* ---------------------------------------------------------------- overview map (key rows: core.key_rows) */
 .mul-map .mapcap-a .btn { flex-shrink: 0; }
 @media (min-width: 560px) and (max-width: 1199.98px) { .mul-map > .wrap { width: min(860px, 100% - 2 * var(--m)); } }
-@media (max-width: 759.98px) { body.p-multiday .rep-actions { display: none; } }
+/* phones (Phone-MultiDay-A): no title actions (the bottom bar carries Map · Days · Report · GPX), no strip sub-lines;
+   the stats footnote moves under the map caption (.rep-note-ph) */
+@media (max-width: 759.98px) {
+  body.p-multiday .site-f { padding-bottom: 72px; }
+  body.p-multiday .rep-actions { display: none; }
+  body.p-multiday .mul-map .mapcap-a { display: none; }  /* the bottom bar carries 'GPX' (all days) on phones */
+  body.p-multiday .rep-strip .strip-s, body.p-multiday .rep-strip .strip-note { display: none; }
+}
 /* phones: the in-map tag carries "© OSM · Not for navigation" and the footer credits the terrain tiles */
 @media (max-width: 559.98px) { .mul-cap2 { display: none; } }
 
@@ -90,13 +95,6 @@ body.p-multiday { --dnav-h: 48px; }
 /* ---------------------------------------------------------------- stitched profile */
 .mul-prof { margin-top: 32px; }
 .mul-prof .rep-prof-h { padding-bottom: 14px; }
-@media (min-width: 560px) { .mul-stitch .cv--wide { display: block; } }  /* the one stitched render serves tablet too */
-/* …scaled to 0.4–0.9×, so its 11px axis text is set larger in SVG units to land at ~9–11px on screen */
-@media (min-width: 560px) and (max-width: 759.98px) { .mul-stitch .cv--wide .pf-ax { font-size: 20px; } }
-@media (min-width: 760px) and (max-width: 999.98px) { .mul-stitch .cv--wide .pf-ax { font-size: 16px; } }
-@media (min-width: 1000px) and (max-width: 1199.98px) { .mul-stitch .cv--wide .pf-ax { font-size: 13px; } }
-.mul-vx-p { display: none; }
-@media (max-width: 559.98px) { .mul-vx-d { display: none; } .mul-vx-p { display: inline; } }
 
 /* ---------------------------------------------------------------- overview: stage table (≥760) / day index (phone) */
 .mul-ov { margin-top: 56px; }
@@ -107,14 +105,13 @@ body.p-multiday { --dnav-h: 48px; }
   font: 500 15px/20px var(--sans); }
 .mul-st th, .mul-st td { height: 60px; padding: 0 12px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--rule); font-weight: 500; }
 .mul-st thead th { height: 32px; font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
-.mul-st thead .u { text-transform: none; }
 .mul-st .c-day { width: 64px; padding-left: 0; }
 .mul-st .c-date { width: 132px; }
 .mul-st--noroute .c-date { width: 200px; }
 .mul-st.mul-st--noroute .num { width: auto; }
 .mul-st .num { width: 112px; padding: 0 0 0 16px; text-align: right; font: 400 15px/20px var(--mono); font-variant-numeric: tabular-nums; }
 .mul-st thead .num { font: 600 12px/16px var(--sans); }
-.mul-st .c-time { width: 104px; }
+.mul-st .c-time { width: 128px; }  /* 'MOVING H:MM' + 24 */
 .mul-st .c-gpx { width: 88px; padding: 0; text-align: right; }
 .mul-st tbody .c-day a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; font: 500 15px/20px var(--mono); }
 .mul-st tbody .c-date { color: var(--ink-2); }
@@ -138,15 +135,23 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-st:not(.mul-st--noroute) tbody td, .mul-st:not(.mul-st--noroute) tbody th { height: 72px; }
   .mul-st:not(.mul-st--noroute) tbody .c-route { padding-top: 12px; padding-bottom: 12px; }
   .mul-st:not(.mul-st--noroute) .mul-st-r a { min-height: 0; padding: 12px 0; margin: -12px 0; }
-  .mul-st .num { width: 88px; }
-  .mul-st .c-high { width: 96px; }
-  .mul-st .c-time { width: 80px; }
+  .mul-st .num { width: 80px; }                                 /* caps headers + 24: DIST MI · GAIN FT · GPS MAX FT · MOVING H:MM */
+  .mul-st .c-high { width: 108px; }
+  .mul-st .c-time { width: 120px; }
   .mul-st .c-gpx { width: 60px; }
   .mul-st .c-day { width: 52px; }
   .mul-st tfoot .c-day { width: auto; }
 }
+/* no From → To column, 760–999: the date column takes the slack so the four number columns keep their caps headers on one line */
+@media (min-width: 760px) and (max-width: 999.98px) {
+  .mul-st.mul-st--noroute .c-date { width: auto; }
+  .mul-st.mul-st--noroute .num { width: 96px; }
+  .mul-st.mul-st--noroute .c-high { width: 112px; }
+  .mul-st.mul-st--noroute .c-time { width: 120px; }
+}
 /* phone day index */
-.mul-di { margin-top: 12px; border-top: 1px solid var(--ink); }
+.mul-di { margin-top: 0; border-top: 0; }                      /* the Overview head's ink rule is its top edge */
+.mul-ov-p ~ .mul-di { margin-top: 24px; border-top: 1px solid var(--ink); }
 .mul-di li { border-bottom: 1px solid var(--rule); }
 .mul-di a { min-height: 72px; padding: 12px 0; display: flex; align-items: center; gap: 12px; color: var(--ink); }
 .mul-di a > .ic { color: var(--ink-3); }
@@ -199,8 +204,8 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-dp-h .t-label { color: var(--ink-2); }
 .mul-dp-h .keyrow--inline { min-height: 0; column-gap: 16px; }
 .mul-dp-m { flex-basis: 100%; }
-.mul-xfer { margin-top: 24px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--sunk);
-  font: 500 15px/20px var(--sans); color: var(--ink-2); max-width: 620px; }
+.mul-xfer { margin: 0 0 16px; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--sunk);
+  font: 500 15px/20px var(--sans); color: var(--ink-2); max-width: 718px; }  /* first in .mul-main, as wide as the day map */
 .mul-xfer svg { width: 16px; height: 10px; flex-shrink: 0; overflow: visible; }
 .mul-prose { margin-top: 32px; max-width: 620px; }
 .mul-photos { --max-h: 540px; --min-h: 260px; --ph-gap: 12px; container-type: inline-size; margin-top: 32px;
@@ -225,6 +230,14 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-dpager { margin-top: 40px; }
 .mul-dpager .mul-up { transform: rotate(90deg); }
 .mul-dpager .pager-n { text-wrap: balance; }
+/* phones: one 'Day N →' button per chapter instead of the two-cell pager */
+@media (max-width: 759.98px) {
+  .mul-dpager { margin-top: 24px; border: 0; }
+  .mul-dpager .prev { display: none; }
+  .mul-dpager .next { min-height: 48px; padding: 0 16px; border: 1px solid var(--rule-strong); border-radius: 2px; justify-content: center; }
+  .mul-dpager .next .pager-n, .mul-dpager .next .t-mono-s { display: none; }
+  .mul-dpager .next .pager-l { font: 500 15px/20px var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink); }
+}
 /* phone: full-bleed day map, 2×2 stats (loss lives in the profile line) */
 @media (max-width: 559.98px) {
   .mul-dmap { margin-inline: calc(-1 * var(--m)); }

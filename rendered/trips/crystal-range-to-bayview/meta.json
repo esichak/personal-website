@@ -1,12 +1,21 @@
 {
- "hash": "5f46e71807a30cf19bb400d0a3238426ad6f1f3a",
+ "hash": "4a364ce46573e44dc88980cf2811308bf8ecf101",
  "slug": "crystal-range-to-bayview",
  "kind": "planned",
  "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  },
   "map-col": {
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 1000,
    "outbound_only": null
   },
@@ -14,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 2000,
    "outbound_only": null
   }

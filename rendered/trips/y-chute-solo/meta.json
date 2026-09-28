@@ -1,5 +1,5 @@
 {
- "hash": "b375d8cb052beb0e42f960b61beb1c029009cce0",
+ "hash": "4053f7abc3b78fb63609ed49bf0c4dc338080688",
  "slug": "y-chute-solo",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 40,
    "outbound_only": false
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 80,
    "outbound_only": false
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 200,
    "outbound_only": null
   }

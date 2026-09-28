@@ -62,7 +62,7 @@ def copy_trip_assets(t):
     out = os.path.join(OUT, 'trips', t['slug'])
     for p in glob.glob(os.path.join(t['dir'], 'photos', '*')):
         copy(p, os.path.join(out, 'photos', os.path.basename(p)))
-    for p in glob.glob(os.path.join(t['rendered'], '*.png')) + glob.glob(os.path.join(t['rendered'], '*.webp')):
+    for p in glob.glob(os.path.join(t['rendered'], '*.png')) + glob.glob(os.path.join(t['rendered'], '*.webp')) + glob.glob(os.path.join(t['rendered'], '*.base.svg')):
         copy(p, os.path.join(out, 'map', os.path.basename(p)))
     if t['track']:
         copy(t['track'], os.path.join(out, t['slug'] + '.gpx'))
@@ -82,20 +82,25 @@ def copy_trip_assets(t):
 
 
 def feed(trips):
+    """RSS 2.0: each item is the factual summary (content fields only) followed by the start of Eric's write-up."""
     items = []
     for t in [x for x in trips if x['kind'] != 'planned'][:30]:
         url = core.SITE_URL + t['url']
         d = datetime(t['date'].year, t['date'].month, t['date'].day, 12, tzinfo=timezone.utc) if t['date'] else None
-        items.append('<item><title>%s</title><link>%s</link><guid>%s</guid>%s<description>%s</description></item>'
+        ex = core.excerpt(t, 400)
+        items.append('<item><title>%s</title><link>%s</link><guid>%s</guid>%s<category>%s</category><description>%s</description></item>'
                      % (html.escape(t['title']), url, url, ('<pubDate>%s</pubDate>' % d.strftime('%a, %d %b %Y %H:%M:%S +0000')) if d else '',
-                        html.escape(core.excerpt(t, 400))))
-    return ('<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>%s — trip reports</title><link>%s</link>'
+                        html.escape(core.ACT[t['activity']][0]), html.escape(core.summary(t) + ((' ' + ex) if ex else ''))))
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>'
+            '<title>%s — trip reports</title><link>%s</link>'
+            '<atom:link href="%sfeed.xml" rel="self" type="application/rss+xml"/>'
             '<description>%s</description><language>en-us</language>%s</channel></rss>\n'
-            % (core.SITE_NAME, core.SITE_URL, html.escape(core.SITE_TAGLINE), ''.join(items)))
+            % (core.SITE_NAME, core.SITE_URL, core.SITE_URL, html.escape(core.SITE_TAGLINE), ''.join(items)))
 
 
 def sitemap(pages):
-    urls = ''.join('<url><loc>%s%s</loc></url>' % (core.SITE_URL, p.url) for p in pages if not p.url.endswith('404.html'))
+    urls = ''.join('<url><loc>%s%s</loc></url>' % (core.SITE_URL, p.url) for p in pages
+                   if not p.url.endswith('404.html') and getattr(p, 'index', True))
     return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">%s</urlset>\n' % urls
 
 
@@ -131,7 +136,7 @@ def build(verbose=True, only=None):
         fh.write(js_bundle())
     for f in glob.glob(os.path.join(ROOT, 'assets', '*.*')):
         copy(f, os.path.join(OUT, 'assets', os.path.basename(f)))
-    for f in glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.png')) + glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.webp')):
+    for f in glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.png')) + glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.webp')) + glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.base.svg')):
         copy(f, os.path.join(OUT, 'assets', 'maps', os.path.basename(f)))
     for t in trips:
         copy_trip_assets(t)

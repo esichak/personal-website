@@ -1,11 +1,13 @@
 /* Series (kind: series) — one log of recorded days, e.g. Pacific Crest Trail 2024. Title block + strip come from report.css.
    Day rows: cards on phone/tablet (< 1000px), a table-like grid with a column header per month from 1000px up. */
-body.p-series { --ser-track: #C9C5BA; --ser-nav-h: 52px; }
+/* track-only bars: #8C8A83 (3:1 on paper, readable as a bar); write-up bars ink */
+body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
 @media (min-width: 760px) { body.p-series { --ser-nav-h: 64px; } }
 
 /* ---------------------------------------------------------------- intro row: overview map · overview + month index */
 .ser-intro { margin-top: 32px; display: grid; row-gap: 40px; }
 .ser-intro-map { min-width: 0; }
+.ser-intro-map .keyrow { padding-top: 12px; }
 .ser-mapcap { padding-top: 12px; }
 .ser-mapcap .ser-nw { white-space: nowrap; }
 /* below desktop the map column is too narrow for the two caption lines: let them run on as one paragraph */
@@ -15,7 +17,12 @@ body.p-series { --ser-track: #C9C5BA; --ser-nav-h: 52px; }
 }
 @media (max-width: 559.98px) { .ser-mapcap .ser-nw { white-space: normal; } .ser-mapcap { text-wrap: pretty; } }
 @media (max-width: 559.98px) { .ser-intro-map .ser-map { margin-inline: calc(-1 * var(--m)); } }
-@media (min-width: 560px) and (max-width: 899.98px) { .ser-intro-map { width: 100%; max-width: 560px; } }
+/* one column (560-899): the map is up to 560 wide, so it keeps the 560x860 render at 1:1 instead of the 390x600 col render */
+@media (min-width: 560px) and (max-width: 899.98px) {
+  .ser-intro-map { width: 100%; max-width: 560px; }
+  .ser-map .mv--wide { display: block; }
+  .ser-map .mv--col { display: none; }
+}
 @media (min-width: 900px) {
   .ser-intro { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: 40px; align-items: start; }
 }
@@ -39,7 +46,7 @@ body.p-series { --ser-track: #C9C5BA; --ser-nav-h: 52px; }
 .ser-mi-v .unit { font: 400 12px/16px var(--mono); }
 .ser-rl { grid-column: 1 / -1; display: flex; gap: 1px; height: 10px; min-width: 24px; }
 .ser-rl i { flex-basis: 0; min-width: 1px; background: var(--ser-track); }
-.ser-rl i.w { background: var(--ink-2); }
+.ser-rl i.w { background: var(--ink); }
 .ser-key { margin-top: 12px; }
 .ser-key .ser-key-n { color: var(--ink-3); }
 @media (min-width: 1200px) { .ser-mi-a { padding: 16px 0 18px; } }
@@ -89,7 +96,8 @@ body.p-series { --ser-track: #C9C5BA; --ser-nav-h: 52px; }
 .ser-mh-t { font: 650 22px/28px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; }
 .ser-mh-m { text-transform: uppercase; }
 @media (min-width: 760px) { .ser-month { margin-top: 72px; } .ser-mh-t { font-size: 24px; line-height: 30px; } }
-.ser-cols { display: none; }
+.ser-cols { display: none; font: 600 11px/14px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+@media (min-width: 760px) { .ser-cols { font-size: 12px; line-height: 16px; } }
 
 /* ---------------------------------------------------------------- day rows (phone: glyph · text · GPX; sparkline under the glyph) */
 .ser-day { border-bottom: 1px solid var(--rule); scroll-margin-top: calc(var(--ser-nav-h) + 8px); }
@@ -128,6 +136,11 @@ body.p-series { --ser-track: #C9C5BA; --ser-nav-h: 52px; }
 .ser-ph { display: block; }
 .ser-ph img { height: 104px; width: auto; max-width: 100%; object-fit: cover; background: var(--sunk); }
 .ser-ph:hover img { filter: brightness(1.05); }
+/* phones: three even square thumbnails per row */
+@media (max-width: 759.98px) {
+  .ser-phs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .ser-ph img { width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; }
+}
 
 @media (min-width: 760px) {
   .ser-row { grid-template-columns: 64px minmax(0, 1fr) 96px 44px; grid-template-areas: "g n sp x" "g t sp x" "g st sp x";
@@ -144,7 +157,7 @@ body.p-series { --ser-track: #C9C5BA; --ser-nav-h: 52px; }
 @media (min-width: 1000px) {
   body.p-series { --ser-c: 64px 40px 104px minmax(0, 1fr) 64px 72px 56px 96px 44px; --ser-g: 16px; }
   .ser-cols { display: grid; grid-template-columns: var(--ser-c); column-gap: var(--ser-g); align-items: center; min-height: 32px;
-    border-bottom: 1px solid var(--rule); font: 600 11px/14px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+    border-bottom: 1px solid var(--rule); }
   .ser-cols .num { text-align: right; }
   .ser-row { grid-template-columns: var(--ser-c); grid-template-areas: none; column-gap: var(--ser-g); row-gap: 0; align-items: center;
     padding: 12px 0; }

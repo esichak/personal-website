@@ -1,5 +1,5 @@
 {
- "hash": "6205d56b96bb135f46b7a520195d91a07993d4b4",
+ "hash": "cca88f5440253549578c7a6e92c3dd2b27d32851",
  "slug": "mount-wood",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 200,
    "outbound_only": false
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 400,
    "outbound_only": false
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 400,
    "outbound_only": null
   }

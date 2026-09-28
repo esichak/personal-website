@@ -1,5 +1,5 @@
 {
- "hash": "dd3498d1216973a9d8d0b4f9023da3110b810fc1",
+ "hash": "3ec6d9667a6bcd54dbff7ed767b5afa51b379c96",
  "slug": "green-creek-virginia-pass",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 400,
    "outbound_only": false
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 400,
    "outbound_only": false
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 1000,
    "outbound_only": null
   }

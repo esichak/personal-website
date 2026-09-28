@@ -51,7 +51,6 @@
 .abo-fig:nth-child(2n) { padding-left: 16px; padding-right: 0; border-left: 1px solid var(--rule); }
 .abo-fig:nth-child(n+3) { border-top: 1px solid var(--rule); }
 .abo-fig-v { white-space: nowrap; }
-.abo-dp { margin: 0 -0.14em; }
 .abo-fig-v .unit { font: 400 13px/16px var(--mono); margin-left: 8px; }
 .abo-fig-s { text-transform: uppercase; text-wrap: balance; }
 @media (min-width: 760px) {

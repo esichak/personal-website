@@ -26,7 +26,7 @@ import geo  # noqa: E402
 import mapkit  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
 
-VERSION = 4  # bump after renderer changes to force a full re-render
+VERSION = 5  # bump after renderer changes to force a full re-render
 MI, FT = geo.MI, geo.FT
 OUT = os.path.join(ROOT, 'rendered')
 
@@ -173,17 +173,15 @@ def render_single(t, meta):
         dict(REPORT, **base, name='map-col', w=718, h=400, png_scale=2.0, skin=(act == 'ski'), peaks_max=2, priority_peaks=peaks,
              places_allow=mo.get('places'), extra_water_labels=water_labels(mo.get('water_labels'), 718, 400), aria=aria),
         dict(SMALL, **{k: v for k, v in base.items() if k not in ('water_labels',)}, name='map-phone', w=390, h=336, scale_corner='bl',
-             priority_peaks=peaks, reserve=[(0, 0, 60, 60), (390 - 208, 336 - 36, 390, 336)], aria=aria),
+             priority_peaks=peaks, reserve=[(0, 0, 60, 60), (390 - 208, 336 - 36, 390, 336)], pad_bottom_px=40, aria=aria),
     ]
-    if planned:
-        specs = [s for s in specs if s['name'] != 'map-wide']
     trks = [{'track': tr, 'style': style}]
     osm = fetch_osm(union([frame_bbox(s, trks) for s in specs]), 'report')
     for s in specs:
         s['tracks'] = [{'track': tr, 'style': style, 'width': 3 if s['name'] == 'map-phone' else 3}]
         s['osm_data'] = osm
         m = render_map(s)
-        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'interval_ft': m.get('interval_ft'),
+        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'interval_ft': m.get('interval_ft'),
                                    'outbound_only': m.get('outbound_only')}
     single_charts(t, meta, tr)
     render_tile('tile', tr, 200, 152, cat, osm_detail=None, osm_data=osm, planned=planned)
@@ -268,14 +266,14 @@ def render_multi(t, meta):
         s['tracks'] = ov_tracks()
         s['osm_data'] = osm_ov
         m = render_map(s)
-        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png')}
+        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base')}
     ph = dict(SMALL, name='overview-phone', w=390, h=260, pad=0.12, places_allow=[], day_labels=False, poly_eps=1.2, min_water_px=40,
               road_levels=('motorway', 'trunk', 'primary'), tracks=[dict(e, hut_end=None, gpsmax=False) for e in ov_tracks()],
               miles=False, chevrons=False, startend=False, gpsmax=False, overall_startend=True, transfers=transfers, peaks_max=0,
               bands_off=True, priority_peaks=mo.get('peaks'), reserve=[(0, 0, 60, 60), (390 - 208, 260 - 36, 390, 260)],
-              scale_corner='bl', osm_data=osm_ov, aria=aria_for(t))
+              scale_corner='bl', osm_data=osm_ov, pad_bottom_px=40, aria=aria_for(t))
     m = render_map(ph)
-    meta['maps']['overview-phone'] = {'w': 390, 'h': 260, 'png': m.get('png')}
+    meta['maps']['overview-phone'] = {'w': 390, 'h': 260, 'png': m.get('png'), 'base': m.get('base')}
     # day maps: one OSM download covering every day's frame
     day_specs = []
     for i, tr in enumerate(trs):
@@ -286,14 +284,14 @@ def render_multi(t, meta):
         day_specs.append((dict(REPORT, name='day-%s-col' % days[i]['id'], w=718, h=400, bbox=bb, png_scale=2.0, peaks_max=2, trails=False,
                                priority_peaks=mo.get('peaks'), skin=True, bands_off=True, aria=aria), [me] + others))
         day_specs.append((dict(SMALL, name='day-%s-phone' % days[i]['id'], w=390, h=240, bbox=bb, scale_corner='bl', chevrons=True,
-                               startend=True, gpsmax=True, bands_off=True, reserve=[(390 - 208, 240 - 36, 390, 240)], aria=aria),
+                               startend=True, gpsmax=True, bands_off=True, reserve=[(390 - 208, 240 - 36, 390, 240)], pad_bottom_px=40, aria=aria),
                           [dict(me, width=3)]))
     osm_days = fetch_osm(union([frame_bbox(s, tk) for s, tk in day_specs]), 'report')
     for s, tk in day_specs:
         s['tracks'] = tk
         s['osm_data'] = osm_days
         m = render_map(s)
-        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png')}
+        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base')}
     multi_charts(t, meta, trs)
     dom = (min(min(tr.ele) for tr in trs if tr.ele), max(max(tr.ele) for tr in trs if tr.ele))
     for d, tr in zip(days, trs):
@@ -324,14 +322,16 @@ def render_series(t, meta):
         if tr.ele:
             render_sparkline('%s-spark' % d['id'], tr, 96, 24)
     set_out(t['rendered'])
-    tracks = [{'track': tr, 'style': 'cat', 'cat': cat, 'width': 2.6, 'trim': False, 'casing': False, 'i0': 0, 'i1': len(tr.raw) - 1}
-              for _, tr in trs]
+    tracks = [{'track': tr, 'style': 'cat', 'cat': cat, 'width': 2.6, 'trim': False, 'casing': False, 'i0': 0, 'i1': len(tr.raw) - 1,
+               'key': 'm-%s' % d['date'].strftime('%Y-%m') if d.get('date') else None}
+              for d, tr in trs]
     for nm, w, h in (('overview-tall', 560, 860), ('overview-phone', 390, 600)):
+        extra = {'reserve': [(w - 208, h - 36, w, h)], 'pad_bottom_px': 40} if nm == 'overview-phone' else {}
         m = render_map(dict(name=nm, w=w, h=h, tracks=[dict(x) for x in tracks], osm=None, png_scale=1.5, legend=False, graticule=False,
                             contours=False, ocean=True, exaggeration=6.0, miles=False, chevrons=False, startend=False, gpsmax=False,
-                            pad=0.06, north=False, scale=True, trim=False, scale_corner='bl',
-                            aria='Every recorded day of %s' % t['title']))
-        meta['maps'][nm] = {'w': w, 'h': h, 'png': m.get('png')}
+                            overall_startend=True, pad=0.06, north=False, scale=True, trim=False, scale_corner='bl',
+                            aria='Every recorded day of %s' % t['title'], **extra))
+        meta['maps'][nm] = {'w': w, 'h': h, 'png': m.get('png'), 'base': m.get('base')}
     allt = [tr for _, tr in trs]
     render_glyph('g112', allt, 112, 64, cat, stroke=1.6)
     render_glyph('g64', allt, 64, 48, cat, pad=5, stroke=1.4)
@@ -429,14 +429,14 @@ def render_site(trips, force=False):
         tracks = [x for t in ts for x in site_tracks(t)]
         specs = [dict(OVERVIEW, name='%s-%s' % (key, v), w=w, h=h_, pins=pins, pad=0.10, priority_peaks=[p for t in ts for p in (t['map'].get('peaks') or [])][:6],
                       aria='Map of %s trips in %s' % ('ski' if key.startswith('ski-') else 'all', region),
-                      **({'scale_corner': 'bl', 'reserve': [(w - 208, h_ - 36, w, h_)]} if v == 'phone' else {})) for w, h_, v in sizes]
+                      **({'scale_corner': 'bl', 'reserve': [(w - 208, h_ - 36, w, h_)], 'pad_bottom_px': 40} if v == 'phone' else {})) for w, h_, v in sizes]
         for s in specs:
             s['tracks'] = [dict(x) for x in tracks]
         osm = fetch_osm(union([frame_bbox(s, s['tracks']) for s in specs]), 'overview')
         for s in specs:
             s['osm_data'] = osm
             m = render_map(s)
-            meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'region': region,
+            meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'region': region,
                                        'trips': [t['slug'] for t in ts], 'clusters': m.get('clusters')}
         print('rendered site map %-28s %5.0fs' % (key, time.time() - t0))
     for f in os.listdir(folder):

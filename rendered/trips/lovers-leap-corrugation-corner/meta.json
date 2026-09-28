@@ -1,5 +1,5 @@
 {
- "hash": "a7bcabc99a7da1e06bfd7f1459b5f3f685a52a6b",
+ "hash": "de51943a2d4167c6b2d0dd8afd202fe611e0a7f4",
  "slug": "lovers-leap-corrugation-corner",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 40,
    "outbound_only": false
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 80,
    "outbound_only": false
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 80,
    "outbound_only": null
   }

@@ -4,7 +4,7 @@ import os
 import re
 
 from sitegen import core
-from sitegen.core import esc, U, n, link, icon, FT
+from sitegen.core import esc, U, link, icon
 
 import content
 
@@ -38,22 +38,30 @@ def plural(k, word, pl=None):
     return '%d %s' % (k, word if k == 1 else (pl or word + 'S'))
 
 
+def count_n(k):
+    """A tab / chip count that reads as 'Lake Tahoe, 14 reports' (the visible part is just the number)."""
+    return '<span class="sr">, </span>%d<span class="sr"> %s</span>' % (k, 'report' if k == 1 else 'reports')
+
+
 def count_line(ts):
-    """'9 REPORTS' · '3 REPORTS · 2 MULTI-DAY · 1 SERIES' · '1 PLANNED ROUTE'."""
+    """'9 REPORTS' · '3 REPORTS INCL. 2 MULTI-DAY, 1 SERIES' · '23 REPORTS INCL. 2 MULTI-DAY, 1 SERIES · 1 PLANNED ROUTE'.
+    Multi-day and series are subsets of the reports (a series counts as one report), as on Home's activity tiles. Each item
+    stays on one line; a wrapped line breaks before INCL. or at ', ' / ' · ' (archive.js countLine() mirrors this)."""
+    item = lambda x: '<span class="arc-seg">%s</span>' % x  # noqa: E731
     pub = [t for t in ts if t['kind'] != 'planned']
     bits = []
     if pub:
-        bits.append(plural(len(pub), 'REPORT'))
         md = sum(1 for t in pub if t['kind'] == 'multi-day')
         se = sum(1 for t in pub if t['kind'] == 'series')
-        if md:
-            bits.append('%d MULTI-DAY' % md)
-        if se:
-            bits.append('%d SERIES' % se)
+        sub = [x for x in (('%d MULTI-DAY' % md) if md else '', ('%d SERIES' % se) if se else '') if x]
+        head = item(plural(len(pub), 'REPORT'))
+        if sub:
+            head += ' ' + ', '.join(item(('INCL. ' if i == 0 else '') + x) for i, x in enumerate(sub))
+        bits.append(head)
     pl = len(ts) - len(pub)
     if pl:
-        bits.append(plural(pl, 'PLANNED ROUTE'))
-    return ' · '.join(bits)
+        bits.append(item(plural(pl, 'PLANNED ROUTE')))
+    return core.SEP.join(bits)
 
 
 def segs(line):
@@ -89,35 +97,14 @@ def share_casings(svg, ns):
     return out
 
 
-def short_date(t):
-    """Table date: 'APR 5, 2026' · 'MAR 18–22, 2024' · 'APR–SEP 2024' (long series) · '' for planned."""
-    if t['kind'] == 'planned' or not t['date']:
-        return ''
-    a, b = t['date'], t.get('end_date')
-    if t['days'] and b and b != a:
-        if a.year == b.year and (b - a).days > 31:
-            return ('%s–%s %d' % (a.strftime('%b'), b.strftime('%b'), a.year)).upper()
-        return core.frange(a, b, caps=True)
-    return core.fdate(a, 'short').upper()
-
-
-def status_tag(t):
-    if t['kind'] == 'multi-day':
-        return 'MULTI-DAY · %d DAYS' % len(t['days'])
-    if t['kind'] == 'series':
-        return 'SERIES · %d DAYS' % len(t['days'])
-    if t['kind'] == 'planned':
-        return 'PLANNED'
-    return ''
-
-
-def loc_line(t):
-    return esc(', '.join(x for x in (t.get('place'), t.get('region')) if x)).upper()
+def series_tag(t):
+    """The series card's tag carries the day count ('SERIES · 150 DAYS'); table rows use core.trip_tags."""
+    return 'Series · %d days' % len(t['days']) if t['days'] else 'Series'
 
 
 def dist_line(t):
     mi, km = core.dist_vals(t['stats'].get('distance_km'))
-    return U(mi + ' MI', km + ' KM') if mi else ''
+    return U(core.nb(mi + ' MI'), core.nb(km + ' KM')) if mi else ''
 
 
 # ---------------------------------------------------------------- page parts
@@ -155,17 +142,20 @@ def legend(ts, meta_d):
 
 
 def region_row(t, here, more=False):
-    planned = t['kind'] == 'planned'
-    bits = [core.trip_date(t)]
+    if t['kind'] != 'planned' and not t['days'] and t['date']:
+        # 'SUN, APR 5, 2026': the weekday drops out at 1000–1199, where the side column is narrow (archive.css)
+        bits = ['<span class="arc-wd">%s,\u00a0</span>%s' % (t['date'].strftime('%a').upper(), core.trip_date(t, short=True))]
+    else:
+        bits = [core.trip_date(t)]
     d = dist_line(t)
     if d:
         bits.append(d)
     g = core.glyph(t, here, 'g64', 'rg-%s' % t['slug']).replace('<svg ', '<svg class="arc-row-g" ', 1)
-    key = '' if planned else ' data-key="%s"' % t['slug']  # planned lines are not highlightable tracks
-    return ('<li class="arc-row%s"%s><a href="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
-            '<span class="t-mono-s arc-row-m">%s<span class="sr">%s · </span>%s</span></span></a></li>'
-            % (' arc-more' if more else '', key, link(here, t['url']), g, core.title_html(t['title']), icon(core.act_icon(t), 14),
-               esc(core.act_word(t)), ' · '.join(bits)))
+    # every row carries its key: the region map's planned line (mk-cat mk-planned) has one too, so hover highlights it
+    return ('<li class="arc-row%s" data-key="%s"><a href="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
+            '<span class="t-mono-s arc-row-m">%s<span class="sr">%s · </span><span>%s</span></span></span></a></li>'
+            % (' arc-more' if more else '', t['slug'], link(here, t['url']), g,
+               core.title_html(t['title']), icon(core.act_icon(t), 14), esc(core.act_word(t)), core.SEP.join(bits)))
 
 
 def region_panel(name, slug, ts, here, meta, first):
@@ -185,7 +175,7 @@ def region_panel(name, slug, ts, here, meta, first):
             '<div class="arc-side">%s<div class="arc-inreg"><div class="arc-inreg-h"><h4 class="t-label" id="arc-in-%s">In this region</h4>'
             '<span class="t-mono-s">%s</span></div><ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s arc-ph-%s" data-map-target="%s">%s</ol>%s</div>'
             '</div></div></div>'
-            % (slug, slug, esc(name), mp, cap, legend(ts, md), slug, segs(count_line(ts)), slug, slug, slug, map_id, rows,
+            % (slug, slug, esc(name), mp, cap, legend(ts, md), slug, count_line(ts), slug, slug, slug, map_id, rows,
                ('<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-%s" hidden>Show all %d%s</button>'
                 % (slug, len(ts), icon('chevron-down', 16))) if len(ts) > SHOW + 1 else ''))
 
@@ -196,7 +186,7 @@ def series_card(site, here):
         return ''
     out = []
     for t in ts:
-        meta = [short_date(t)]
+        meta = [core.trip_date(t, short=True)]
         if t.get('place'):
             meta.append(esc(t['place']).upper())
         d = dist_line(t)
@@ -205,9 +195,9 @@ def series_card(site, here):
         g = '<span class="arc-series-g">%s</span>' % core.tile(t, here, 'sc-%s' % t['slug'])
         out.append('<a class="arc-series" href="%s">%s<span class="arc-series-b"><span class="t-label">Not on a region map</span>'
                    '<span class="arc-series-t">%s</span><span class="arc-series-m">%s%s<span class="t-mono-s arc-series-d">%s</span></span></span>'
-                   '<span class="arc-series-go">Read report%s</span></a>'
-                   % (link(here, t['url']), g, core.title_html(t['title']), core.chip(t, variant='inline'), core.tag(status_tag(t)),
-                      segs(' · '.join(meta)), icon('arrow-right', 16)))
+                   '<span class="arc-series-go">%s%s</span></a>'
+                   % (link(here, t['url']), g, core.title_html(t['title']), core.chip(t, variant='inline'), core.tag(series_tag(t)),
+                      segs(' · '.join(meta)), 'Read the series' if t['kind'] == 'series' else 'Read report', icon('arrow-right', 16)))
     return '<div class="arc-series-w">%s</div>' % ''.join(out)
 
 
@@ -215,43 +205,14 @@ def map_section(site, here, regs, meta):
     if not regs:
         return ''
     tabs = ''.join('<button type="button" role="tab" id="arc-tab-%s" aria-controls="region-%s" aria-selected="%s" tabindex="%s">'
-                   '<span>%s</span><span class="arc-tab-n">%d</span></button>'
+                   '<span>%s</span><span class="arc-tab-n">%s</span></button>'
                    % (slug, slug, 'true' if i == 0 else 'false', '0' if i == 0 else '-1', esc(name),
-                      sum(1 for t in ts if t['kind'] != 'planned'))
+                      count_n(sum(1 for t in ts if t['kind'] != 'planned')))
                    for i, (name, slug, ts) in enumerate(regs))
     panels = ''.join(region_panel(name, slug, ts, here, meta, i == 0) for i, (name, slug, ts) in enumerate(regs))
     return ('<section class="arc-map wrap" aria-labelledby="arc-map-h"><h2 class="sr" id="arc-map-h">Map by region</h2>'
             '<div class="arc-tabs-w"><div class="arc-tabs" role="tablist" aria-label="Region" hidden>%s</div></div>'
             '%s%s</section>' % (tabs, panels, series_card(site, here)))
-
-
-def table_row(t, here):
-    """Report-table row (same grid and classes as core.table_row) as a list-item link, with status tags and filter data."""
-    st = t['stats']
-    mi, km = core.dist_vals(st.get('distance_km'))
-
-    def num(v, lab, imp, met):
-        if v is None:
-            return '<span class="num"><span aria-hidden="true">—</span></span>'
-        return '<span class="num"><span class="sr">%s </span>%s</span>' % (lab, U(v[0], v[1], '<span class="sr"> %s</span>' % imp, '<span class="sr"> %s</span>' % met))
-    g = lambda v: (n(v * FT), n(v)) if v is not None else None  # noqa: E731
-    tag = status_tag(t)
-    tagh = ('<span class="tag arc-tag">%s</span>' % tag) if tag else ''
-    when = short_date(t)
-    pm = [when] if when else []
-    if mi:
-        pm.append(U(mi + ' MI', km + ' KM'))
-    return ('<li data-act="%s" data-kind="%s"><a class="rtab-r" href="%s"%s>'
-            '<span class="rtab-g">%s</span><span class="arc-act">%s</span>'
-            '<span class="rtab-title"><span class="rtab-tt">%s</span><span class="arc-sub">%s<span class="sr arc-srw">%s</span>%s'
-            '<span class="t-mono-s rtab-loc">%s</span><span class="t-mono-s arc-pm" aria-hidden="true">%s</span></span></span>'
-            '<span class="t-mono-s arc-when">%s</span>%s%s%s</a></li>'
-            % (t['activity'], t['kind'], link(here, t['url']), '' if t['kind'] == 'planned' else ' data-key="%s"' % t['slug'],
-               core.glyph(t, here, 'g112', 'tg-' + t['slug']), core.chip(t, variant='inline', swatch=False),
-               core.title_html(t['title']), icon(core.act_icon(t), 14, 'arc-pi'), esc(core.act_word(t)), tagh,
-               loc_line(t), ' · '.join(pm), when or '<span class="sr">Planned</span>',
-               num((mi, km) if mi else None, 'Distance', 'miles', 'kilometres'), num(g(st.get('gain_m')), 'Gain', 'feet', 'metres'),
-               num(g(st.get('high_m')), 'GPS max', 'feet', 'metres')))
 
 
 def archive_section(site, here):
@@ -264,26 +225,29 @@ def archive_section(site, here):
         groups[-1][1].append(t)
     if site['planned']:
         groups.append(('Planned', list(site['planned'])))
-    chips = ['<button type="button" class="arc-chip" data-filter="all" aria-pressed="true"><span>All</span></button>']
+    chips = ['<button type="button" class="arc-chip" data-filter="all" aria-pressed="true"><span class="arc-chip-l">All</span></button>']
     for a, lab in core.NAV:
         k = sum(1 for t in site['published'] if t['activity'] == a)
         if not k:
             continue
         chips.append('<button type="button" class="arc-chip" data-filter="%s" aria-pressed="false">'
-                     '<span class="chip-sw" style="background:%s" aria-hidden="true"></span><span>%s</span><span class="arc-chip-n">%d</span></button>'
-                     % (a, core.ACT[a][3], esc(lab), k))
+                     '<span class="chip-sw" style="background:%s" aria-hidden="true"></span><span class="arc-chip-l">%s</span>'
+                     '<span class="arc-chip-n">%s</span></button>' % (a, core.ACT[a][3], esc(lab), count_n(k)))
+    # rows are core.table_row (li > a): status-only tags (planned rows say PLANNED in the date cell) + filter data for archive.js
+    row = lambda t: core.table_row(t, here, tags='' if t['kind'] == 'planned' else core.trip_tags(t, shape=False),  # noqa: E731
+                                   attrs=' data-act="%s" data-kind="%s"' % (t['activity'], t['kind']))
     body = []
     for y, ts in groups:
         gid = 'yr-%s' % str(y if y is not None else 'undated').lower()
         label = str(y) if y is not None else 'Undated'
         body.append('<div class="arc-yr" data-group="%s"><div class="arc-yr-h"><h3 class="t-label" id="%s">%s</h3>'
                     '<span class="t-mono-s arc-yr-n">%s</span></div><ol class="arc-rows2" aria-labelledby="%s">%s</ol></div>'
-                    % (gid, gid, label, count_line(ts), gid, ''.join(table_row(t, here) for t in ts)))
+                    % (gid, gid, label, count_line(ts), gid, ''.join(row(t) for t in ts)))
     return ('<section class="arc-all wrap sec" id="all-reports" aria-labelledby="all-reports-h">%s'
             '<div class="arc-filt" role="group" aria-label="Filter by activity" hidden>%s</div>'
             '<p class="sr" id="arc-live" aria-live="polite"></p>'
             '<div class="rtab arc-table"><div aria-hidden="true">%s</div>%s</div></section>'
-            % (core.section_head('All reports', segs(count_line(trips)), id_='all-reports-h'), ''.join(chips), core.table_head(), ''.join(body)))
+            % (core.section_head('All reports', count_line(trips), id_='all-reports-h'), ''.join(chips), core.table_head(), ''.join(body)))
 
 
 def build(site):

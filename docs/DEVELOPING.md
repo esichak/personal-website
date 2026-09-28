@@ -26,7 +26,7 @@ Activity colours: ski `#4A8CCD`, climb `#70355E`, hike `#69883C`, mtb `#845011`,
 (always with icon + word). Radii 0 for maps/cards/photos, 2px for chips/buttons. Touch targets ≥ 44px.
 
 Type classes (phone → tablet ≥760 → desktop ≥1200 sizes are built in): `t-d1` (`t-d1--long` for titles > 28 chars),
-`t-d2`, `t-h2`, `t-h3`, `t-h4`, `t-dek`, `t-body` (write-ups, max 680px via `.prose`), `t-excerpt`, `t-small`,
+`t-d2`, `t-h2`, `t-h3`, `t-h4`, `t-dek`, `t-body` (write-ups, max 620px via `.prose`), `t-excerpt`, `t-small`,
 `t-label` (caps overline), `t-data-xl`, `t-data-m`, `t-mono-s` (dates/meta; write Mono-S text in CAPS).
 
 Layout: `.wrap` (1248 max, page margins 16/40/48px), `.bleed` (full width up to 1440), `.sec` (section gap

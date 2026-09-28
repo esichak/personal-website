@@ -1,10 +1,11 @@
 {
- "hash": "d6002803d0a70364129e8debd38fc85b390e928d",
+ "hash": "dfb935d97b984cceee65d5339cedea8ba3028798",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
    "h": 620,
    "png": "region-lake-tahoe-desktop.webp",
+   "base": "region-lake-tahoe-desktop.base.svg",
    "region": "Lake Tahoe",
    "trips": [
     "lovers-leap-napsack-haystack",
@@ -94,6 +95,7 @@
    "w": 390,
    "h": 480,
    "png": "region-lake-tahoe-phone.webp",
+   "base": "region-lake-tahoe-phone.base.svg",
    "region": "Lake Tahoe",
    "trips": [
     "lovers-leap-napsack-haystack",
@@ -114,8 +116,8 @@
    ],
    "clusters": [
     {
-     "x": 89.9919368331351,
-     "y": 425.13811991117507,
+     "x": 98.72259074381154,
+     "y": 393.7099432519117,
      "n": 4,
      "keys": [
       "lovers-leap-napsack-haystack",
@@ -125,8 +127,8 @@
      ]
     },
     {
-     "x": 308.0573648251048,
-     "y": 196.5181347150252,
+     "x": 298.65747024012836,
+     "y": 184.14162348877363,
      "n": 2,
      "keys": [
       "castle-rock-village-idiot",
@@ -134,8 +136,8 @@
      ]
     },
     {
-     "x": 116.93976014552888,
-     "y": 237.61598815692315,
+     "x": 123.42989926247272,
+     "y": 221.8146558105135,
      "n": 4,
      "keys": [
       "return-to-emerald-chute",
@@ -145,8 +147,8 @@
      ]
     },
     {
-     "x": 140.43496892494602,
-     "y": 270.95544041450273,
+     "x": 144.97165294305412,
+     "y": 252.37582037996157,
      "n": 2,
      "keys": [
       "tallac-cathedral-bowl-solo",
@@ -154,24 +156,24 @@
      ]
     },
     {
-     "x": 304.1541674073249,
-     "y": 392.29844559585246,
+     "x": 295.07879519493554,
+     "y": 363.60690846286593,
      "n": 1,
      "keys": [
       "freel-jobs-job-sister-loop"
      ]
     },
     {
-     "x": 270.2213822551398,
-     "y": 211.7589933382695,
+     "x": 263.9672734243852,
+     "y": 198.11241056008092,
      "n": 1,
      "keys": [
       "kingsbury-stinger-loop"
      ]
     },
     {
-     "x": 52.18680691800924,
-     "y": 33.64784968918332,
+     "x": 63.809841215192705,
+     "y": 33.21216948997931,
      "n": 1,
      "keys": [
       "post-ski-sup-lake-tahoe"
@@ -183,6 +185,7 @@
    "w": 506,
    "h": 680,
    "png": "ski-lake-tahoe-desktop.webp",
+   "base": "ski-lake-tahoe-desktop.base.svg",
    "region": "Lake Tahoe",
    "trips": [
     "return-to-emerald-chute",
@@ -231,6 +234,7 @@
    "w": 390,
    "h": 480,
    "png": "ski-lake-tahoe-phone.webp",
+   "base": "ski-lake-tahoe-phone.base.svg",
    "region": "Lake Tahoe",
    "trips": [
     "return-to-emerald-chute",
@@ -241,8 +245,8 @@
    ],
    "clusters": [
     {
-     "x": 188.83452884223544,
-     "y": 122.35448838266858,
+     "x": 189.34803824488256,
+     "y": 116.15828101741228,
      "n": 2,
      "keys": [
       "return-to-emerald-chute",
@@ -250,24 +254,24 @@
      ]
     },
     {
-     "x": 287.4742826810148,
-     "y": 262.28049964404426,
+     "x": 279.7722900117366,
+     "y": 244.423791340337,
      "n": 1,
      "keys": [
       "tallac-cathedral-bowl-solo"
      ]
     },
     {
-     "x": 144.31001837885412,
-     "y": 132.01724160249802,
+     "x": 148.5318826154076,
+     "y": 125.01580480225573,
      "n": 1,
      "keys": [
       "emerald-chute-y-chute-combo"
      ]
     },
     {
-     "x": 197.5183458580134,
-     "y": 50.79842081420264,
+     "x": 197.30859801488566,
+     "y": 50.56521907965333,
      "n": 1,
      "keys": [
       "jakes-peak-to-emerald-bay"
@@ -279,6 +283,7 @@
    "w": 718,
    "h": 620,
    "png": "region-eastern-sierra-desktop.webp",
+   "base": "region-eastern-sierra-desktop.base.svg",
    "region": "Eastern Sierra",
    "trips": [
     "dunderberg-peak-and-black-mountain",
@@ -325,6 +330,7 @@
    "w": 390,
    "h": 480,
    "png": "region-eastern-sierra-phone.webp",
+   "base": "region-eastern-sierra-phone.base.svg",
    "region": "Eastern Sierra",
    "trips": [
     "dunderberg-peak-and-black-mountain",
@@ -334,32 +340,32 @@
    ],
    "clusters": [
     {
-     "x": 186.75203520838937,
-     "y": 148.76046986319577,
+     "x": 187.4375801681026,
+     "y": 140.36376404126247,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 298.41064562050286,
-     "y": 431.94767885170506,
+     "x": 289.81547715446675,
+     "y": 399.9520389473953,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 95.40065369057068,
-     "y": 48.347130695436306,
+     "x": 103.67903891387006,
+     "y": 48.318203137483266,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
      ]
     },
     {
-     "x": 176.74617649731292,
-     "y": 85.12386706948544,
+     "x": 178.2633770448335,
+     "y": 82.03021148036152,
      "n": 1,
      "keys": [
       "green-creek-virginia-pass"
@@ -371,6 +377,7 @@
    "w": 506,
    "h": 680,
    "png": "ski-eastern-sierra-desktop.webp",
+   "base": "ski-eastern-sierra-desktop.base.svg",
    "region": "Eastern Sierra",
    "trips": [
     "dunderberg-peak-and-black-mountain",
@@ -408,6 +415,7 @@
    "w": 390,
    "h": 480,
    "png": "ski-eastern-sierra-phone.webp",
+   "base": "ski-eastern-sierra-phone.base.svg",
    "region": "Eastern Sierra",
    "trips": [
     "dunderberg-peak-and-black-mountain",
@@ -416,24 +424,24 @@
    ],
    "clusters": [
     {
-     "x": 186.75203520838937,
-     "y": 148.76046986319577,
+     "x": 187.4375801681026,
+     "y": 140.36376404126247,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 298.41064562050286,
-     "y": 431.94767885170506,
+     "x": 289.81547715446675,
+     "y": 399.9520389473953,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 95.40065369057068,
-     "y": 48.347130695436306,
+     "x": 103.67903891387006,
+     "y": 48.318203137483266,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
@@ -445,6 +453,7 @@
    "w": 718,
    "h": 620,
    "png": "region-alps-desktop.webp",
+   "base": "region-alps-desktop.base.svg",
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -473,6 +482,7 @@
    "w": 390,
    "h": 480,
    "png": "region-alps-phone.webp",
+   "base": "region-alps-phone.base.svg",
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -481,15 +491,15 @@
    "clusters": [
     {
      "x": 112.62747745209249,
-     "y": 357.7822597212971,
+     "y": 342.16863360746385,
      "n": 1,
      "keys": [
       "gran-paradiso-haute-route"
      ]
     },
     {
-     "x": 39.48963690579728,
-     "y": 132.44949715031873,
+     "x": 39.489636905797255,
+     "y": 116.95131457592313,
      "n": 1,
      "keys": [
       "chamonix-zermatt-haute-route"
@@ -501,6 +511,7 @@
    "w": 506,
    "h": 680,
    "png": "ski-alps-desktop.webp",
+   "base": "ski-alps-desktop.base.svg",
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -529,6 +540,7 @@
    "w": 390,
    "h": 480,
    "png": "ski-alps-phone.webp",
+   "base": "ski-alps-phone.base.svg",
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -537,15 +549,15 @@
    "clusters": [
     {
      "x": 112.62747745209249,
-     "y": 357.7822597212971,
+     "y": 342.16863360746385,
      "n": 1,
      "keys": [
       "gran-paradiso-haute-route"
      ]
     },
     {
-     "x": 39.48963690579728,
-     "y": 132.44949715031873,
+     "x": 39.489636905797255,
+     "y": 116.95131457592313,
      "n": 1,
      "keys": [
       "chamonix-zermatt-haute-route"
@@ -557,6 +569,7 @@
    "w": 718,
    "h": 620,
    "png": "region-santa-cruz-desktop.webp",
+   "base": "region-santa-cruz-desktop.base.svg",
    "region": "Santa Cruz",
    "trips": [
     "enchanted-loop-x3",
@@ -585,6 +598,7 @@
    "w": 390,
    "h": 480,
    "png": "region-santa-cruz-phone.webp",
+   "base": "region-santa-cruz-phone.base.svg",
    "region": "Santa Cruz",
    "trips": [
     "enchanted-loop-x3",
@@ -592,16 +606,16 @@
    ],
    "clusters": [
     {
-     "x": 70.40093265870411,
-     "y": 335.1805636572167,
+     "x": 70.40093265870412,
+     "y": 326.5044301850745,
      "n": 1,
      "keys": [
       "enchanted-loop-x3"
      ]
     },
     {
-     "x": 350.69901739107985,
-     "y": 159.45212512771076,
+     "x": 350.6990173910799,
+     "y": 150.78953972766507,
      "n": 1,
      "keys": [
       "soquel-demo-forest"

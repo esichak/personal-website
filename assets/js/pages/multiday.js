@@ -20,7 +20,8 @@
   function reveal(a) {
     if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 1) return;
     var left = a.offsetLeft - (scroller.clientWidth - a.offsetWidth) / 2;
-    scroller.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    scroller.scrollTo({ left: Math.max(0, left), behavior: reduce ? 'auto' : 'smooth' });
   }
 
   function set(key) {

@@ -1,5 +1,5 @@
 {
- "hash": "261ce200f87a320062996262fbc0f315bc30e060",
+ "hash": "cd7f0f4137c6de09ba5b677193917322fb14256f",
  "slug": "matterhorn-peak-west-couloir",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 200,
    "outbound_only": true
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 400,
    "outbound_only": true
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 500,
    "outbound_only": null
   }

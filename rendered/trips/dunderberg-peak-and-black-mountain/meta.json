@@ -1,5 +1,5 @@
 {
- "hash": "8fd8a93a03d2747b0039529fef1c36eebba2f58a",
+ "hash": "e8a229f3a308de14cd07704afe0af8415fe28ef8",
  "slug": "dunderberg-peak-and-black-mountain",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 100,
    "outbound_only": false
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 200,
    "outbound_only": false
   },
@@ -21,7 +23,8 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
-   "interval_ft": 200,
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
    "outbound_only": null
   }
  },

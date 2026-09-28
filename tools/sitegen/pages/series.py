@@ -117,10 +117,10 @@ def strip(t):
     cells = []
     mi, km = core.dist_vals(st.get('distance_km'))
     if mi:
-        cells.append(('Distance recorded', U(mi, km, '<span class="unit">mi</span>', '<span class="unit">km</span>'), U_sub(mi, km, 'mi', 'km')))
+        cells.append(('Distance recorded', U(mi, km, 'mi', 'km'), U_sub(mi, km, 'mi', 'km')))
     if st.get('gain_m') is not None:
         g = st['gain_m']
-        cells.append(('Gain', U(n(g * FT), n(g), '<span class="unit">ft</span>', '<span class="unit">m</span>'), U_sub(n(g * FT), n(g), 'ft', 'm')))
+        cells.append(('Gain', U(n(g * FT), n(g), 'ft', 'm'), U_sub(n(g * FT), n(g), 'ft', 'm')))
     longest = max(days, key=km_of)
     sub = ''
     if km_of(longest):
@@ -131,12 +131,10 @@ def strip(t):
     photos = sum(len(d['photos']) for d in days)
     cells.append(('Write-ups', '%s<span class="unit">day%s</span>' % (n(wu), '' if wu == 1 else 's'),
                   ('%s PHOTO%s' % (n(photos), '' if photos == 1 else 'S')) if photos else ''))
-    out = ''.join('<div class="strip-c"><dt class="t-label">%s</dt><dd class="t-data-xl strip-v">%s</dd>%s</div>'
-                  % (lab, val, ('<dd class="t-mono-s strip-s">%s</dd>' % sub) if sub else '') for lab, val, sub in cells)
     note = ('<p class="strip-note">Stats from the Garmin recordings via Strava. Distance and gain are the sums of all %s recordings, '
             'short town days included.</p>' % n(len(days)))
-    return ('<section class="wrap rep-strip" id="stats" aria-label="Stats"><dl class="strip" style="--cells:%d" aria-label="Series stats">%s</dl>%s</section>'
-            % (len(cells), out, note))
+    # core.strip: the shared Datum strip (Label / Data-XL value with core.dx punctuation / Mono-S sub-line)
+    return '<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(cells, label='Series stats'), note)
 
 
 # ---------------------------------------------------------------- intro row: map + overview + month index
@@ -173,48 +171,100 @@ def ruler(days, width_pct):
     return '<span class="ser-rl" style="width:%.1f%%" aria-hidden="true">%s</span>' % (width_pct, cells)
 
 
-def month_index(months):
+MAP_ID = 'ser-map'
+
+
+def month_key(key):
+    """Track key of a month on the overview maps (render.py tags each day track with its month: data-key="m-2024-06")."""
+    return 'm-' + key if key != 'undated' else ''
+
+
+def overview_svg(t, name):
+    p = core.rendered(t, name + '.svg.html')
+    return open(p, encoding='utf-8').read() if os.path.exists(p) else ''
+
+
+_KEY = re.compile(r'\bdata-key="(m-[^"]+)"')
+
+
+def map_month_keys(t):
+    """Month keys the overview renders actually carry (so a month row only links to tracks that exist on the map)."""
+    return set(k for nm in ('overview-tall', 'overview-phone') for k in _KEY.findall(overview_svg(t, nm)))
+
+
+def month_index(months, keyed=frozenset()):
+    """Month rows. A row whose month the map carries gets data-key: hovering or focusing it highlights that month's tracks on
+    the overview map (base.js, via data-map-target on the list)."""
     top = max(sum(km_of(d) for d in m[3]) for m in months) or 1
     rows = []
     for key, name, year, days in months:
         km = sum(km_of(d) for d in days)
         wu = sum(1 for d in days if written(d))
         meta = 'DAY%s %s' % ('' if len(days) == 1 else 'S', esc(label_range(days)))
-        meta += ' · %s WRITE-UP%s' % (n(wu), '' if wu == 1 else 'S') if wu else ' · TRACK ONLY'
-        rows.append('<li><a class="ser-mi-a" href="#%s"><span class="ser-mi-h"><span class="ser-mi-m">%s</span>'
+        meta += core.SEP + (('%s WRITE-UP%s' % (n(wu), '' if wu == 1 else 'S')) if wu else 'TRACK ONLY')
+        mk = month_key(key)
+        rows.append('<li%s><a class="ser-mi-a" href="#%s"><span class="ser-mi-h"><span class="ser-mi-m">%s</span>'
                     '<span class="t-mono-s ser-mi-s">%s</span></span><span class="ser-mi-v">%s</span>%s</a></li>'
-                    % (month_id(key), esc(name), meta, dist_u(km), ruler(days, max(100.0 * km / top, 8))))
+                    % ((' data-key="%s"' % mk) if mk in keyed else '', month_id(key), esc(name), meta, dist_u(km),
+                       ruler(days, max(100.0 * km / top, 8))))
     key_ = ('<ul class="keyrow ser-key" aria-label="Key to the month bars">'
-            '<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><rect x="0" y="1" width="16" height="8" style="fill:var(--ink-2)"/></svg>Day with a write-up</li>'
+            '<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><rect x="0" y="1" width="16" height="8" style="fill:var(--ink)"/></svg>Day with a write-up</li>'
             '<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><rect x="0" y="1" width="16" height="8" style="fill:var(--ser-track)"/></svg>Track only</li>'
             '<li class="ser-key-n">Bar length = distance</li></ul>')
-    return ('<h3 class="t-label ser-bym" id="bym-h">By month</h3><ol class="ser-mi" aria-labelledby="bym-h">%s</ol>%s'
-            % (''.join(rows), key_))
+    target = (' data-map-target="%s"' % MAP_ID) if keyed else ''
+    return ('<h3 class="t-label ser-bym" id="bym-h">By month</h3><ol class="ser-mi"%s aria-labelledby="bym-h">%s</ol>%s'
+            % (target, ''.join(rows), key_))
+
+
+_START = re.compile(r'<circle[^>]*r="[57]"[^>]*fill: #16171A; stroke: #FFFFFF')
+_END = re.compile(r'<rect[^>]*width="1[04]"[^>]*fill: #16171A; stroke: #FFFFFF')
+
+
+def map_keys(t, name):
+    """Key items for the start / end markers an overview render actually draws (key rows decode only what is on the map)."""
+    s = overview_svg(t, name)
+    start, end = bool(_START.search(s)), bool(_END.search(s))
+    return ['start_end'] if (start and end) else (['start'] if start else (['end'] if end else []))
 
 
 def intro(t, here, months):
-    mp = core.map_block(t, here, [('overview-tall', 'desktop'), ('overview-phone', 'phone')], t['url'] + 'map/', 'ov',
-                        cls='ser-map')
+    # wide (>= 1200): the 560x860 render 1:1 in the 560 column. col (560-1199) + phone: the 390x600 render, which the tablet
+    # 5fr/6fr column shows at about 0.9-1.05x (the 560 render there was 0.63x). series.css swaps the 560 render back in for
+    # the one-column 560-899 band, where the map is up to 560 wide.
+    mp = core.map_block(t, here, [('overview-tall', 'wide'), ('overview-phone', 'col'), ('overview-phone', 'phone')],
+                        t['url'] + 'map/', 'ov', cls='ser-map', id_=MAP_ID)
+    desk, phone = map_keys(t, 'overview-tall'), map_keys(t, 'overview-phone')
+    keys = core.key_rows(desk, phone, 'ser-mkey') if (desk or phone) else ''
     return ('<section class="ser-intro wrap" id="map" aria-labelledby="ov-h">'
-            '<div class="ser-intro-map">%s%s</div>'
+            '<div class="ser-intro-map">%s%s%s</div>'
             '<div class="ser-intro-t"><div class="shead"><h2 class="shead-t" id="ov-h">Overview</h2></div>%s%s</div></section>'
-            % (mp, map_caption(t), lede(t), month_index(months)))
+            % (mp, keys, map_caption(t), lede(t), month_index(months, map_month_keys(t))))
 
 
 # ---------------------------------------------------------------- day log
 
+def thumb_file(t, p):
+    """'photos/d001-01.th.webp' (208 px tall, lib/photos) when it exists beside the photo, else None."""
+    base, ext = os.path.splitext(p['file'])
+    th = base + '.th' + ext
+    return th if os.path.exists(os.path.join(t['dir'], th)) else None
+
+
 def thumbs(t, d, here):
+    """Thumbnails 104-160 px tall: the 208 px .th copy at 1x, the 800 px .sm copy at 2x; each links to the full photo."""
     if not d['photos']:
         return ''
     base = link(here, t['url'])
     out = []
     total = len(d['photos'])
     for i, p in enumerate(d['photos']):
-        src = base + (p['sm'] or p['file'])
+        sm = p['sm'] or p['file']
+        th = thumb_file(t, p)
+        src = (' src="%s" srcset="%s 1x, %s 2x"' % (base + th, base + th, base + sm)) if th else (' src="%s"' % (base + sm))
         wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if p.get('w') and p.get('h') else ''
         alt = p.get('alt') or ''
         label = '' if alt else ' aria-label="Day %s, photo %d of %d (full size)"' % (esc(d['label']), i + 1, total)
-        out.append('<li><a class="ser-ph" href="%s"%s><img src="%s"%s alt="%s" loading="lazy" decoding="async"></a></li>'
+        out.append('<li><a class="ser-ph" href="%s"%s><img%s%s alt="%s" loading="lazy" decoding="async"></a></li>'
                    % (base + p['file'], label, src, wh, esc(alt)))
     return '<ul class="ser-phs" aria-label="Day %s photos">%s</ul>' % (esc(d['label']), ''.join(out))
 
@@ -281,7 +331,7 @@ def label_gaps(days):
 
 def gap_row(a, b):
     rng = str(a) if a == b else '%d–%d' % (a, b)
-    return '<p class="ser-gap">DAY%s %s · NO RECORDING</p>' % ('' if a == b else 'S', rng)
+    return '<p class="ser-gap">DAY%s %s%sNO RECORDING</p>' % ('' if a == b else 'S', rng, core.SEP)
 
 
 def month_section(t, here, key, name, year, days, gaps):
@@ -295,7 +345,7 @@ def month_section(t, here, key, name, year, days, gaps):
     rows = ''.join((gap_row(*gaps[d['id']]) if d['id'] in gaps else '') + day_article(t, d, here) for d in days)
     return ('<section class="ser-month%s" id="%s" aria-labelledby="%s-h"><div class="ser-mh"><h3 class="ser-mh-t" id="%s-h">%s</h3>'
             '<p class="t-mono-s ser-mh-m">%s</p></div>%s<div class="ser-days">%s</div></section>'
-            % (' has-wu' if wu else '', mid, mid, mid, esc(title), ' · '.join(meta), cols_head(), rows))
+            % (' has-wu' if wu else '', mid, mid, mid, esc(title), core.SEP.join(meta), cols_head(), rows))
 
 
 def month_nav(months):
@@ -340,7 +390,7 @@ def page(t, site):
     first_photo = next((d['photos'][0] for d in t['days'] if d['photos']), None)
     img = (t['url'] + first_photo['file']) if first_photo else ((t['url'] + t['photos'][0]['file']) if t['photos'] else None)
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img,
-                                         body_cls='p-series'), t['title'])
+                                         body_cls='p-series', og_type='article'), t['title'])
 
 
 def build(site):

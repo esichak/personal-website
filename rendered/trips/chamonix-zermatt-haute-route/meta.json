@@ -1,82 +1,97 @@
 {
- "hash": "7a1ed352f17cca88b6a581e5e2e09011399e560d",
+ "hash": "8e490aeb87e4ceaf2ac31a637e989bb70bdd74e9",
  "slug": "chamonix-zermatt-haute-route",
  "kind": "multi-day",
  "maps": {
   "overview-wide": {
    "w": 1440,
    "h": 560,
-   "png": "overview-wide.webp"
+   "png": "overview-wide.webp",
+   "base": "overview-wide.base.svg"
   },
   "overview-col": {
    "w": 718,
    "h": 440,
-   "png": "overview-col.webp"
+   "png": "overview-col.webp",
+   "base": "overview-col.base.svg"
   },
   "overview-phone": {
    "w": 390,
    "h": 260,
-   "png": "overview-phone.webp"
+   "png": "overview-phone.webp",
+   "base": "overview-phone.base.svg"
   },
   "day-01-col": {
    "w": 718,
    "h": 400,
-   "png": "day-01-col.webp"
+   "png": "day-01-col.webp",
+   "base": "day-01-col.base.svg"
   },
   "day-01-phone": {
    "w": 390,
    "h": 240,
-   "png": "day-01-phone.webp"
+   "png": "day-01-phone.webp",
+   "base": "day-01-phone.base.svg"
   },
   "day-02-col": {
    "w": 718,
    "h": 400,
-   "png": "day-02-col.webp"
+   "png": "day-02-col.webp",
+   "base": "day-02-col.base.svg"
   },
   "day-02-phone": {
    "w": 390,
    "h": 240,
-   "png": "day-02-phone.webp"
+   "png": "day-02-phone.webp",
+   "base": "day-02-phone.base.svg"
   },
   "day-03-col": {
    "w": 718,
    "h": 400,
-   "png": "day-03-col.webp"
+   "png": "day-03-col.webp",
+   "base": "day-03-col.base.svg"
   },
   "day-03-phone": {
    "w": 390,
    "h": 240,
-   "png": "day-03-phone.webp"
+   "png": "day-03-phone.webp",
+   "base": "day-03-phone.base.svg"
   },
   "day-04-col": {
    "w": 718,
    "h": 400,
-   "png": "day-04-col.webp"
+   "png": "day-04-col.webp",
+   "base": "day-04-col.base.svg"
   },
   "day-04-phone": {
    "w": 390,
    "h": 240,
-   "png": "day-04-phone.webp"
+   "png": "day-04-phone.webp",
+   "base": "day-04-phone.base.svg"
   },
   "day-05-col": {
    "w": 718,
    "h": 400,
-   "png": "day-05-col.webp"
+   "png": "day-05-col.webp",
+   "base": "day-05-col.base.svg"
   },
   "day-05-phone": {
    "w": 390,
    "h": 240,
-   "png": "day-05-phone.webp"
+   "png": "day-05-phone.webp",
+   "base": "day-05-phone.base.svg"
   },
   "day-06-col": {
    "w": 718,
    "h": 400,
-   "png": "day-06-col.webp"
+   "png": "day-06-col.webp",
+   "base": "day-06-col.base.svg"
   },
   "day-06-phone": {
    "w": 390,
    "h": 240,
-   "png": "day-06-phone.webp"
+   "png": "day-06-phone.webp",
+   "base": "day-06-phone.base.svg"
   }
  },
  "charts": {

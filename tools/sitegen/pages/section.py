@@ -2,8 +2,8 @@
 
 Anatomy: breadcrumb, H1 with the activity disc, Mono-S totals line, optional filter band (Ski: seasons, Other: sub-types),
 then either the Ski list + sticky region map panel, or a Featured block followed by "More <x>".
-Hiking adds the series card (under the header) and a Planned block; Mountain Biking adds a full-width elevation profile;
-Other adds the "first reports coming" empty states for sub-types without reports.
+Hiking adds the series section (after Featured) and a Planned block; Mountain Biking adds a full-width elevation profile;
+Other adds one line under the filter band naming the sub-types without reports.
 """
 import json
 import os
@@ -13,29 +13,29 @@ import content
 import markdown
 
 from sitegen import core
-from sitegen.core import esc, U, U_sub, n, link, icon, FT, MI
+from sitegen.core import esc, U, n, link, icon, FT, SEP
 
 MORE = {'climb': 'More climbs', 'hike': 'More hikes', 'mtb': 'More rides', 'other': 'More reports', 'ski': 'More ski tours'}
 OTHER_LINE = "Paddleboarding, rafting, kayaking, mountaineering, and anything that isn't a ski, climb, hike or ride."
-EMPTY_LINE = {  # only what every report on the site already has (track, map, strip, chart), no promised extra fields
-    'Rafting': 'Rafting reports will show the full river track on a map, distance and moving time.',
-    'Kayaking': 'Kayaking reports will show the paddled track on a map, distance, moving time and pace.',
-    'Mountaineering': 'Mountaineering reports will show the full track on a map, gain, GPS max and an elevation profile.',
-    'SUP': 'Paddleboarding reports will show the paddled track on a map, distance, moving time and pace.',
-}
 AVY = [('Eastern Sierra Avalanche Center', 'https://www.esavalanche.org/'),
        ('Sierra Avalanche Center', 'https://www.sierraavalanchecenter.org/')]
 FULL_TRACK = 'full track, not trimmed'
+ATTRIB = 'Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation'
 
 
 # ---------------------------------------------------------------- small helpers
 
 def slug(s):
-    return content.slugify(str(s).replace('\u2013', '-').replace('\u2014', '-'))
+    return content.slugify(str(s).replace('–', '-').replace('—', '-'))
 
 
 def plural(k, word, words=None):
     return '%s %s' % (n(k), word if k == 1 else (words or word + 'S'))
+
+
+def words_list(ws, conj='or'):
+    """'rafting, kayaking or mountaineering'."""
+    return ws[0] if len(ws) == 1 else '%s %s %s' % (', '.join(ws[:-1]), conj, ws[-1])
 
 
 def reports_of(site, act):
@@ -44,101 +44,21 @@ def reports_of(site, act):
 
 def totals_line(ts):
     """'10 REPORTS · 264 MI · 101,066 FT GAIN' — every figure computed from the content, units switchable."""
-    bits = [plural(len(ts), 'REPORT')]
+    bits = [core.nb(plural(len(ts), 'REPORT'))]
     km = sum(t['stats'].get('distance_km') or 0 for t in ts)
     gain = sum(t['stats'].get('gain_m') or 0 for t in ts)
     if km:
         mi, k = core.dist_vals(km)
-        bits.append(U(mi + ' MI', k + ' KM'))
+        bits.append(U(core.nb(mi + ' MI'), core.nb(k + ' KM')))
     if gain >= 30:
-        bits.append(U(n(gain * FT) + ' FT GAIN', n(gain) + ' M GAIN'))
-    return ' · '.join(bits)
+        bits.append(U(core.nb(n(gain * FT) + ' FT GAIN'), core.nb(n(gain) + ' M GAIN')))
+    return SEP.join(bits)
 
 
-def unit(u):
-    return '<span class="unit">%s</span>' % u
-
-
-def cell_dist(st):
-    mi, km = core.dist_vals(st.get('distance_km'))
-    if not mi:
-        return None
-    return ('Distance', U(mi, km, 'mi', 'km'), U_sub(mi, km, 'mi', 'km'))
-
-
-def cell_m(lab, m):
-    if m is None:
-        return None
-    return (lab, U(n(m * FT), n(m), 'ft', 'm'), U_sub(n(m * FT), n(m), 'ft', 'm'))
-
-
-def cell_moving(t):
-    st = t['stats']
-    if not st.get('moving_s'):
-        return None
-    sub = ('Start ' + core.ftime(t['start_time'])) if t.get('start_time') else ''
-    return ('Moving', '%s%s' % (core.hm(st['moving_s']), unit('h:mm')), sub)
-
-
-def is_flat(t):
-    st = t['stats']
-    return t['activity'] == 'other' and (st.get('gain_m') or 0) < 30
-
-
-def beta_value(t, label):
-    for b in t['beta']:
-        if str(b.get('label', '')).lower() == label.lower():
-            return str(b.get('value', ''))
-    return ''
-
-
-def feat_cells(t):
-    """Data-strip cells for the featured report, per activity (only values the content has)."""
-    st = t['stats']
-    act = t['activity']
-    cells = []
-    if act == 'climb':
-        p = beta_value(t, 'Pitches')
-        if p:
-            routes = [r for r in beta_value(t, 'Routes').split(',') if r.strip()]
-            cells.append(('Pitches', esc(p), plural(len(routes), 'ROUTE') if routes else ''))
-        cells += [cell_dist(st), cell_m('GPS max', st.get('high_m')), cell_moving(t)]
-    elif is_flat(t):
-        cells += [cell_dist(st), cell_moving(t)]
-        if st.get('distance_km') and st.get('moving_s'):
-            mins = st['moving_s'] / 60.0
-            mi = st['distance_km'] * 1000 / MI
-            per_mi, per_km = mins / mi, mins / st['distance_km']
-            cells.append(('Avg pace', U(n(per_mi), n(per_km), 'min/mi', 'min/km'),
-                          U_sub(n(per_mi), n(per_km), 'min/mi', 'min/km') + ' · MOVING'))
-    else:
-        cells += [cell_dist(st), cell_m('Gain', st.get('gain_m')), cell_m('GPS max', st.get('high_m')), cell_moving(t)]
-        if act == 'mtb' and st.get('distance_km') and st.get('moving_s'):
-            h = st['moving_s'] / 3600.0
-            mph, kmh = st['distance_km'] * 1000 / MI / h, st['distance_km'] / h
-            cells.append(('Avg speed', U('%.1f' % mph, '%.1f' % kmh, 'mph', 'km/h'),
-                          U_sub('%.1f' % mph, '%.1f' % kmh, 'mph', 'km/h') + ' · MOVING'))
-    return [c for c in cells if c]
-
-
-def strip(cells):
-    out = ''.join('<div class="strip-c"><dt class="t-label">%s</dt><dd class="t-data-xl strip-v">%s</dd>%s</div>'
-                  % (lab, val, ('<dd class="t-mono-s strip-s">%s</dd>' % sub) if sub else '') for lab, val, sub in cells)
-    return '<dl class="strip" style="--cells:%d" aria-label="Trip stats">%s</dl>' % (max(len(cells), 1), out)
-
-
-def stats_note(t):
-    bits = ['Stats from the Garmin recording via Strava.']
-    track = beta_value(t, 'Track')
-    if track:
-        bits.append('Track: %s.' % esc(track.rstrip('.')))
-    if is_flat(t):
-        bits.append('Pace is moving time divided by distance.')
-    else:
-        if t['activity'] == 'mtb':
-            bits.append('Average speed is distance divided by moving time.')
-        bits.append('GPS max is the highest point in the GPX file, not a surveyed summit height.')
-    return '<p class="strip-note">%s</p>' % ' '.join(bits)
+def count_html(k, cls):
+    """Visible '5'; assistive tech hears ', 5 reports' after the segment / tab name."""
+    return ('<span class="%s"><span class="sr">, </span>%d<span class="sr"> %s</span></span>'
+            % (cls, k, 'report' if k == 1 else 'reports'))
 
 
 def map_caption(t, extra=''):
@@ -147,9 +67,8 @@ def map_caption(t, extra=''):
         first.append('Track: Garmin, %s' % core.fdate(t['date'], 'short'))
     first.append(FULL_TRACK)
     first.append('North up')
-    return ('<div class="mapcap sec-mapcap"><p class="mapcap-t"><span>%s</span>'
-            '<span>Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation</span></p>%s</div>'
-            % (' · '.join(first), extra))
+    return ('<div class="mapcap sec-mapcap"><p class="mapcap-t"><span>%s</span><span>%s</span></p>%s</div>'
+            % (' · '.join(first), ATTRIB, extra))
 
 
 def arrow_link(href, text, cls='alink'):
@@ -184,8 +103,7 @@ def band(label, segs, scope_id):
     segs: [(key, text, count|None, href|None (None = disabled), icon_name|None)]."""
     out = []
     for i, (key, text, cnt, href, ic) in enumerate(segs):
-        inner = '%s<span>%s</span>%s' % (icon(ic, 20) if ic else '', esc(text),
-                                         ('<span class="sec-seg-n">%s</span>' % cnt) if cnt else '')
+        inner = '%s<span>%s</span>%s' % (icon(ic, 20) if ic else '', esc(text), count_html(cnt, 'sec-seg-n') if cnt else '')
         if href is None:
             out.append('<a class="sec-seg-a" role="link" aria-disabled="true">%s</a>' % inner)
         else:
@@ -213,7 +131,7 @@ def featured(t, here, full_row=''):
     # phones: chips-only chip row, the date moves to the start of the place line (GUIDE round 3)
     chips = '%s%s<span class="t-mono-s sec-feat-date">%s</span>' % (core.chip(t, variant='title'), core.trip_tags(t), date)
     place_html = ('<p class="t-mono-s sec-feat-place"><span class="sec-feat-pdate">%s%s</span>%s</p>'
-                  % (date, ' · ' if place else '', place))
+                  % (date, SEP if place else '', place))
     map_ = core.map_block(t, here, [('map-col', 'col'), ('map-phone', 'phone')], t['url'] + 'map/', 'fm',
                           cls='map--nowide sec-feat-mapv')
     ch = meta.get('charts', {})
@@ -223,6 +141,9 @@ def featured(t, here, full_row=''):
     if 'speed-col' in ch:
         chart += speed_block(t, here)
     text_left = not chart and bool(t['photos'])
+    if full_row and 'profile-phone' in ch:
+        # phones: the full-width profile row is hidden, and this one sits right under the map caption instead
+        chart += '<div class="sec-feat-pph">%s</div>' % profile_block(t, here, [('profile-phone', 'phone')], 'fpp')
     photos = t['photos'][:2 if text_left else 1]
     pics = ''.join(core.photo(t, p, here, sizes='(min-width: 1200px) 506px, (min-width: 760px) 50vw, 100vw', cls='sec-feat-photo')
                    for p in photos)
@@ -240,17 +161,8 @@ def featured(t, here, full_row=''):
             '<div class="sec-feat-grid%s"><div class="sec-feat-map">%s%s%s</div>'
             '<div class="sec-feat-side">%s%s</div></div>%s</section>'
             % (esc(t.get('subtype') or ''), chips, href, core.title_html(t['title']), place_html,
-               gpx, icon('download', 18), strip(feat_cells(t)), stats_note(t), grid_cls,
+               gpx, icon('download', 18), core.strip(core.strip_cells(t)), core.stats_note(t), grid_cls,
                map_, map_caption(t), chart, ('<div class="sec-feat-pics">%s</div>' % pics) if pics else '', txt, full_row))
-
-
-def vx_line(ch, variants):
-    """VERTICAL ×N differs per chart width; show the one that matches the visible variant."""
-    out = []
-    for name, size in variants:
-        if name in ch and ch[name].get('vx'):
-            out.append('<span class="sec-vx sec-vx--%s">VERTICAL ×%.1f</span>' % (size, ch[name]['vx']))
-    return ''.join(out)
 
 
 def profile_block(t, here, variants, ns, cls=''):
@@ -261,19 +173,21 @@ def profile_block(t, here, variants, ns, cls=''):
     st = t['stats']
     hi = st.get('high_m') if st.get('high_m') is not None else first.get('gps_max_ft', 0) / FT
     lo = st.get('low_m') if st.get('low_m') is not None else first.get('min_ft', 0) / FT
-    meta_line = 'GPS MAX %s · MIN %s · %s' % (U(n(hi * FT) + ' FT', n(hi) + ' M'), U(n(lo * FT) + ' FT', n(lo) + ' M'),
-                                             vx_line(ch, variants))
-    wrap_cls = 'sec-prof sec-prof--%s' % variants[0][1]
-    return ('<div class="%s"><div class="sec-chart-h"><h3 class="t-label" id="%s-h">Elevation</h3><p class="t-mono-s">%s</p></div>'
+    bits = [U(core.nb('GPS MAX %s FT' % n(hi * FT)), core.nb('GPS MAX %s M' % n(hi))),
+            U(core.nb('MIN %s FT' % n(lo * FT)), core.nb('MIN %s M' % n(lo)))]
+    vx = core.vx_line(ch, variants, nowide=('chart--nowide' in cls) or None)
+    if vx:
+        bits.append(vx.replace('VERTICAL ×', 'VERTICAL\u00a0×'))
+    return ('<div class="sec-prof"><div class="sec-chart-h"><h3 class="t-label" id="%s-h">Elevation</h3><p class="t-mono-s">%s</p></div>'
             '<div role="group" aria-labelledby="%s-h">%s</div></div>'
-            % (wrap_cls, ns, meta_line, ns, core.chart_block(t, here, variants, ns, cls=cls)))
+            % (ns, SEP.join(bits), ns, core.chart_block(t, here, variants, ns, cls=cls)))
 
 
 def speed_block(t, here):
-    return ('<div class="sec-prof sec-prof--col"><div class="sec-chart-h"><h3 class="t-label" id="fs-h">Speed</h3>'
-            '<p class="t-mono-s">MPH, 3-MIN MEDIAN · FLAT WATER, NO ELEVATION PROFILE</p>%s</div>'
+    return ('<div class="sec-prof"><div class="sec-chart-h"><h3 class="t-label" id="fs-h">Speed</h3>'
+            '<p class="t-mono-s">%s</p>%s</div>'
             '<div role="group" aria-labelledby="fs-h">%s</div></div>'
-            % (core.key_row(['speed'], 'keyrow--inline'),
+            % (core.speed_meta(t), core.key_row(['speed'], 'keyrow--inline'),
                core.chart_block(t, here, [('speed-col', 'col'), ('speed-phone', 'phone')], 'fs', cls='chart--nowide')))
 
 
@@ -282,41 +196,9 @@ def pick_featured(ts):
     return next((t for t in singles if t['featured']), singles[0] if singles else None)
 
 
-_ROW_STATS = re.compile(r'<dl class="trow-stats">.*?</dl>', re.S)
-_ROW_MOVING = re.compile(r'(<dt class="t-label">Moving</dt><dd class="t-data-m">)([^<]+)(</dd>)')
-
-
-def day_ruler(t):
-    """Multi-day rows: one bar per day, widths proportional to that day's distance, labelled D1…DN (SkiIndex artboard)."""
-    if t['kind'] != 'multi-day' or len(t['days']) < 2:
-        return ''
-    ds = [d['stats'].get('distance_km') or 0 for d in t['days']]
-    if not sum(ds):
-        return ''
-    return ('<div class="sec-dr" aria-hidden="true">%s</div>'
-            % ''.join('<span style="flex-grow:%.2f">D%s</span>' % (v, esc(d['label'])) for v, d in zip(ds, t['days'])))
-
-
 def row(t, here, tagged=False):
-    """core.trip_row adjusted to the GUIDE list-row rules (see core_requests): route shape in the Mono-S meta line,
-    status-only tags (MULTI-DAY · N DAYS, SERIES, PLANNED), DIST · GAIN · GPS MAX · MOVING on every row, day ruler on multi-day."""
-    r = core.trip_row(t, here)
-    shape = t.get('route_shape') if t['kind'] in ('trip', 'multi-day') else None
-    if shape:
-        word = core.SHAPE.get(shape, shape)
-        if core.tag(word) in r:
-            r = r.replace(core.tag(word), '', 1)
-            r = r.replace('</p><h3 class="t-h3 trow-t">', ' · %s</p><h3 class="t-h3 trow-t">' % esc(word.upper()), 1)
-    if t['kind'] == 'planned':  # the PLANNED tag already says it
-        r = r.replace('<p class="t-mono-s trow-meta">PLANNED · ', '<p class="t-mono-s trow-meta">', 1)
-    if t['kind'] == 'multi-day':
-        k = len(t['days'])
-        r = r.replace(core.tag('%d days' % k), core.tag('Multi-day · %d days' % k), 1)
-    stats = _ROW_MOVING.sub(r'\1\2<span class="unit sec-hm"> h:mm</span>\3', core.stats_cells(t, ('dist', 'gain', 'high', 'time')))
-    r = _ROW_STATS.sub(lambda m: '<dl class="trow-stats">%s</dl>%s' % (stats, day_ruler(t)), r, count=1)
-    if tagged:  # Other: each row carries its sub-type so the filter band can show / hide it
-        r = r.replace('<li class="trow"', '<li class="trow" data-f="%s"' % esc(t.get('subtype') or ''), 1)
-    return r
+    """The shared list row; on Other each row carries its sub-type so the filter band can show / hide it."""
+    return core.trip_row(t, here, filter_key=(t.get('subtype') or '') if tagged else None)
 
 
 def more_list(title, rows_ts, here, id_='more', meta=None, extra='', tagged=False):
@@ -327,33 +209,46 @@ def more_list(title, rows_ts, here, id_='more', meta=None, extra='', tagged=Fals
             % (id_, core.section_head(title, meta, id_=id_ + '-h'), ''.join(row(t, here, tagged) for t in rows_ts), extra))
 
 
-# ---------------------------------------------------------------- hiking series card
+# ---------------------------------------------------------------- hiking: series section (HikingIndex artboard)
 
-def series_card(t, here):
+def series_block(t, here):
+    """Open section after Featured: head (title link · date range), overview map (4 of 12 columns) | tag, place line,
+    the series page's stats, first photo of the first three days with photos, first written day, actions."""
     href = link(here, t['url'])
     days = t['days']
     written = [d for d in days if d['body_md']]
     mi, km = core.dist_vals(t['stats'].get('distance_km'))
-    cells = [('Recorded days', n(len(days)), '')]
+    cells = []
     if mi:
-        cells.append(('Distance recorded', U(mi, km, 'mi', 'km'), ''))
+        cells.append(('Distance recorded', U(mi, km, 'mi', 'km')))
+    cells.append(('Days recorded', n(len(days))))
     if written:
-        cells.append(('Write-ups', '%s%s' % (n(len(written)), unit('days')), ''))
-    stats = ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % (a, b) for a, b, _ in cells)
+        cells.append(('Write-ups', '%s<span class="unit">day%s</span>' % (n(len(written)), '' if len(written) == 1 else 's')))
+    stats = ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % c for c in cells)
+    firsts = [d['photos'][0] for d in days if d['photos']][:3]
+    pics = ''.join(core.photo(t, p, here, sizes='(min-width: 1200px) 224px, 30vw', caption=False, cls='sec-ser-ph')
+                   for p in firsts)
     sample = ''
     if written:
         d = written[0]
-        lab = 'DAY %s' % esc(d['label']) + ((' · ' + esc(d['title']).upper()) if d.get('title') else '')
+        lab = 'Day %s' % esc(str(d['label'])) + ((' · ' + esc(d['title'])) if d.get('title') else '')
         sample = ('<div class="sec-ser-day"><p class="t-label">%s</p><p class="t-excerpt sec-ser-ex">%s</p></div>'
                   % (lab, esc(markdown.plain(d['body_md'], 200))))
-    return ('<section class="sec-ser wrap" aria-labelledby="ser-title"><div class="sec-ser-card">'
-            '<a class="sec-ser-tile" href="%s" tabindex="-1" aria-hidden="true">%s</a>'
-            '<div class="sec-ser-b"><div class="chips">%s<span class="t-mono-s">%s</span></div>'
-            '<h2 class="t-h2 sec-ser-t" id="ser-title"><a href="%s">%s</a></h2>'
-            '<p class="t-mono-s sec-ser-place">%s</p><dl class="sec-ser-stats">%s</dl>%s'
-            '<div class="sec-ser-a">%s</div></div></div></section>'
-            % (href, core.tile(t, here, 'ser-' + t['slug']), core.tag('Series'), core.trip_date(t), href, esc(t['title']),
-               core.place_line(t), stats, sample, arrow_link(href, 'Read the series', 'btn btn--ink')))
+    mp = core.map_block(t, here, [('overview-tall', 'desktop')], t['url'] + 'map/', 'ser', cls='sec-ser-map')
+    place = core.place_line(t)
+    return ('<section class="sec-ser wrap" aria-labelledby="ser-title">%s'
+            '<div class="sec-ser-g">'
+            '<div class="sec-ser-mapc">%s<p class="t-small sec-ser-cap"><span>North up · Terrain: AWS Terrain Tiles</span> '
+            '<span>Map data ©\u00a0OpenStreetMap contributors · Not\u00a0for\u00a0navigation</span></p></div>'
+            '<div class="sec-ser-b">'
+            '<div class="chips">%s</div>%s<dl class="sec-ser-stats">%s</dl>'
+            '%s%s'
+            '<div class="sec-ser-a">%s<a class="btn" href="%s#days">%sDay by day</a></div>'
+            '</div></div></section>'
+            % (core.section_head('<a href="%s">%s</a>' % (href, esc(t['title'])), core.trip_date(t), id_='ser-title'),
+               mp, core.tag('Series'), ('<p class="t-mono-s sec-ser-place">%s</p>' % place) if place else '', stats,
+               ('<div class="sec-ser-phs">%s</div>' % pics) if pics else '', sample,
+               arrow_link(href, 'Read the series', 'btn btn--ink'), href, icon('list', 18)))
 
 
 # ---------------------------------------------------------------- ski: seasons + region panel
@@ -393,15 +288,14 @@ def ski_panel(ts, here):
         cnt = len([t for t in ts if t.get('region') == r])
         sel = i == 0
         tabs.append('<button type="button" role="tab" id="rt-%s" aria-controls="rp-%s" aria-selected="%s" tabindex="%s">'
-                    '<span>%s</span><span class="sec-tab-n">%d</span></button>'
-                    % (s, s, 'true' if sel else 'false', '0' if sel else '-1', esc(r), cnt))
+                    '<span>%s</span>%s</button>'
+                    % (s, s, 'true' if sel else 'false', '0' if sel else '-1', esc(r), count_html(cnt, 'sec-tab-n')))
         mb = core.map_block(None, here, [('ski-%s-desktop' % s, 'desktop'), ('ski-%s-phone' % s, 'phone')],
                             'assets/maps/', 'rm-' + s, site_maps=True, eager=sel)
         mb = dedupe_roads(mb, 'rm-' + s)
         panels.append('<div class="sec-rp" role="tabpanel" id="rp-%s" aria-labelledby="rt-%s"%s>'
                       '<p class="t-label sec-rp-l">%s</p>%s</div>' % (s, s, '' if sel else ' hidden', esc(r), mb))
-    cap = ('<p class="sec-pcap"><span class="sec-pcap-h">Hover a report to highlight its track · </span>North up · '
-           'Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation</p>')
+    cap = ('<p class="sec-pcap"><span class="sec-pcap-h">Hover a report to highlight its track · </span>North up · %s</p>' % ATTRIB)
     return ('<aside class="sec-panel" aria-labelledby="panel-h"><div class="sec-panel-in">'
             '<h2 class="sec-panel-h" id="panel-h">Ski map by region</h2>'
             '<div class="sec-tabs" role="tablist" aria-label="Region">%s</div>'
@@ -433,30 +327,41 @@ NOSCRIPT = ('<noscript><style>.sec-rp[hidden]{display:block!important}.sec-rp+.s
             '.sec-panel-in{position:static!important}</style></noscript>')
 
 
-# ---------------------------------------------------------------- other: empty states
+# ---------------------------------------------------------------- other: sub-types without reports
 
-def empty_states(subs):
+def none_line(subs):
+    """'No rafting, kayaking or mountaineering reports yet.' — one line under the filter band (the segments stay, disabled)."""
     if not subs:
         return ''
-    cards = ''.join('<li class="sec-empty"><span class="sec-empty-i">%s</span><div class="sec-empty-b"><h3 class="t-h4">%s</h3>'
-                    '<p class="t-label sec-empty-l">First reports coming</p><p class="sec-empty-p">%s</p></div></li>'
-                    % (icon(core.SUB_ICON[s], 32), esc(core.SUB_WORD[s]), esc(EMPTY_LINE[s])) for s in subs)
-    return ('<section class="sec-empties wrap" aria-labelledby="empty-h" data-f="">%s<ul class="sec-empty-g">%s</ul></section>'
-            % (core.section_head('No reports yet', plural(len(subs), 'SUB-TYPE'), id_='empty-h'), cards))
+    return ('<p class="t-small sec-none wrap">No %s reports yet.</p>'
+            % esc(words_list([core.SUB_WORD[s].lower() for s in subs])))
 
 
 # ---------------------------------------------------------------- pages
 
+def act_words(act, ts):
+    """'backcountry ski'; on Other the sub-types the reports have ('paddleboarding')."""
+    if act == 'other':
+        subs = []
+        for t in ts:
+            w = core.SUB_WORD.get(t.get('subtype') or '', t.get('subtype') or '')
+            if w and w.lower() not in subs:
+                subs.append(w.lower())
+        if subs:
+            return words_list(subs, 'and')
+    return core.ACT[act][0].lower()
+
+
 def description(act, ts):
-    lab = core.ACT[act][0]
     regions = []
     for t in ts:
         if t.get('region') and t['region'] not in regions:
             regions.append(t['region'])
     where = (' (%s)' % ', '.join(regions)) if regions else ''
+    word = act_words(act, ts)
     if len(ts) == 1:
-        return '1 %s trip report%s with the full GPS track, a map and stats.' % (lab, where)
-    return '%d %s trip reports%s, each with the full GPS track, a map and stats.' % (len(ts), lab, where)
+        return '1 %s trip report%s, with the full GPX track and map.' % (word, where)
+    return '%d %s trip reports%s, each with the full GPX track and map.' % (len(ts), word, where)
 
 
 def og_image(ts):
@@ -489,26 +394,25 @@ def page(act, site):
             for s in content.OTHER_SUBTYPES:
                 segs.append((s, core.SUB_WORD[s], counts[s] or None, ('#featured' if counts[s] else None), core.SUB_ICON[s]))
             body.append(band('Filter by type', segs, 'reports'))
+            body.append(none_line([s for s in content.OTHER_SUBTYPES if not counts[s]]))
         body.append('<div id="reports" class="sec-reports%s">' % (' sec-reports--band' if act == 'other' else ''))
-        series = [t for t in ts if t['kind'] == 'series']
-        if act == 'hike' and series:
-            body.append(series_card(series[0], here))
         feat = pick_featured(ts)
         if feat:
             full = ''
             if act == 'mtb':
-                full = profile_block(feat, here, [('profile-wide', 'wide'), ('profile-col', 'col'), ('profile-phone', 'phone')], 'fw')
+                full = profile_block(feat, here, [('profile-wide', 'wide'), ('profile-col', 'col')], 'fw')
                 full = ('<div class="sec-feat-full">%s</div>' % full) if full else ''
             body.append(featured(feat, here, full_row=full))
+        series = [t for t in ts if t['kind'] == 'series' and t['days']]
+        if act == 'hike' and series:
+            body.append(series_block(series[0], here))
         rest = [t for t in ts if t is not feat and not (act == 'hike' and t['kind'] == 'series')]
         body.append(more_list(MORE[act], rest, here, tagged=(act == 'other')))
         if act == 'hike' and site['planned']:
             planned = [t for t in site['planned'] if t['activity'] == act]
             body.append(more_list('Planned', planned, here, id_='planned', meta=plural(len(planned), 'PLANNED ROUTE')))
-        if act == 'other':
-            body.append(empty_states([s for s in content.OTHER_SUBTYPES if not counts[s]]))
         body.append('</div>')
-    title = core.ACT[act][0]
+    title = '%s trip reports' % core.ACT[act][0]
     return core.Page(here, core.document(here, title, ''.join(body), description(act, ts), active=act,
                                          image=og_image(([feat] if feat else []) + ts), extra_head=extra_head,
                                          body_cls='p-section p-section--%s' % act), title)

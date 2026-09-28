@@ -76,6 +76,13 @@ MAP_CSS = """
 """ % {'mono': MONO, 'sans': SANS, 'serif': SERIF}
 
 
+def _base_css():
+    keep = ('.mk-min', '.mk-idx', '.mk-water', '.mk-glacier', '.mk-stream', '.mk-river', '.mk-roadc', '.mk-road', '.mk-minorc', '.mk-minor', '.mk-trail', '.mk-border')
+    return ''.join(l.strip() for l in MAP_CSS.split('\n') if l.strip().startswith(keep) and '%(' not in l)
+
+
+BASE_CSS = _base_css()
+
 _ATTR_RE = re.compile(r'<(text|tspan|path|rect|circle|g)\b([^>]*?)(/?)>')
 
 
@@ -487,6 +494,15 @@ def poly_d(proj, rings, eps=0.4, min_area=0.0, frame=None):
     return ''.join(parts)
 
 
+def point_in_ring(pt, ring):
+    x, y = pt
+    inside = False
+    for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1]):
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / ((y2 - y1) or 1e-9) + x1:
+            inside = not inside
+    return inside
+
+
 def ring_area_px(pts):
     a = 0
     for i in range(len(pts)):
@@ -548,7 +564,7 @@ def render_map(spec):
         half_lon = min_m / 2 / (geo.M_PER_DEG_LON_EQ * math.cos(math.radians(clat)))
         proj = Proj((clat - half_lat, clon - half_lon, clat + half_lat, clon + half_lon), w, h, pad=0.0)
     meta = {'name': name, 'w': w, 'h': h, 'm_per_px': proj.m_per_px, 'bbox_frame': proj.bounds()}
-    layers = {'base': [], 'water': [], 'contours': [], 'lines': [], 'track': [], 'markers': [], 'labels': []}
+    layers = {'base': [], 'water': [], 'contours': [], 'lines': [], 'track': [], 'markers': [], 'labels': [], 'pins': []}
     boxes = []  # label collision boxes
     marker_pts = []
 
@@ -725,8 +741,12 @@ def render_map(spec):
         oab = style == 'route' and is_out_and_back(tr)
         if style == 'route' and small and oab:
             far_i = max(range(len(xy)), key=lambda k: math.hypot(xy[k][0] - xy[0][0], xy[k][1] - xy[0][1]))
-            xy_s = geo.rdp(xy[:far_i + 1], spec.get('track_eps', 1.2))
-            d = geo.d_attr(xy_s)
+            out_leg = xy[:far_i + 1:max(1, (far_i + 1) // 400)]
+            back = xy[far_i::max(1, (len(xy) - far_i) // 200)]
+            dists = sorted(min(math.hypot(bx - ax, by - ay) for ax, ay in out_leg) for bx, by in back)
+            if dists and dists[int(0.9 * (len(dists) - 1))] < 4:
+                xy_s = geo.rdp(xy[:far_i + 1], spec.get('track_eps', 1.2))
+                d = geo.d_attr(xy_s)
         if style == 'route' and spec.get('skin') and tr.ele and not small:
             # skin (ascent) dashed thin, ski (descent) solid; out-and-back legs offset apart
             segs_ = turning_segments(tr.cd, tr.ele, 30)
@@ -764,7 +784,7 @@ def render_map(spec):
             layers['track'].append('<g class="mk-cat"%s style="opacity: %s">%s<path class="gl-trk" style="stroke: %s; stroke-width: %.1f" d="%s"/></g>'
                                    % (' data-key="%s"' % esc(t['key']) if t.get('key') else '', op, case, CAT[t.get('cat', 'SKI')], wdt, d))
         elif style == 'planned':
-            pl = ('<path class="mk-case" style="stroke-width: 3.5; stroke: #EEECE6; opacity: .8" d="%s"/><path class="mk-trk" style="stroke: #45474C; stroke-width: 1.5; stroke-dasharray: 4 3; stroke-linecap: butt" d="%s"/>' % (d, d))
+            pl = ('<path class="mk-case" style="stroke-width: 5.5; stroke: #EEECE6" d="%s"/><path class="mk-trk" style="stroke: #45474C; stroke-width: 2.5; stroke-dasharray: 8 5; stroke-linecap: butt; stroke-linejoin: round" d="%s"/>' % (d, d))
             if t.get('key'):
                 pl = '<g class="mk-cat mk-planned" data-key="%s">%s</g>' % (esc(t['key']), pl)
             layers['track'].append(pl)
@@ -809,8 +829,8 @@ def render_map(spec):
                     x, y = pos
                     placed_discs.append((x, y))
                     marker_pts.append((x, y))
-                    layers['markers'].append('<circle cx="%.1f" cy="%.1f" r="10" style="fill: #FFFFFF; stroke: #16171A; stroke-width: 1"/>'
-                                             '<text class="mk-num" x="%.1f" y="%.1f">%d</text>' % (x, y, x, y + 0.5, m))
+                    layers['markers'].append('<g class="mk-mile"><circle cx="%.1f" cy="%.1f" r="10" style="fill: #FFFFFF; stroke: #16171A; stroke-width: 1"/>'
+                                             '<text class="mk-num" x="%.1f" y="%.1f">%d</text></g>' % (x, y, x, y + 0.5, m))
                     boxes.append((x - 11, y - 11, x + 11, y + 11))
                 m += every
         if style == 'route' and spec.get('chevrons') and not oab:
@@ -821,7 +841,7 @@ def render_map(spec):
                     a = math.degrees(ang)
                     layers['track'].append('<path class="mk-chev" transform="translate(%.1f %.1f) rotate(%.1f)" d="M-2.5 -3.5L1.5 0L-2.5 3.5"/>' % (x, y, a))
                 m += 1.0 if (tr.total / MI) <= 15 else 2.0
-        if spec.get('startend') and style in ('route',):
+        if spec.get('startend') and style in ('route', 'planned'):
             sx, sy = xy[0]
             ex, ey = xy[-1]
             if math.hypot(sx - ex, sy - ey) < 24:
@@ -852,11 +872,15 @@ def render_map(spec):
             summit = None
             if osm and not at_start:
                 glat, glon = tr.raw[tr.imax][0], tr.raw[tr.imax][1]
-                best_pk = None
+                best_pk = best_prio = None
+                prio_names = set(spec.get('priority_peaks') or [])
                 for (plat, plon), ptags in geo.osm_nodes(osm, lambda t_: t_.get('natural') == 'peak' and t_.get('name')):
                     dd = geo.hav((glat, glon), (plat, plon))
+                    if ptags['name'] in prio_names and dd < 400 and (best_prio is None or dd < best_prio[0]):
+                        best_prio = (dd, ptags['name'])
                     if dd < 250 and (best_pk is None or dd < best_pk[0]):
                         best_pk = (dd, ptags['name'])
+                best_pk = best_prio or best_pk
                 if best_pk:
                     summit = best_pk[1]
                     spec.setdefault('_prio_done', set()).add(summit)
@@ -906,11 +930,21 @@ def render_map(spec):
             boxes.append((sx - 12, sy - 12, sx + 12, sy + 12))
         if t.get('hut_end'):
             ex, ey = xy[-1]
-            layers['markers'].append('<rect x="%.1f" y="%.1f" width="20" height="20" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 1.5; paint-order: stroke"/><text class="mk-day" x="%.1f" y="%.1f">%d</text>'
-                                     % (ex - 10, ey - 10, ex, ey + 0.5, t['hut_end']['n']))
-            boxes.append((ex - 11, ey - 11, ex + 11, ey + 11))
-            if t['hut_end'].get('label'):
-                meta.setdefault('hut_labels', []).append((ex, ey, re.sub(r'\s+(CAS|CAF|SAC|CAI)$', '', t['hut_end']['label'])))
+            hb = spec.setdefault('_hut_boxes', [])
+            near = next((b_ for b_ in hb if math.hypot(b_['x'] - ex, b_['y'] - ey) < 22), None)
+            if near:
+                near['nums'].append(t['hut_end']['n'])
+                txt = '·'.join(str(n_) for n_ in near['nums'])
+                bw = text_w(txt, 11, mono=True) + 10
+                layers['markers'][near['i']] = ('<rect x="%.1f" y="%.1f" width="%.1f" height="20" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 1.5; paint-order: stroke"/><text class="mk-day" x="%.1f" y="%.1f">%s</text>'
+                                                % (near['x'] - bw / 2, near['y'] - 10, bw, near['x'], near['y'] + 0.5, txt))
+            else:
+                layers['markers'].append('<rect x="%.1f" y="%.1f" width="20" height="20" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 1.5; paint-order: stroke"/><text class="mk-day" x="%.1f" y="%.1f">%d</text>'
+                                         % (ex - 10, ey - 10, ex, ey + 0.5, t['hut_end']['n']))
+                hb.append({'x': ex, 'y': ey, 'nums': [t['hut_end']['n']], 'i': len(layers['markers']) - 1})
+                boxes.append((ex - 11, ey - 11, ex + 11, ey + 11))
+                if t['hut_end'].get('label'):
+                    meta.setdefault('hut_labels', []).append((ex, ey, re.sub(r'\s+(CAS|CAF|SAC|CAI)$', '', t['hut_end']['label'])))
 
     if spec.get('overall_startend') and proj_tracks:
         sx, sy = proj_tracks[0][1][0]
@@ -1053,14 +1087,15 @@ def render_map(spec):
                         x, y = nx_, ny_
                 pin_ = pin_svg(x, y, pn['cat'], pn.get('num'))
                 if pn.get('href'):
-                    pin_ = '<a class="mk-pin" href="%s" data-key="%s"><title>%s</title>%s</a>' % (esc(pn['href']), esc(pn.get('key', '')), esc(pn.get('title', '')), pin_)
-                layers['markers'].append(pin_)
+                    pin_ = ('<a class="mk-pin" href="%s" data-key="%s" aria-label="%s"><title>%s</title><circle class="mk-hit" cx="%.1f" cy="%.1f" r="22" style="fill: transparent"/>%s</a>'
+                            % (esc(pn['href']), esc(pn.get('key', '')), esc(pn.get('title', '')), esc(pn.get('title', '')), x, y, pin_))
+                layers['pins'].append(pin_)
             else:
                 n = len(c['items'])
                 cats_ = set(i_['cat'] for i_ in c['items'])
                 ring = CAT[list(cats_)[0]] if len(cats_) == 1 else '#16171A'
-                layers['markers'].append('<g class="mk-cluster" data-keys="%s"><title>%s</title><circle cx="%.1f" cy="%.1f" r="11" style="fill: #F2F1EC; stroke: %s; stroke-width: 2"/><text x="%.1f" y="%.1f" style="font: 600 12px/1 %s; fill: #16171A; text-anchor: middle; dominant-baseline: central">%d</text></g>'
-                                         % (esc(' '.join(i_.get('key', '') for i_ in c['items'])), esc('; '.join(i_.get('title', '') for i_ in c['items'])), x, y, ring, x, y + 0.5, MONO, n))
+                layers['pins'].append('<g class="mk-cluster" aria-hidden="true" data-keys="%s"><title>%s</title><circle class="mk-hit" cx="%.1f" cy="%.1f" r="22" style="fill: transparent"/><circle cx="%.1f" cy="%.1f" r="11" style="fill: #F2F1EC; stroke: %s; stroke-width: 2"/><text x="%.1f" y="%.1f" style="font: 600 12px/1 %s; fill: #16171A; text-anchor: middle; dominant-baseline: central">%d</text></g>'
+                                      % (esc(' '.join(i_.get('key', '') for i_ in c['items'])), esc('; '.join(i_.get('title', '') for i_ in c['items'])), x, y, x, y, ring, x, y + 0.5, MONO, n))
             c['x'], c['y'] = x, y
             boxes.append((x - 12, y - 12, x + 12, y + 12))
             marker_pts.append((x, y))
@@ -1187,8 +1222,9 @@ def render_map(spec):
         # water labels
         water_named.sort(key=lambda z: -z[0])
         seen = set()
+        manual = set(txt_ for _, _, txt_ in spec.get('extra_water_labels', []))
         for area, rings_xy, nm in water_named[:spec.get('water_labels', 6)]:
-            if nm in seen:
+            if nm in seen or nm in manual:
                 continue
             seen.add(nm)
             big = max(rings_xy, key=ring_area_px)
@@ -1206,8 +1242,12 @@ def render_map(spec):
             bx0 = min(p_[0] for p_ in big); bx1 = max(p_[0] for p_ in big)
             by0 = min(p_[1] for p_ in big); by1 = max(p_[1] for p_ in big)
             cands = [(cx, cy), (cx, by0 - 6), (cx, by1 + 16), (bx1 + 6 + tw / 2, cy + 4), (bx0 - 6 - tw / 2, cy + 4)]
-            for lx_, ly_ in cands:
+            for ci_, (lx_, ly_) in enumerate(cands):
                 b = (lx_ - tw / 2, ly_ - 10, lx_ + tw / 2, ly_ + 6)
+                if ci_ == 0 and sum(point_in_ring((px_, ly_ - 3), big) for px_ in (b[0] + 2, lx_, b[2] - 2)) < 2:
+                    continue  # a lake larger than the frame: its clamped centroid can land on shore
+                if ci_ > 0 and (bx1 - bx0 > w * 0.6 or by1 - by0 > h * 0.6):
+                    continue  # never label a frame-filling lake from outside it
                 if b[0] > 4 and b[2] < w - 4 and b[1] > 4 and b[3] < h - 4 and not overlaps(b, boxes, 3) and not hits_track_dense(b, 6):
                     layers['labels'].append('<text class="%s" x="%.1f" y="%.1f" text-anchor="middle">%s</text>' % (cls, lx_, ly_, esc(nm)))
                     boxes.append(b)
@@ -1265,10 +1305,23 @@ def render_map(spec):
     if spec.get('scale', True) and spec.get('_scale'):
         fur.append(scale_bar_compact(*spec['_scale']))
     aria = spec.get('aria', '')
-    order = ['base', 'water', 'contours', 'lines', 'track', 'markers', 'labels']
+    static = ''.join(''.join(layers[k]) for k in ('water', 'contours', 'lines'))
+    if spec.get('split_base', True) and static:
+        base_svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d"><style>%s</style>%s</svg>\n'
+                    % (w, h, w, h, BASE_CSS, static))
+        with open(os.path.join(FRAG, name + '.base.svg'), 'w') as fh:
+            fh.write(base_svg)
+        meta['base'] = name + '.base.svg'
+        order = ['base', 'track', 'markers', 'labels']
+    else:
+        order = ['base', 'water', 'contours', 'lines', 'track', 'markers', 'labels']
     body = ''.join(''.join(layers[k]) for k in order) + ''.join(fur)
-    svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d" role="img" aria-label="%s" '
-           'style="position: absolute; left: 0; top: 0; display: block; overflow: hidden">%s</svg>') % (w, h, w, h, esc(aria), body)
+    if layers['pins']:
+        svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d" role="group" aria-label="%s" '
+               'style="position: absolute; left: 0; top: 0; display: block; overflow: hidden"><g aria-hidden="true">%s</g>%s</svg>') % (w, h, w, h, esc(aria), body, ''.join(layers['pins']))
+    else:
+        svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d" role="img" aria-label="%s" '
+               'style="position: absolute; left: 0; top: 0; display: block; overflow: hidden">%s</svg>') % (w, h, w, h, esc(aria), body)
     write_frag(name, svg)
     meta['bytes'] = len(svg)
     meta['total_mi'] = total_mi
@@ -1577,7 +1630,7 @@ def render_glyph(name, track_or_tracks, w, h, cat, pad=6, stroke=2.0, bg=None, p
         xy = [(x + pad, y + pad) for x, y in (proj.xy(a, b) for a, b in pts)]
         d = geo.d_attr(geo.rdp(xy, 0.25))
         if planned:
-            parts.append('<path class="gl-trk" style="stroke: #45474C; stroke-width: 1.5; stroke-dasharray: 4 3; stroke-linecap: butt" d="%s"/>' % d)
+            parts.append('<path class="gl-trk" style="stroke: #45474C; stroke-width: 2; stroke-dasharray: 6 4; stroke-linecap: butt" d="%s"/>' % d)
         else:
             parts.append('<path class="gl-trk" style="stroke: %s; stroke-width: %.1f" d="%s"/>' % (CAT[cat] if cat in CAT else cat, stroke, d))
     bgrect = '<rect width="%d" height="%d" style="fill: %s"/>' % (w, h, bg) if bg else ''
@@ -1595,7 +1648,7 @@ def render_tile(name, track, w, h, cat, osm_detail=None, extra_tracks=(), osm_da
             'graticule': False, 'miles': False, 'chevrons': False, 'startend': False, 'gpsmax': False,
             'contour_labels': False, 'contour_density': 1.6, 'contour_step': 2.0, 'minor_contours': False, 'peaks_max': 0, 'places': False,
             'water_labels': 0, 'trails': False, 'road_levels': (), 'min_extent_m': 900, 'trim': DEFAULT_TRIM, 'osm_data': osm_data,
-            'transfers': list(transfers), 'transfer_dash': '2 3', 'transfer_w': 1, 'transfer_label': False}
+            'transfers': list(transfers), 'transfer_dash': '2 3', 'transfer_w': 1, 'transfer_label': False, 'split_base': False}
     meta = render_map(spec)
     p = os.path.join(FRAG, name + '.svg.html')
     s = open(p).read()
@@ -1620,29 +1673,35 @@ def render_sparkline(name, track, w, h, color='#45474C', stroke=1.5, domain=None
 
 
 def render_speed_chart(name, track, w, h=96):
-    """Speed over elapsed time (3-min rolling median), mph; stopped bands only when stops total >= 2 min."""
+    """Speed over elapsed time as a 3-minute distance/time average (mph); robust scale; stopped bands only if stops >= 2 min."""
     pts = [p_ for p_ in track.raw if p_[3] is not None]
     t0 = pts[0][3]
-    span = pts[-1][3] - t0
-    sp = []
-    for i_ in range(1, len(pts)):
-        dt = pts[i_][3] - pts[i_ - 1][3]
-        if dt <= 0:
+    span = max(pts[-1][3] - t0, 1)
+    T = [p_[3] - t0 for p_ in pts]
+    cum = [0.0]
+    for a_, b_ in zip(pts, pts[1:]):
+        cum.append(cum[-1] + geo.hav(a_, b_))
+    idx = [i_ for i_ in range(len(pts)) if 90 <= T[i_] <= span - 90]
+    if len(idx) < 5:
+        idx = list(range(len(pts)))
+    series = []
+    a_i = b_i = 0
+    for i_ in idx:
+        while a_i < len(T) - 1 and T[a_i] < T[i_] - 90:
+            a_i += 1
+        while b_i < len(T) - 1 and T[b_i + 1] <= T[i_] + 90:
+            b_i += 1
+        dt = T[b_i] - T[a_i]
+        if dt < 60:
             continue
-        sp.append(((pts[i_][3] - t0), geo.hav(pts[i_ - 1], pts[i_]) / dt * 2.23694))
-    med = []
-    j0 = 0
-    for i_, (t, v) in enumerate(sp):
-        while sp[j0][0] < t - 90:
-            j0 += 1
-        j1 = i_
-        while j1 + 1 < len(sp) and sp[j1 + 1][0] <= t + 90:
-            j1 += 1
-        win = sorted(x_[1] for x_ in sp[j0:j1 + 1])
-        med.append((t, win[len(win) // 2]))
-    vmax = max(v for _, v in med)
-    top_v = math.ceil(vmax * 1.1 * 2) / 2.0
-    pad_l = 72
+        series.append((T[i_], (cum[b_i] - cum[a_i]) / dt * 2.23694))
+    if not series:
+        series = [(0, 0.0), (span, 0.0)]
+    vs = sorted(v for _, v in series)
+    vref = vs[int(0.98 * (len(vs) - 1))] or 0.5
+    step = next((s_ for s_ in (0.5, 1, 2, 5, 10) if math.ceil(vref * 1.25 / s_) <= 4), 10)
+    top_v = max(step, math.ceil(vref * 1.25 / step) * step)
+    pad_l = 44 if w < 500 else 72
     pw = w - pad_l
     top, ph = 6, h - 26
 
@@ -1650,11 +1709,11 @@ def render_speed_chart(name, track, w, h=96):
         return pad_l + t / span * pw
 
     def Y(v):
-        return top + (1 - v / top_v) * (ph - top)
+        return top + (1 - min(v, top_v) / top_v) * (ph - top)
     parts = []
     stops = []
     run = None
-    for t, v in med:
+    for t, v in series:
         if v < 0.5:
             run = run or [t, t]
             run[1] = t
@@ -1669,27 +1728,29 @@ def render_speed_chart(name, track, w, h=96):
         for a, b in stops:
             parts.append('<rect x="%.1f" y="%d" width="%.1f" height="%.1f" style="fill: #E8E6DF"/>' % (X(a), top, X(b) - X(a), ph - top))
     labels = []
-    v = 1
-    while v <= top_v - 0.01:
+    k = 1
+    while k * step <= top_v + 1e-9:
+        v = k * step
         yy = Y(v)
         parts.append('<path class="pf-grid" d="M%d %.1fH%d"/>' % (pad_l, yy, w))
-        labels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: end; dominant-baseline: central">%s</text>'
-                      % (pad_l - 8, yy, ('%d mph' % v) if v + 1 > top_v - 0.01 else ('%d' % v)))
-        v += 1
+        txt = ('%g mph' % v) if abs(v - top_v) < 1e-9 else ('%g' % v)
+        labels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: end; dominant-baseline: central">%s</text>' % (pad_l - 8, yy, txt))
+        k += 1
     labels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: end; dominant-baseline: central">0</text>' % (pad_l - 8, Y(0)))
-    line = geo.rdp([(X(t), Y(v_)) for t, v_ in med], 0.4)
+    line = geo.rdp([(X(t), Y(v_)) for t, v_ in series], 0.4)
     parts.append('<path class="pf-line" style="stroke: {{route}}; stroke-width: 1.5" d="%s"/>' % geo.d_attr(line))
     parts.extend(labels)
     parts.append('<path class="pf-axk" d="M%d %.1fH%d"/>' % (pad_l, ph + 0.5, w))
     mins = span / 60
+    every = 10 if pw / max(mins / 10, 1) >= 36 else 20
     m = 0
     while m <= mins + 0.1:
         x = X(m * 60)
         anchor = 'start' if m == 0 else ('end' if x > w - 20 else 'middle')
         parts.append('<path class="pf-axk" d="M%.1f %.1fv4"/><text class="pf-ax" x="%.1f" y="%.1f" style="text-anchor: %s">%s</text>'
                      % (x, ph, x, ph + 16, anchor, '0 min' if m == 0 else '%d' % m))
-        m += 10
-    svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d" role="img" aria-label="Speed over the paddle, 3-minute median, in miles per hour" style="display: block; overflow: visible">%s</svg>'
+        m += every
+    svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d" role="img" aria-label="Speed over the paddle, 3-minute average, in miles per hour" style="display: block; overflow: visible">%s</svg>'
            % (w, h, w, h, ''.join(parts)))
     write_frag(name, svg)
-    return {'span_min': mins, 'vmax_mph': vmax, 'stopped_s': stopped_total}
+    return {'span_min': mins, 'vmax_mph': max(v for _, v in series), 'stopped_s': stopped_total, 'top_mph': top_v}

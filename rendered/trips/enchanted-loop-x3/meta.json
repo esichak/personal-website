@@ -1,5 +1,5 @@
 {
- "hash": "ac6a9c0f4a061d656bbb077b4c48408e493f453a",
+ "hash": "6f371c99edec67db36f4df0b197d8907ce852f0d",
  "slug": "enchanted-loop-x3",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 200,
    "outbound_only": false
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 200,
    "outbound_only": false
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 400,
    "outbound_only": null
   }

@@ -81,34 +81,43 @@
   var groups = Array.prototype.slice.call(document.querySelectorAll('.arc-yr'));
   var live = document.getElementById('arc-live');
   function plural(k, w, pl) { return k + ' ' + (k === 1 ? w : (pl || w + 'S')); }
+  function item(s) { return '<span class="arc-seg">' + s + '</span>'; }
+  // mirrors archive.py count_line(): '3 REPORTS INCL. 2 MULTI-DAY, 1 SERIES · 1 PLANNED ROUTE' (no-break space before the dot)
   function countLine(rows) {
     var pub = rows.filter(function (r) { return r.dataset.kind !== 'planned'; });
     var bits = [];
     if (pub.length) {
-      bits.push(plural(pub.length, 'REPORT'));
       var md = pub.filter(function (r) { return r.dataset.kind === 'multi-day'; }).length;
       var se = pub.filter(function (r) { return r.dataset.kind === 'series'; }).length;
-      if (md) bits.push(md + ' MULTI-DAY');
-      if (se) bits.push(se + ' SERIES');
+      var sub = [];
+      if (md) sub.push(md + ' MULTI-DAY');
+      if (se) sub.push(se + ' SERIES');
+      bits.push(item(plural(pub.length, 'REPORT')) +
+        (sub.length ? ' ' + sub.map(function (x, i) { return item((i ? '' : 'INCL. ') + x); }).join(', ') : ''));
     }
     var pl = rows.length - pub.length;
-    if (pl) bits.push(plural(pl, 'PLANNED ROUTE'));
-    return bits.join(' · ');
+    if (pl) bits.push(item(plural(pl, 'PLANNED ROUTE')));
+    return bits.join('\u00a0· ');
   }
   function apply(f) {
     var shown = 0;
     groups.forEach(function (g) {
-      var rows = Array.prototype.slice.call(g.querySelectorAll('li[data-act]'));
-      var vis = rows.filter(function (r) { var on = f === 'all' || r.dataset.act === f; r.hidden = !on; return on; });
+      // rows are core.table_row links (li > a.rtab-r[data-act]); hide the whole list item
+      var rows = Array.prototype.slice.call(g.querySelectorAll('[data-act]'));
+      var vis = rows.filter(function (r) {
+        var on = f === 'all' || r.dataset.act === f;
+        (r.closest('li') || r).hidden = !on;
+        return on;
+      });
       g.hidden = vis.length === 0;
       var c = g.querySelector('.arc-yr-n');
-      if (c) c.textContent = countLine(vis);
+      if (c) c.innerHTML = countLine(vis);
       shown += vis.filter(function (r) { return r.dataset.kind !== 'planned'; }).length;
     });
     chips.forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.filter === f)); });
     if (live) {
       var chip = chips.filter(function (c) { return c.dataset.filter === f; })[0];
-      var word = f === 'all' ? '' : ' ' + chip.querySelector('span:not(.chip-sw):not(.arc-chip-n)').textContent.toLowerCase();
+      var word = f === 'all' ? '' : ' ' + chip.querySelector('.arc-chip-l').textContent.toLowerCase();
       live.textContent = 'Showing ' + shown + word + (shown === 1 ? ' report' : ' reports');
     }
   }

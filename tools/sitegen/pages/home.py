@@ -5,6 +5,7 @@ Every count and stat is computed from the content; nothing here is written about
 """
 import json
 import os
+import re
 
 from sitegen import core
 from sitegen.core import esc, U, U_sub, n, link, icon, FT
@@ -17,6 +18,7 @@ LEAD = 'Backcountry ski, climbing, hiking, mountain biking and other trips, each
 ATTRIB = 'Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation'
 HOME_REGIONS = ('Lake Tahoe', 'Eastern Sierra')
 LATEST_N = 10
+TITLE = 'Eric Sichak · Trip reports: backcountry ski, climbing, hiking and more'
 
 
 # ---------------------------------------------------------------- small helpers
@@ -26,17 +28,8 @@ def plural(k, word, many=None):
 
 
 def is_report(t):
-    """A 'report' in counts: published and not a series (series are counted separately, as on the canvas)."""
-    return t['kind'] not in ('planned', 'series')
-
-
-def short_date(t):
-    """'MAR 28, 2026' / 'MAR 10–15, 2024' — the compact caps date used in tiles and the table's DATE column."""
-    if t['kind'] == 'planned':
-        return 'PLANNED'
-    if t['days'] and t.get('end_date') and t['end_date'] != t['date']:
-        return core.frange(t['date'], t['end_date'], caps=True)
-    return core.fdate(t['date'], 'short').upper()
+    """A 'report' in counts: anything published. A series counts as one report (the same count as every other page)."""
+    return t['kind'] != 'planned'
 
 
 def meta_line(bits):
@@ -111,6 +104,33 @@ def map_caption(t):
     return '<p class="t-small hom-fcap"><span>%s</span> <span>%s</span></p>' % (esc(first), esc(ATTRIB))
 
 
+def _draws(t, name, pattern):
+    """True when the rendered fragment `name` contains `pattern` (a regex)."""
+    try:
+        return re.search(pattern, open(core.rendered(t, name + '.svg.html'), encoding='utf-8').read()) is not None
+    except OSError:
+        return False
+
+
+def map_key(t, variants):
+    """Compact key row under the featured map. The featured map hides mile discs and direction chevrons (CSS), so the key
+    decodes only the line, the start/end markers and GPS max — and only symbols the rendered map actually draws: the col
+    render has dashed skin / solid ski for ski trips, the phone render (render.py SMALL) a plain route line.
+    Single-day trips only: overview maps (multi-day, series) draw day symbols this short row does not decode."""
+    if t['kind'] != 'trip':
+        return ''
+    ends = ['start', 'end'] if t.get('route_shape') == 'point-to-point' else ['start_end']
+    flat = core.is_flat(t)
+    rows = []
+    for name, _size in variants:
+        skin = t['activity'] == 'ski' and _draws(t, name, r'<path class="mk-trk"[^>]*stroke-dasharray')
+        gps = not flat and _draws(t, name, r'class="mk-gps"|l6 10h-12z"[^>]*fill: \{\{route\}\}')  # label or red triangle
+        rows.append((['skin', 'ski'] if skin else ['route']) + ends + (['gps'] if gps else []))
+    if not rows:
+        return ''
+    return core.key_rows(rows[0], rows[-1], 'keyrow--compact')
+
+
 def first_photo(t):
     if t['photos']:
         return t['photos'][0]
@@ -131,7 +151,8 @@ def featured(site):
     # visible one still loads at once because it is in the first viewport
     mp = core.map_block(t, HERE, variants, t['url'] + 'map/', 'fm', cls='map--nowide')
     fmap = ('<div class="hom-fmap%s"><a class="hom-maplink" href="%s" tabindex="-1" aria-hidden="true">%s'
-            '<span class="hom-ftag">FEATURED</span></a></div>%s' % (tall, href, mp, map_caption(t)))
+            '<span class="hom-ftag">FEATURED</span></a></div><div class="hom-fkey">%s%s</div>'
+            % (tall, href, mp, map_key(t, variants), map_caption(t)))
     p = first_photo(t)
     photo = ''
     if p:
@@ -160,13 +181,8 @@ def featured(site):
 # ---------------------------------------------------------------- latest reports (report table)
 
 def table_row(t):
-    """core.table_row with the compact caps date (the 128px DATE column fits 'MAR 28, 2026', not the weekday form)."""
-    row = core.table_row(t, HERE)
-    long_ = '<span role="cell" class="t-mono-s">%s</span>' % core.trip_date(t)
-    row = row.replace(long_, '<span role="cell" class="t-mono-s">%s</span>' % short_date(t), 1)
-    if not t['stats'].get('distance_km'):
-        row = row.replace('class="rtab-r"', 'class="rtab-r hom-nodist"', 1)
-    return row
+    """core.table_row (li > a, compact caps date); rows without a distance drop the phone's '· N MI' bit."""
+    return core.table_row(t, HERE, cls='' if t['stats'].get('distance_km') else 'hom-nodist')
 
 
 def latest(site):
@@ -176,7 +192,7 @@ def latest(site):
         return ''
     total = len(reports)
     return ('<section class="wrap sec hom-latest" aria-labelledby="latest-h">%s'
-            '<div class="rtab hom-rtab" role="table" aria-labelledby="latest-h">%s%s</div>'
+            '<div class="rtab hom-rtab">%s<ol class="rtab-rows" aria-labelledby="latest-h">%s</ol></div>'
             '<a class="btn hom-all" href="%s">All %d reports%s</a></section>'
             % (core.section_head('Latest reports', 'SHOWING THE %d NEWEST' % len(rows), id_='latest-h'),
                core.table_head(), ''.join(table_row(t) for t in rows),
@@ -191,22 +207,20 @@ def activity_tile(site, act, label):
     series = [t for t in pub if t['kind'] == 'series']
     multi = [t for t in reps if t['kind'] == 'multi-day']
     planned = [t for t in site['planned'] if t['activity'] == act]
-    sub = []
-    if multi:
-        sub.append(plural(len(multi), 'MULTI-DAY', 'MULTI-DAY'))
-    if series:
-        sub.append(plural(len(series), 'SERIES', 'SERIES'))
+    # subsets of the report count in one bit ('INCL. 2 MULTI-DAY, 1 SERIES'), then planned routes (not reports) on their own
+    incl = ([plural(len(multi), 'MULTI-DAY', 'MULTI-DAY')] if multi else []) + ([plural(len(series), 'SERIES', 'SERIES')] if series else [])
+    sub = ['INCL. ' + ', '.join(incl)] if incl else []
     if planned:
         sub.append(plural(len(planned), 'PLANNED ROUTE'))
     if reps:
-        count = ('<div class="hom-tile-c"><span class="hom-tile-num">%d</span><span class="hom-tile-u">%s</span></div>'
+        count = ('<div class="hom-tile-c"><span class="hom-tile-num">%d</span> <span class="hom-tile-u">%s</span></div>'
                  % (len(reps), 'Report' if len(reps) == 1 else 'Reports'))
     else:
         count = '<div class="hom-tile-c hom-tile-c--none">First reports coming</div>'
     last = pub[0] if pub else None
     if last:
         latest_ = ('<div class="hom-tile-latest"><span class="t-label">Latest</span><span class="hom-tile-t">%s</span>'
-                   '<span class="t-mono-s">%s</span></div>' % (core.title_html(last['title']), short_date(last)))
+                   '<span class="t-mono-s">%s</span></div>' % (core.title_html(last['title']), core.trip_date(last, short=True)))
     else:
         latest_ = '<div class="hom-tile-latest hom-tile-latest--none"><span class="t-label">Latest</span><span class="hom-tile-t">No reports yet</span></div>'
     subtypes = ''
@@ -214,13 +228,14 @@ def activity_tile(site, act, label):
         words = [core.SUB_WORD[s] for s in core.content.OTHER_SUBTYPES]
         subtypes = ('<span class="hom-tile-sub">%s</span>'
                     % '<br>'.join(' · '.join(words[i:i + 2]) for i in range(0, len(words), 2)))
-    return ('<li><a class="hom-tile" href="%s">'
+    # the link's name is the activity; the count block is its description (the Latest title stays out of both)
+    return ('<li><a class="hom-tile" href="%s" aria-labelledby="act-%s-n" aria-describedby="act-%s-c">'
             '<div class="hom-tile-top">%s%s</div>'
-            '<div class="hom-tile-name"><h3 class="hom-tile-n">%s</h3>%s</div>'
+            '<div class="hom-tile-name"><h3 class="hom-tile-n" id="act-%s-n">%s</h3>%s</div>'
             '%s'
-            '<div class="hom-tile-count">%s<span class="t-mono-s hom-tile-s">%s</span></div>%s</a></li>'
-            % (link(HERE, core.section_url(act)), core.disc(act, 32), icon('arrow-right', 20, 'hom-arr'),
-               esc(label), subtypes, latest_, count, meta_line(sub), icon('chevron-right', 20, 'hom-chev')))
+            '<div class="hom-tile-count" id="act-%s-c">%s <span class="t-mono-s hom-tile-s">%s</span></div>%s</a></li>'
+            % (link(HERE, core.section_url(act)), act, act, core.disc(act, 32), icon('arrow-right', 20, 'hom-arr'),
+               act, esc(label), subtypes, latest_, act, count, meta_line(sub), icon('chevron-right', 20, 'hom-chev')))
 
 
 def by_activity(site):
@@ -265,16 +280,14 @@ def where(site):
     others = {}
     for t in site['published']:
         r = t.get('region')
-        if is_report(t) and r and r not in HOME_REGIONS:
+        if is_report(t) and t['kind'] != 'series' and r and r not in HOME_REGIONS:
             others[r] = others.get(r, 0) + 1
     item = '<li><a href="%s"><span class="hom-also-w">%s</span><span class="hom-also-c">%s</span></a></li>'
     also = [item % (link(HERE, 'map/#region-' + slug(r)), esc(r), k) for r, k in sorted(others.items(), key=lambda kv: (-kv[1], kv[0]))]
     also += [item % (link(HERE, t['url']), esc(t['title']), 'SERIES') for t in site['published'] if t['kind'] == 'series']
     also_html = ('<div class="hom-also"><span class="t-mono-s" id="also-l">ALSO</span><ul aria-labelledby="also-l">%s</ul></div>'
                  % ''.join(also)) if also else ''
-    reports = [t for t in site['published'] if is_report(t)]
-    series = [t for t in site['published'] if t['kind'] == 'series']
-    head_meta = plural(len(reports), 'REPORT') + ((' · ' + plural(len(series), 'SERIES', 'SERIES')) if series else '')
+    head_meta = plural(sum(1 for t in site['published'] if is_report(t)), 'REPORT')
     return ('<section class="wrap sec hom-where" aria-labelledby="where-h">%s<div class="hom-regions">%s</div>'
             '<p class="t-small hom-attr">North up · %s</p>%s</section>'
             % (core.section_head("Where I’ve been", head_meta, id_='where-h'), ''.join(blocks), esc(ATTRIB), also_html))
@@ -291,8 +304,8 @@ def page(site):
         p = first_photo(ft)
         if p:
             img = ft['url'] + p['file']
-    return core.Page(HERE, core.document(HERE, core.SITE_NAME, ''.join(body), LEAD, active=None, image=img, body_cls='p-home'),
-                     core.SITE_NAME)
+    doc = core.document(HERE, core.SITE_NAME, ''.join(body), LEAD, active=None, image=img, body_cls='p-home', full_title=TITLE)
+    return core.Page(HERE, doc, core.SITE_NAME)
 
 
 def build(site):

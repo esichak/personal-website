@@ -1,5 +1,5 @@
 {
- "hash": "e7181e8cabafdacda368ffd6476aca2dad723e74",
+ "hash": "fb52ef9250a33f8308791f6cc6b8eca9b89b96ff",
  "slug": "return-to-emerald-chute",
  "kind": "trip",
  "maps": {
@@ -7,6 +7,7 @@
    "w": 1440,
    "h": 640,
    "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
    "interval_ft": 40,
    "outbound_only": false
   },
@@ -14,6 +15,7 @@
    "w": 718,
    "h": 400,
    "png": "map-col.webp",
+   "base": "map-col.base.svg",
    "interval_ft": 80,
    "outbound_only": false
   },
@@ -21,6 +23,7 @@
    "w": 390,
    "h": 336,
    "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
    "interval_ft": 200,
    "outbound_only": null
   }

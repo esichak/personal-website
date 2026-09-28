@@ -3,8 +3,6 @@
 Everything shown is either a confirmed fact (name, Lake Tahoe, AIARE 2), a description of how the site is built,
 or a number computed from the published trips. No bio, portrait or email until Eric writes them.
 """
-import re
-
 from sitegen import core
 from sitegen.core import esc, U, U_sub, n, link, icon, FT
 
@@ -45,7 +43,7 @@ def act_rows(site, here, cls='', dist=True):
             d = '<span class="abo-act-d t-data-m">%s</span>' % core.distance(km)
         rows.append('<li><a class="abo-act-a" href="%s">%s<span class="abo-act-w"><span class="abo-act-n">%s</span>'
                     '<span class="t-mono-s abo-act-m">%s</span></span>%s%s</a></li>'
-                    % (link(here, core.section_url(act)), core.disc(act, 32), esc(name), ' · '.join(meta), d,
+                    % (link(here, core.section_url(act)), core.disc(act, 32), esc(name), core.SEP.join(meta), d,
                        icon('chevron-right', 20, 'abo-act-c')))
     return '<ul class="abo-act%s">%s</ul>' % ((' ' + cls) if cls else '', ''.join(rows))
 
@@ -68,16 +66,8 @@ def intro(site):
             '<dl class="abo-dl">%s</dl></section></div>' % dl)
 
 
-_PUNCT = re.compile(r'(?<=\d)([,.:])(?=\d)')
-
-
-def tight(v):
-    """Data-XL punctuation pulled in (the canvas .dx-p rule): 3,436 -> 3<span>,</span>436."""
-    return _PUNCT.sub(r'<span class="abo-dp">\1</span>', v)
-
-
 def fig(label_, value, sub=''):
-    value = tight(value)
+    value = core.dx(value)  # Data-XL punctuation pulled in: 3,436 -> 3<span class="dx-p">,</span>436
     return ('<div class="abo-fig"><dt class="t-label">%s</dt><dd class="t-data-xl abo-fig-v">%s</dd>%s</div>'
             % (label_, value, ('<dd class="t-mono-s abo-fig-s">%s</dd>' % sub) if sub else ''))
 
@@ -110,12 +100,14 @@ def numbers(site, here):
 def method(site):
     items = [
         'Tracks are Garmin recordings, exported through Strava. Each one is drawn in full, not trimmed, and every report '
-        'offers the same full track as a GPX download (one file per day on <span class="abo-nw">multi-day trips</span>).',
+        'offers the same full track as a GPX download (on <span class="abo-nw">multi-day trips</span>, one file for the whole '
+        'route plus one per day).',
         'Distance, gain and moving time come from that recording. GPS&nbsp;max is the highest point in the GPX file, '
         'not a surveyed summit height.',
     ]
     if site['planned']:
-        items.append('Planned routes are drawn by hand, so their distance and gain are estimates from the line.')
+        items.append('Planned routes are drawn as a dashed ink line and tagged PLANNED. Their distance is measured along '
+                     'the planned line.')
     items += [
         'Hillshade and contours come from AWS Terrain Tiles. Roads, trails, water and peak names are map data '
         '©&nbsp;OpenStreetMap contributors.',
