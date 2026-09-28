@@ -1,7 +1,6 @@
 /* Map & archive (/map/) — region tabs + map + "In this region" list, then the full report table by year. */
 .arc-head { padding-top: 24px; }
 .arc-stats { margin-top: 8px; text-transform: uppercase; }
-.arc-seg { white-space: nowrap; }
 @media (min-width: 760px) { .arc-stats { margin-top: 12px; font-size: 15px; line-height: 20px; color: var(--ink-2); } }
 @media (min-width: 1200px) { .arc-head { padding-top: 40px; } }
 
@@ -36,8 +35,8 @@
 .arc-js .arc-grid { margin-top: 0; }
 .arc-mapcol { margin-inline: calc(-1 * var(--m)); }
 .arc-mapv .mv { background: var(--map-paper); }
-.arc-cap { padding: 12px var(--m) 0; font: 400 14px/20px var(--sans); color: var(--ink-3); }
-.arc-cap > span { display: block; }
+.arc-cap { padding-inline: var(--m); }  /* core.map_caption; the map column bleeds on phones */
+@media (max-width: 559.98px) { .arc-cap .mapcap-2 { display: block; } }  /* no in-map credit tag on the region maps: keep it here */
 @media (min-width: 560px) { .arc-mapcol { margin-inline: 0; } .arc-cap { padding-inline: 0; } }
 @media (min-width: 760px) { .arc-grid { margin-top: 24px; } .arc-js .arc-grid { margin-top: 24px; } }
 @media (min-width: 1000px) {
@@ -73,8 +72,9 @@
 .arc-row-b { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .arc-row-t { font: 500 15px/20px var(--sans); }
 .arc-row-m { display: flex; align-items: flex-start; gap: 6px; text-transform: uppercase; }
-.arc-row-m .ic { flex-shrink: 0; margin-top: 1px; color: var(--ink-2); }  /* on the first line when the meta wraps (1000–1199) */
-@media (min-width: 760px) { .arc-row-m .ic { margin-top: 2px; } }
+/* the icon strokes currentColor, so its wrapper carries the colour; it sits on the first line when the meta wraps (1000–1199) */
+.arc-row-i { display: flex; flex-shrink: 0; margin-top: 1px; color: var(--ink-2); }
+@media (min-width: 760px) { .arc-row-i { margin-top: 2px; } }
 .arc-rows.arc-collapsed .arc-more { display: none; }
 .arc-all-btn { margin-top: 4px; }
 .arc-all-btn[aria-expanded="true"] .ic { transform: rotate(180deg); }
@@ -195,4 +195,28 @@
   .arc-table .rtab-date { color: var(--ink-2); }
   .arc-rows2 .rtab-tt { font-size: 15px; line-height: 20px; }
   .arc-table .tag { height: 28px; padding: 0 10px; font-size: 12px; }  /* the Datum 28px status tag, as on the canvas */
+}
+
+/* phone rows (Phone-Home-B, as Home's compact rows): the activity icon at 16px in its activity colour (the climbing glyph
+   no longer reads as '0'); region rows get the 88px compact row with the short date */
+@media (max-width: 899.98px) {
+  .arc-table .rtab-act .ic { width: 16px; height: 16px; }
+  .arc-table [data-act="ski"] .rtab-act .chip { color: var(--ski); }
+  .arc-table [data-act="climb"] .rtab-act .chip { color: var(--clm); }
+  .arc-table [data-act="hike"] .rtab-act .chip { color: var(--hik); }
+  .arc-table [data-act="mtb"] .rtab-act .chip { color: var(--mtb); }
+  .arc-table [data-act="other"] .rtab-act .chip { color: var(--oth); }
+}
+@media (max-width: 759.98px) {
+  .arc-row a { min-height: 88px; padding: 12px 0; }
+  .arc-row-t { font: 600 17px/22px var(--sans); }
+  .arc-wd { display: none; }
+  .arc-row-m { align-items: center; }
+  .arc-row-i { margin-top: 0; }
+  .arc-row-m .ic { width: 16px; height: 16px; }
+  .arc-row [data-act="ski"] .arc-row-i { color: var(--ski); }
+  .arc-row [data-act="climb"] .arc-row-i { color: var(--clm); }
+  .arc-row [data-act="hike"] .arc-row-i { color: var(--hik); }
+  .arc-row [data-act="mtb"] .arc-row-i { color: var(--mtb); }
+  .arc-row [data-act="other"] .arc-row-i { color: var(--oth); }
 }

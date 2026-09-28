@@ -17,10 +17,13 @@
 
 .rep-map { margin-top: 32px; }
 .rep-map .keyrow { padding-top: 12px; }
-.rep-plan { margin-top: 12px; color: var(--ink-3); }
 .rep-note-ph { display: none; }
-/* 560–1199: map, key row, caption and GPX button share one 860 column (as the multi-day overview does) */
-@media (min-width: 560px) and (max-width: 1199.98px) { .rep-map .bleed, .rep-map > .wrap { width: min(860px, 100% - 2 * var(--m)); } }
+/* 560–1199: map, key row, caption and profile (header, chart, 'View as table') share one column capped at --col-max and
+   hung from the page margin, the same left edge as the strip (the 718 renders never scale past 1.2×) */
+@media (min-width: 560px) and (max-width: 1199.98px) {
+  .rep-map .bleed, .rep-map > .wrap { width: min(var(--col-max), 100% - 2 * var(--m)); margin-inline: var(--m) auto; }
+  .rep-prof > *, .mul-prof > * { max-width: var(--col-max); }
+}
 @media (min-width: 1200px) {
   .rep-map { margin-top: 48px; }
   .rep-map .keyrow { padding-top: 16px; border-bottom: 1px solid var(--rule); padding-bottom: 16px; }
@@ -41,7 +44,6 @@
   .rep-head .rep-actions { margin-top: 16px; }
   .rep-place { margin-top: 4px; }
   body.p-report .rep-actions { display: none; }
-  body.p-report .rep-map .mapcap-a { display: none; }  /* the bottom bar carries GPX on phones (canvas Phone-Report-A) */
   .rep-strip { margin-top: 12px; }
   body.p-report .rep-strip .strip-s, body.p-report .rep-strip .strip-note { display: none; }
   .rep-map { margin-top: 12px; }
@@ -50,7 +52,17 @@
 
 .rep-prof-h { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 16px; row-gap: 6px; padding-bottom: 12px; }
 .rep-prof-h .t-label { color: var(--ink-2); }
-.rep-prof-h .keyrow--inline { margin-left: auto; min-height: 0; }
+/* chart legend: right-aligned in the header row from 1000; below, its own line under the meta */
+.rep-prof-h .keyrow--inline { margin-left: 0; flex-basis: 100%; min-height: 0; }
+@media (min-width: 1000px) { .rep-prof-h .keyrow--inline { margin-left: auto; flex-basis: auto; } }
+@media (max-width: 559.98px) { .rep-prof-h { row-gap: 4px; } }
+/* phones: Elevation, Speed and Beta are siblings of 'Trip report' and 'Photos', so they take the phone H3 role (desktop
+   keeps the Label); the Mono-S meta wraps under the head */
+@media (max-width: 759.98px) {
+  .rep-prof-h > h2.t-label, .rail-b > h2.t-label { font: 600 20px/26px var(--sans); font-stretch: 104%; letter-spacing: -0.01em;
+    text-transform: none; color: var(--ink); }
+  .rep-prof-h > .t-mono-s { flex-basis: 100%; }
+}
 .rep-prof .chart { margin-top: 4px; }
 .eltab { margin-top: 12px; }
 .eltab summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; list-style: none;
@@ -87,19 +99,23 @@
   .rep-main { grid-column: 5 / -1; }
 }
 
-/* photos: landscape full width, runs of portraits in a 3:4 grid (never a portrait cropped to the wide format) */
+/* a report whose only photo is a portrait: no Photos section, the photo sits beside the write-up (>= 1000: the last 3
+   columns, top-aligned with the 'Trip report' head; below: after the write-up, 4:5, up to the 620 measure) */
+.rep-aside-ph .jph { display: block; }
+.rep-aside-ph img { width: 100%; background: var(--sunk); }
+.rep-aside-ph figcaption { padding-top: 12px; }
+@media (max-width: 999.98px) {
+  .rep-aside-ph { max-width: 620px; }
+  .rep-aside-ph img { aspect-ratio: 4 / 5; object-fit: cover; }
+}
+@media (min-width: 1000px) {
+  .rep-body--ph .rep-rail { grid-column: 1 / span 3; }
+  .rep-body--ph .rep-main { grid-column: 4 / span 6; }
+  .rep-aside-ph { grid-column: 10 / span 3; grid-row: 1; align-self: start; }
+}
+
+/* photos: justified rows (core.photo_rows, base.css .jrows) */
 .rep-sh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
-.gal { display: flex; flex-direction: column; gap: 16px; }
-.gal-wide img { aspect-ratio: 3 / 2; object-fit: cover; }
-@media (min-width: 760px) { .gal-wide img { aspect-ratio: 2 / 1; } }
-.gal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.gal-grid .photo img { aspect-ratio: 3 / 4; object-fit: cover; }
-.gal-a { display: block; }
-.gal-a:hover img { filter: brightness(1.04); }
-@media (min-width: 760px) { .gal { gap: 24px; } .gal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; } }
-@media (min-width: 1200px) { .gal-grid { grid-template-columns: repeat(4, 1fr); gap: 24px; } }
-/* a run of 4 or 8 portraits stays 4-up on tablets too, so the 3-up grid never leaves one orphan tile */
-@media (min-width: 760px) and (max-width: 1199.98px) { .gal-grid--n4, .gal-grid--n8 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* phone bottom bar (reports only); the current section gets a 3px route bar */
 .bbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(var(--n, 4), 1fr);
@@ -110,4 +126,6 @@
 .bbar a[aria-current] { color: var(--ink); }
 .bbar a[aria-current]::before { content: ""; position: absolute; top: -4px; left: 50%; width: 64px; margin-left: -32px; height: 3px; background: var(--route); }
 body.p-report .site-f { padding-bottom: 72px; }
+/* focused links (gallery photos, the pager) never hide under the bar */
+@media (max-width: 759.98px) { html:has(.bbar) { scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom)); } }
 @media (min-width: 760px) { .bbar { display: none; } body.p-report .site-f { padding-bottom: 0; } }

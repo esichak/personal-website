@@ -8,14 +8,6 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
 .ser-intro { margin-top: 32px; display: grid; row-gap: 40px; }
 .ser-intro-map { min-width: 0; }
 .ser-intro-map .keyrow { padding-top: 12px; }
-.ser-mapcap { padding-top: 12px; }
-.ser-mapcap .ser-nw { white-space: nowrap; }
-/* below desktop the map column is too narrow for the two caption lines: let them run on as one paragraph */
-@media (max-width: 1199.98px) {
-  .ser-mapcap { display: block; }
-  .ser-mapcap > span + span::before { content: " · "; }
-}
-@media (max-width: 559.98px) { .ser-mapcap .ser-nw { white-space: normal; } .ser-mapcap { text-wrap: pretty; } }
 @media (max-width: 559.98px) { .ser-intro-map .ser-map { margin-inline: calc(-1 * var(--m)); } }
 /* one column (560-899): the map is up to 560 wide, so it keeps the 560x860 render at 1:1 instead of the 390x600 col render */
 @media (min-width: 560px) and (max-width: 899.98px) {
@@ -87,6 +79,11 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
   .ser-mnav a { align-items: center; padding: 0 4px; }
   .ser-mn-x { display: none; }
 }
+/* narrow phones: the day ranges no longer fit six tabs (each month head states its range), so the tabs show Apr … Sep only */
+@media (max-width: 399.98px) {
+  .ser-mn-s { display: none; }
+  .ser-mnav a { padding: 0 2px; }
+}
 
 /* ---------------------------------------------------------------- months */
 .ser-month { margin-top: 56px; scroll-margin-top: calc(var(--ser-nav-h) + 8px); }
@@ -107,16 +104,17 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
 .ser-g svg { width: 64px; height: 48px; background: var(--surface); }
 .ser-n { grid-area: n; font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); text-transform: uppercase; }
 .ser-dd:not(:empty)::before { content: " · "; }
-/* cards (< 1000px): a day without a Strava title already reads "Day N" in its title line, so the label line keeps only the date */
-@media (max-width: 999.98px) {
-  .ser-day.no-title .ser-dn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .ser-day.no-title .ser-dd::before { content: none; }
-}
 .ser-t { grid-area: t; font: 600 17px/22px var(--sans); color: var(--ink); }
-.ser-day.no-title .ser-t { font-weight: 500; color: var(--ink-2); }
-.ser-st { grid-area: st; display: flex; flex-wrap: wrap; column-gap: 6px; margin-top: 2px; font: 400 12px/16px var(--mono);
+/* a day without a Strava title: the title cell states what the day holds (TRACK ONLY / N PHOTOS / WRITE-UP), in Mono-S ink-3,
+   so the TITLE column no longer repeats the DAY column; the label line keeps "DAY 42 · SUN, JUN 2" */
+.ser-t-none { display: block; padding-top: 2px; color: var(--ink-3); }
+/* the cards' stats line works like core.meta_items (.ml): each value carries its '·' in a left gutter that is clipped at the
+   line start, so a wrapped line (320) never starts with a dot and a value never splits */
+.ser-st { --st-sep: 3ch; grid-area: st; display: flex; flex-wrap: wrap; margin: 2px 0 0 calc(-1 * var(--st-sep));
+  clip-path: inset(0 0 0 var(--st-sep)); font: 400 12px/16px var(--mono);
   letter-spacing: 0.02em; color: var(--ink-2); text-transform: uppercase; font-variant-numeric: tabular-nums; }
-.ser-st > div + div::before { content: "· "; color: var(--ink-3); }
+.ser-st > div { position: relative; padding-left: var(--st-sep); white-space: nowrap; }
+.ser-st > div::before { content: "·"; position: absolute; left: calc(var(--st-sep) / 3); color: var(--ink-3); }
 .ser-st dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ser-st .unit { color: inherit; }
 .ser-st dd { display: inline; }
@@ -131,16 +129,17 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
 .ser-gap { padding: 10px 0 10px 80px; border-bottom: 1px solid var(--rule); font: 400 12px/16px var(--mono); letter-spacing: 0.02em;
   color: var(--ink-3); text-transform: uppercase; }
 .ser-wu { max-width: 620px; }
-.ser-phs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+/* day photos: one even square contact sheet at every width (3 / 4 / 5 / 6 columns; about 115 px squares at 390, 141 at 768,
+   128 at 1024, 145 at 1440), so a short last row starts on the same grid instead of trailing off as a ragged strip */
+.ser-phs { --ser-ph-n: 3; display: grid; grid-template-columns: repeat(var(--ser-ph-n), minmax(0, 1fr)); gap: 6px; margin-top: 24px; }
 .ser-body > .ser-phs:first-child { margin-top: 2px; }
+.ser-phs li { min-width: 0; }
 .ser-ph { display: block; }
-.ser-ph img { height: 104px; width: auto; max-width: 100%; object-fit: cover; background: var(--sunk); }
+.ser-ph img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; background: var(--sunk); }
 .ser-ph:hover img { filter: brightness(1.05); }
-/* phones: three even square thumbnails per row */
-@media (max-width: 759.98px) {
-  .ser-phs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .ser-ph img { width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; }
-}
+@media (min-width: 760px) { .ser-phs { --ser-ph-n: 4; gap: 12px; } }
+@media (min-width: 1000px) { .ser-phs { --ser-ph-n: 5; } }
+@media (min-width: 1200px) { .ser-phs { --ser-ph-n: 6; } }
 
 @media (min-width: 760px) {
   .ser-row { grid-template-columns: 64px minmax(0, 1fr) 96px 44px; grid-template-areas: "g n sp x" "g t sp x" "g st sp x";
@@ -149,8 +148,6 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
   .ser-gpx { align-self: center; margin-top: 0; }
   .ser-body { padding-left: 88px; }
   .ser-gap { padding-left: 88px; }
-  .ser-phs { gap: 12px; }
-  .ser-ph img { height: 120px; }
 }
 
 /* ---------------------------------------------------------------- table rows (≥ 1000): glyph | day | date | title | dist | gain | moving | elevation | GPX */
@@ -170,15 +167,15 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
   .ser-dd { font: 400 13px/18px var(--mono); }
   .ser-t { grid-column: 4; font-size: 16px; line-height: 21px; }
   .ser-st { grid-column: 5 / span 3; display: grid; grid-template-columns: 64px 72px 56px; column-gap: var(--ser-g); margin: 0;
-    font: 500 15px/20px var(--mono); letter-spacing: 0; color: var(--ink); text-transform: none; }
-  .ser-st > div + div::before { content: none; }
-  .ser-st > div { text-align: right; }
+    clip-path: none; font: 500 15px/20px var(--mono); letter-spacing: 0; color: var(--ink); text-transform: none; }
+  .ser-st > div::before { content: none; }
+  .ser-st > div { padding-left: 0; text-align: right; }
   .ser-st .unit { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .ser-sp { grid-column: 8; }
   .ser-gpx { grid-column: 9; justify-self: end; margin-right: -10px; }
   .ser-body { padding: 4px 0 40px calc(64px + 40px + 104px + 3 * var(--ser-g)); }
   .ser-gap { padding-left: calc(64px + var(--ser-g)); font-size: 13px; line-height: 18px; }
-  .ser-ph img { height: 128px; }
+  .ser-t-none { padding-top: 0; }
 }
 @media (min-width: 1200px) {
   body.p-series { --ser-c: 64px 64px 118px minmax(0, 1fr) 80px 88px 72px 96px 44px; --ser-g: 24px; }
@@ -186,7 +183,6 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
   .ser-st { grid-template-columns: 80px 88px 72px; }
   .ser-t { font-size: 17px; line-height: 22px; }
   .ser-body { padding-left: calc(64px + 64px + 118px + 3 * var(--ser-g)); }
-  .ser-ph img { height: 160px; }
 }
 
 /* ---------------------------------------------------------------- "Show days with write-ups only" (series.js) */

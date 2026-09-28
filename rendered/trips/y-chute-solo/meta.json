@@ -1,5 +1,5 @@
 {
- "hash": "4053f7abc3b78fb63609ed49bf0c4dc338080688",
+ "hash": "1422d153741d8fc89bf1efd10bee638018a3d5b7",
  "slug": "y-chute-solo",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 9156.82,
    "min_ft": 6845.8,
    "total_mi": 6.31,
-   "gx": 169.85,
-   "gy": 15.93,
+   "gx": 122.49,
+   "gy": 21.41,
    "gps_max_mi": 2.16,
    "y_lo": 6707.53,
    "y_hi": 9380.71,
-   "pad_l": 72,
-   "vx": 4.01,
+   "pad_l": 0,
+   "vx": 2.99,
    "h": 122
   }
  },

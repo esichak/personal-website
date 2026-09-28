@@ -1,5 +1,5 @@
 {
- "hash": "0c4a7c9ff6a430a23fcef25d5ef920c2a5e3e1bb",
+ "hash": "29db53a1f1da18f6758f274290ade1fe7b2400b3",
  "slug": "emerald-chute-y-chute-combo",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 9166.67,
    "min_ft": 6841.21,
    "total_mi": 5.13,
-   "gx": 273.55,
-   "gy": 15.93,
+   "gx": 252.29,
+   "gy": 21.41,
    "gps_max_mi": 3.62,
    "y_lo": 6702.64,
    "y_hi": 9381.53,
-   "pad_l": 72,
-   "vx": 3.25,
+   "pad_l": 0,
+   "vx": 2.43,
    "h": 122
   }
  },

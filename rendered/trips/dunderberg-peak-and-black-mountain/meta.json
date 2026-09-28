@@ -1,5 +1,5 @@
 {
- "hash": "e8a229f3a308de14cd07704afe0af8415fe28ef8",
+ "hash": "5a3e7c513a84905802f9dbdfe6907f571aa7c90b",
  "slug": "dunderberg-peak-and-black-mountain",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 12217.85,
    "min_ft": 9783.79,
    "total_mi": 7.38,
-   "gx": 147.51,
-   "gy": 15.93,
+   "gx": 94.52,
+   "gy": 21.41,
    "gps_max_mi": 1.95,
    "y_lo": 9637.87,
    "y_hi": 12459.09,
-   "pad_l": 72,
-   "vx": 4.44,
+   "pad_l": 0,
+   "vx": 3.32,
    "h": 122
   }
  },

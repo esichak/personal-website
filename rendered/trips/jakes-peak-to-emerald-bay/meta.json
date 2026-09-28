@@ -1,5 +1,5 @@
 {
- "hash": "812fbdee953bf987e725f63db8f4698265e093e7",
+ "hash": "42d1e304927364220f06cb30b5f307fb7fa0d2eb",
  "slug": "jakes-peak-to-emerald-bay",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 9235.56,
    "min_ft": 6853.67,
    "total_mi": 4.99,
-   "gx": 256.53,
-   "gy": 15.93,
+   "gx": 230.98,
+   "gy": 21.41,
    "gps_max_mi": 3.22,
    "y_lo": 6711.31,
    "y_hi": 9463.77,
-   "pad_l": 72,
-   "vx": 3.08,
+   "pad_l": 0,
+   "vx": 2.3,
    "h": 122
   }
  },

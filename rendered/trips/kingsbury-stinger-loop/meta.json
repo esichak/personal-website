@@ -1,5 +1,5 @@
 {
- "hash": "c744ca4f29725f4cc91b47d176bf3d7b585d14ca",
+ "hash": "ed134b1d83ddfb9e33d6df478e75d24dda5d968a",
  "slug": "kingsbury-stinger-loop",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 7988.85,
    "min_ft": 6405.51,
    "total_mi": 9.77,
-   "gx": 215.07,
-   "gy": 15.93,
+   "gx": 179.09,
+   "gy": 21.41,
    "gps_max_mi": 4.89,
    "y_lo": 6310.71,
    "y_hi": 8143.57,
-   "pad_l": 72,
-   "vx": 9.05,
+   "pad_l": 0,
+   "vx": 6.76,
    "h": 122
   }
  },

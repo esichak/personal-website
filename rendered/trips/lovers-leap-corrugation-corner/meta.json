@@ -1,5 +1,5 @@
 {
- "hash": "de51943a2d4167c6b2d0dd8afd202fe611e0a7f4",
+ "hash": "5352acc066099c8b11ada05c7d78fdd8421801c9",
  "slug": "lovers-leap-corrugation-corner",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 6774.93,
    "min_ft": 5780.84,
    "total_mi": 1.75,
-   "gx": 80.9,
-   "gy": 15.93,
+   "gx": 21.14,
+   "gy": 21.41,
    "gps_max_mi": 0.05,
    "y_lo": 5722.65,
    "y_hi": 6847.64,
-   "pad_l": 72,
-   "vx": 2.64,
+   "pad_l": 0,
+   "vx": 1.97,
    "h": 122
   }
  },

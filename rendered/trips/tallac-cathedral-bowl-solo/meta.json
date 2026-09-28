@@ -1,5 +1,5 @@
 {
- "hash": "8cd73f8f3a687f7bc85cc5fe941ebef22339b725",
+ "hash": "2abf4208a5a7d1d7ee82fd89443be89a7833a638",
  "slug": "tallac-cathedral-bowl-solo",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 9780.18,
    "min_ft": 6333.33,
    "total_mi": 8.59,
-   "gx": 205.16,
-   "gy": 15.93,
+   "gx": 166.68,
+   "gy": 21.41,
    "gps_max_mi": 4.0,
    "y_lo": 6128.05,
    "y_hi": 10096.94,
-   "pad_l": 72,
-   "vx": 3.67,
+   "pad_l": 0,
+   "vx": 2.74,
    "h": 122
   }
  },

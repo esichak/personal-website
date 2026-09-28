@@ -1,5 +1,5 @@
 {
- "hash": "fb52ef9250a33f8308791f6cc6b8eca9b89b96ff",
+ "hash": "4f204a861b443782ef2e21d2d24dae947edda489",
  "slug": "return-to-emerald-chute",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 9120.74,
    "min_ft": 6837.93,
    "total_mi": 3.69,
-   "gx": 219.78,
-   "gy": 15.93,
+   "gx": 184.99,
+   "gy": 21.41,
    "gps_max_mi": 1.91,
    "y_lo": 6701.58,
    "y_hi": 9337.71,
-   "pad_l": 72,
-   "vx": 2.38,
+   "pad_l": 0,
+   "vx": 1.78,
    "h": 122
   }
  },

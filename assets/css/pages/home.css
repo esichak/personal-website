@@ -37,13 +37,11 @@
 .hom-fmap { position: relative; }
 .hom-maplink { display: block; position: relative; color: inherit; }
 .hom-maplink:hover { color: inherit; }
-.hom-ftag { position: absolute; left: 12px; top: 12px; z-index: 2; display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
-  background: var(--surface); border: 1px solid var(--rule); border-radius: 2px;
-  font: 500 12px/16px var(--mono); letter-spacing: 0.06em; color: var(--ink); }
-.hom-fcap { margin-top: 12px; }
-.hom-fcap span { display: block; }
-/* a calmer featured map (Main canvas: a clean line): no mile discs or direction chevrons, and a short key under it */
-.hom-fmap .mk-mile, .hom-fmap .mk-num, .hom-fmap .mk-chev, .hom-fmap circle:has(+ .mk-num) { display: none; }
+/* 'Featured': an in-flow Label above the map (as on section pages), never an overlay on it */
+.hom-fl { margin-bottom: 12px; }
+.hom-fcap .mapcap { padding-top: 12px; }
+/* a calmer featured map (Main canvas: a clean line): no mile discs, and a short key under it */
+.hom-fmap .mk-mile, .hom-fmap .mk-num, .hom-fmap circle:has(+ .mk-num) { display: none; }
 .keyrow--compact { padding-top: 8px; min-height: 0; border: 0; }
 .hom-fmap--tall .map { max-width: 460px; }
 .hom-det { display: flex; flex-direction: column; padding-top: 16px; }
@@ -51,7 +49,6 @@
 .hom-ft { margin-top: 8px; text-wrap: balance; }
 .hom-ft a { color: var(--ink); }
 .hom-ft a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-.hom-nw { display: inline-block; }
 .hom-pmeta { margin-top: 4px; text-transform: uppercase; }
 .hom-place { margin-top: 2px; }
 .hom-strip { margin-top: 16px; }
@@ -66,10 +63,11 @@
 .hom-fphoto { display: none; }
 .hom-fphoto img { background: var(--sunk); }
 
-/* phone: full-bleed map with FEATURED tag + attribution inside; the caption is dropped (the map carries © OSM), the key stays */
+/* phone: full-bleed map with the attribution inside; the caption is dropped (the map carries © OSM), the key stays.
+   The Label keeps the page margin while its block bleeds. */
 @media (max-width: 559.98px) {
   .hom-fmap { margin-inline: calc(-1 * var(--m)); }
-  .hom-ftag { left: 16px; }
+  .hom-fl { padding-inline: var(--m); }
   .hom-fcap { display: none; }
 }
 
@@ -90,12 +88,16 @@
   .hom-fphoto { display: block; position: relative; min-height: 240px; }
   .hom-fphoto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 }
+/* 1000–1199: the Label opens the whole block at the page margin (like the hero's Label above it), photo and map share
+   the next row with their tops aligned */
 @media (min-width: 1000px) and (max-width: 1199.98px) {
-  .hom-fphoto { grid-column: 1 / span 4; grid-row: 1; }
-  .hom-fmap { grid-column: 5 / -1; grid-row: 1; }
-  .hom-fkey { grid-column: 5 / -1; grid-row: 2; }
-  .hom-det { grid-row: 3; }
-  .hom-feat--nophoto .hom-fmap, .hom-feat--nophoto .hom-fkey { grid-column: 1 / -1; }
+  .hom-fmap { display: contents; }
+  .hom-fl { grid-column: 1 / -1; grid-row: 1; }
+  .hom-fphoto { grid-column: 1 / span 4; grid-row: 2; }
+  .hom-maplink { grid-column: 5 / -1; grid-row: 2; }
+  .hom-fkey { grid-column: 5 / -1; grid-row: 3; }
+  .hom-det { grid-row: 4; }
+  .hom-feat--nophoto .hom-maplink, .hom-feat--nophoto .hom-fkey { grid-column: 1 / -1; }
 }
 
 /* desktop: hero (1–5) spans the map + caption rows; the article is a subgrid so its photo and details share row 3 */
@@ -119,32 +121,8 @@
 .hom-all { margin-top: 24px; }
 @media (min-width: 760px) { .hom-rtab { margin-top: 24px; } }
 
-/* phone + small tablet: Phone-Home-B rows — track glyph, title, then icon · date · distance, chevron */
-@media (max-width: 899.98px) {
-  .hom-rtab { margin-top: 0; }
-  .hom-rtab .rtab-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .hom-rtab .rtab-r { grid-template-columns: 64px auto auto minmax(0, 1fr) 20px; grid-template-rows: auto auto; column-gap: 0; row-gap: 4px;
-    min-height: 88px; padding: 12px 0; align-content: center; }
-  .hom-rtab li:first-child > .rtab-r { border-top: 0; }
-  .hom-rtab .rtab-r > .rtab-g { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
-  .hom-rtab .rtab-g svg { width: 64px; }
-  .hom-rtab .rtab-r > .rtab-title { grid-column: 2 / 5; grid-row: 1; padding-left: 14px; }
-  .hom-rtab .rtab-tt { font: 600 17px/22px var(--sans); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .hom-rtab .rtab-loc { display: none; }
-  .hom-rtab .rtab-r > :nth-child(2) { display: flex; grid-column: 2; grid-row: 2; padding-left: 14px; margin-right: 6px; align-items: center; }
-  .hom-rtab .rtab-r > :nth-child(2) .chip-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .hom-rtab .rtab-r > :nth-child(2) .ic { width: 14px; height: 14px; }
-  .hom-rtab .rtab-r > :nth-child(4) { display: block; grid-column: 3; grid-row: 2; white-space: nowrap; }
-  .hom-rtab .rtab-r > :nth-child(5) { grid-column: 4; grid-row: 2; text-align: left; white-space: nowrap;
-    font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); }
-  .hom-rtab .rtab-r > :nth-child(5)::before { content: "\00a0·\00a0"; }
-  .hom-rtab .rtab-r > :nth-child(5)::after { content: "\00a0MI"; }
-  html.km .hom-rtab .rtab-r > :nth-child(5)::after { content: "\00a0KM"; }
-  .hom-rtab .hom-nodist > :nth-child(5) { display: none; }
-  .hom-rtab .rtab-r > :nth-child(6), .hom-rtab .rtab-r > :nth-child(7) { display: none; }
-  .hom-rtab .rtab-r::after { content: ""; grid-column: 5; grid-row: 1 / span 2; justify-self: end; width: 8px; height: 8px; margin-right: 4px;
-    border-top: 1.5px solid var(--ink-3); border-right: 1.5px solid var(--ink-3); transform: rotate(45deg); }
-}
+/* phone + small tablet: the shared compact rows (base.css .rtab--compact, Phone-Home-B) */
+@media (max-width: 899.98px) { .hom-rtab { margin-top: 0; } }
 @media (min-width: 760px) and (max-width: 899.98px) {
   .hom-rtab .rtab-g svg { width: 88px; }
   .hom-rtab .rtab-r { grid-template-columns: 88px auto auto minmax(0, 1fr) 20px; }
@@ -178,10 +156,12 @@
 .hom-tile-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hom-tile-n { font: 600 17px/22px var(--sans); }
 .hom-tile-sub { font: 400 13px/18px var(--sans); color: var(--ink-3); }
+.hom-tile-sub .ml { --ml-sep: 0.9em; }
 .hom-tile-latest { display: none; }
 .hom-tile-count { flex-shrink: 0; display: flex; align-items: center; }
 .hom-tile-c { display: flex; gap: 0.5ch; font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
 .hom-tile-s { display: none; }
+.hom-tile-s .ml-br { display: block; }  /* 'INCL. 1 SERIES' and '+ 1 PLANNED ROUTE' on their own lines */
 .hom-tile > .hom-chev { color: var(--ink-3); }
 
 /* tablet: one row per activity — disc · name · latest · count · arrow */
@@ -237,6 +217,10 @@
 .hom-reg-a { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;
   font: 500 14px/20px var(--sans); color: var(--ink); white-space: nowrap; }
 .hom-reg-a .ic { width: 16px; height: 16px; }
+/* one key row under both region maps (activity discs, planned line, cluster), 12 above the credit line */
+.hom-rkey { padding-top: 12px; }
+.keyrow .hom-key-cl { width: 20px; height: 20px; }
+.hom-rkey .disc svg { width: 9px; height: 9px; }  /* the disc's own icon, not a 16×10 key swatch */
 .hom-attr { margin-top: 12px; }
 .hom-also { margin-top: 8px; display: flex; align-items: flex-start; column-gap: 20px; }
 .hom-also > .t-mono-s { flex-shrink: 0; display: flex; align-items: center; min-height: 44px; }

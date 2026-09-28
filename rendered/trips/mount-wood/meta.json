@@ -1,5 +1,5 @@
 {
- "hash": "cca88f5440253549578c7a6e92c3dd2b27d32851",
+ "hash": "28b8d15d2a82cc0df1f4703e9e735cd9d2d073f1",
  "slug": "mount-wood",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 12664.04,
    "min_ft": 7239.5,
    "total_mi": 11.76,
-   "gx": 222.84,
-   "gy": 15.93,
+   "gx": 188.82,
+   "gy": 21.41,
    "gps_max_mi": 6.2,
    "y_lo": 6914.89,
    "y_hi": 13190.76,
-   "pad_l": 72,
-   "vx": 3.18,
+   "pad_l": 0,
+   "vx": 2.38,
    "h": 122
   }
  },

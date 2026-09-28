@@ -1,5 +1,5 @@
 {
- "hash": "113e9fd6db6b019503e943e9d628db49d4204bfa",
+ "hash": "78b13f3c91efddd67b2b7818c7b0490cbd4ce667",
  "slug": "mount-tallac-sunrise",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 9714.57,
    "min_ft": 6417.98,
    "total_mi": 10.84,
-   "gx": 224.91,
-   "gy": 15.93,
+   "gx": 191.4,
+   "gy": 21.41,
    "gps_max_mi": 5.79,
    "y_lo": 6220.68,
    "y_hi": 10035.08,
-   "pad_l": 72,
-   "vx": 4.83,
+   "pad_l": 0,
+   "vx": 3.6,
    "h": 122
   }
  },

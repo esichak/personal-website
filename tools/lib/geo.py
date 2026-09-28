@@ -376,9 +376,14 @@ def d_attr(pts, closed=False, prec=1):
     if not pts:
         return ''
     f = '%.' + str(prec) + 'f'
-    out = ['M' + (f % pts[0][0]) + ' ' + (f % pts[0][1])]
+    last = (f % pts[0][0]) + ' ' + (f % pts[0][1])
+    out = ['M' + last]
     for x, y in pts[1:]:
-        out.append('L' + (f % x) + ' ' + (f % y))
+        cur = (f % x) + ' ' + (f % y)
+        if cur == last:
+            continue  # same point at this precision: a zero-length segment only adds bytes
+        out.append('L' + cur)
+        last = cur
     if closed:
         out.append('Z')
     return ''.join(out).replace('.0 ', ' ').replace('.0L', 'L')

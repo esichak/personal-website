@@ -81,23 +81,29 @@
   var groups = Array.prototype.slice.call(document.querySelectorAll('.arc-yr'));
   var live = document.getElementById('arc-live');
   function plural(k, w, pl) { return k + ' ' + (k === 1 ? w : (pl || w + 'S')); }
-  function item(s) { return '<span class="arc-seg">' + s + '</span>'; }
-  // mirrors archive.py count_line(): '3 REPORTS INCL. 2 MULTI-DAY, 1 SERIES · 1 PLANNED ROUTE' (no-break space before the dot)
+  var NB = function (x) { return x.replace(/ /g, '\u00a0'); };
+  // mirrors archive.py count_line() (core.count_items in a core.meta_items line): '3 REPORTS · INCL. 2 MULTI-DAY, 1 SERIES'
+  // · '+ 1 PLANNED ROUTE'; a group of planned routes only reads '1 PLANNED ROUTE'. CSS draws the dots (.ml).
   function countLine(rows) {
     var pub = rows.filter(function (r) { return r.dataset.kind !== 'planned'; });
-    var bits = [];
+    var pl = rows.length - pub.length;
+    var items = [];
     if (pub.length) {
+      items.push(plural(pub.length, 'REPORT'));
       var md = pub.filter(function (r) { return r.dataset.kind === 'multi-day'; }).length;
       var se = pub.filter(function (r) { return r.dataset.kind === 'series'; }).length;
       var sub = [];
       if (md) sub.push(md + ' MULTI-DAY');
       if (se) sub.push(se + ' SERIES');
-      bits.push(item(plural(pub.length, 'REPORT')) +
-        (sub.length ? ' ' + sub.map(function (x, i) { return item((i ? '' : 'INCL. ') + x); }).join(', ') : ''));
+      if (sub.length) items.push('INCL. ' + sub.join(', '));
+      if (pl) items.push('+ ' + plural(pl, 'PLANNED ROUTE'));
+    } else if (pl) {
+      items.push(plural(pl, 'PLANNED ROUTE'));
     }
-    var pl = rows.length - pub.length;
-    if (pl) bits.push(item(plural(pl, 'PLANNED ROUTE')));
-    return bits.join('\u00a0· ');
+    if (!items.length) return '';
+    return '<span class="ml ml--end">' + items.map(function (x, i) {
+      return '<span class="mi">' + (i ? '<span class="sr">, </span>' : '') + NB(x) + '</span>';
+    }).join('') + '</span>';
   }
   function apply(f) {
     var shown = 0;

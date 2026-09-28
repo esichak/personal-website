@@ -29,7 +29,24 @@ def day_anchor(d):
 
 
 def day_title(d):
-    return d['title'] or 'Day %s' % d['label']
+    """The h4 of a day row. A day without a Strava title keeps its heading (screen readers hear "Day 42, track only") but
+    the visible cell states what the day holds, in the month index's words, instead of repeating the DAY column."""
+    if d['title']:
+        return esc(d['title']).replace('/', '/<wbr>')
+    k = len(d['photos'])
+    pics = ('%s PHOTO%s' % (n(k), '' if k == 1 else 'S')) if k else ''
+    if written(d):
+        state = 'WRITE-UP' + (core.SEP + pics if pics else '')
+    else:
+        state = pics or ('TRACK ONLY' if d['track'] else '')
+    return ('<span class="sr">Day %s%s</span>%s' % (esc(d['label']), ', ' if state else '',
+            ('<span class="t-mono-s ser-t-none">%s</span>' % state) if state else ''))
+
+
+def gpx_name(t, d):
+    """Saved file name of a day's GPX, from Eric's day label ('Day 41' -> <slug>-day-41.gpx, 'Day 5.2' -> <slug>-day-5-2.gpx),
+    so the download matches the row it came from (the file on the site is still named by the day file, see build.py)."""
+    return '%s-day-%s.gpx' % (t['slug'], day_anchor(d)[4:])
 
 
 _PT = re.compile(r'([ML])\s*(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)')
@@ -106,7 +123,16 @@ def dist_u(km, caps=False):
     mi, k = core.dist_vals(km)
     if mi is None:
         return ''
-    return U(mi + ' MI', k + ' KM') if caps else U(mi, k, ' mi', ' km')
+    return U(core.nb(mi + ' MI'), core.nb(k + ' KM')) if caps else U(mi, k, ' mi', ' km')
+
+
+def days_item(days):
+    """'DAYS 1–9' / 'DAY 125': one meta_items() item (month index rows and month heads)."""
+    return core.nb('DAY%s %s' % ('' if len(days) == 1 else 'S', esc(label_range(days))))
+
+
+def wu_item(wu):
+    return core.nb(('%s WRITE-UP%s' % (n(wu), '' if wu == 1 else 'S')) if wu else 'TRACK ONLY')
 
 
 # ---------------------------------------------------------------- title + strip
@@ -140,12 +166,9 @@ def strip(t):
 # ---------------------------------------------------------------- intro row: map + overview + month index
 
 def map_caption(t):
-    """Same two-line caption as the report and multi-day maps (track line · North up / terrain + OSM line)."""
-    rng = core.frange(t['date'], t['end_date'])
-    lines = [['Tracks: Garmin, ' + rng, 'full tracks, not trimmed', 'North up'],
-             ['Terrain: AWS Terrain Tiles', 'Map data © OpenStreetMap contributors', 'Not for navigation']]
-    return '<p class="mapcap-t ser-mapcap">%s</p>' % ''.join(
-        '<span>%s</span>' % ' · '.join('<span class="ser-nw">%s</span>' % esc(seg) for seg in line) for line in lines)
+    """The shared map caption (core.map_caption), as on the report and multi-day maps: the track line, then the credit
+    (two lines from 1200, one flowing paragraph below; phones drop the credit, which the in-map tag and footer carry)."""
+    return core.map_caption(['Tracks: Garmin, ' + core.frange(t['date'], t['end_date']), 'full tracks, not trimmed', 'North up'])
 
 
 def lede(t):
@@ -200,8 +223,7 @@ def month_index(months, keyed=frozenset()):
     for key, name, year, days in months:
         km = sum(km_of(d) for d in days)
         wu = sum(1 for d in days if written(d))
-        meta = 'DAY%s %s' % ('' if len(days) == 1 else 'S', esc(label_range(days)))
-        meta += core.SEP + (('%s WRITE-UP%s' % (n(wu), '' if wu == 1 else 'S')) if wu else 'TRACK ONLY')
+        meta = core.meta_items([days_item(days), wu_item(wu)])
         mk = month_key(key)
         rows.append('<li%s><a class="ser-mi-a" href="#%s"><span class="ser-mi-h"><span class="ser-mi-m">%s</span>'
                     '<span class="t-mono-s ser-mi-s">%s</span></span><span class="ser-mi-v">%s</span>%s</a></li>'
@@ -232,7 +254,7 @@ def intro(t, here, months):
     # 5fr/6fr column shows at about 0.9-1.05x (the 560 render there was 0.63x). series.css swaps the 560 render back in for
     # the one-column 560-899 band, where the map is up to 560 wide.
     mp = core.map_block(t, here, [('overview-tall', 'wide'), ('overview-phone', 'col'), ('overview-phone', 'phone')],
-                        t['url'] + 'map/', 'ov', cls='ser-map', id_=MAP_ID)
+                        t['url'] + 'map/', 'ov', cls='ser-map', id_=MAP_ID, fullscreen_href=link(here, t['url'] + 'map/'))
     desk, phone = map_keys(t, 'overview-tall'), map_keys(t, 'overview-phone')
     keys = core.key_rows(desk, phone, 'ser-mkey') if (desk or phone) else ''
     return ('<section class="ser-intro wrap" id="map" aria-labelledby="ov-h">'
@@ -244,14 +266,16 @@ def intro(t, here, months):
 # ---------------------------------------------------------------- day log
 
 def thumb_file(t, p):
-    """'photos/d001-01.th.webp' (208 px tall, lib/photos) when it exists beside the photo, else None."""
+    """'photos/d001-01.th.webp' (320 px on the short edge: 2x for the <= 160 px squares) when it exists beside the photo,
+    else None."""
     base, ext = os.path.splitext(p['file'])
     th = base + '.th' + ext
     return th if os.path.exists(os.path.join(t['dir'], th)) else None
 
 
 def thumbs(t, d, here):
-    """Thumbnails 104-160 px tall: the 208 px .th copy at 1x, the 800 px .sm copy at 2x; each links to the full photo."""
+    """One even square contact sheet (series.css: 3-6 columns, about 92-145 px squares). Every screen gets the .th copy
+    (320 px short edge, so 2x on Retina) and never the 800 px .sm file; each thumbnail links to the full photo."""
     if not d['photos']:
         return ''
     base = link(here, t['url'])
@@ -260,7 +284,7 @@ def thumbs(t, d, here):
     for i, p in enumerate(d['photos']):
         sm = p['sm'] or p['file']
         th = thumb_file(t, p)
-        src = (' src="%s" srcset="%s 1x, %s 2x"' % (base + th, base + th, base + sm)) if th else (' src="%s"' % (base + sm))
+        src = ' src="%s"' % (base + (th or sm))
         wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if p.get('w') and p.get('h') else ''
         alt = p.get('alt') or ''
         label = '' if alt else ' aria-label="Day %s, photo %d of %d (full size)"' % (esc(d['label']), i + 1, total)
@@ -289,8 +313,8 @@ def day_article(t, d, here):
     date_s = core.fdate(d['date'], 'day') if d['date'] else ''
     gpx = ''
     if d['track']:
-        gpx = ('<a class="ser-gpx" href="gpx/%s-day-%s.gpx" download aria-label="Download Day %s GPX">%s</a>'
-               % (t['slug'], d['id'], esc(d['label']), DL_ICON))
+        gpx = ('<a class="ser-gpx" href="gpx/%s-day-%s.gpx" download="%s" aria-label="Download Day %s GPX">%s</a>'
+               % (t['slug'], d['id'], gpx_name(t, d), esc(d['label']), DL_ICON))
     else:
         gpx = '<span class="ser-gpx" aria-hidden="true"></span>'
     body = ''
@@ -304,7 +328,7 @@ def day_article(t, d, here):
             '<p class="ser-n" id="%s-n"><span class="ser-dn"><span class="ser-dw">Day </span>%s</span>'
             '<span class="ser-dd">%s</span></p>'
             '<h4 class="ser-t" id="%s-t">%s</h4>%s<div class="ser-sp">%s</div>%s</div>%s</article>'
-            % (cls, aid, labelled, glyph, aid, esc(d['label']), esc(date_s), aid, esc(day_title(d)), stats_dl(d), spark, gpx,
+            % (cls, aid, labelled, glyph, aid, esc(d['label']), esc(date_s), aid, day_title(d), stats_dl(d), spark, gpx,
                ('<div class="ser-body">%s</div>' % body) if body else ''))
 
 
@@ -331,21 +355,19 @@ def label_gaps(days):
 
 def gap_row(a, b):
     rng = str(a) if a == b else '%d–%d' % (a, b)
-    return '<p class="ser-gap">DAY%s %s%sNO RECORDING</p>' % ('' if a == b else 'S', rng, core.SEP)
+    return '<p class="ser-gap">%s</p>' % core.meta_items([core.nb('DAY%s %s' % ('' if a == b else 'S', rng)), core.nb('NO RECORDING')])
 
 
 def month_section(t, here, key, name, year, days, gaps):
     mid = month_id(key)
     km = sum(km_of(d) for d in days)
     wu = sum(1 for d in days if written(d))
-    meta = ['DAYS %s' % esc(label_range(days)), '%s WRITE-UP%s' % (n(wu), '' if wu == 1 else 'S') if wu else 'TRACK ONLY']
-    if km:
-        meta.append(dist_u(km, caps=True))
+    meta = [days_item(days), wu_item(wu), dist_u(km, caps=True) if km else '']
     title = '%s %s' % (name, year) if year else name
     rows = ''.join((gap_row(*gaps[d['id']]) if d['id'] in gaps else '') + day_article(t, d, here) for d in days)
     return ('<section class="ser-month%s" id="%s" aria-labelledby="%s-h"><div class="ser-mh"><h3 class="ser-mh-t" id="%s-h">%s</h3>'
             '<p class="t-mono-s ser-mh-m">%s</p></div>%s<div class="ser-days">%s</div></section>'
-            % (' has-wu' if wu else '', mid, mid, mid, esc(title), core.SEP.join(meta), cols_head(), rows))
+            % (' has-wu' if wu else '', mid, mid, mid, esc(title), core.meta_items(meta), cols_head(), rows))
 
 
 def month_nav(months):
@@ -389,9 +411,23 @@ def page(t, site):
         (' and %s written up' % n(n_wu)) if n_wu else '')
     first_photo = next((d['photos'][0] for d in t['days'] if d['photos']), None)
     img = (t['url'] + first_photo['file']) if first_photo else ((t['url'] + t['photos'][0]['file']) if t['photos'] else None)
+    # the overview map's hillshade and base layer load at once where one render serves the breakpoint (series.css swaps
+    # renders inside 560-899, so the tablet band is left to the lazy images)
+    head = core.map_preloads(t, here, [('overview-tall', 'wide'), ('overview-phone', 'phone')], t['url'] + 'map/')
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img,
-                                         body_cls='p-series', og_type='article'), t['title'])
+                                         body_cls='p-series', og_type='article', extra_head=head), t['title'])
 
 
 def build(site):
-    return [page(t, site) for t in site['trips'] if t['kind'] == 'series' and t['days']]
+    out = []
+    for t in site['trips']:
+        if t['kind'] == 'series' and t['days']:
+            out += [page(t, site), fullscreen(t)]
+    return out
+
+
+def fullscreen(t):
+    """trips/<slug>/map/: the 560×860 overview at 1.5× for phones (the phone map's full-screen button)."""
+    keys = map_keys(t, 'overview-tall')
+    return report.fullscreen_page(t, [('overview-tall', 'fs')], core.key_row(keys) if keys else '', 'map--fs map--fstall',
+                                  map_caption(t))

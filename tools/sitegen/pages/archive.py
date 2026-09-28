@@ -43,31 +43,15 @@ def count_n(k):
     return '<span class="sr">, </span>%d<span class="sr"> %s</span>' % (k, 'report' if k == 1 else 'reports')
 
 
-def count_line(ts):
-    """'9 REPORTS' · '3 REPORTS INCL. 2 MULTI-DAY, 1 SERIES' · '23 REPORTS INCL. 2 MULTI-DAY, 1 SERIES · 1 PLANNED ROUTE'.
-    Multi-day and series are subsets of the reports (a series counts as one report), as on Home's activity tiles. Each item
-    stays on one line; a wrapped line breaks before INCL. or at ', ' / ' · ' (archive.js countLine() mirrors this)."""
-    item = lambda x: '<span class="arc-seg">%s</span>' % x  # noqa: E731
+def count_line(ts, cls=''):
+    """'9 REPORTS' · '3 REPORTS · INCL. 2 MULTI-DAY, 1 SERIES' · '23 REPORTS · INCL. 2 MULTI-DAY, 1 SERIES · + 1 PLANNED ROUTE'
+    (core.count_items, as on Home and the section heads: a series or multi-day trip counts as one report, and a planned
+    route is never one of them); a group of planned routes only reads '1 PLANNED ROUTE'. One .ml meta line, so a wrapped
+    line never starts or ends with a dot (archive.js countLine() mirrors this)."""
     pub = [t for t in ts if t['kind'] != 'planned']
-    bits = []
-    if pub:
-        md = sum(1 for t in pub if t['kind'] == 'multi-day')
-        se = sum(1 for t in pub if t['kind'] == 'series')
-        sub = [x for x in (('%d MULTI-DAY' % md) if md else '', ('%d SERIES' % se) if se else '') if x]
-        head = item(plural(len(pub), 'REPORT'))
-        if sub:
-            head += ' ' + ', '.join(item(('INCL. ' if i == 0 else '') + x) for i, x in enumerate(sub))
-        bits.append(head)
     pl = len(ts) - len(pub)
-    if pl:
-        bits.append(item(plural(pl, 'PLANNED ROUTE')))
-    return core.SEP.join(bits)
-
-
-def segs(line):
-    """Wrap each ' · ' segment so a wrapped meta line breaks between items, never inside one, and never starts with '·'."""
-    parts = line.split(' · ')
-    return ' '.join('<span class="arc-seg">%s%s</span>' % (b, '&nbsp;·' if i < len(parts) - 1 else '') for i, b in enumerate(parts))
+    items = core.count_items(pub, pl) if pub else [core.nb(plural(pl, 'PLANNED ROUTE'))]
+    return core.meta_items(items, cls=cls)
 
 
 _CASING = re.compile(r'<path class="(mk-roadc|mk-minorc)" d="([^"]+)"/>')
@@ -111,15 +95,14 @@ def dist_line(t):
 
 def head_block(site, regs):
     pub = site['published']
-    bits = [plural(len(pub), 'REPORT')]  # same count as the "All reports" meta and the filter chips (series included)
-    if site['planned']:
-        bits.append(plural(len(site['planned']), 'PLANNED ROUTE'))
-    bits.append(plural(len(regs), 'REGION'))
+    # same count as the "All reports" meta and the filter chips (series included); the planned route is never a report
+    bits = [x for x in core.count_items(pub, site['planned']) if not x.startswith('INCL.')]
+    bits.append(core.nb(plural(len(regs), 'REGION')))
     years = sorted({t['date'].year for t in pub if t['date']} | {t['end_date'].year for t in pub if t.get('end_date')})
     if years:
         bits.append(str(years[0]) if years[0] == years[-1] else '%d–%d' % (years[0], years[-1]))
     return ('<section class="arc-head wrap" aria-labelledby="arc-title"><h1 id="arc-title" class="t-d1">Map &amp; archive</h1>'
-            '<p class="t-mono-s arc-stats">%s</p></section>' % segs(' · '.join(bits)))
+            '<p class="t-mono-s arc-stats">%s</p></section>' % core.meta_items(bits))
 
 
 def legend(ts, meta_d):
@@ -131,8 +114,9 @@ def legend(ts, meta_d):
         items.append('<li>%s<span>%s</span></li>' % (core.disc(a, 16, subs[0] if (a == 'other' and len(subs) == 1) else None), esc(word)))
     sym = []
     if any(t['kind'] == 'planned' for t in ts):
+        # the region maps' light planned line (core.KEY_SYMBOLS['planned_site'], drawn 28 wide)
         sym.append('<li><svg width="28" height="12" viewBox="0 0 28 12" aria-hidden="true"><path d="M2 6H26" style="stroke:#EEECE6;stroke-width:3.5"/>'
-                   '<path d="M2 6H26" style="stroke:#45474C;stroke-width:1.5;stroke-dasharray:4 3"/></svg><span>Planned route</span></li>')
+                   '<path d="M2 6H26" style="stroke:#66686D;stroke-width:1.5;stroke-dasharray:4 3"/></svg><span>Planned route</span></li>')
     if any(c.get('n', 0) > 1 for c in (meta_d.get('clusters') or [])):
         sym.append('<li><svg width="28" height="20" viewBox="0 0 28 20" aria-hidden="true"><circle cx="14" cy="10" r="9" style="fill:#F2F1EC;stroke:#16171A;stroke-width:1.5"/>'
                    '<text x="14" y="10.5" style="font:600 11px/1 var(--mono);fill:#16171A;text-anchor:middle;dominant-baseline:central">2</text></svg>'
@@ -152,9 +136,9 @@ def region_row(t, here, more=False):
         bits.append(d)
     g = core.glyph(t, here, 'g64', 'rg-%s' % t['slug']).replace('<svg ', '<svg class="arc-row-g" ', 1)
     # every row carries its key: the region map's planned line (mk-cat mk-planned) has one too, so hover highlights it
-    return ('<li class="arc-row%s" data-key="%s"><a href="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
-            '<span class="t-mono-s arc-row-m">%s<span class="sr">%s · </span><span>%s</span></span></span></a></li>'
-            % (' arc-more' if more else '', t['slug'], link(here, t['url']), g,
+    return ('<li class="arc-row%s" data-key="%s"><a href="%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
+            '<span class="t-mono-s arc-row-m"><span class="arc-row-i">%s</span><span class="sr">%s · </span><span>%s</span></span></span></a></li>'
+            % (' arc-more' if more else '', t['slug'], link(here, t['url']), t['activity'], g,
                core.title_html(t['title']), icon(core.act_icon(t), 14), esc(core.act_word(t)), core.SEP.join(bits)))
 
 
@@ -165,9 +149,7 @@ def region_panel(name, slug, ts, here, meta, first):
     mp = core.map_block(anchor, here, [('region-%s-desktop' % slug, 'desktop'), ('region-%s-phone' % slug, 'phone')],
                         'assets/maps/', 'rg-' + slug, eager=first, cls='arc-mapv', site_maps=True, attrib=False)
     mp = share_casings(mp.replace('<div class="map', '<div id="%s" class="map' % map_id, 1), 'arc-' + slug)
-    cap = ('<p class="arc-cap"><span>%s</span><span>%s</span></p>'
-           % (segs('Pins mark each start and link to the report · Full tracks, not trimmed · North up'),
-              segs('Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation')))
+    cap = '<div class="arc-cap">%s</div>' % core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])
     rows = ''.join(region_row(t, here, i >= SHOW and len(ts) > SHOW + 1) for i, t in enumerate(ts))
     return ('<div class="arc-panel" id="region-%s">'
             '<h3 class="arc-panel-h t-h3" id="arc-ph-%s">%s</h3>'
@@ -175,7 +157,7 @@ def region_panel(name, slug, ts, here, meta, first):
             '<div class="arc-side">%s<div class="arc-inreg"><div class="arc-inreg-h"><h4 class="t-label" id="arc-in-%s">In this region</h4>'
             '<span class="t-mono-s">%s</span></div><ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s arc-ph-%s" data-map-target="%s">%s</ol>%s</div>'
             '</div></div></div>'
-            % (slug, slug, esc(name), mp, cap, legend(ts, md), slug, count_line(ts), slug, slug, slug, map_id, rows,
+            % (slug, slug, esc(name), mp, cap, legend(ts, md), slug, count_line(ts, 'ml--end'), slug, slug, slug, map_id, rows,
                ('<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-%s" hidden>Show all %d%s</button>'
                 % (slug, len(ts), icon('chevron-down', 16))) if len(ts) > SHOW + 1 else ''))
 
@@ -197,7 +179,7 @@ def series_card(site, here):
                    '<span class="arc-series-t">%s</span><span class="arc-series-m">%s%s<span class="t-mono-s arc-series-d">%s</span></span></span>'
                    '<span class="arc-series-go">%s%s</span></a>'
                    % (link(here, t['url']), g, core.title_html(t['title']), core.chip(t, variant='inline'), core.tag(series_tag(t)),
-                      segs(' · '.join(meta)), 'Read the series' if t['kind'] == 'series' else 'Read report', icon('arrow-right', 16)))
+                      core.meta_items([core.nb(x) if '<' not in x else x for x in meta]), 'Read the series' if t['kind'] == 'series' else 'Read report', icon('arrow-right', 16)))
     return '<div class="arc-series-w">%s</div>' % ''.join(out)
 
 
@@ -235,14 +217,14 @@ def archive_section(site, here):
                      '<span class="arc-chip-n">%s</span></button>' % (a, core.ACT[a][3], esc(lab), count_n(k)))
     # rows are core.table_row (li > a): status-only tags (planned rows say PLANNED in the date cell) + filter data for archive.js
     row = lambda t: core.table_row(t, here, tags='' if t['kind'] == 'planned' else core.trip_tags(t, shape=False),  # noqa: E731
-                                   attrs=' data-act="%s" data-kind="%s"' % (t['activity'], t['kind']))
+                                   attrs=' data-kind="%s"' % t['kind'])  # core.table_row emits data-act
     body = []
     for y, ts in groups:
         gid = 'yr-%s' % str(y if y is not None else 'undated').lower()
         label = str(y) if y is not None else 'Undated'
         body.append('<div class="arc-yr" data-group="%s"><div class="arc-yr-h"><h3 class="t-label" id="%s">%s</h3>'
                     '<span class="t-mono-s arc-yr-n">%s</span></div><ol class="arc-rows2" aria-labelledby="%s">%s</ol></div>'
-                    % (gid, gid, label, count_line(ts), gid, ''.join(row(t) for t in ts)))
+                    % (gid, gid, label, count_line(ts, 'ml--end'), gid, ''.join(row(t) for t in ts)))
     return ('<section class="arc-all wrap sec" id="all-reports" aria-labelledby="all-reports-h">%s'
             '<div class="arc-filt" role="group" aria-label="Filter by activity" hidden>%s</div>'
             '<p class="sr" id="arc-live" aria-live="polite"></p>'
@@ -256,4 +238,11 @@ def build(site):
     regs = regions(site, meta)
     body = head_block(site, regs) + map_section(site, here, regs, meta) + archive_section(site, here)
     desc = 'Every trip report on a map by region, and the full archive by year with GPX tracks.'
-    return [core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive'), 'Map & archive')]
+    head = ''
+    if regs:
+        # the first region panel's map is the first-screen image: preload its hillshade and base layer (other panels stay lazy)
+        rs = regs[0][1]
+        head = core.map_preloads(None, here, [('region-%s-desktop' % rs, 'desktop'), ('region-%s-phone' % rs, 'phone')],
+                                 'assets/maps/', site_maps=True)
+    return [core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive', extra_head=head),
+                      'Map & archive')]

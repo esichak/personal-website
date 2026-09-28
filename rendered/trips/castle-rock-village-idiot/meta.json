@@ -1,5 +1,5 @@
 {
- "hash": "aa61e3166c51891f0bc3bf01d95e900ea9e0fc12",
+ "hash": "4a20de6617c379f75c47e73351745556cddaa870",
  "slug": "castle-rock-village-idiot",
  "kind": "trip",
  "maps": {
@@ -35,7 +35,7 @@
    "gps_max_ft": 7775.59,
    "min_ft": 7559.06,
    "total_mi": 2.14,
-   "gx": 72.0,
+   "gx": 90,
    "gy": 19.38,
    "gps_max_mi": 0.0,
    "y_lo": 7546.1,
@@ -50,7 +50,7 @@
    "gps_max_ft": 7775.59,
    "min_ft": 7559.06,
    "total_mi": 2.14,
-   "gx": 72.0,
+   "gx": 90,
    "gy": 16.79,
    "gps_max_mi": 0.0,
    "y_lo": 7546.1,
@@ -65,13 +65,13 @@
    "gps_max_ft": 7775.59,
    "min_ft": 7559.06,
    "total_mi": 2.14,
-   "gx": 72.0,
-   "gy": 15.93,
+   "gx": 18,
+   "gy": 21.41,
    "gps_max_mi": 0.0,
    "y_lo": 7546.1,
    "y_hi": 7796.52,
-   "pad_l": 72,
-   "vx": 14.54,
+   "pad_l": 0,
+   "vx": 10.86,
    "h": 122
   }
  },

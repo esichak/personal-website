@@ -1,5 +1,5 @@
 {
- "hash": "6b66666575f3d633bcff8a506de8c96fc4059b65",
+ "hash": "d1b90b34848924e220134323619461c978b19fb6",
  "slug": "post-ski-sup-lake-tahoe",
  "kind": "trip",
  "maps": {
@@ -31,7 +31,7 @@
  "charts": {
   "speed-wide": {
    "w": 1248,
-   "h": 96,
+   "h": 112,
    "kind": "speed",
    "info": {
     "span_min": 63.86666666666667,
@@ -42,7 +42,7 @@
   },
   "speed-col": {
    "w": 718,
-   "h": 96,
+   "h": 112,
    "kind": "speed",
    "info": {
     "span_min": 63.86666666666667,

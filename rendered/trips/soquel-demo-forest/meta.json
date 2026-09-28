@@ -1,5 +1,5 @@
 {
- "hash": "48c1902c4d53bd792e6ee38aad974b429501388d",
+ "hash": "79eae5531a12f43029441e655ee0abd4c48c3fdb",
  "slug": "soquel-demo-forest",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 2191.6,
    "min_ft": 684.38,
    "total_mi": 16.06,
-   "gx": 153.57,
-   "gy": 15.93,
+   "gx": 102.11,
+   "gy": 21.41,
    "gps_max_mi": 4.58,
    "y_lo": 594.09,
    "y_hi": 2339.8,
-   "pad_l": 72,
-   "vx": 15.63,
+   "pad_l": 0,
+   "vx": 11.67,
    "h": 122
   }
  },

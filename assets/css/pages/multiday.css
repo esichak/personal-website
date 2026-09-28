@@ -6,42 +6,23 @@ body.p-multiday { --dnav-h: 48px; }
 
 /* ---------------------------------------------------------------- trip strip (5 cells) */
 .mul-strip .strip-v { white-space: nowrap; }
-.mul-nb { display: inline-block; }
 @media (max-width: 759.98px) {                                  /* phones: the 2×2 of totals, no longest day */
   .mul-strip--long .mul-sc-long { display: none; }
   .mul-strip--long .strip-c:nth-child(3), .mul-strip--long .strip-c:nth-child(5) { padding-left: 16px; border-left: 1px solid var(--rule); }
   .mul-strip--long .strip-c:nth-child(3) { border-top: 0; }
   .mul-strip--long .strip-c:nth-child(4) { padding-left: 0; border-left: 0; }
 }
-@media (min-width: 760px) and (max-width: 1199.98px) {
-  .mul-strip .strip-c { padding: 16px; }
-  .mul-strip .strip-c:first-child { padding-left: 0; }
-  .mul-strip .strip-c:nth-child(2n) { padding-left: 16px; }
-  .mul-strip .strip-v { font-size: 26px; line-height: 30px; }
-  .mul-strip .strip-v .unit { font-size: 12px; }
-  .mul-strip .strip-s { font-size: 12px; }
-}
-@media (min-width: 760px) and (max-width: 999.98px) {
-  .mul-strip .strip-c, .mul-strip .strip-c:nth-child(2n) { padding: 14px 12px; }
-  .mul-strip .strip-c:first-child { padding-left: 0; }
-  .mul-strip .strip-v { font-size: 22px; line-height: 26px; letter-spacing: -0.03em; }
-  .mul-strip .strip-v .unit { margin-left: 3px; font-size: 11px; }
-  .mul-strip .strip-s { font-size: 11px; line-height: 16px; }
-}
+/* 760–1199: the shared .strip--5 tablet rules (base.css) */
 
-/* ---------------------------------------------------------------- overview map (key rows: core.key_rows) */
-.mul-map .mapcap-a .btn { flex-shrink: 0; }
-@media (min-width: 560px) and (max-width: 1199.98px) { .mul-map > .wrap { width: min(860px, 100% - 2 * var(--m)); } }
+/* ---------------------------------------------------------------- overview map (key rows: core.key_rows, caption: core.map_caption) */
+/* 560–1199: map, key row and caption share the left-aligned --col-max column (report.css .rep-map) */
 /* phones (Phone-MultiDay-A): no title actions (the bottom bar carries Map · Days · Report · GPX), no strip sub-lines;
    the stats footnote moves under the map caption (.rep-note-ph) */
 @media (max-width: 759.98px) {
   body.p-multiday .site-f { padding-bottom: 72px; }
   body.p-multiday .rep-actions { display: none; }
-  body.p-multiday .mul-map .mapcap-a { display: none; }  /* the bottom bar carries 'GPX' (all days) on phones */
   body.p-multiday .rep-strip .strip-s, body.p-multiday .rep-strip .strip-note { display: none; }
 }
-/* phones: the in-map tag carries "© OSM · Not for navigation" and the footer credits the terrain tiles */
-@media (max-width: 559.98px) { .mul-cap2 { display: none; } }
 
 /* ---------------------------------------------------------------- sticky day nav */
 .mul-body { margin-top: 24px; }
@@ -149,6 +130,13 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-st.mul-st--noroute .c-high { width: 112px; }
   .mul-st.mul-st--noroute .c-time { width: 120px; }
 }
+/* no From → To column, ≥1000: the same number-column widths as a table with one, so the date column takes the slack
+   and the numbers sit where they do on Chamonix–Zermatt (not spread across the full width) */
+@media (min-width: 1000px) {
+  .mul-st.mul-st--noroute .c-date { width: auto; }
+  .mul-st.mul-st--noroute .num, .mul-st.mul-st--noroute .c-high { width: 112px; }
+  .mul-st.mul-st--noroute .c-time { width: 128px; }
+}
 /* phone day index */
 .mul-di { margin-top: 0; border-top: 0; }                      /* the Overview head's ink rule is its top edge */
 .mul-ov-p ~ .mul-di { margin-top: 24px; border-top: 1px solid var(--ink); }
@@ -182,8 +170,6 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-hut { align-items: flex-start; }
   .mul-hut-t { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
 }
-/* the site pager: a lone Newer/Older cell takes the full row instead of wrapping its meta line in half of it */
-@media (min-width: 760px) { body.p-multiday .pager:not(.mul-dpager) .prev:only-child { grid-column: 1 / -1; } }
 .mul-ds { margin-top: 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
 .mul-ds-r { padding: 10px 12px 10px 0; display: flex; flex-direction: column; gap: 2px; min-width: 0; border-top: 1px solid var(--rule); }
@@ -194,10 +180,16 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-ds-v .unit { margin-left: 4px; font: 400 12px/16px var(--mono); letter-spacing: 0; }
 .mul-ds-s { text-transform: uppercase; }
 .mul-ds-loss { display: none; }
+/* phones: label + value only, as in the trip strip and the report phone strips; an odd last cell takes the full row */
+@media (max-width: 759.98px) {
+  .mul-ds-s { display: none; }
+  .mul-ds-r.pc-full { grid-column: 1 / -1; }
+}
 .mul-dgpx { margin-top: 16px; align-self: flex-start; }
 .mul-main { margin-top: 24px; min-width: 0; }
 .mul-dmap-w .keyrow { padding-top: 10px; }
 .mul-dcap { padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--rule); font: 400 14px/20px var(--sans); color: var(--ink-3); }
+.mul-dcap .ml { --ml-sep: 0.9em; }                             /* sans caption: the map-caption dot spacing (base.css .mapcap-t) */
 @media (max-width: 559.98px) { .mul-dcap { display: none; } }
 .mul-dp { margin-top: 32px; }
 .mul-dp-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: 16px; row-gap: 4px; padding-bottom: 12px; }
@@ -208,33 +200,18 @@ body.p-multiday { --dnav-h: 48px; }
   font: 500 15px/20px var(--sans); color: var(--ink-2); max-width: 718px; }  /* first in .mul-main, as wide as the day map */
 .mul-xfer svg { width: 16px; height: 10px; flex-shrink: 0; overflow: visible; }
 .mul-prose { margin-top: 32px; max-width: 620px; }
-.mul-photos { --max-h: 540px; --min-h: 260px; --ph-gap: 12px; container-type: inline-size; margin-top: 32px;
-  display: flex; flex-direction: column; gap: var(--ph-gap); }
-.mul-prow { display: flex; flex-direction: column; gap: var(--ph-gap); }
-.mul-ph { display: block; min-width: 0; }
-.mul-ph .photo, .mul-ph img { height: 100%; }
-.mul-ph img { aspect-ratio: var(--ar); object-fit: cover; }
-.mul-ph:hover img { filter: brightness(1.04); }
-.mul-prow--one { width: min(100%, var(--ar) * var(--max-h)); }
-.mul-prow--pp { flex-direction: row; }
-.mul-prow--pp > .mul-ph { flex: var(--fg) 1 0; }
-@media (min-width: 560px) {
-  .mul-prow { flex-direction: row; height: clamp(var(--min-h), (100cqw - (var(--n) - 1) * var(--ph-gap)) / var(--sum), var(--max-h)); }
-  .mul-prow > .mul-ph { flex: var(--fg) 1 0; }
-  .mul-prow .mul-ph img { aspect-ratio: auto; width: 100%; }
-  .mul-prow--one { height: auto; }
-  .mul-prow--one > .mul-ph { flex: 1 1 auto; }
-  .mul-prow--one .mul-ph img { aspect-ratio: var(--ar); height: auto; }
-}
-.mul-pcap { margin-top: calc(12px - var(--ph-gap)); }
+/* day photos: the shared justified rows (core.photo_rows, base.css .jrows) sized for the chapter column */
+.mul-photos { margin-top: 32px; }
+.mul-photos .jrows { --jmax: 540px; --jmin: 260px; --jgap: 12px; }
+@media (min-width: 760px) { .mul-photos .jrows { --jgap: 24px; } }
 .mul-dpager { margin-top: 40px; }
 .mul-dpager .mul-up { transform: rotate(90deg); }
-.mul-dpager .pager-n { text-wrap: balance; }
 /* phones: one 'Day N →' button per chapter instead of the two-cell pager */
 @media (max-width: 759.98px) {
   .mul-dpager { margin-top: 24px; border: 0; }
   .mul-dpager .prev { display: none; }
-  .mul-dpager .next { min-height: 48px; padding: 0 16px; border: 1px solid var(--rule-strong); border-radius: 2px; justify-content: center; }
+  .mul-dpager .next { min-height: 48px; padding: 0 16px; border: 1px solid var(--rule-strong); border-radius: 2px; justify-content: center;
+    align-items: center; }
   .mul-dpager .next .pager-n, .mul-dpager .next .t-mono-s { display: none; }
   .mul-dpager .next .pager-l { font: 500 15px/20px var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink); }
 }
@@ -245,7 +222,6 @@ body.p-multiday { --dnav-h: 48px; }
 }
 @media (min-width: 760px) {
   .mul-day-in { padding-top: 40px; }
-  .mul-photos { --ph-gap: 24px; }
   .mul-ds { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .mul-ds-r, .mul-ds-r.pc-r { padding: 12px; border-top: 0; border-left: 0; }
   .mul-ds-s { font-size: 12px; line-height: 16px; white-space: nowrap; }

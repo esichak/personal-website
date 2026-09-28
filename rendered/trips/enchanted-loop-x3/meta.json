@@ -1,5 +1,5 @@
 {
- "hash": "6f371c99edec67db36f4df0b197d8907ce852f0d",
+ "hash": "8a4470b4e1411e19ddb5c9ce4e7a04c6f04b06b3",
  "slug": "enchanted-loop-x3",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 672.57,
    "min_ft": 54.46,
    "total_mi": 17.12,
-   "gx": 136.62,
-   "gy": 15.93,
+   "gx": 80.89,
+   "gy": 21.41,
    "gps_max_mi": 3.87,
    "y_lo": 17.49,
    "y_hi": 732.22,
-   "pad_l": 72,
-   "vx": 40.7,
+   "pad_l": 0,
+   "vx": 30.39,
    "h": 122
   }
  },

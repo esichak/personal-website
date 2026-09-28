@@ -14,11 +14,11 @@ HERE = ''
 LABEL = 'Trip reports · GPX'
 # Headline + lead from the approved Main artboard (one line per span; the spans stack on wider screens).
 HEADLINE = ('Trip reports from', 'the Sierra, the Alps', 'and beyond.')
-LEAD = 'Backcountry ski, climbing, hiking, mountain biking and other trips, each with a GPX map.'
+LEAD = core.TAGLINE  # the one site tagline (dek, meta description, RSS channel)
 ATTRIB = 'Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation'
 HOME_REGIONS = ('Lake Tahoe', 'Eastern Sierra')
 LATEST_N = 10
-TITLE = 'Eric Sichak · Trip reports: backcountry ski, climbing, hiking and more'
+TITLE = 'Eric Sichak · Trip reports: backcountry skiing, climbing, hiking and more'
 
 
 # ---------------------------------------------------------------- small helpers
@@ -33,8 +33,9 @@ def is_report(t):
 
 
 def meta_line(bits):
-    """Mono-S 'A · B · C' that only breaks after a separator (each item wraps inside itself only if it alone is too wide)."""
-    return '&nbsp;· '.join('<span class="hom-nw">%s</span>' % b for b in bits if b)
+    """Mono-S 'A · B · C' as the shared .ml line (core.meta_items): CSS draws the dots, so a wrapped line never ends with
+    one and an item never splits (a place item may wrap at its comma)."""
+    return core.meta_items(bits)
 
 
 def slug(s):
@@ -97,38 +98,12 @@ def mini_strip(t):
 
 
 def map_caption(t):
+    """The shared map caption (core.map_caption), as on report and section maps."""
     if t['days']:
-        first = 'Tracks: Garmin, %s · full tracks, not trimmed · North up' % core.frange(t['date'], t['end_date'])
+        first = ['Tracks: Garmin, %s' % core.frange(t['date'], t['end_date']), 'full tracks, not trimmed', 'North up']
     else:
-        first = 'Track: Garmin, %s · full track, not trimmed · North up' % core.fdate(t['date'], 'short')
-    return '<p class="t-small hom-fcap"><span>%s</span> <span>%s</span></p>' % (esc(first), esc(ATTRIB))
-
-
-def _draws(t, name, pattern):
-    """True when the rendered fragment `name` contains `pattern` (a regex)."""
-    try:
-        return re.search(pattern, open(core.rendered(t, name + '.svg.html'), encoding='utf-8').read()) is not None
-    except OSError:
-        return False
-
-
-def map_key(t, variants):
-    """Compact key row under the featured map. The featured map hides mile discs and direction chevrons (CSS), so the key
-    decodes only the line, the start/end markers and GPS max — and only symbols the rendered map actually draws: the col
-    render has dashed skin / solid ski for ski trips, the phone render (render.py SMALL) a plain route line.
-    Single-day trips only: overview maps (multi-day, series) draw day symbols this short row does not decode."""
-    if t['kind'] != 'trip':
-        return ''
-    ends = ['start', 'end'] if t.get('route_shape') == 'point-to-point' else ['start_end']
-    flat = core.is_flat(t)
-    rows = []
-    for name, _size in variants:
-        skin = t['activity'] == 'ski' and _draws(t, name, r'<path class="mk-trk"[^>]*stroke-dasharray')
-        gps = not flat and _draws(t, name, r'class="mk-gps"|l6 10h-12z"[^>]*fill: \{\{route\}\}')  # label or red triangle
-        rows.append((['skin', 'ski'] if skin else ['route']) + ends + (['gps'] if gps else []))
-    if not rows:
-        return ''
-    return core.key_rows(rows[0], rows[-1], 'keyrow--compact')
+        first = ['Track: Garmin, %s' % core.fdate(t['date'], 'short'), 'full track, not trimmed', 'North up']
+    return '<div class="hom-fcap">%s</div>' % core.map_caption(first)
 
 
 def first_photo(t):
@@ -150,9 +125,11 @@ def featured(site):
     # lazy on every variant: the hidden one is then never fetched (an eager col PNG would cost phones ~290 KB), and the
     # visible one still loads at once because it is in the first viewport
     mp = core.map_block(t, HERE, variants, t['url'] + 'map/', 'fm', cls='map--nowide')
-    fmap = ('<div class="hom-fmap%s"><a class="hom-maplink" href="%s" tabindex="-1" aria-hidden="true">%s'
-            '<span class="hom-ftag">FEATURED</span></a></div><div class="hom-fkey">%s%s</div>'
-            % (tall, href, mp, map_key(t, variants), map_caption(t)))
+    # 'Featured' is an in-flow Label above the map, as on section pages (an overlay tag covered map labels); it also names
+    # the article. The key decodes only what the map shows: the home map hides mile discs (CSS), hence miles=False.
+    fmap = ('<div class="hom-fmap%s"><p class="t-label hom-fl" id="feat-l">Featured</p>'
+            '<a class="hom-maplink" href="%s" tabindex="-1" aria-hidden="true">%s</a></div><div class="hom-fkey">%s%s</div>'
+            % (tall, href, mp, core.feature_key(t, variants, miles=False), map_caption(t)))
     p = first_photo(t)
     photo = ''
     if p:
@@ -161,8 +138,8 @@ def featured(site):
     chips = ('<div class="chips hom-chips">%s%s<span class="t-mono-s hom-cdate">%s</span></div>'
              % (core.chip(t, href=link(HERE, core.section_url(act))), core.trip_tags(t), core.trip_date(t)))
     # phone (Phone-Home-A): the date leaves the chip row and joins distance + gain on one Mono-S line under the title
-    pmeta = meta_line([core.trip_date(t)] + [x for x in core.plain_stats(t).split(' · ') if x])
-    place = meta_line(core.place_line(t).split(' · ')) if core.place_line(t) else ''
+    pmeta = meta_line([core.trip_date(t)] + core.plain_stats(t, items=True))
+    place = meta_line(core.place_line(t, items=True))
     ex = core.excerpt(t, 230)
     det = ('<div class="hom-det">%s'
            '<h2 class="t-h3 hom-ft" id="feat-t"><a href="%s">%s</a></h2>%s%s%s%s'
@@ -174,15 +151,15 @@ def featured(site):
               ('<p class="t-excerpt hom-ex">%s</p>' % esc(ex)) if ex else '',
               href, icon('arrow-right', 16)))
     cls = 'hom-feat' + ('' if photo else ' hom-feat--nophoto')
-    return ('<article class="%s" aria-labelledby="feat-l feat-t"><p class="sr" id="feat-l">Featured report</p>%s%s%s</article>'
+    return ('<article class="%s" aria-labelledby="feat-l feat-t">%s%s%s</article>'
             % (cls, fmap, det, photo)), t
 
 
 # ---------------------------------------------------------------- latest reports (report table)
 
 def table_row(t):
-    """core.table_row (li > a, compact caps date); rows without a distance drop the phone's '· N MI' bit."""
-    return core.table_row(t, HERE, cls='' if t['stats'].get('distance_km') else 'hom-nodist')
+    """core.table_row (li > a, compact caps date; rows without a distance carry .rtab-nodist)."""
+    return core.table_row(t, HERE)
 
 
 def latest(site):
@@ -192,7 +169,7 @@ def latest(site):
         return ''
     total = len(reports)
     return ('<section class="wrap sec hom-latest" aria-labelledby="latest-h">%s'
-            '<div class="rtab hom-rtab">%s<ol class="rtab-rows" aria-labelledby="latest-h">%s</ol></div>'
+            '<div class="rtab rtab--compact hom-rtab">%s<ol class="rtab-rows" aria-labelledby="latest-h">%s</ol></div>'
             '<a class="btn hom-all" href="%s">All %d reports%s</a></section>'
             % (core.section_head('Latest reports', 'SHOWING THE %d NEWEST' % len(rows), id_='latest-h'),
                core.table_head(), ''.join(table_row(t) for t in rows),
@@ -204,14 +181,10 @@ def latest(site):
 def activity_tile(site, act, label):
     pub = [t for t in site['published'] if t['activity'] == act]
     reps = [t for t in pub if is_report(t)]
-    series = [t for t in pub if t['kind'] == 'series']
-    multi = [t for t in reps if t['kind'] == 'multi-day']
     planned = [t for t in site['planned'] if t['activity'] == act]
-    # subsets of the report count in one bit ('INCL. 2 MULTI-DAY, 1 SERIES'), then planned routes (not reports) on their own
-    incl = ([plural(len(multi), 'MULTI-DAY', 'MULTI-DAY')] if multi else []) + ([plural(len(series), 'SERIES', 'SERIES')] if series else [])
-    sub = ['INCL. ' + ', '.join(incl)] if incl else []
-    if planned:
-        sub.append(plural(len(planned), 'PLANNED ROUTE'))
+    # core.count_items after the report count: 'INCL. 2 MULTI-DAY, 1 SERIES', then '+ 1 PLANNED ROUTE' (never a report),
+    # one per line
+    sub = core.count_items(reps, planned)[1:]
     if reps:
         count = ('<div class="hom-tile-c"><span class="hom-tile-num">%d</span> <span class="hom-tile-u">%s</span></div>'
                  % (len(reps), 'Report' if len(reps) == 1 else 'Reports'))
@@ -226,8 +199,9 @@ def activity_tile(site, act, label):
     subtypes = ''
     if act == 'other':
         words = [core.SUB_WORD[s] for s in core.content.OTHER_SUBTYPES]
+        # two per line (a balanced 2×2), each pair one .ml line so a narrow wrap never leaves a trailing dot
         subtypes = ('<span class="hom-tile-sub">%s</span>'
-                    % '<br>'.join(' · '.join(words[i:i + 2]) for i in range(0, len(words), 2)))
+                    % ''.join(core.meta_items([esc(w) for w in words[i:i + 2]]) for i in range(0, len(words), 2)))
     # the link's name is the activity; the count block is its description (the Latest title stays out of both)
     return ('<li><a class="hom-tile" href="%s" aria-labelledby="act-%s-n" aria-describedby="act-%s-c">'
             '<div class="hom-tile-top">%s%s</div>'
@@ -235,7 +209,7 @@ def activity_tile(site, act, label):
             '%s'
             '<div class="hom-tile-count" id="act-%s-c">%s <span class="t-mono-s hom-tile-s">%s</span></div>%s</a></li>'
             % (link(HERE, core.section_url(act)), act, act, core.disc(act, 32), icon('arrow-right', 20, 'hom-arr'),
-               act, esc(label), subtypes, latest_, act, count, meta_line(sub), icon('chevron-right', 20, 'hom-chev')))
+               act, esc(label), subtypes, latest_, act, count, core.meta_items(sub, br_after=0), icon('chevron-right', 20, 'hom-chev')))
 
 
 def by_activity(site):
@@ -249,26 +223,70 @@ def by_activity(site):
 def region_counts(site, slugs):
     by = site['by_slug']
     ts = [by[s] for s in slugs if s in by]
-    reps = sum(1 for t in ts if is_report(t))
-    planned = sum(1 for t in ts if t['kind'] == 'planned')
-    bits = [plural(reps, 'REPORT')] if reps else []
-    if planned:
-        bits.append(plural(planned, 'PLANNED ROUTE'))
-    return bits
+    pub = [t for t in ts if is_report(t)]
+    planned = [t for t in ts if t['kind'] == 'planned']
+    if pub:
+        return core.count_items(pub, planned)  # '14 REPORTS · + 1 PLANNED ROUTE', as on map/ and the section heads
+    return [core.nb(plural(len(planned), 'PLANNED ROUTE'))] if planned else []
+
+
+def _site_draws(name, pattern):
+    """True when the site map fragment rendered/site/<name>.svg.html contains `pattern` (a regex)."""
+    try:
+        return re.search(pattern, open(os.path.join(core.ROOT, 'rendered', 'site', name + '.svg.html'), encoding='utf-8').read()) is not None
+    except OSError:
+        return False
+
+
+# the pin cluster as the region maps draw it (paper disc, ink ring, Mono count), at key-row size
+CLUSTER_SYM = ('<svg class="hom-key-cl" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">'
+               '<circle cx="10" cy="10" r="9" style="fill:#F2F1EC;stroke:#16171A;stroke-width:1.5"/>'
+               '<text x="10" y="10.5" style="font:600 11px/1 var(--mono);fill:#16171A;text-anchor:middle;dominant-baseline:central">2</text></svg>')
+
+
+def region_key(site, meta, names):
+    """One compact key row under the region maps (archive.legend's item logic): an activity disc + word for every activity
+    whose pins the drawn maps carry ('other' reads as its sub-type when only one occurs), the planned-route line when a
+    planned track is drawn, and the cluster symbol when pins merge. Symbols only, never counts."""
+    by = site['by_slug']
+    keys = set()
+    for nm in names:
+        m = meta.get(nm) or {}
+        cl = m.get('clusters')  # every pin, merged or not (a lone pin is a cluster of 1)
+        keys.update([k for c in cl for k in c.get('keys', [])] if cl else m.get('trips', []))
+    ts = [by[k] for k in keys if k in by]
+    items = []
+    for a, _lab in core.NAV:
+        if not any(t['activity'] == a and t['kind'] != 'planned' for t in ts):
+            continue
+        subs = sorted({t.get('subtype') for t in ts if t['activity'] == a and t.get('subtype')})
+        sub = subs[0] if (a == 'other' and len(subs) == 1) else None
+        items.append('<li>%s%s</li>' % (core.disc(a, 16, sub), esc(core.act_word(a, sub) if sub else core.ACT[a][0])))
+    if any(_site_draws(nm, r'class="mk-cat mk-planned"') for nm in names):
+        word, sym = core.KEY_SYMBOLS['planned_site']
+        items.append('<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>%s</li>' % (sym, esc(word)))
+    if any(c.get('n', 0) > 1 for nm in names for c in ((meta.get(nm) or {}).get('clusters') or [])):
+        items.append('<li>%sSeveral reports start here</li>' % CLUSTER_SYM)
+    if not items:
+        return ''
+    return '<ul class="keyrow keyrow--compact hom-rkey" aria-label="Map key">%s</ul>' % ''.join(items)
 
 
 def where(site):
     meta = site_meta()['maps']
     blocks = []
+    drawn = []
     for region in HOME_REGIONS:
         rs = slug(region)
         dk, ph = 'region-%s-desktop' % rs, 'region-%s-phone' % rs
         if dk not in meta and ph not in meta:
             continue
+        drawn += [x for x in (dk, ph) if x in meta]
         slugs = (meta.get(dk) or meta.get(ph)).get('trips', [])
         bits = region_counts(site, slugs)
         line = meta_line(bits)
-        aria = ('%s: %s. Open the map' % (region, ', '.join(bits).lower())) if bits else '%s: open the map' % region
+        spoken = ', '.join(b.replace('\u00a0', ' ').replace('+ ', '') for b in bits).lower()
+        aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
         mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False)
         blocks.append('<div class="hom-reg"><div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
                       '<span class="t-mono-s hom-reg-c">%s</span>'
@@ -289,8 +307,9 @@ def where(site):
                  % ''.join(also)) if also else ''
     head_meta = plural(sum(1 for t in site['published'] if is_report(t)), 'REPORT')
     return ('<section class="wrap sec hom-where" aria-labelledby="where-h">%s<div class="hom-regions">%s</div>'
-            '<p class="t-small hom-attr">North up · %s</p>%s</section>'
-            % (core.section_head("Where I’ve been", head_meta, id_='where-h'), ''.join(blocks), esc(ATTRIB), also_html))
+            '%s<p class="t-small hom-attr">North up · %s</p>%s</section>'
+            % (core.section_head("Where I’ve been", head_meta, id_='where-h'), ''.join(blocks), region_key(site, meta, drawn),
+               esc(ATTRIB), also_html))
 
 
 # ---------------------------------------------------------------- page
@@ -304,7 +323,13 @@ def page(site):
         p = first_photo(ft)
         if p:
             img = ft['url'] + p['file']
-    doc = core.document(HERE, core.SITE_NAME, ''.join(body), LEAD, active=None, image=img, body_cls='p-home', full_title=TITLE)
+    head = ''
+    if ft:
+        # the featured map is the first-screen image: its hillshade and base layer load at once (hero variants only)
+        variants, _tall = map_variants(ft)
+        head = core.map_preloads(ft, HERE, variants, ft['url'] + 'map/', nowide=True)
+    doc = core.document(HERE, core.SITE_NAME, ''.join(body), LEAD, active=None, image=img, body_cls='p-home', full_title=TITLE,
+                        extra_head=head)
     return core.Page(HERE, doc, core.SITE_NAME)
 
 

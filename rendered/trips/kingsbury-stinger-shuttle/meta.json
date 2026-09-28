@@ -1,5 +1,5 @@
 {
- "hash": "d94221c54e271fbd7bc1a83dc4db139fb45ea0a6",
+ "hash": "97c78aeb1a415a735c904a462d9d15c7feb2bbd8",
  "slug": "kingsbury-stinger-shuttle",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 7998.69,
    "min_ft": 6381.23,
    "total_mi": 5.34,
-   "gx": 88.52,
-   "gy": 15.93,
+   "gx": 20.68,
+   "gy": 21.41,
    "gps_max_mi": 0.31,
    "y_lo": 6284.21,
    "y_hi": 8160.07,
-   "pad_l": 72,
-   "vx": 4.84,
+   "pad_l": 0,
+   "vx": 3.61,
    "h": 122
   }
  },

@@ -20,15 +20,17 @@ import markdown  # noqa: E402
 FT, MI = content.FT, content.MI
 ACT = content.ACTIVITIES  # key -> (label, short, code, colour, folder)
 SITE_NAME = 'Eric Sichak'
-SITE_TAGLINE = 'Trip reports: backcountry skiing, climbing, hiking, mountain biking and more, each with the full GPX track and map.'
+# the one tagline: RSS channel, default meta description, home dek (home.LEAD) and the About lede
+TAGLINE = 'Backcountry skiing, climbing, hiking, mountain biking and other trips, each with the full GPX track and map.'
+SITE_TAGLINE = TAGLINE
 SITE_URL = 'https://esichak.github.io/personal-website/'
 HOME_COORDS = '39.09°N 120.04°W · LAKE TAHOE'
 FONTS = ('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..112,400..700'
-         '&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400&family=Geist+Mono:wght@400..600&display=swap')
+         '&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=Geist+Mono:wght@400..600&display=swap')  # serif: 400 only
 SUB_ICON = {'SUP': 'SUP', 'Rafting': 'RFT', 'Kayaking': 'KYK', 'Mountaineering': 'MTN'}
 SUB_WORD = {'SUP': 'Paddleboarding', 'Rafting': 'Rafting', 'Kayaking': 'Kayaking', 'Mountaineering': 'Mountaineering'}
 NAV = [('ski', 'Backcountry Ski'), ('climb', 'Climbing'), ('hike', 'Hiking'), ('mtb', 'Mountain Biking'), ('other', 'Other')]
-SEP = '\u00a0· '  # Mono-S separator: the no-break space keeps the dot on the item before it, so no line starts with '·'
+SEP = '\u00a0· '  # plain-text separator only (aria-labels, descriptions, RSS); Mono-S lines use meta_items()
 
 esc = html.escape
 
@@ -166,16 +168,40 @@ def nb(text):
     return text.replace(' ', '\u00a0')
 
 
-def plain_stats(t):
-    """Short Mono-S caps line: '12.8 MI · 5,302 FT GAIN' (switches with units)."""
+_ML_BR = '<span class="ml-br" aria-hidden="true"></span>'
+
+
+def meta_items(items, br_after=None, cls=''):
+    """One Mono-S meta line (the .ml component): CSS draws the '·' between items, so a wrapped line never starts or ends
+    with a dot and an item never splits (keep nb() inside items). items: HTML strings or (html, extra_cls) tuples; empty
+    items are skipped. br_after=i puts a line-break slot after item i (.ml-br, shown per breakpoint by page CSS).
+    Screen readers hear ', ' between items."""
+    out, k = [], 0
+    for i, it in enumerate(items):
+        h, c = it if isinstance(it, tuple) else (it, '')
+        if h:
+            out.append('<span class="mi%s">%s%s</span>' % ((' ' + c) if c else '', '<span class="sr">, </span>' if k else '', h))
+            k += 1
+        if br_after is not None and i == br_after and k and out[-1] != _ML_BR:
+            out.append(_ML_BR)
+    while out and out[-1] == _ML_BR:
+        out.pop()
+    if not out:
+        return ''
+    return '<span class="ml%s">%s</span>' % ((' ' + cls.strip()) if cls.strip() else '', ''.join(out))
+
+
+def plain_stats(t, items=False):
+    """Short Mono-S caps stats: '12.8 MI · 5,302 FT GAIN' (switches with units). No gain for climbing (the GPX gain of a
+    climb is the walk, not the route) or flat water. items=True: the list for meta_items(); default: the legacy string."""
     st = t['stats']
     parts = []
     mi, km = dist_vals(st.get('distance_km'))
     if mi:
         parts.append(U(nb(mi + ' MI'), nb(km + ' KM')))
-    if st.get('gain_m') is not None and st.get('gain_m') > 30:
+    if t['activity'] != 'climb' and not is_flat(t) and st.get('gain_m') is not None and st.get('gain_m') > 30:
         parts.append(U(nb(n(st['gain_m'] * FT) + ' FT GAIN'), nb(n(st['gain_m']) + ' M GAIN')))
-    return SEP.join(parts)
+    return parts if items else SEP.join(parts)
 
 
 def hm(sec):
@@ -225,15 +251,16 @@ SHAPE = {'loop': 'Loop', 'out-and-back': 'Out-and-back', 'point-to-point': 'Poin
 SHAPE_CAPS = {k: v.upper().replace('-', '\u2011') for k, v in SHAPE.items()}  # 'OUT‑AND‑BACK' (non-breaking hyphens)
 
 
-def trip_tags(t, shape=True):
+def trip_tags(t, shape=True, status=True):
     """Status tags (MULTI-DAY · N DAYS, SERIES, PLANNED) and, with shape=True (title chip rows), the route-shape tag.
-    List rows pass shape=False: they carry the route shape in their Mono-S meta line instead."""
+    List rows pass shape=False: they carry the route shape in their Mono-S meta line instead. status=False drops the
+    status tags (planned list rows: their meta line already opens 'PLANNED ROUTE')."""
     out = []
-    if t['kind'] == 'multi-day':
+    if status and t['kind'] == 'multi-day':
         out.append(tag('Multi-day · %d days' % len(t['days'])))
-    if t['kind'] == 'series':
+    if status and t['kind'] == 'series':
         out.append(tag('Series'))
-    if t['kind'] == 'planned':
+    if status and t['kind'] == 'planned':
         out.append(tag('Planned'))
     if shape and t.get('route_shape') and t['kind'] in ('trip', 'multi-day', 'planned'):
         out.append(tag(SHAPE.get(t['route_shape'], t['route_shape'])))
@@ -255,14 +282,18 @@ def section_head(title, meta='', level=2, id_=None, cls=''):
                ('<span class="shead-m t-mono-s">%s</span>' % meta) if meta else ''))
 
 
-def place_line(t):
+def place_line(t, items=False):
+    """'LOVER'S LEAP, LAKE TAHOE · WITH ROSS'. items=True: the list for meta_items() (the place item may wrap at its comma
+    when it alone is wider than the line); default: the legacy string for callers that still join with SEP."""
     bits = []
     loc = ', '.join(nb(esc(x).upper()) for x in (t.get('place'), t.get('region')) if x)
     if loc:
-        bits.append(loc)
+        bits.append((loc, 'mi-w'))
     if t.get('party'):
         bits.append(nb('WITH ' + esc(t['party']).upper()))
-    return SEP.join(bits)
+    if items:
+        return bits
+    return SEP.join(b[0] if isinstance(b, tuple) else b for b in bits)
 
 
 def title_html(title):
@@ -323,37 +354,48 @@ def _strip_size(svg):
 
 
 def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=False, attrib=True, fullscreen_href=None, id_=None):
-    """Responsive static map: one <div class="mv mv--{size}"> per variant, each a hillshade <img> under an SVG overlay.
+    """Responsive static map: one <div class="mv mv--{size}"> per render, each a hillshade <img> under an SVG overlay.
 
     variants: [(name, size)] with size in wide|col|phone|desktop (CSS shows exactly one per breakpoint), or fs (the
-    full-screen map page, always shown). asset_dir: site-relative folder the PNGs are copied to (e.g. 'trips/slug/map/').
-    eager=True marks the hero map: fetchpriority="high" on every variant (pair it with map_preloads() in the head)."""
+    full-screen map page, always shown). Consecutive variants of one render share one div (<div class="mv mv--col
+    mv--phone">), so its SVG is inlined once. asset_dir: site-relative folder the PNGs are copied to ('trips/slug/map/').
+    eager=True marks the hero map: fetchpriority="high" on every variant (pair it with map_preloads() in the head).
+    The fs map loads at once (it is the whole page)."""
     if site_maps:
         mp = os.path.join(ROOT, 'rendered', 'site', 'meta.json')
         meta = json.load(open(mp)) if os.path.exists(mp) else {'maps': {}}
     else:
         meta = render_meta(t)
     base = os.path.join(ROOT, 'rendered', 'site') if site_maps else t['rendered']
+    groups = []
+    for name, size in variants:
+        if groups and groups[-1][0] == name:
+            groups[-1][1].append(size)
+        else:
+            groups.append((name, [size]))
     out = []
-    for i, (name, size) in enumerate(variants):
+    for name, sizes in groups:
         m = meta['maps'].get(name)
         if not m:
             continue
+        fs_page = 'fs' in sizes
+        # lazy everywhere but the fs page: CSS hides all but one variant, and hidden lazy images are never fetched
+        lazy = '' if fs_page else ' loading="lazy"'
         img = ''
         if m.get('png'):
-            # always lazy: CSS hides all but one variant, and hidden lazy images are never fetched
-            img = ('<img class="mv-hs" src="%s%s" alt="" width="%d" height="%d" decoding="async" loading="lazy"%s>'
-                   % (link(here, asset_dir), m['png'], m['w'], m['h'], ' fetchpriority="high"' if eager else ''))
+            img = ('<img class="mv-hs" src="%s%s" alt="" width="%d" height="%d" decoding="async"%s%s>'
+                   % (link(here, asset_dir), m['png'], m['w'], m['h'], lazy, ' fetchpriority="high"' if (eager or fs_page) else ''))
         if m.get('base'):
             # static contours, water and roads: a cached image shared by every page that shows this map
-            img += ('<img class="mv-base" src="%s%s" alt="" width="%d" height="%d" decoding="async" loading="lazy">'
-                    % (link(here, asset_dir), m['base'], m['w'], m['h']))
-        svg = _strip_size(frag(os.path.join(base, name + '.svg.html'), here, '%s-%s-%s' % (ns, name, size)))
-        tagx = '<span class="mv-attrib">© OSM · Not for navigation</span>' if (attrib and size == 'phone') else ''
+            img += ('<img class="mv-base" src="%s%s" alt="" width="%d" height="%d" decoding="async"%s%s>'
+                    % (link(here, asset_dir), m['base'], m['w'], m['h'], lazy, ' fetchpriority="high"' if eager else ''))
+        svg = _strip_size(frag(os.path.join(base, name + '.svg.html'), here, '%s-%s-%s' % (ns, name, sizes[0])))
+        tagx = '<span class="mv-attrib">© OSM · Not for navigation</span>' if (attrib and 'phone' in sizes) else ''
         fs = ''
-        if fullscreen_href and size == 'phone':
+        if fullscreen_href and 'phone' in sizes:
             fs = '<a class="mv-fs" href="%s" aria-label="Open the full map">%s</a>' % (fullscreen_href, icon('expand', 20))
-        out.append('<div class="mv mv--%s" style="aspect-ratio:%d/%d">%s%s%s%s</div>' % (size, m['w'], m['h'], img, svg, tagx, fs))
+        out.append('<div class="mv %s" style="aspect-ratio:%d/%d">%s%s%s%s</div>'
+                   % (' '.join('mv--' + x for x in sizes), m['w'], m['h'], img, svg, tagx, fs))
     return '<div class="map%s"%s>%s</div>' % ((' ' + cls) if cls else '', (' id="%s"' % id_) if id_ else '', ''.join(out))
 
 
@@ -362,35 +404,44 @@ PRELOAD_MEDIA = {'wide': '(min-width: 1200px)', 'col': '(min-width: 560px) and (
 
 
 def map_preloads(t, here, variants, asset_dir, nowide=False, site_maps=False):
-    """<link rel="preload"> for the one hillshade each breakpoint shows (the hero map is the LCP image).
-    nowide=True: the col variant also serves >= 1200 (map--nowide)."""
+    """<link rel="preload"> for the hillshade and the base layer (contours, water, roads) each breakpoint shows, so the
+    hero map (the LCP image) paints in one step. Pass only the hero variants. nowide=True: the col variant also serves
+    >= 1200 (map--nowide)."""
     meta = site_meta() if site_maps else render_meta(t)
     out = []
     for name, size in variants:
         m = meta['maps'].get(name)
-        if not m or not m.get('png'):
+        if not m:
             continue
         media = '(min-width: 560px)' if (size == 'col' and nowide) else PRELOAD_MEDIA.get(size)
         if not media:
             continue
-        out.append('<link rel="preload" as="image" href="%s%s" media="%s" fetchpriority="high">'
-                   % (link(here, asset_dir), m['png'], media))
+        if m.get('png'):
+            out.append('<link rel="preload" as="image" href="%s%s" media="%s" fetchpriority="high">'
+                       % (link(here, asset_dir), m['png'], media))
+        if m.get('base'):
+            out.append('<link rel="preload" as="image" type="image/svg+xml" href="%s%s" media="%s" fetchpriority="high">'
+                       % (link(here, asset_dir), m['base'], media))
     return ''.join(out)
 
 
-def vx_line(charts, variants, nowide=None):
-    """'VERTICAL ×N' per chart width: each rendered width has its own exaggeration, so one span per (name, size) and CSS
-    shows the one that matches the visible chart. One plain span when every rounded value is the same.
-    nowide: the col chart also serves >= 1200 (chart--nowide); None = when no wide variant is present."""
+def vx_line(charts, variants, nowide=None, items=False):
+    """'VERTICAL ×N' per chart width: each rendered width has its own exaggeration, so one item per (name, size) and CSS
+    shows the one that matches the visible chart (.vx--wide|col|phone). One item when every rounded value is the same.
+    nowide: the col chart also serves >= 1200 (chart--nowide); None = when no wide variant is present.
+    items=True: [(html, cls)] for meta_items(); default: the legacy run of spans."""
     vals = [(size, charts[name]['vx']) for name, size in variants if name in charts and charts[name].get('vx')]
     if not vals:
-        return ''
+        return [] if items else ''
     if len({'%.1f' % v for _, v in vals}) == 1:
-        return '<span>VERTICAL ×%.1f</span>' % vals[0][1]
-    if nowide is None:
-        nowide = not any(size == 'wide' for size, _ in vals)
-    return ''.join('<span class="vx vx--%s%s">VERTICAL ×%.1f</span>' % (size, ' vx--nowide' if (nowide and size == 'col') else '', v)
-                   for size, v in vals)
+        its = [(nb('VERTICAL ×%.1f' % vals[0][1]), '')]
+    else:
+        if nowide is None:
+            nowide = not any(size == 'wide' for size, _ in vals)
+        its = [(nb('VERTICAL ×%.1f' % v), 'vx vx--%s%s' % (size, ' vx--nowide' if (nowide and size == 'col') else '')) for size, v in vals]
+    if items:
+        return its
+    return ''.join('<span%s>%s</span>' % ((' class="%s"' % c) if c else '', h) for h, c in its)
 
 
 _START_MK = re.compile(r'<circle[^>]*r="[57]"[^>]*fill: #16171A; stroke: #FFFFFF')
@@ -411,7 +462,7 @@ def speed_meta(t):
     p = rendered(t, 'speed-col.svg.html')
     s = open(p, encoding='utf-8').read() if os.path.exists(p) else ''
     how = 'MEDIAN' if '3-minute median' in s else 'AVERAGE'
-    return 'MPH, 3\u2011MIN\u00a0%s%sFLAT\u00a0WATER, NO\u00a0ELEVATION\u00a0PROFILE' % (how, SEP)
+    return meta_items([nb('MPH, 3\u2011MIN %s' % how), nb('FLAT WATER, NO ELEVATION PROFILE')])
 
 
 def chart_block(t, here, variants, ns, cls=''):
@@ -450,9 +501,10 @@ KEY_SYMBOLS = {
     'hut': ('Hut (night)', '<rect x="3" y="0" width="10" height="10" style="fill:#16171A"/><text x="8" y="5.5" style="font:600 7px/1 var(--mono);fill:#fff;text-anchor:middle;dominant-baseline:central">1</text>'),
     'day': ('Day label', '<text x="8" y="5.5" style="font:600 9px/1 var(--mono);fill:#B8300F;text-anchor:middle;dominant-baseline:central">D1</text>'),
     'transfer': ('Transfer', '<path d="M1 5H15" style="stroke:#66686D;stroke-width:1.5;stroke-dasharray:2 3;stroke-linecap:round"/>'),
-    # matches the planned line as rendered now (1.5px ink-2, dash 4/3). When render-markers lands (2.5px on a 5.5px casing,
-    # dash 8/5), switch to: stroke:#EEECE6;stroke-width:5.5 casing + stroke:#45474C;stroke-width:2.5;stroke-dasharray:8 5
-    'planned': ('Planned', '<path d="M1 5H15" style="stroke:#EEECE6;stroke-width:3.5"/><path d="M1 5H15" style="stroke:#45474C;stroke-width:1.5;stroke-dasharray:4 3"/>'),
+    # the heavy line the planned report map draws (2.5px ink-2 on a 5.5px casing, dash 8/5 at map scale)
+    'planned': ('Planned', '<path d="M1 5H15" style="stroke:#EEECE6;stroke-width:5.5"/><path d="M1 5H15" style="stroke:#45474C;stroke-width:2.5;stroke-dasharray:6 3"/>'),
+    # the light planned line on region maps (#66686D 1.5px, dash 4/3 on a 3.5px casing, as render_site draws it)
+    'planned_site': ('Planned route', '<path d="M1 5H15" style="stroke:#EEECE6;stroke-width:3.5"/><path d="M1 5H15" style="stroke:#66686D;stroke-width:1.5;stroke-dasharray:4 3"/>'),
     'ghost': ('Other days', '<path d="M1 5H15" style="stroke:var(--route);stroke-opacity:.35;stroke-width:2"/>'),
     'hatch': ('Skin (ascent)', '<rect x="0" y="0" width="16" height="10" style="fill:#E2DFD6"/><path d="M0 4L4 0M0 10L10 0M6 10L16 0M12 10L16 6" style="stroke:#66686D;stroke-width:1"/>'),
     'fill': ('Ski (descent)', '<rect x="0" y="2" width="16" height="8" style="fill:#E2DFD6"/><path d="M0 2H16" style="stroke:var(--route);stroke-width:2"/>'),
@@ -460,14 +512,15 @@ KEY_SYMBOLS = {
 }
 
 
-def key_row(items, cls=''):
-    """items: ['skin', 'ski', ('gps', 'GPS max'), …] -> Mono caps legend decoding map symbols (never values)."""
+def key_row(items, cls='', label='Map key'):
+    """items: ['skin', 'ski', ('gps', 'GPS max'), …] -> Mono caps legend decoding map symbols (never values).
+    label: the list's accessible name ('Elevation key' / 'Speed key' for chart legends)."""
     out = []
     for it in items:
         k, lab = (it if isinstance(it, tuple) else (it, None))
         name, sym = KEY_SYMBOLS[k]
         out.append('<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>%s</li>' % (sym, esc(lab or name)))
-    return '<ul class="keyrow%s" aria-label="Map key">%s</ul>' % ((' ' + cls) if cls else '', ''.join(out))
+    return '<ul class="keyrow%s" aria-label="%s">%s</ul>' % ((' ' + cls) if cls else '', esc(label), ''.join(out))
 
 
 def key_rows(desk, phone, cls=''):
@@ -477,6 +530,50 @@ def key_rows(desk, phone, cls=''):
         return key_row(desk, cls)
     c = (' ' + cls) if cls else ''
     return key_row(desk, 'keyrow--d' + c) + key_row(phone, 'keyrow--p' + c)
+
+
+def _draws(t, name, pattern):
+    """True when the rendered fragment `name` contains `pattern` (a regex)."""
+    try:
+        return re.search(pattern, open(rendered(t, name + '.svg.html'), encoding='utf-8').read()) is not None
+    except OSError:
+        return False
+
+
+def feature_key(t, variants, miles=True, cls='keyrow--compact'):
+    """Compact key row under a featured map (home, section pages): decodes only symbols the rendered variant actually
+    draws — skin/ski styling (dashed skin on ski col renders) or a plain route line, the start/end markers, GPS max and,
+    with miles=True, the mile discs ('mile_out' when the map numbers the outbound leg only). The home featured map hides
+    its discs, so home passes miles=False. Single-day trips only: overview maps draw day symbols this row does not decode."""
+    if t['kind'] != 'trip':
+        return ''
+    ends = ['start', 'end'] if t.get('route_shape') == 'point-to-point' else ['start_end']
+    flat = is_flat(t)
+    maps = render_meta(t).get('maps', {})
+    rows = []
+    for name, _size in variants:
+        skin = t['activity'] == 'ski' and _draws(t, name, r'<path class="mk-trk"[^>]*stroke-dasharray')
+        gps = not flat and _draws(t, name, r'class="mk-gps"|l6 10h-12z"[^>]*fill: \{\{route\}\}')  # label or red triangle
+        row = (['skin', 'ski'] if skin else ['route']) + ends + (['gps'] if gps else [])
+        if miles and _draws(t, name, r'class="mk-mile'):
+            row.append('mile_out' if (maps.get(name) or {}).get('outbound_only') else 'mile')
+        rows.append(row)
+    if not rows:
+        return ''
+    return key_rows(rows[0], rows[-1], cls)
+
+
+def map_caption(first_items, attrib=True):
+    """The one map caption (Small, under the key row): first_items (e.g. ['Track: Garmin, Mar 28, 2026', 'full track, not
+    trimmed', 'North up'], or ['North up'] for maps with no single track), then the terrain / OSM / not-for-navigation
+    credit. Two lines from 1200 (.ml-br), one flowing paragraph below; phones (< 560) drop the credit (.mapcap-2): the
+    in-map tag and the footer carry it. No button slot: the title block and the phone bottom bar carry GPX."""
+    items = list(first_items)
+    if attrib:
+        items += [('Terrain: AWS Terrain Tiles', 'mapcap-2'), ('Map data © OpenStreetMap contributors', 'mapcap-2'),
+                  ('Not for navigation', 'mapcap-2')]
+    return ('<div class="mapcap"><p class="mapcap-t">%s</p></div>'
+            % meta_items(items, br_after=(len(first_items) - 1) if (attrib and first_items) else None))
 
 
 # ---------------------------------------------------------------- photos
@@ -493,6 +590,91 @@ def photo(t, p, here, sizes='(min-width: 1200px) 1248px, 100vw', cls='', eager=F
     img = '<img src="%s"%s%s alt="%s" decoding="async"%s>' % (src, srcset, wh, esc(p.get('alt') or ''), '' if eager else ' loading="lazy"')
     cap = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if (caption and p.get('caption')) else ''
     return '<figure class="photo%s">%s%s</figure>' % ((' ' + cls) if cls else '', img, cap)
+
+
+def photo_ar(p):
+    return (p['w'] / float(p['h'])) if p.get('w') and p.get('h') else 1.5
+
+
+def photo_partition(photos, per_row=4):
+    """Rows for photo_rows(), in photo order. Each landscape (w >= h) is its own row; a run of portraits splits into
+    balanced rows of <= per_row (5 -> 3+2, 6 -> 3+3, 7 -> 4+3); a portrait row of 1-2 photos then joins an adjacent
+    single-landscape row: the previous one unless it already took a row, else the next one."""
+    rows, run = [], []
+
+    def flush():
+        if not run:
+            return
+        k = -(-len(run) // per_row)
+        size, extra = divmod(len(run), k)
+        i = 0
+        for r in range(k):
+            m = size + (1 if r < extra else 0)
+            rows.append({'ph': run[i:i + m], 'land': False, 'took': False})
+            i += m
+        del run[:]
+    for p in photos:
+        if photo_ar(p) >= 1:
+            flush()
+            rows.append({'ph': [p], 'land': True, 'took': False})
+        else:
+            run.append(p)
+    flush()
+    single = lambda r: r is not None and r['land'] and not r['took'] and len(r['ph']) == 1  # noqa: E731
+    out = []
+    for i, r in enumerate(rows):
+        if not r['land'] and len(r['ph']) <= 2:
+            prev = out[-1] if out else None
+            nxt = rows[i + 1] if i + 1 < len(rows) else None
+            if single(prev):
+                prev['ph'] = prev['ph'] + r['ph']
+                prev['took'] = True
+                continue
+            if single(nxt):
+                nxt['ph'] = r['ph'] + nxt['ph']
+                nxt['took'] = True
+                continue
+        out.append(r)
+    return [r['ph'] for r in out]
+
+
+def photo_rows(t, here, photos, per_row=4, ns='ph'):
+    """Justified photo rows (reports, multi-day chapters): every row fills the column at one height (1248: a landscape
+    alone 1248×624, four portraits 294×392), clamped in CSS so a row of portraits never runs taller than 624. Phones
+    (< 760) show a 2-column grid: landscapes and unpaired portraits full width. Each photo links to its full-size file
+    (the lightbox opens it in-page; data-cap carries a caption when the content has one)."""
+    photos = [p for p in photos if p.get('file')]
+    if not photos:
+        return ''
+    base = link(here, t['url'])
+    out = []
+    k = 0
+    for row in photo_partition(photos, per_row):
+        ars = [photo_ar(p) for p in row]
+        lone_land = len(row) == 1 and ars[0] >= 1
+        # portraits pair up in order within the row (phones show a pair side by side); an odd one out is 'solo'
+        port = [i for i, a in enumerate(ars) if a < 1]
+        solo = set(port[len(port) - (len(port) % 2):])
+        figs = []
+        for i, (p, a) in enumerate(zip(row, ars)):
+            k += 1
+            land = a >= 1
+            if lone_land:
+                sizes = '(min-width: 1200px) 1248px, 100vw'
+            else:
+                sizes = '(min-width: 1200px) 640px, (min-width: 760px) 50vw, %s' % ('100vw' if (land or i in solo) else '50vw')
+            c = 'jph jph--%s%s' % ('l' if land else 'p', ' jph--solo' if i in solo else '')
+            name = '' if p.get('alt') else ' aria-label="Photo %d of %d, full size"' % (k, len(photos))
+            cap = (' data-cap="%s"' % esc(p['caption'])) if p.get('caption') else ''
+            figs.append('<a class="%s" href="%s%s" style="--ar:%.4f;--fg:%d"%s%s>%s</a>'
+                        % (c, base, p['file'], a, round(a * 1000), cap, name, photo(t, p, here, sizes=sizes, caption=False)))
+        one = len(row) == 1 and not lone_land
+        out.append('<div class="jrow%s" style="--n:%d;--sum:%.4f;--ar:%.4f">%s</div>'
+                   % (' jrow--one' if one else '', len(row), sum(ars), ars[0], ''.join(figs)))
+        caps = [p['caption'] for p in row if p.get('caption')]
+        if caps:
+            out.append('<p class="t-small jcap">%s</p>' % ' · '.join(esc(c) for c in caps))
+    return '<div class="jrows">%s</div>' % ''.join(out)
 
 
 # ---------------------------------------------------------------- data strip (reports + featured blocks)
@@ -535,8 +717,14 @@ def _cell_moving(t):
     st = t['stats']
     if not st.get('moving_s'):
         return None
-    sub = ('Start ' + ftime(t['start_time'])) if t.get('start_time') else ''
+    sub = nb('Start ' + ftime(t['start_time'])) if t.get('start_time') else ''
     return ('Moving', '%s<span class="unit">h:mm</span>' % hm(st['moving_s']), sub)
+
+
+def _pace(st):
+    """(min per mile, min per km) from moving time and distance."""
+    mins = st['moving_s'] / 60.0
+    return mins / (st['distance_km'] * 1000 / MI), mins / st['distance_km']
 
 
 def strip_cells(t):
@@ -554,23 +742,23 @@ def strip_cells(t):
     elif is_flat(t):
         cells += [_cell_dist(st), _cell_moving(t)]
         if st.get('distance_km') and st.get('moving_s'):
-            mins = st['moving_s'] / 60.0
-            mi = st['distance_km'] * 1000 / MI
-            per_mi, per_km = mins / mi, mins / st['distance_km']
+            per_mi, per_km = _pace(st)
             cells.append(('Avg pace', U(n(per_mi), n(per_km), 'min/mi', 'min/km'),
-                          U_sub(n(per_mi), n(per_km), 'min/mi', 'min/km') + ' · MOVING'))
+                          meta_items([U_sub(n(per_mi), n(per_km), 'min/mi', 'min/km'), 'MOVING'])))
     else:
         cells += [_cell_dist(st), _cell_m('Gain', st.get('gain_m')), _cell_m('GPS max', st.get('high_m')), _cell_moving(t)]
         if act == 'mtb' and st.get('distance_km') and st.get('moving_s'):
             h = st['moving_s'] / 3600.0
             mph, kmh = st['distance_km'] * 1000 / MI / h, st['distance_km'] / h
             cells.append(('Avg speed', U('%.1f' % mph, '%.1f' % kmh, 'mph', 'km/h'),
-                          U_sub('%.1f' % mph, '%.1f' % kmh, 'mph', 'km/h') + ' · MOVING'))
+                          meta_items([U_sub('%.1f' % mph, '%.1f' % kmh, 'mph', 'km/h'), 'MOVING'])))
     return [c for c in cells if c]
 
 
 def strip(cells, cls='', label='Trip stats'):
-    """The Datum data strip: Label / Data-XL value (tightened punctuation) / Mono-S sub-line per cell."""
+    """The Datum data strip: Label / Data-XL value (tightened punctuation) / Mono-S sub-line per cell. Five cells get
+    .strip--5 (tighter tablet padding and values, base.css)."""
+    cls = ' '.join(x for x in (cls.strip(), 'strip--5' if len(cells) == 5 else '') if x)
     out = ''.join('<div class="strip-c"><dt class="t-label">%s</dt><dd class="t-data-xl strip-v">%s</dd>%s</div>'
                   % (lab, dx(val), ('<dd class="t-mono-s strip-s">%s</dd>' % sub) if sub else '') for lab, val, sub in cells)
     return ('<dl class="strip%s" style="--cells:%d" aria-label="%s">%s</dl>'
@@ -594,22 +782,28 @@ def stats_note(t, cls=''):
 
 # ---------------------------------------------------------------- trip lists
 
-def stats_cells(t, keys=('dist', 'gain', 'high', 'time')):
+def stats_cells(t):
+    """List-row stats at Data-M, in the data strip's activity order (no sub-lines): climbing Pitches (from the beta, when
+    present) · Dist · GPS max · Moving; flat water Dist · Moving · Avg pace; everything else Dist · Gain · GPS max · Moving."""
     st = t['stats']
-    cells = []
     mi, km = dist_vals(st.get('distance_km'))
-    for k in keys:
-        if k == 'dist' and mi:
-            cells.append(('Dist', U(mi, km, ' mi', ' km')))
-        elif k == 'gain' and st.get('gain_m') is not None:
-            cells.append(('Gain', U(n(st['gain_m'] * FT), n(st['gain_m']), ' ft', ' m')))
-        elif k == 'high' and st.get('high_m') is not None:
-            cells.append(('GPS max', U(n(st['high_m'] * FT), n(st['high_m']), ' ft', ' m')))
-        elif k == 'time' and st.get('moving_s'):
-            cells.append(('Moving', hm(st['moving_s']) + '<span class="unit u-hm"> h:mm</span>'))
-        elif k == 'days' and t['days']:
-            cells.append(('Days', str(len(t['days']))))
-    return ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % c for c in cells)
+    dist = ('Dist', U(mi, km, ' mi', ' km')) if mi else None
+
+    def elev_cell(lab, v):
+        return (lab, U(n(v * FT), n(v), ' ft', ' m')) if v is not None else None
+    moving = ('Moving', hm(st['moving_s']) + '<span class="unit u-hm"> h:mm</span>') if st.get('moving_s') else None
+    if t['activity'] == 'climb':
+        p = beta_value(t, 'Pitches')
+        cells = [('Pitches', esc(p)) if p else None, dist, elev_cell('GPS max', st.get('high_m')), moving]
+    elif is_flat(t):
+        pace = None
+        if st.get('distance_km') and st.get('moving_s'):
+            per_mi, per_km = _pace(st)
+            pace = ('Avg pace', U(n(per_mi), n(per_km), ' min/mi', ' min/km'))
+        cells = [dist, moving, pace]
+    else:
+        cells = [dist, elev_cell('Gain', st.get('gain_m')), elev_cell('GPS max', st.get('high_m')), moving]
+    return ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % c for c in cells if c)
 
 
 def excerpt_parts(t, limit=180):
@@ -642,17 +836,16 @@ def day_ruler(t):
 
 
 def trip_row(t, here, ns='', filter_key=None, cls=''):
-    """Index list row (one component everywhere): 200×152 tile · Mono-S meta (date · place · route shape, items never break
-    inside) · H3 · status tags · DIST GAIN GPS MAX MOVING · day ruler (multi-day) · two-line excerpt."""
+    """Index list row (one component everywhere): 200×152 tile · Mono-S meta (date · place · route shape, a meta_items()
+    line: phones drop the shape, 560–1199 break after the date) · H3 · status tags · activity-aware stats · day ruler
+    (multi-day) · two-line excerpt. The region lives in breadcrumbs, table title cells and map tabs, so the row names
+    only the place (the region when there is no place)."""
     href = link(here, t['url'])
     k = ns + t['slug']
     date_ = 'PLANNED ROUTE' if t['kind'] == 'planned' else trip_date(t)
-    meta = '<span class="nw">%s</span>' % date_
-    loc = ', '.join(esc(x).upper() for x in (t.get('place'), t.get('region')) if x)
-    if loc:
-        meta += '<span class="trow-loc">%s<span class="nw">%s</span></span>' % (SEP, loc)
-    if t.get('route_shape'):
-        meta += '%s<span class="nw">%s</span>' % (SEP, SHAPE_CAPS.get(t['route_shape'], esc(t['route_shape']).upper()))
+    loc = t.get('place') or t.get('region') or ''
+    shape = SHAPE_CAPS.get(t['route_shape'], esc(t['route_shape']).upper()) if t.get('route_shape') else ''
+    meta = meta_items([date_, (nb(esc(loc).upper()), 'trow-loc') if loc else '', (shape, 'trow-shape') if shape else ''], br_after=0)
     lab, ex = excerpt_parts(t)
     exh = ''
     if ex:
@@ -663,7 +856,7 @@ def trip_row(t, here, ns='', filter_key=None, cls=''):
             '<div class="trow-tags">%s</div><dl class="trow-stats">%s</dl>%s%s</div></a></li>'
             % ((' ' + cls) if cls else '', t['slug'], (' data-f="%s"' % esc(filter_key)) if filter_key is not None else '',
                href, k, k, tile(t, here, 'tl-' + k), k, meta, k, title_html(t['title']),
-               trip_tags(t, shape=False), stats_cells(t), day_ruler(t), exh))
+               trip_tags(t, shape=False, status=t['kind'] != 'planned'), stats_cells(t), day_ruler(t), exh))
 
 
 TABLE_UNITS = (('Dist', 'mi', 'km'), ('Gain', 'ft', 'm'), ('GPS max', 'ft', 'm'))
@@ -680,42 +873,67 @@ def table_head():
 def table_row(t, here, cls='', tags='', attrs=''):
     """Report-table row as a list-item link (put rows in <ol class="rtab-rows">): glyph · activity · title (+ tags, place) ·
     date · dist · gain · GPS max. No ARIA table roles. Numbers carry spoken units; the activity cell is visual only and the
-    word is spoken from the title cell, so it is read once whether or not the Activity column is shown."""
+    word is spoken from the title cell, so it is read once whether or not the Activity column is shown. Flat water has no
+    meaningful gain or high point, so those cells read '—' (climbing keeps the GPX numbers). data-act colours the phone
+    compact row's icon (.rtab--compact); .rtab-nodist marks a row without a distance."""
     st = t['stats']
     mi, km = dist_vals(st.get('distance_km'))
     loc = ', '.join(x for x in (t.get('place'), t.get('region')) if x)
     none = '<span aria-hidden="true">—</span><span class="sr">none</span>'
+    flat = is_flat(t)
 
     def num(lab, v, imp, met):
         if not v:
             return '<span class="num"><span class="sr">%s </span>%s</span>' % (lab, none)
         return ('<span class="num"><span class="sr">%s </span>%s</span>'
                 % (lab, U(v[0] + '<span class="sr"> %s</span>' % imp, v[1] + '<span class="sr"> %s</span>' % met)))
-    g = lambda v: (n(v * FT), n(v)) if v is not None else None  # noqa: E731
+    g = lambda v: (n(v * FT), n(v)) if (v is not None and not flat) else None  # noqa: E731
     when = trip_date(t, short=True)
-    return ('<li><a class="rtab-r%s" href="%s" data-key="%s"%s>'
+    c = ' '.join(x for x in (cls.strip(), '' if mi else 'rtab-nodist') if x)
+    return ('<li><a class="rtab-r%s" href="%s" data-key="%s" data-act="%s"%s>'
             '<span class="rtab-g" aria-hidden="true">%s</span>'
             '<span class="rtab-act" aria-hidden="true">%s</span>'
             '<span class="rtab-title"><span class="rtab-tt">%s</span><span class="sr">, %s</span>%s<span class="t-mono-s rtab-loc">%s</span></span>'
             '<span class="t-mono-s rtab-date">%s</span>%s%s%s</a></li>'
-            % ((' ' + cls.strip()) if cls.strip() else '', link(here, t['url']), t['slug'], attrs,
+            % ((' ' + c) if c else '', link(here, t['url']), t['slug'], t['activity'], attrs,
                glyph(t, here, 'g112', 'g-' + t['slug']), chip(t, variant='inline', swatch=False),
                title_html(t['title']), esc(act_word(t)), tags, esc(loc).upper(), when,
-               num('Distance', (mi, km) if mi else None, 'miles', 'kilometres'),
-               num('Gain', g(st.get('gain_m')), 'feet', 'metres'),
-               num('GPS max', g(st.get('high_m')), 'feet', 'metres')))
+               num('Distance', (mi, km) if mi else None, 'miles', 'kilometers'),
+               num('Gain', g(st.get('gain_m')), 'feet', 'meters'),
+               num('GPS max', g(st.get('high_m')), 'feet', 'meters')))
 
 
 def phone_row(t, here):
     st = t['stats']
     mi, km = dist_vals(st.get('distance_km'))
-    bits = [trip_date(t, caps=True)]
+    bits = [trip_date(t, short=True)]
     if mi:
-        bits.append(U(mi + ' MI', km + ' KM'))
+        bits.append(U(nb(mi + ' MI'), nb(km + ' KM')))
     return ('<li class="prow"><a href="%s">%s<span class="prow-b"><span class="prow-t">%s</span>'
             '<span class="t-mono-s prow-m">%s%s</span></span>%s</a></li>'
             % (link(here, t['url']), glyph(t, here, 'g64', 'pg-' + t['slug']), esc(t['title']), icon(act_icon(t), 14),
-               SEP.join(bits), icon('chevron-right', 20)))
+               meta_items(bits), icon('chevron-right', 20)))
+
+
+def count_items(ts, planned=0):
+    """Mono-S count items for a set of trips: ['23 REPORTS', 'INCL. 1 MULTI-DAY, 1 SERIES', '+ 1 PLANNED ROUTE'] (the last
+    two only when present). A multi-day trip or a series counts as one report; planned routes are never counted as
+    reports. planned: a number or a list of planned trips. Use with meta_items()."""
+    pub = [t for t in ts if t['kind'] != 'planned']
+    k_planned = planned if isinstance(planned, int) else len(planned)
+    items = [nb(_plural(len(pub), 'REPORT'))]
+    incl = []
+    md = sum(1 for t in pub if t['kind'] == 'multi-day')
+    se = sum(1 for t in pub if t['kind'] == 'series')
+    if md:
+        incl.append('%d MULTI-DAY' % md)
+    if se:
+        incl.append('%d SERIES' % se)
+    if incl:
+        items.append(nb('INCL. ' + ', '.join(incl)))
+    if k_planned:
+        items.append(nb('+ ' + _plural(k_planned, 'PLANNED ROUTE')))
+    return items
 
 
 def summary(t):
@@ -739,7 +957,7 @@ def summary(t):
         lead = '%d-day %s trip report' % (len(t['days']), act.lower())
     else:
         when = fdate(t['date'])
-        lead = '%s trip report' % act
+        lead = ('%s trip report' % act.lower()).capitalize()
     first = '%s: %s' % (lead, ', '.join(x for x in (t['title'], where, when) if x))
     flat = is_flat(t)
     facts = []
@@ -767,37 +985,57 @@ def units_control():
             '<button type="button" role="radio" aria-checked="false" data-units="km">KM</button></div>')
 
 
-def header(here, active=None):
-    items = []
-    for act, lab in NAV:
-        cur = active == act
-        items.append('<a href="%s"%s>%s</a>' % (link(here, section_url(act)), ' aria-current="page"' if cur else '', lab))
-    items2 = []
-    for key, lab, url in (('map', 'Map &amp; archive', 'map/'), ('about', 'About', 'about/')):
-        items2.append('<a href="%s"%s>%s</a>' % (link(here, url), ' aria-current="page"' if active == key else '', lab))
+_TRIPS_BY_URL = {}
+
+
+def register_site(site):
+    """build.py hands over the loaded site, so document() can find the trip a page belongs to (the phone app bar's
+    glyph + title) without every page module passing it."""
+    _TRIPS_BY_URL.clear()
+    _TRIPS_BY_URL.update({t['url']: t for t in site['trips']})
+
+
+def header(here, active=None, trip=None):
+    """Site header + menu. aria-current="page" only on the page a link points to (a section index, map/, about/);
+    inside a section (trip, multi-day, series and full-screen map pages) the section link gets aria-current="true".
+    trip: report, multi-day and series pages get the phone compact app bar (glyph + title, shown once the H1 has
+    scrolled under the header; links back to the top)."""
+    def cur(key, url):
+        if active != key:
+            return ''
+        return ' aria-current="%s"' % ('page' if here == url else 'true')
+    items = ['<a href="%s"%s>%s</a>' % (link(here, section_url(act)), cur(act, section_url(act)), lab) for act, lab in NAV]
+    items2 = ['<a href="%s"%s>%s</a>' % (link(here, url), cur(key, url), lab)
+              for key, lab, url in (('map', 'Map &amp; archive', 'map/'), ('about', 'About', 'about/'))]
     menu_rows = []
     for act, lab in NAV:
-        sub = ('<span class="menu-sub">Paddleboarding · Rafting<br>Kayaking · Mountaineering</span>' if act == 'other' else '')
+        # phones break the 'Other' sub-line after Rafting; wider menus let it flow (.ml draws the separators)
+        sub = ('<span class="menu-sub">%s</span>' % meta_items(['Paddleboarding', 'Rafting', 'Kayaking', 'Mountaineering'], br_after=1)
+               if act == 'other' else '')
         menu_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span>%s</span>%s</a></li>'
-                         % (link(here, section_url(act)), ' aria-current="page"' if active == act else '', disc(act, 32), lab, sub,
+                         % (link(here, section_url(act)), cur(act, section_url(act)), disc(act, 32), lab, sub,
                             icon('chevron-right', 20)))
-    cur = lambda key: ' aria-current="page"' if active == key else ''  # noqa: E731
+    ab = ''
+    if trip:
+        ab = ('<a class="ab-trip" href="#title" aria-label="Back to top: %s"><span class="ab-g" aria-hidden="true">%s</span>'
+              '<span class="ab-t" aria-hidden="true">%s</span></a>' % (esc(trip['title']), glyph(trip, here, 'g64', 'ab'), esc(trip['title'])))
     return ('<a class="skip" href="#main">Skip to content</a>'
             '<header class="site-h"><div class="site-h-in">'
-            '<a class="brand" href="%s"><span class="brand-n">%s</span><span class="brand-c">%s</span></a>'
+            '<a class="brand" href="%s"><span class="brand-n">%s</span><span class="brand-c">%s</span></a>%s'
             '<nav class="nav" aria-label="Main"><div class="nav-l">%s</div><span class="nav-sep" aria-hidden="true"></span>'
             '<div class="nav-l">%s</div>%s</nav>'
             '<button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu">%s%s</button>'
             '</div>'
-            '<div class="menu" id="menu" hidden><nav aria-label="Menu"><p class="t-label menu-l">Reports</p><ul class="menu-list">%s</ul>'
-            '<p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">'
+            '<div class="menu" id="menu" hidden><nav aria-label="Menu">'
+            '<div class="menu-c1"><p class="t-label menu-l">Reports</p><ul class="menu-list">%s</ul></div>'
+            '<div class="menu-c2"><p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">'
             '<li><a href="%s"%s>%s<span class="menu-w"><span>Map &amp; archive</span></span>%s</a></li>'
             '<li><a href="%s"%s>%s<span class="menu-w"><span>About</span></span>%s</a></li></ul>'
-            '<div class="menu-units"><span class="t-label">Units</span>%s</div></nav></div></header>'
-            % (link(here, ''), SITE_NAME, HOME_COORDS, ''.join(items), ''.join(items2), units_control(),
+            '<div class="menu-units"><span class="t-label">Units</span>%s</div></div></nav></div></header>'
+            % (link(here, ''), SITE_NAME, HOME_COORDS, ab, ''.join(items), ''.join(items2), units_control(),
                icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), ''.join(menu_rows),
-               link(here, 'map/'), cur('map'), icon('map', 24), icon('chevron-right', 20),
-               link(here, 'about/'), cur('about'), icon('info', 24), icon('chevron-right', 20), units_control()))
+               link(here, 'map/'), cur('map', 'map/'), icon('map', 24), icon('chevron-right', 20),
+               link(here, 'about/'), cur('about', 'about/'), icon('info', 24), icon('chevron-right', 20), units_control()))
 
 
 def footer(here):
@@ -805,26 +1043,42 @@ def footer(here):
     site = ('<li><a href="%s">Map &amp; archive</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
             % (link(here, 'map/'), link(here, 'about/'), link(here, 'feed.xml'), icon('rss', 16)))
     return ('<footer class="site-f"><div class="site-f-in">'
-            '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">BASED IN LAKE TAHOE · AIARE 2</span></div>'
+            '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">%s</span></div>'
             '<nav class="f-nav" aria-labelledby="f-rep"><p class="t-label" id="f-rep">Reports</p><ul>%s</ul></nav>'
             '<nav class="f-nav" aria-labelledby="f-site"><p class="t-label" id="f-site">Site</p><ul>%s</ul></nav>'
             '<div class="f-note"><p>Reports describe past conditions, not advice. Check the current avalanche forecast before you go.</p>'
-            '<p class="t-mono-s">MAPS: AWS TERRAIN TILES\u00a0· ©\u00a0OPENSTREETMAP CONTRIBUTORS</p>'
+            '<p class="t-mono-s">%s</p>'
             '<p class="t-mono-s">© %d ERIC SICHAK</p></div></div></footer>'
-            % (link(here, ''), SITE_NAME, reports, site, date.today().year))
+            % (link(here, ''), SITE_NAME, meta_items([nb('BASED IN LAKE TAHOE'), nb('AIARE 2')]), reports, site,
+               meta_items([nb('MAPS: AWS TERRAIN TILES'), nb('© OPENSTREETMAP CONTRIBUTORS')]), date.today().year))
+
+
+def lightbox():
+    """The in-page photo viewer (base.js). Photo links keep their .webp hrefs, so without JS they still open the file."""
+    return ('<dialog class="lb" aria-label="Photo viewer"><img class="lb-img" alt=""><div class="lb-bar">'
+            '<span class="t-mono-s lb-n"></span><p class="t-small lb-cap"></p>'
+            '<button type="button" class="lb-prev" aria-label="Previous photo">%s</button>'
+            '<button type="button" class="lb-next" aria-label="Next photo">%s</button>'
+            '<button type="button" class="lb-close" aria-label="Close">%s</button></div></dialog>'
+            % (icon('arrow-left', 20), icon('arrow-right', 20), icon('close', 20)))
 
 
 def document(here, title, body, description='', active=None, css_pages=(), image=None, extra_head='', body_cls='', bottom='',
-             og_type='website', full_title=None):
-    """full_title: the whole <title> text (default '<title> · Eric Sichak'); og_type: 'article' on trip pages."""
+             og_type='website', full_title=None, trip=None):
+    """full_title: the whole <title> text (default '<title> · Eric Sichak'), also the og:title; og_type: 'article' on trip
+    pages. trip: the trip the page shows (default: looked up by URL, see register_site()) for the phone app bar."""
     p = prefix(here)
     p = '' if p == './' else p
     if not full_title:
         full_title = title if title == SITE_NAME else '%s · %s' % (title, SITE_NAME)
+    if trip is None:
+        trip = _TRIPS_BY_URL.get(here)
     canon = SITE_URL + (here if not here.endswith('index.html') else here[:-10])
     og = ''
     if image:
         og = '<meta property="og:image" content="%s">' % (SITE_URL + image)
+    og += '<meta name="twitter:card" content="%s">' % ('summary_large_image' if image else 'summary')
+    lb = lightbox() if any(('class="%s' % c) in body for c in ('jph', 'mul-ph', 'ser-ph')) else ''
     return ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             '<title>%s</title><meta name="description" content="%s">'
@@ -838,7 +1092,8 @@ def document(here, title, body, description='', active=None, css_pages=(), image
             '<link rel="stylesheet" href="%s">'
             '<link rel="stylesheet" href="%sassets/site.css">'
             '<script>try{if(localStorage.getItem("units")==="km")document.documentElement.classList.add("km")}catch(e){}</script>'
-            '%s</head><body class="%s">%s<main id="main">%s</main>%s%s'
+            '%s</head><body class="%s">%s<main id="main">%s</main>%s%s%s'
             '<script src="%sassets/site.js" defer></script></body></html>\n'
-            % (esc(full_title), esc(description or SITE_TAGLINE), canon, og_type, esc(title), esc(description or SITE_TAGLINE), canon, og,
-               p, SITE_NAME, p, FONTS.replace('&', '&amp;'), p, extra_head, body_cls, header(here, active), body, footer(here), bottom, p))
+            % (esc(full_title), esc(description or SITE_TAGLINE), canon, og_type, esc(full_title), esc(description or SITE_TAGLINE), canon, og,
+               p, SITE_NAME, p, FONTS.replace('&', '&amp;'), p, extra_head, body_cls, header(here, active, trip), body, footer(here),
+               bottom, lb, p))

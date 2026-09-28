@@ -13,7 +13,7 @@ import re
 import markdown
 
 from sitegen import core
-from sitegen.core import esc, U, U_sub, n, link, icon, FT
+from sitegen.core import esc, U, U_sub, n, icon, FT
 from sitegen.pages import report
 
 GENERIC_TITLE = re.compile(r'^\s*day\s*\d+\s*$', re.I)
@@ -72,18 +72,19 @@ def arrow_html(text):
     return esc(text).replace(' → ', '\u00a0→ ')
 
 
-def days_meta(t, parts=False):
+def days_meta(t):
+    """['6 DAYS', '5 HUT NIGHTS'] (items for ml())."""
     bits = ['%d DAYS' % len(t['days'])]
     h = hut_nights(t)
     if h:
         bits.append('%d HUT NIGHT%s' % (h, '' if h == 1 else 'S'))
-    return bits if parts else ' · '.join(bits)
+    return bits
 
 
-def nb(bits):
-    """Mono-S meta whose parts wrap only between one another ('6 DAYS ·' / '5 HUT NIGHTS')."""
-    bits = [b for b in bits if b]
-    return ' '.join('<span class="mul-nb">%s%s</span>' % (b, ' ·' if i < len(bits) - 1 else '') for i, b in enumerate(bits))
+def ml(bits, br_after=None):
+    """A Mono-S meta line as the shared .ml component (core.meta_items): CSS draws the dots, so a wrapped line never
+    ends or starts with one and an item never splits. Items may be (html, cls) tuples; empty ones are skipped."""
+    return core.meta_items([b for b in bits if b], br_after=br_after)
 
 
 _DRAWN = {}
@@ -322,22 +323,23 @@ def strip(t):
                   key=lambda d: d['stats']['distance_km'], default=None)
     if longest and len(t['days']) > 1:
         lmi, lkm = core.dist_vals(longest['stats']['distance_km'])
-        cells.append(('Longest day', U(lmi, lkm, 'mi', 'km'), nb([U_sub(lmi, lkm, 'MI', 'KM'), 'DAY %d' % longest['n']]), 'mul-sc-long'))
+        cells.append(('Longest day', U(lmi, lkm, 'mi', 'km'), ml([U_sub(lmi, lkm, 'MI', 'KM'), 'DAY %d' % longest['n']]), 'mul-sc-long'))
     if st.get('gain_m') is not None:
         g = st['gain_m']
         cells.append(('Total gain', U(n(g * FT), n(g), 'ft', 'm'), U_sub(n(g * FT), n(g), 'FT', 'M'), ''))
     if st.get('high_m') is not None:
         h = st['high_m']
         hd = high_day(t)
-        sub = nb([U_sub(n(h * FT), n(h), 'FT', 'M'), ('DAY %d' % hd['n']) if hd else ''])
+        sub = ml([U_sub(n(h * FT), n(h), 'FT', 'M'), ('DAY %d' % hd['n']) if hd else ''])
         cells.append(('GPS max', U(n(h * FT), n(h), 'ft', 'm'), sub, ''))
     if st.get('moving_s'):
-        cells.append(('Moving', '%s<span class="unit">h:mm</span>' % core.hm(st['moving_s']), nb(days_meta(t, True)), ''))
+        cells.append(('Moving', '%s<span class="unit">h:mm</span>' % core.hm(st['moving_s']), ml(days_meta(t)), ''))
     out = ''.join('<div class="strip-c%s"><dt class="t-label">%s</dt><dd class="t-data-xl strip-v">%s</dd>%s</div>'
                   % ((' ' + cls) if cls else '', lab, core.dx(val), ('<dd class="t-mono-s strip-s">%s</dd>' % sub) if sub else '')
                   for lab, val, sub, cls in cells)
     long_ = ' mul-strip--long' if any(c[3] for c in cells) else ''
-    return '<dl class="strip mul-strip%s" style="--cells:%d" aria-label="Trip stats">%s</dl>' % (long_, len(cells), out)
+    five = ' strip--5' if len(cells) == 5 else ''  # the shared 5-cell tablet treatment (base.css)
+    return '<dl class="strip mul-strip%s%s" style="--cells:%d" aria-label="Trip stats">%s</dl>' % (long_, five, len(cells), out)
 
 
 def stats_note(cls=''):
@@ -357,22 +359,29 @@ def gpx_all(t):
     return t['slug'] + '.gpx'
 
 
+def overview_caption(t):
+    return core.map_caption(['Track: Garmin, %s' % core.frange(t['date'], t['end_date']), 'full track, not trimmed', 'North up'])
+
+
+def fullscreen(t):
+    """trips/<slug>/map/: the overview at full size for phones (the phone overview map's full-screen button), with the
+    desktop key row and caption, as on single-day reports."""
+    maps = core.render_meta(t).get('maps', {})
+    name = 'overview-wide' if 'overview-wide' in maps else 'overview-col'
+    return report.fullscreen_page(t, [(name, 'fs')], core.key_row(key_items(t, [name], 'Route by day')),
+                                  'map--fs' + ('' if name == 'overview-wide' else ' map--fscol'), overview_caption(t), post=slim)
+
+
 def overview_map(t, here, meta):
     maps = meta.get('maps', {})
     desk = key_items(t, ['overview-wide', 'overview-col'], 'Route by day')
     phone = key_items(t, ['overview-phone'])
     cls = 'map--report' + ('' if 'overview-wide' in maps else ' map--nowide')
-    first = ['Track: Garmin, %s' % core.frange(t['date'], t['end_date']), 'full track, not trimmed · North up']
-    cap = ('<div class="mapcap"><p class="mapcap-t"><span>%s</span><span class="mul-cap2">%s</span></p>'
-           '<div class="mapcap-a"><a class="btn" href="%s" download>%sDownload all GPX</a></div></div>'
-           % (nb(first), nb(['Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors', 'Not for navigation']),
-              gpx_all(t), icon('download', 18)))
-    mp = slim(core.map_block(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', 'ov', eager=True, cls=cls))
-    hd = high_day(t)
-    if hd and hd['n'] != len(t['days']):
-        # the renderer merges 'END' into a GPS-max label near a day's end; on the trip overview that reads as the
-        # finish of the whole route, which it is not when the high point came before the last day
-        mp = mp.replace('>END · GPS MAX ', '>GPS MAX ')
+    # the shared caption (as on reports and the series map); no GPX button: the ink title button (>= 760) and the phone
+    # bottom bar carry 'Download all GPX'
+    cap = overview_caption(t)
+    mp = slim(core.map_block(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', 'ov', eager=True, cls=cls,
+                             fullscreen_href=core.link(here, t['url'] + 'map/')))
     return ('<section class="rep-map mul-map" id="map" aria-label="Route map, all days"><div class="bleed">%s</div>'
             '<div class="wrap">%s%s%s</div></section>'
             % (mp, core.key_rows(desk, phone), cap, stats_note('rep-note-ph')))
@@ -428,11 +437,17 @@ def _thin_one(svg):
     y = max(float(m.group(2)) for m in labs)
     labs = [m for m in labs if float(m.group(2)) == y]
 
+    per = 7.3 if 'pf-ph' in svg[:400] else 6.7  # phone charts letter the axis at 12.1px, the others at 11px
+
     def span(m):
-        x, w = float(m.group(1)), len(m.group(4) + (m.group(5) or '')) * 6.7
+        x, w = float(m.group(1)), len(m.group(4) + (m.group(5) or '')) * per
         return {'start': (x, x + w), 'middle': (x - w / 2, x + w / 2), 'end': (x - w, x)}[m.group(3)]
+    # phone charts carry the unit on the last label ('14 mi'): it always stays, and a label that would touch it goes
+    last = labs[-1] if labs[-1].group(5) and labs[-1] is not labs[0] else None
     for step in (1, 2, 4, 5, 10, 20, 25, 50, 100):
-        keep = [m for m in labs if int(m.group(4)) % step == 0]
+        keep = [m for m in labs if int(m.group(4)) % step == 0 and m is not last]
+        if last is not None:
+            keep = [m for m in keep if span(last)[0] - span(m)[1] >= 6] + [last]
         if all(span(b)[0] - span(a)[1] >= 6 for a, b in zip(keep, keep[1:])):
             break
     drop = [m for m in labs if m not in keep]
@@ -482,15 +497,13 @@ def stitched_profile(t, here, meta):
     lo = st.get('low_m') if st.get('low_m') is not None else p['min_ft'] / FT
     hd = high_day(t)
     bits = ['GPS MAX %s%s' % (caps_elev(hi), (' (DAY %d)' % hd['n']) if hd else ''), 'MIN %s' % caps_elev(lo)]
-    vx = core.vx_line(ch, PROFILE_VARIANTS)
-    if vx:
-        bits.append(vx)
+    bits += core.vx_line(ch, PROFILE_VARIANTS, items=True)
     # wide ≥1200, the 718 col render 560–1199, phone below: each has its own vertical exaggeration (vx_line matches it)
     chart = core.chart_block(t, here, PROFILE_VARIANTS, 'sp', cls='mul-stitch')
     chart = per_variant(chart, ('col', 'phone'), unclash_band)
     chart = thin_ticks(chart)
     return ('<section class="wrap mul-prof" aria-labelledby="prof-h"><div class="rep-prof-h"><h2 class="t-label" id="prof-h">Elevation</h2>'
-            '<p class="t-mono-s">%s</p></div>%s</section>' % (nb(bits), chart))
+            '<p class="t-mono-s">%s</p></div>%s</section>' % (ml(bits), chart))
 
 
 # ---------------------------------------------------------------- overview: stage table + phone day index
@@ -563,7 +576,7 @@ def day_index(t, here):
         out.append('<li><a href="#day-%d"><span class="mul-di-b"><span class="mul-di-t"><span class="mul-di-d">D%d</span>'
                    '<span class="mul-di-date">%s</span></span>%s<span class="t-mono-s mul-di-m">%s</span></span>%s%s</a></li>'
                    % (d['n'], d['n'], core.fdate(d['date'], 'day') if d['date'] else 'Day %d' % d['n'],
-                      ('<span class="mul-di-r">%s</span>' % arrow_html(title)) if title else '', ' · '.join(bits),
+                      ('<span class="mul-di-r">%s</span>' % arrow_html(title)) if title else '', ml(bits),
                       '<span class="mul-sp mul-sp--96" aria-hidden="true">%s</span>'
                       % core.frag(core.rendered(t, 'spark-%s.svg.html' % d['id']), here), icon('chevron-right', 20)))
     return '<ol class="mul-di" aria-label="Days">%s</ol>' % ''.join(out)
@@ -573,7 +586,7 @@ def overview(t, here):
     prose = ('<div class="prose t-body mul-ov-p">%s</div>' % markdown.to_html(t['body_md'])) if t['body_md'] else ''
     return ('<section class="wrap mul-ov" id="overview" aria-labelledby="overview-h">'
             '<div class="shead"><h2 class="shead-t" id="overview-h">Overview</h2><span class="shead-m t-mono-s">%s</span></div>'
-            '%s%s%s</section>' % (days_meta(t), prose, stage_table(t, here), day_index(t, here)))
+            '%s%s%s</section>' % (ml(days_meta(t)), prose, stage_table(t, here), day_index(t, here)))
 
 
 # ---------------------------------------------------------------- day chapters
@@ -591,13 +604,17 @@ def rail_stats(d):
     if st.get('moving_s'):
         rows.append(('Moving', '%s<span class="unit">h:mm</span>' % core.hm(st['moving_s']),
                      ('START ' + core.ftime(d['start_time'])) if d.get('start_time') else '', ''))
+    # position in the phone 2-column grid (loss is hidden there: the profile line carries it); an odd last cell spans both
+    shown = sum(1 for r in rows if r[3] != 'mul-ds-loss')
     out, i = [], 0
     for lab, val, sub, cls in rows:
-        if cls != 'mul-ds-loss':  # position in the phone 2×2 grid
+        if cls != 'mul-ds-loss':
             cls = (cls + ' ' if cls else '') + ('pc-r' if i % 2 else 'pc-l') + (' pc-t' if i < 2 else '')
+            if shown % 2 and i == shown - 1:
+                cls += ' pc-full'
             i += 1
         out.append('<div class="mul-ds-r %s"><dt class="t-label">%s</dt><dd><span class="mul-ds-v">%s</span>%s</dd></div>'
-                   % (cls, lab, val, ('<span class="t-mono-s mul-ds-s">%s</span>' % sub) if sub else ''))
+                   % (cls, lab, core.dx(val), ('<span class="t-mono-s mul-ds-s">%s</span>' % sub) if sub else ''))
     return ''.join(out)
 
 
@@ -618,57 +635,24 @@ def day_profile(t, here, meta, d):
         bits.append(U('+%s FT' % n(st['gain_m'] * FT), '+%s M' % n(st['gain_m'])))
     if st.get('loss_m') is not None:
         bits.append(U('−%s FT' % n(st['loss_m'] * FT), '−%s M' % n(st['loss_m'])))
-    vx = core.vx_line(ch, [(col, 'col'), (ph, 'phone')])  # chart--nowide: the col value also shows >= 1200
-    if vx:
-        bits.append(vx)
-    keys = core.key_row(['hatch', 'fill'], 'keyrow--inline') if t['activity'] == 'ski' else ''
+    bits += core.vx_line(ch, [(col, 'col'), (ph, 'phone')], items=True)  # chart--nowide: the col value also shows >= 1200
+    keys = core.key_row(['hatch', 'fill'], 'keyrow--inline', label='Elevation key') if t['activity'] == 'ski' else ''
     return ('<div class="mul-dp"><div class="mul-dp-h"><p class="t-label">Elevation · Day %d</p>%s<p class="t-mono-s mul-dp-m">%s</p></div>%s</div>'
-            % (d['n'], keys, nb(bits),
+            % (d['n'], keys, ml(bits),
                thin_ticks(core.chart_block(t, here, [(col, 'col'), (ph, 'phone')], 'd%s' % d['id'], cls='chart--nowide'))))
 
 
+_PH_NAME = re.compile(r'aria-label="Photo (\d+) of (\d+), full size"')
+
+
 def photo_rows(t, here, d):
-    """Photos in rows that fill the column at one height per row (heights clamped in CSS, so pairs of portraits crop a
-    little rather than run 900px tall). A photo alone keeps its own shape."""
-    ps = [p for p in d['photos'] if p.get('file')]
-    if not ps:
+    """The day's photos as the shared justified rows (core.photo_rows, up to three portraits a row; row heights set for
+    the chapter column in multiday.css). An unnamed photo link says which day it belongs to."""
+    rows = core.photo_rows(t, here, d['photos'], per_row=3, ns='d%s' % d['id'])
+    if not rows:
         return ''
-    ar = [(p['w'] / float(p['h'])) if p.get('w') and p.get('h') else 1.5 for p in ps]
-    rows, cur, tot = [], [], 0.0
-    for p, a in zip(ps, ar):
-        cur.append((p, a))
-        tot += a
-        if tot >= 1.9:
-            rows.append((cur, tot))
-            cur, tot = [], 0.0
-    if cur:
-        if rows and len(cur) == 1 and cur[0][1] < 1 and len(rows[-1][0]) < 3:
-            prev, ptot = rows.pop()
-            rows.append((prev + cur, ptot + tot))
-        else:
-            rows.append((cur, tot))
-    out = []
-    k = 0
-    total = len(ps)
-    for items, tot in rows:
-        figs = []
-        for p, a in items:
-            k += 1
-            img = core.photo(t, p, here, sizes='(min-width: 1200px) 620px, (min-width: 760px) 60vw, 100vw', caption=False)
-            lab = ('%s (full size)' % esc(p['alt'])) if p.get('alt') else 'Photo %d of %d from Day %d, full size' % (k, total, d['n'])
-            figs.append('<a class="mul-ph" href="%s%s" style="--ar:%.4f;--fg:%d" aria-label="%s">%s</a>'
-                        % (link(here, t['url']), p['file'], a, round(a * 1000), lab, img))
-        cls = 'mul-prow'
-        if len(items) == 1:
-            cls += ' mul-prow--one'
-        elif all(a < 1 for _, a in items) and len(items) == 2:
-            cls += ' mul-prow--pp'
-        out.append('<div class="%s" style="--n:%d;--sum:%.4f;--ar:%.4f">%s</div>'
-                   % (cls, len(items), tot, items[0][1], ''.join(figs)))
-        caps = [p['caption'] for p, _ in items if p.get('caption')]
-        if caps:  # captions sit under their row (rows have a fixed height)
-            out.append('<p class="t-small mul-pcap">%s</p>' % ' · '.join(esc(c) for c in caps))
-    return '<div class="mul-photos">%s</div>' % ''.join(out)
+    rows = _PH_NAME.sub(lambda m: 'aria-label="Photo %s of %s from Day %d, full size"' % (m.group(1), m.group(2), d['n']), rows)
+    return '<div class="mul-photos">%s</div>' % rows
 
 
 def pager_cell(x, cls):
@@ -685,7 +669,7 @@ def pager_cell(x, cls):
     arrow = icon('arrow-left' if cls == 'prev' else 'arrow-right', 14)
     lab = ('%s<span>Day %d</span>' % (arrow, x['n'])) if cls == 'prev' else ('<span>Day %d</span>%s' % (x['n'], arrow))
     return ('<a class="%s" href="#day-%d"><span class="pager-t"><span class="t-label pager-l">%s</span>'
-            '<span class="pager-n">%s</span><span class="t-mono-s">%s</span></span></a>' % (cls, x['n'], lab, name, ' · '.join(bits)))
+            '<span class="pager-n">%s</span><span class="t-mono-s">%s</span></span></a>' % (cls, x['n'], lab, name, ml(bits)))
 
 
 def overview_cell(t, cls):
@@ -693,8 +677,8 @@ def overview_cell(t, cls):
     up = icon('arrow-left', 14, 'mul-up')
     lab = ('%s<span>Overview</span>' % up) if cls == 'prev' else ('<span>Overview</span>%s' % up)
     return ('<a class="%s" href="#overview"><span class="pager-t"><span class="t-label pager-l">%s</span>'
-            '<span class="pager-n">%s</span><span class="t-mono-s">%s · %s</span></span></a>'
-            % (cls, lab, title_title(t), '%d DAYS' % len(t['days']), caps_dist(t['stats'].get('distance_km'))))
+            '<span class="pager-n">%s</span><span class="t-mono-s">%s</span></span></a>'
+            % (cls, lab, title_title(t), ml(['%d DAYS' % len(t['days']), caps_dist(t['stats'].get('distance_km'))])))
 
 
 def day_pager(t, here, d):
@@ -738,8 +722,8 @@ def chapter(t, here, meta, d):
     ns = 'd%s' % d['id']
     mp = slim(core.map_block(t, here, [('day-%s-col' % d['id'], 'col'), ('day-%s-phone' % d['id'], 'phone')], t['url'] + 'map/', ns,
                              cls='map--nowide mul-dmap'))
-    cap = '<p class="mul-dcap">%s</p>' % nb(['North up · Terrain: AWS Terrain Tiles',
-                                             'Map data © OpenStreetMap contributors · Not for navigation'])
+    cap = '<p class="mul-dcap">%s</p>' % ml(['North up', 'Terrain: AWS Terrain Tiles', 'Map data © OpenStreetMap contributors',
+                                            'Not for navigation'])
     xfer = ('<p class="mul-xfer"><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>Road transfer before this day</p>'
             % core.KEY_SYMBOLS['transfer'][1]) if d.get('transfer_before') else ''
     prose = ('<div class="prose t-body mul-prose">%s</div>' % markdown.to_html(d['body_md'], heading_shift=3)) if d['body_md'] else ''
@@ -803,4 +787,8 @@ def page(t, site):
 
 
 def build(site):
-    return [page(t, site) for t in site['trips'] if t['kind'] == 'multi-day' and t['days']]
+    out = []
+    for t in site['trips']:
+        if t['kind'] == 'multi-day' and t['days']:
+            out += [page(t, site), fullscreen(t)]
+    return out

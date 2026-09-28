@@ -86,15 +86,12 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 .sec-feat-t a:hover { color: var(--route-ink); }
 .sec-feat-place { margin-top: 10px; text-transform: uppercase; }
 .sec-feat-gpx { margin-top: 20px; }
-.sec-feat-pdate { display: none; }
-@media (max-width: 559.98px) {
-  .sec-feat-date { display: none; }   /* phones: chips only; the date leads the place line */
-  .sec-feat-pdate { display: inline; }
-}
 .sec-feat-strip { margin-top: 20px; }
-@media (max-width: 759.98px) { .sec-feat-strip .strip-c:last-child:nth-child(odd) { grid-column: 1 / -1; } }
 .sec-feat-grid { margin-top: 32px; display: grid; gap: 32px; }
 .sec-feat-map, .sec-feat-side { min-width: 0; }
+/* map → key row → caption (core.feature_key decodes the mile discs and the GPS-max triangle) */
+.sec-feat-map .keyrow { padding-top: 12px; min-height: 0; }
+.sec-feat-map .keyrow ~ .mapcap { padding-top: 8px; }
 .sec-feat-pics { display: flex; flex-direction: column; gap: 24px; }
 .sec-feat-photo img { aspect-ratio: 506 / 400; object-fit: cover; }
 .sec-feat-h3 { margin-bottom: 12px; }
@@ -104,15 +101,33 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 .sec-read { margin-top: 8px; }
 .sec-feat-full { margin-top: 40px; }
 @media (max-width: 1199.98px) { .sec-feat-pics .photo + .photo { display: none; } }  /* 2nd photo only beside a desktop map */
+/* 560–1199: the map (and the MTB profile row) take the report's left-aligned 860 column, so map labels stay near 13px;
+   the strip and the photo / write-up row keep the full width */
+@media (min-width: 560px) and (max-width: 1199.98px) { .sec-feat-map, .sec-feat-full { max-width: var(--col-max); } }
+@media (min-width: 760px) { .sec-feat-pdate { display: none; } }
+/* phones (< 760): the compact featured block, on the Phone-Report-A rhythm — chips, title, date · place, strip, map with its
+   key row and a one-line caption, one photo, four lines of the write-up and 'Read report'. No GPX button, strip sub-lines,
+   footnote or charts: the report keeps them. */
+@media (max-width: 759.98px) {
+  .sec-feat-date { display: none; }   /* chips only; the date leads the place line */
+  .sec-feat-h { margin-top: 8px; }
+  .sec-feat-place { margin-top: 4px; }
+  .sec-feat-strip { margin-top: 12px; }
+  .sec-feat-grid { margin-top: 12px; gap: 24px; }
+  .sec-feat-gpx, .sec-feat-strip .strip-s, .sec-feat .strip-note, .sec-feat .sec-prof, .sec-feat-full { display: none; }
+  .sec-feat-map .keyrow { padding-top: 10px; }
+  .sec-feat-map .keyrow ~ .mapcap { padding-top: 6px; }
+  .sec-feat-photo:not(.sec-feat-photo--p) img { aspect-ratio: 3 / 2; }
+  .sec-feat-pics + .sec-feat-txt { margin-top: 16px; }
+  /* the excerpt follows the photo directly; the heading stays for assistive tech */
+  .sec-feat-h3 { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .sec-feat .sec-prose > :not(:first-child) { display: none; }
+  .sec-feat .sec-prose > :first-child, .sec-feat p.sec-prose { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+}
 @media (max-width: 559.98px) {
   .sec-feat-mapv { margin-inline: calc(-1 * var(--m)); }
-  .sec-feat-mapv + .sec-mapcap { padding-top: 8px; }
-  /* phones: the compact featured block (no GPX button, no strip sub-lines, no full-width row, six lines of the write-up) */
-  .sec-feat-gpx, .sec-feat-strip .strip-s, .sec-feat-full { display: none; }
-  .sec-feat .sec-prose > :not(:first-child) { display: none; }
-  .sec-feat .sec-prose > :first-child, .sec-feat p.sec-prose { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  .sec-cap-x { display: none; }   /* one-line caption: date · North up (the report says 'full track, not trimmed') */
 }
-@media (min-width: 560px) { .sec-feat-pph { display: none; } }
 @media (min-width: 760px) {
   .sec-feat-h { grid-template-columns: minmax(0, 1fr) auto; column-gap: 32px; }
   .sec-feat-t { grid-column: 1; grid-row: 1; }
@@ -142,7 +157,8 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 .sec-prof { margin-top: 32px; }
 .sec-chart-h { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 16px; row-gap: 4px; padding-bottom: 10px; }
 .sec-chart-h .t-label { color: var(--ink-2); }
-.sec-chart-h .keyrow--inline { margin-left: auto; min-height: 0; }
+.sec-chart-h .keyrow--inline { margin-left: 0; flex-basis: 100%; min-height: 0; }
+@media (min-width: 1000px) { .sec-chart-h .keyrow--inline { margin-left: auto; flex-basis: auto; } }
 .sec-feat-full .sec-prof { margin-top: 0; }
 
 /* ---------------------------------------------------------------- hiking: series section (open, after Featured) */
@@ -150,8 +166,6 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 .sec-ser .shead-t a:hover { color: var(--route-ink); }
 .sec-ser-g { display: grid; gap: 24px; margin-top: 24px; }
 .sec-ser-mapc, .sec-ser-b { min-width: 0; }
-.sec-ser-cap { margin-top: 12px; color: var(--ink-3); }
-.sec-ser-cap span { display: block; }
 .sec-ser-b { display: flex; flex-direction: column; }
 .sec-ser-place { margin-top: 12px; text-transform: uppercase; }
 .sec-ser-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; margin-top: 20px; padding: 12px 0;
@@ -167,8 +181,13 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 .sec-ser-a .btn .ic { width: 16px; height: 16px; }
 .sec-ser-a .btn:not(.btn--ink) .ic { width: 18px; height: 18px; }
 @media (max-width: 559.98px) { .sec-ser-mapc { display: none; } }  /* phones: the photos carry the block */
+/* the 390×600 overview-phone render: ×0.85 at 768, ×0.97 at 1024, ×1.03 at 1440 */
 @media (min-width: 560px) {
   .sec-ser-g { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); align-items: start; }
+  .sec-ser-mapc { grid-column: 1 / span 6; }
+  .sec-ser-b { grid-column: 7 / -1; }
+}
+@media (min-width: 1000px) {
   .sec-ser-mapc { grid-column: 1 / span 5; }
   .sec-ser-b { grid-column: 6 / -1; }
 }
@@ -178,7 +197,7 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
   .sec-ser-day { margin-top: 24px; }
   .sec-ser-ex { margin-top: 8px; font-size: 18px; line-height: 28px; color: var(--ink); }
 }
-@media (min-width: 1000px) { .sec-ser-mapc { grid-column: 1 / span 4; } }  /* column 5 stays empty, as on the canvas */
+@media (min-width: 1200px) { .sec-ser-mapc { grid-column: 1 / span 4; } }  /* column 5 stays empty, as on the canvas */
 
 /* ---------------------------------------------------------------- ski: season list + sticky region panel */
 .sec-split { margin-top: 32px; }
@@ -201,10 +220,11 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 .sec-tab-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 .sec-maps { margin-top: 12px; }
 .sec-rp-l { display: none; margin-bottom: 8px; }
-.sec-pcap { margin-top: 12px; font: 400 14px/20px var(--sans); color: var(--ink-3); }
+.sec-pcap { min-width: 0; }  /* core.map_caption inside: 12 above, Small ink-3 */
 @media (hover: none) { .sec-pcap-h { display: none; } }
-.sec-avy-w { margin-top: 48px; }
-.sec-avy { max-width: 718px; padding-top: 16px; border-top: 1px solid var(--rule); }
+/* the last list row's rule is the only separator above the forecasts */
+.sec-avy-w { margin-top: 40px; }
+.sec-avy { max-width: 718px; }
 .sec-avy ul { display: flex; flex-wrap: wrap; column-gap: 28px; margin-top: 4px; }
 .sec-avy .t-small { margin-top: 4px; }
 @media (max-width: 559.98px) {
@@ -230,13 +250,14 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
   .sec-list .trow-tile { width: 160px; }
 }
 @media (min-width: 960px) and (max-width: 1199.98px) {
-  /* narrow list beside the panel: the four stats spread across the text column instead of a fixed 32px gap */
-  .sec-list .trow-stats { column-gap: 0; justify-content: space-between; }
+  /* narrow list beside the panel: base.css's fixed stat columns, at 16px */
   .sec-list .trow-stats .t-data-m { font-size: 16px; }
   .sec-maps .mv--desktop { display: none; }
   .sec-maps .mv--phone { display: block; }
   .sec-avy { max-width: none; }
 }
+/* 1100–1199: the 390×480 phone-shaped panel render shows at 1:1 */
+@media (min-width: 1100px) and (max-width: 1199.98px) { .sec-split { grid-template-columns: minmax(0, 1fr) 390px; } }
 @media (min-width: 760px) { .sec-split { margin-top: 40px; } .sec-season + .sec-season { margin-top: 64px; } }
 @media (min-width: 1200px) {
   .sec-split { margin-top: 48px; grid-template-columns: minmax(0, 718fr) minmax(0, 506fr); }

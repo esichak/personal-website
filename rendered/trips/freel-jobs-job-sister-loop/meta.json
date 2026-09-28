@@ -1,5 +1,5 @@
 {
- "hash": "09402be0bea751e287afcd490e7f53f239b7cc6c",
+ "hash": "e9b7f8931d9f79982a7241c6c9d555bedb0d1221",
  "slug": "freel-jobs-job-sister-loop",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 10856.3,
    "min_ft": 8290.03,
    "total_mi": 11.95,
-   "gx": 198.1,
-   "gy": 15.93,
+   "gx": 157.84,
+   "gy": 21.41,
    "gps_max_mi": 5.27,
    "y_lo": 8136.29,
    "y_hi": 11108.6,
-   "pad_l": 72,
-   "vx": 6.83,
+   "pad_l": 0,
+   "vx": 5.1,
    "h": 122
   }
  },

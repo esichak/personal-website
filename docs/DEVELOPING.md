@@ -31,7 +31,7 @@ Type classes (phone → tablet ≥760 → desktop ≥1200 sizes are built in): `
 
 Layout: `.wrap` (1248 max, page margins 16/40/48px), `.bleed` (full width up to 1440), `.sec` (section gap
 56/72/96px), `.grid12`. Breakpoints: phone < 760, tablet 760–1199, desktop ≥ 1200. Header nav collapses to the
-menu button below 1280px.
+menu button below 1140px.
 
 ## Rules
 - Facts only from the content files. Never invent stats, grades, conditions, bios or captions. Hide empty fields.

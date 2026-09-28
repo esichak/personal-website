@@ -26,14 +26,14 @@ import geo  # noqa: E402
 import mapkit  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
 
-VERSION = 5  # bump after renderer changes to force a full re-render
+VERSION = 6  # bump after renderer changes to force a full re-render
 MI, FT = geo.MI, geo.FT
 OUT = os.path.join(ROOT, 'rendered')
 
-REPORT = dict(legend=False, north=False, graticule=False, miles=True, chevrons=True, startend=True, gpsmax=True,
+REPORT = dict(legend=False, north=False, graticule=False, miles=True, chevrons=False, startend=True, gpsmax=True,
               png_scale=1.25, contour_density=0.75, peaks_max=3, trim=False)
-SMALL = dict(road_levels=('motorway', 'trunk', 'primary', 'secondary', 'tertiary'), small_markers=True, gps_label=False, north=False,
-             places_allow=[], skin=False, legend=False, miles=False, chevrons=True, startend=True, gpsmax=True,
+SMALL = dict(road_levels=('motorway', 'trunk', 'primary', 'secondary', 'tertiary'), small_markers=True, gps_label='name', north=False,
+             places_allow=[], skin=False, legend=False, miles=False, chevrons=False, startend=True, gpsmax=True,
              png_scale=2.0, contour_density=0.9, peaks_max=0, graticule=False, contour_labels=False, trails=False,
              track_eps=1.2, prio_avoid_track=True, trim=False)
 OVERVIEW = dict(north=False, png_scale=1.5, graticule=False, contour_density=1.2, contour_labels=False, peaks_max=0, trails=False,
@@ -193,9 +193,11 @@ def render_single(t, meta):
 
 
 def axis_step(total_mi, w):
-    """Mile-tick spacing that keeps labels >= 36 px apart (the first label reads "0 mi")."""
+    """Mile-tick spacing that keeps labels >= 36 px apart (the first label reads "0 mi"; on phone charts, which have no
+    y-axis gutter, the last one carries the unit)."""
+    plot_w = w - (0 if w < 500 else 72)
     for step in (1, 2, 5, 10, 20, 50, 100):
-        if (w - 72) / max(total_mi / step, 1) >= 36:
+        if plot_w / max(total_mi / step, 1) >= 36:
             return step
     return 100
 
@@ -207,9 +209,9 @@ def single_charts(t, meta, tr=None):
     if t['kind'] == 'planned':
         return
     if flat and any(p[3] for p in tr.raw):
-        for nm, w in (('speed-wide', 1248), ('speed-col', 718), ('speed-phone', 358)):
-            info = render_speed_chart(nm, tr, w)
-            meta['charts'][nm] = {'w': w, 'h': 96, 'kind': 'speed', 'info': info}
+        for nm, w, h in (('speed-wide', 1248, 112), ('speed-col', 718, 112), ('speed-phone', 358, 96)):
+            info = render_speed_chart(nm, tr, w, h)
+            meta['charts'][nm] = {'w': w, 'h': h, 'kind': 'speed', 'info': info}
         return
     if not tr.ele:
         return
@@ -260,7 +262,7 @@ def render_multi(t, meta):
               trails=False, priority_peaks=mo.get('peaks'), places_allow=mo.get('places'), transfers=transfers,
               water_near_track=40, bands_off=True, aria=aria_for(t))
     specs = [dict(ov, name='overview-wide', w=1440, h=560, png_scale=1.25),
-             dict(ov, name='overview-col', w=718, h=440, png_scale=2.0, peaks_max=2)]
+             dict(ov, name='overview-col', w=718, h=440, png_scale=2.0, peaks_max=1)]
     osm_ov = fetch_osm(union([frame_bbox(s, ov_tracks()) for s in specs]), 'overview')
     for s in specs:
         s['tracks'] = ov_tracks()
@@ -283,7 +285,7 @@ def render_multi(t, meta):
         aria = 'Map of day %s of %s' % (days[i]['label'], t['title'])
         day_specs.append((dict(REPORT, name='day-%s-col' % days[i]['id'], w=718, h=400, bbox=bb, png_scale=2.0, peaks_max=2, trails=False,
                                priority_peaks=mo.get('peaks'), skin=True, bands_off=True, aria=aria), [me] + others))
-        day_specs.append((dict(SMALL, name='day-%s-phone' % days[i]['id'], w=390, h=240, bbox=bb, scale_corner='bl', chevrons=True,
+        day_specs.append((dict(SMALL, name='day-%s-phone' % days[i]['id'], w=390, h=240, bbox=bb, scale_corner='bl', chevrons=False,
                                startend=True, gpsmax=True, bands_off=True, reserve=[(390 - 208, 240 - 36, 390, 240)], pad_bottom_px=40, aria=aria),
                           [dict(me, width=3)]))
     osm_days = fetch_osm(union([frame_bbox(s, tk) for s, tk in day_specs]), 'report')
@@ -325,11 +327,15 @@ def render_series(t, meta):
     tracks = [{'track': tr, 'style': 'cat', 'cat': cat, 'width': 2.6, 'trim': False, 'casing': False, 'i0': 0, 'i1': len(tr.raw) - 1,
                'key': 'm-%s' % d['date'].strftime('%Y-%m') if d.get('date') else None}
               for d, tr in trs]
+    # the start disc and end square carry the content dates, so the end reads as the last recording, not the finish
+    first_d, last_d = trs[0][0].get('date') or t.get('date'), trs[-1][0].get('date') or t.get('end_date')
+    ends = [d_.strftime('%b %d').upper().replace(' 0', ' ') if d_ else None for d_ in (first_d, last_d)]
     for nm, w, h in (('overview-tall', 560, 860), ('overview-phone', 390, 600)):
         extra = {'reserve': [(w - 208, h - 36, w, h)], 'pad_bottom_px': 40} if nm == 'overview-phone' else {}
         m = render_map(dict(name=nm, w=w, h=h, tracks=[dict(x) for x in tracks], osm=None, png_scale=1.5, legend=False, graticule=False,
                             contours=False, ocean=True, exaggeration=6.0, miles=False, chevrons=False, startend=False, gpsmax=False,
-                            overall_startend=True, pad=0.06, north=False, scale=True, trim=False, scale_corner='bl',
+                            overall_startend=True, overall_labels=ends, min_track_px=4, pad=0.06, north=False, scale=True, trim=False,
+                            scale_corner='bl',
                             aria='Every recorded day of %s' % t['title'], **extra))
         meta['maps'][nm] = {'w': w, 'h': h, 'png': m.get('png'), 'base': m.get('base')}
     allt = [tr for _, tr in trs]
@@ -392,8 +398,9 @@ def site_tracks(t, width=2.5, opacity=0.9):
     for p in paths:
         tr = Track(mapkit.decimate(fit_reader.read_gpx(p), 500), t['slug'], t['cat'])
         style = 'planned' if t['kind'] == 'planned' else 'cat'
+        # planned routes on region maps: thin ink-3 dash (KEY_SYMBOLS['planned_site']); the 2.5px dash stays on the route's own map
         out.append({'track': tr, 'style': style, 'cat': t['cat'], 'width': width, 'opacity': opacity, 'trim': False,
-                    'i0': 0, 'i1': len(tr.raw) - 1, 'key': t['slug']})
+                    'i0': 0, 'i1': len(tr.raw) - 1, 'key': t['slug'], 'thin': style == 'planned'})
     return out
 
 

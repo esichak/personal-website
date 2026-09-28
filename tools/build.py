@@ -82,12 +82,13 @@ def copy_trip_assets(t):
 
 
 def feed(trips):
-    """RSS 2.0: each item is the factual summary (content fields only) followed by the start of Eric's write-up."""
+    """RSS 2.0: each item is the factual summary (content fields only) followed by the start of Eric's write-up. A trip
+    with days and no trip-level write-up gets the summary alone (a day's excerpt would read as the whole trip's)."""
     items = []
     for t in [x for x in trips if x['kind'] != 'planned'][:30]:
         url = core.SITE_URL + t['url']
         d = datetime(t['date'].year, t['date'].month, t['date'].day, 12, tzinfo=timezone.utc) if t['date'] else None
-        ex = core.excerpt(t, 400)
+        ex = core.excerpt(t, 400) if t['body_md'] else ''
         items.append('<item><title>%s</title><link>%s</link><guid>%s</guid>%s<category>%s</category><description>%s</description></item>'
                      % (html.escape(t['title']), url, url, ('<pubDate>%s</pubDate>' % d.strftime('%a, %d %b %Y %H:%M:%S +0000')) if d else '',
                         html.escape(core.ACT[t['activity']][0]), html.escape(core.summary(t) + ((' ' + ex) if ex else ''))))
@@ -109,6 +110,7 @@ def build(verbose=True, only=None):
     trips = content.load_all()
     site = {'trips': trips, 'by_slug': {t['slug']: t for t in trips},
             'published': [t for t in trips if t['kind'] != 'planned'], 'planned': [t for t in trips if t['kind'] == 'planned']}
+    core.register_site(site)
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT)

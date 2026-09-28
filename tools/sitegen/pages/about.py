@@ -61,7 +61,7 @@ def intro(site):
     dl = ''.join('<div><dt>%s</dt><dd>%s</dd></div>' % (esc(k), esc(v)) for k, v in rows)
     return ('<div class="abo-intro">'
             '<p class="abo-lead">Trip reports by Eric Sichak: backcountry skiing, climbing, hiking, mountain biking and other trips, '
-            'each with the full GPX track.</p>'
+            'each with the full GPX track and map.</p>'
             '<section class="abo-sec abo-glance" aria-labelledby="abo-glance-h"><h2 class="t-h3" id="abo-glance-h">At a glance</h2>'
             '<dl class="abo-dl">%s</dl></section></div>' % dl)
 
@@ -125,7 +125,7 @@ def units_block():
            '<button type="button" role="radio" aria-checked="false" data-units="km">KM</button></div>')
     return ('<section class="abo-sec" aria-labelledby="abo-units-h"><h2 class="t-h3" id="abo-units-h">Units</h2>'
             '<div class="abo-units-row"><p class="abo-p">Distances and heights are shown in miles and feet by default. The <span class="abo-nw">MI | KM</span> switch '
-            'changes every page to kilometres and metres, and this browser remembers the choice.</p>%s</div></section>' % ctl)
+            'changes every page to kilometers and meters, and this browser remembers the choice.</p>%s</div></section>' % ctl)
 
 
 def follow(here):

@@ -1,5 +1,5 @@
 {
- "hash": "3ec6d9667a6bcd54dbff7ed767b5afa51b379c96",
+ "hash": "7cb23b5cb63bed480fafc2b439dc637cc99f5ad1",
  "slug": "green-creek-virginia-pass",
  "kind": "trip",
  "maps": {
@@ -65,13 +65,13 @@
    "gps_max_ft": 10554.46,
    "min_ft": 8001.97,
    "total_mi": 20.01,
-   "gx": 198.07,
-   "gy": 15.93,
+   "gx": 157.81,
+   "gy": 21.41,
    "gps_max_mi": 8.82,
    "y_lo": 7849.02,
    "y_hi": 10806.1,
-   "pad_l": 72,
-   "vx": 11.49,
+   "pad_l": 0,
+   "vx": 8.58,
    "h": 122
   }
  },

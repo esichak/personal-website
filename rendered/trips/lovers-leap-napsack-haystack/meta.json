@@ -1,5 +1,5 @@
 {
- "hash": "c012774ab8f7081de2466c3fd0d60c7b280c9a79",
+ "hash": "efdf1380ada092425c49736b35984a02ebab14a1",
  "slug": "lovers-leap-napsack-haystack",
  "kind": "trip",
  "maps": {
@@ -35,7 +35,7 @@
    "gps_max_ft": 6345.14,
    "min_ft": 5767.72,
    "total_mi": 1.38,
-   "gx": 72.0,
+   "gx": 90,
    "gy": 19.38,
    "gps_max_mi": 0.0,
    "y_lo": 5733.24,
@@ -50,7 +50,7 @@
    "gps_max_ft": 6345.14,
    "min_ft": 5767.72,
    "total_mi": 1.38,
-   "gx": 72.0,
+   "gx": 90,
    "gy": 16.79,
    "gps_max_mi": 0.0,
    "y_lo": 5733.24,
@@ -65,13 +65,13 @@
    "gps_max_ft": 6345.14,
    "min_ft": 5767.72,
    "total_mi": 1.38,
-   "gx": 72.0,
-   "gy": 15.93,
+   "gx": 18,
+   "gy": 21.41,
    "gps_max_mi": 0.0,
    "y_lo": 5733.24,
    "y_hi": 6399.76,
-   "pad_l": 72,
-   "vx": 3.52,
+   "pad_l": 0,
+   "vx": 2.63,
    "h": 122
   }
  },
