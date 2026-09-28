@@ -16,6 +16,7 @@ import shutil
 import sys
 import time
 from datetime import datetime, timezone
+from urllib.parse import unquote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -58,8 +59,38 @@ def copy(src, dst):
         shutil.copy2(src, dst)
 
 
+_ROOT_SVG = re.compile(r'^\s*<svg\b([^>]*)>')
+_DROP_ATTR = re.compile(r'\s(?:aria-hidden|aria-label|role|style|xmlns)="[^"]*"')
+_CSS_RULES = [(re.match(r'\.([\w-]+)', ln).group(1), ln.strip()) for ln in mapkit.MAP_CSS.strip().splitlines()
+              if re.match(r'\.([\w-]+)', ln)]
+
+
+def drawing_svg(src, name):
+    """A rendered tile / glyph fragment as a standalone SVG image (core.glyph / core.tile serve it as <img>): the route
+    colour filled in, the root's inline-only attributes (aria, style) dropped, and only the mapkit.MAP_CSS rules whose
+    class the drawing uses, in its own <style>. Glyphs keep a constant stroke at any drawn size (non-scaling-stroke)."""
+    s = open(src, encoding='utf-8').read().replace('{{route}}', '#D2381A').replace('@@ROOT@@', '../../')
+    m = _ROOT_SVG.match(s)
+    if not m:
+        return None
+    used = {c for v in re.findall(r'class="([^"]+)"', s) for c in v.split()}
+    rules = [r for c, r in _CSS_RULES if c in used]
+    if name != 'tile':
+        rules.append('.gl-trk{vector-effect:non-scaling-stroke}')
+    root = '<svg xmlns="http://www.w3.org/2000/svg"%s>' % _DROP_ATTR.sub('', m.group(1))
+    style = ('<style>%s</style>' % ''.join(rules)) if rules else ''
+    return root + style + s[m.end():]
+
+
 def copy_trip_assets(t):
     out = os.path.join(OUT, 'trips', t['slug'])
+    os.makedirs(out, exist_ok=True)
+    for name in ('tile', 'g112', 'g64'):
+        src = os.path.join(t['rendered'], name + '.svg.html')
+        svg = drawing_svg(src, name) if os.path.exists(src) else None
+        if svg:
+            with open(os.path.join(out, name + '.svg'), 'w', encoding='utf-8') as fh:
+                fh.write(svg)
     for p in glob.glob(os.path.join(t['dir'], 'photos', '*')):
         copy(p, os.path.join(out, 'photos', os.path.basename(p)))
     for p in glob.glob(os.path.join(t['rendered'], '*.png')) + glob.glob(os.path.join(t['rendered'], '*.webp')) + glob.glob(os.path.join(t['rendered'], '*.base.svg')):
@@ -157,8 +188,19 @@ def build(verbose=True, only=None):
 _REF = re.compile(r'''(?:href|src|srcset)="([^"]+)"''')
 
 
+_IDS = {}
+
+
+def page_ids(path, text=None):
+    """The id set of a built page, read once per check."""
+    if path not in _IDS:
+        _IDS[path] = set(re.findall(r'\bid="([^"]+)"', text if text is not None else open(path, encoding='utf-8').read()))
+    return _IDS[path]
+
+
 def check(only_pages=False):
     bad = 0
+    _IDS.clear()
     for f in glob.glob(os.path.join(OUT, '**', '*.html'), recursive=True):
         s = open(f, encoding='utf-8').read()
         here = os.path.dirname(f)
@@ -176,7 +218,14 @@ def check(only_pages=False):
                     bad += 1
                     if bad <= 40:
                         print('BROKEN %s -> %s' % (os.path.relpath(f, OUT), u))
-        ids = set(re.findall(r'\bid="([^"]+)"', s))
+                    continue
+                # a link into another page's section (map/#region-utah, ../#map) must land on an element with that id
+                fr = unquote(u.split('#', 1)[1]) if '#' in u else ''
+                if fr and target.endswith('.html') and fr not in page_ids(target):
+                    bad += 1
+                    if bad <= 40:
+                        print('BROKEN ANCHOR %s -> %s' % (os.path.relpath(f, OUT), u))
+        ids = page_ids(f, s)
         for frag_ in re.findall(r'href="#([^"]+)"', s):
             if frag_ not in ids:
                 bad += 1

@@ -12,17 +12,14 @@ URL = 'about/'
 # ---------------------------------------------------------------- numbers from the content
 
 def activity_counts(site):
-    """[(act, published reports, distance_km, subtypes present)] in nav order."""
+    """[(act, published reports, distance_km, sub-type words)] in nav order. Only Other has sub-types: the ones with
+    reports, most reports first (core.other_subtypes), the same words and order as the menu's Other row."""
+    other = [core.SUB_WORD.get(s, s) for s in core.other_subtypes(site['published'])]
     out = []
     for act, _ in core.NAV:
         xs = [t for t in site['published'] if t['activity'] == act]
         km = sum(t['stats'].get('distance_km') or 0 for t in xs)
-        subs = []
-        for t in xs:
-            s = t.get('subtype')
-            if s and core.SUB_WORD.get(s, s) not in subs:
-                subs.append(core.SUB_WORD.get(s, s))
-        out.append((act, len(xs), km, subs))
+        out.append((act, len(xs), km, other if act == 'other' else []))
     return out
 
 
@@ -37,13 +34,14 @@ def act_rows(site, here, cls='', dist=True):
     rows = []
     for act, k, km, subs in activity_counts(site):
         name = core.ACT[act][0]
-        meta = [count_word(k) if k else 'NO REPORTS YET'] + [esc(s).upper() for s in subs]
+        # one .ml line (CSS draws the dots, so a wrapped line never starts or ends with one)
+        meta = [core.nb(count_word(k) if k else 'NO REPORTS YET')] + [core.nb(esc(s).upper()) for s in subs]
         d = ''
         if dist and km:
             d = '<span class="abo-act-d t-data-m">%s</span>' % core.distance(km)
         rows.append('<li><a class="abo-act-a" href="%s">%s<span class="abo-act-w"><span class="abo-act-n">%s</span>'
                     '<span class="t-mono-s abo-act-m">%s</span></span>%s%s</a></li>'
-                    % (link(here, core.section_url(act)), core.disc(act, 32), esc(name), core.SEP.join(meta), d,
+                    % (link(here, core.section_url(act)), core.disc(act, 32), esc(name), core.meta_items(meta), d,
                        icon('chevron-right', 20, 'abo-act-c')))
     return '<ul class="abo-act%s">%s</ul>' % ((' ' + cls) if cls else '', ''.join(rows))
 
@@ -99,7 +97,7 @@ def numbers(site, here):
 
 def method(site):
     items = [
-        'Tracks are Garmin recordings, exported through Strava. Each one is drawn in full, not trimmed, and every report '
+        'Tracks are GPS recordings exported through Strava. Each one is drawn in full, not trimmed, and every report '
         'offers the same full track as a GPX download (on <span class="abo-nw">multi-day trips</span>, one file for the whole '
         'route plus one per day).',
         'Distance, gain and moving time come from that recording. GPS&nbsp;max is the highest point in the GPX file, '

@@ -27,6 +27,7 @@ PATHS = {
     'info': '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5V9"/>',
     'report': '<path d="M5 3.5h10l4 4v13H5z"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4.5"/>',
     'beta': '<path d="M4 6.5h16M4 12h16M4 17.5h10"/><circle cx="18" cy="17.5" r="1"/>',
+    'profile': '<path d="M3 18l5-7 4 4 4-8 5 11"/>',
     'photo': '<rect x="3" y="5" width="18" height="14"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/>',
     'search': '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5l5 5"/>',
     'rss': '<path d="M5 4.5a14.5 14.5 0 0 1 14.5 14.5"/><path d="M5 10.5a8.5 8.5 0 0 1 8.5 8.5"/><circle cx="6" cy="18" r="1.2"/>',

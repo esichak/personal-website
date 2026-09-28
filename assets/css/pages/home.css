@@ -116,7 +116,7 @@
 /* ---------------------------------------------------------------- latest reports */
 @media (max-width: 359.98px) { .hom-latest .shead-m { display: none; } }
 .hom-rtab { margin-top: 12px; }
-.hom-rtab .rtab-g svg { background: none; }
+.hom-rtab .rtab-g :is(svg, img) { background: none; }
 .hom-rtab .rtab-r:hover .rtab-tt { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .hom-all { margin-top: 24px; }
 @media (min-width: 760px) { .hom-rtab { margin-top: 24px; } }
@@ -124,7 +124,7 @@
 /* phone + small tablet: the shared compact rows (base.css .rtab--compact, Phone-Home-B) */
 @media (max-width: 899.98px) { .hom-rtab { margin-top: 0; } }
 @media (min-width: 760px) and (max-width: 899.98px) {
-  .hom-rtab .rtab-g svg { width: 88px; }
+  .hom-rtab .rtab-g :is(svg, img) { width: 88px; }
   .hom-rtab .rtab-r { grid-template-columns: 88px auto auto minmax(0, 1fr) 20px; }
   .hom-rtab .rtab-r > .rtab-title, .hom-rtab .rtab-r > :nth-child(2) { padding-left: 20px; }
   .hom-rtab .rtab-loc { display: block; }
@@ -139,7 +139,7 @@
 }
 /* 900–1199: base.css's six-track grid (no Activity column until 1200) with home's zero column gap */
 @media (min-width: 900px) and (max-width: 1199.98px) {
-  .hom-rtab .rtab-g svg { width: 96px; }
+  .hom-rtab .rtab-g :is(svg, img) { width: 96px; }
   .hom-rtab .rtab-r > .rtab-title { padding-right: 24px; }
 }
 @media (min-width: 1200px) {
@@ -230,6 +230,9 @@
 .hom-also-c { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 @media (max-width: 559.98px) {
   .hom-reg .map { margin-inline: calc(-1 * var(--m)); }
+  /* phone: the ALSO label on its own line, the links use the full measure below it */
+  .hom-also { display: block; margin-top: 16px; }
+  .hom-also > .t-mono-s { min-height: 0; margin-bottom: 4px; }
 }
 @media (min-width: 560px) and (max-width: 759.98px) { .hom-reg { max-width: 718px; } }
 @media (min-width: 760px) {
@@ -247,5 +250,8 @@
 /* desktop: one caption line per map — REGION · count … Open the map → (Main artboard) */
 @media (min-width: 1200px) {
   .hom-reg-h { display: flex; align-items: baseline; padding-bottom: 12px; }
+  /* the region name never wraps; the count gives way (ellipsis) first, so both heads stay one line */
+  .hom-reg-n { flex: none; white-space: nowrap; }
+  .hom-reg-c { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hom-reg-a { margin-left: auto; margin-block: -14px; }
 }

@@ -380,9 +380,49 @@ def path_len(pts):
     return sum(math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) for i in range(1, len(pts)))
 
 
-def d_attr(pts, closed=False, prec=1):
+def _num_i(k, prec):
+    """An integer count of 10^-prec units as the shortest path number: 12.0 -> '12', 0.5 -> '.5', -0.5 -> '-.5'."""
+    if prec <= 0:
+        return str(k)
+    neg = k < 0
+    q, r = divmod(abs(k), 10 ** prec)
+    s = str(q)
+    if r:
+        s = ('' if q == 0 else s) + '.' + ('%0*d' % (prec, r)).rstrip('0')
+    return ('-' + s) if (neg and s != '0') else s
+
+
+def _join_nums(toks):
+    """Numbers joined with the fewest separators: a '-' sign separates by itself, and '.5' after a number that already
+    has a decimal point needs no space ('1.5.5' reads as 1.5, .5 — valid SVG path grammar)."""
+    out = []
+    last = ''
+    for t in toks:
+        if last and not t.startswith('-') and not (t.startswith('.') and '.' in last):
+            out.append(' ')
+        out.append(t)
+        last = t
+    return ''.join(out)
+
+
+def d_attr(pts, closed=False, prec=1, rel=False):
+    """SVG path data for a polyline. rel=True: 'M x y l dx dy dx dy …' — the absolute points are rounded first and the
+    deltas are taken between the rounded points, so the drawn geometry is exactly the absolute one (no drift); zero-length
+    steps are dropped. About half the bytes of the absolute form."""
     if not pts:
         return ''
+    if rel:
+        m = 10 ** prec
+        q = [(int(round(x * m)), int(round(y * m))) for x, y in pts]
+        out = 'M' + _join_nums([_num_i(q[0][0], prec), _num_i(q[0][1], prec)])
+        toks = []
+        for (x0, y0), (x1, y1) in zip(q, q[1:]):
+            if x1 == x0 and y1 == y0:
+                continue
+            toks += [_num_i(x1 - x0, prec), _num_i(y1 - y0, prec)]
+        if toks:
+            out += 'l' + _join_nums(toks)
+        return out + ('z' if closed else '')
     f = '%.' + str(prec) + 'f'
     last = (f % pts[0][0]) + ' ' + (f % pts[0][1])
     out = ['M' + last]

@@ -5,8 +5,12 @@
   if (!document.body.classList.contains('p-archive')) return;
 
   // ------------------------------------------------------------ region tabs
+  // The row is a .tabs-x: base.js scrolls the selected tab into the row after a click or key press (and once at start).
   var list = document.querySelector('.arc-tabs[role="tablist"]');
   var sec = document.querySelector('.arc-map');
+  var h = (location.hash || '').slice(1);
+  try { h = decodeURIComponent(h); } catch (e) { /* keep it as typed */ }
+  var target = h ? document.getElementById(h) : null;
   if (list && sec) {
     var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
     var panels = tabs.map(function (t) { return document.getElementById(t.getAttribute('aria-controls')); });
@@ -18,9 +22,6 @@
         if (panels[j]) panels[j].hidden = !on;
       });
       if (focus) tabs[i].focus();
-      var t = tabs[i];
-      var l = t.offsetLeft - list.offsetLeft, r = l + t.offsetWidth;
-      if (l < list.scrollLeft || r > list.scrollLeft + list.clientWidth) list.scrollLeft = Math.max(0, l - 16);
     };
     panels.forEach(function (p, j) {
       if (!p) return;
@@ -30,17 +31,14 @@
     });
     list.hidden = false;
     sec.classList.add('arc-js');
+    // a #region-<slug> link opens that region's tab; a link to anything inside a panel opens the panel that holds it
     var start = 0, hit = false;
-    var h = (location.hash || '').slice(1);
-    tabs.forEach(function (t, j) { if (t.getAttribute('aria-controls') === h) { start = j; hit = true; } });
+    panels.forEach(function (p, j) {
+      if (p && target && p.contains(target)) { start = j; hit = p === target; }
+    });
     select(start, false);
-    if (hit) {
-      // show the tab row, not just the panel the browser jumped to (again after load, when the native jump happens)
-      var w = list.parentNode;
-      var toTabs = function () { w.scrollIntoView({ block: 'start' }); };
-      requestAnimationFrame(toTabs);
-      window.addEventListener('load', function () { setTimeout(toTabs, 0); }, { once: true });
-    }
+    // a region tab's panel: show the tab row above it, not just the panel the browser jumped to
+    if (hit) target = list.parentNode;
     tabs.forEach(function (t, j) {
       t.addEventListener('click', function () {
         select(j, false);
@@ -57,6 +55,13 @@
         select(to, true);
       });
     });
+  }
+  // Any other hash target (#region-utah in "Not on a region map", #other-places, #yr-2024, #all-reports) moved up when the
+  // other panels were hidden: scroll it back into view now, and again after load (when the browser makes its own jump).
+  if (target) {
+    var toTarget = function () { target.scrollIntoView({ block: 'start' }); };
+    requestAnimationFrame(toTarget);
+    window.addEventListener('load', function () { setTimeout(toTarget, 0); }, { once: true });
   }
 
   // ------------------------------------------------------------ "In this region": newest rows first, then "Show all N"
@@ -105,6 +110,10 @@
       return '<span class="mi">' + (i ? '<span class="sr">, </span>' : '') + NB(x) + '</span>';
     }).join('') + '</span>';
   }
+  var years = Array.prototype.slice.call(document.querySelectorAll('.arc-years li[data-group]'));
+  function countN(k) {
+    return '<span class="sr">, </span>' + k + '<span class="sr"> ' + (k === 1 ? 'report' : 'reports') + '</span>';
+  }
   function apply(f) {
     var shown = 0;
     groups.forEach(function (g) {
@@ -118,9 +127,21 @@
       g.hidden = vis.length === 0;
       var c = g.querySelector('.arc-yr-n');
       if (c) c.innerHTML = countLine(vis);
-      shown += vis.filter(function (r) { return r.dataset.kind !== 'planned'; }).length;
+      var pub = vis.filter(function (r) { return r.dataset.kind !== 'planned'; }).length;
+      shown += pub;
+      // the year index follows: a year with no rows in this activity drops out, the others count its published rows
+      years.forEach(function (y) {
+        if (y.dataset.group !== g.dataset.group) return;
+        y.hidden = g.hidden;
+        var n = y.querySelector('.arc-years-n');
+        if (n) n.innerHTML = countN(pub);
+      });
     });
-    chips.forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.filter === f)); });
+    chips.forEach(function (c) {
+      var on = c.dataset.filter === f;
+      c.setAttribute('aria-checked', String(on));
+      c.tabIndex = on ? 0 : -1;  // one tab stop (base.js moves it with the arrow keys)
+    });
     if (live) {
       var chip = chips.filter(function (c) { return c.dataset.filter === f; })[0];
       var word = f === 'all' ? '' : ' ' + chip.querySelector('.arc-chip-l').textContent.toLowerCase();
@@ -128,5 +149,10 @@
     }
   }
   bar.hidden = false;
-  chips.forEach(function (c) { c.addEventListener('click', function () { apply(c.dataset.filter); }); });
+  chips.forEach(function (c) {
+    c.addEventListener('click', function () {
+      if (c.getAttribute('aria-checked') === 'true') return;
+      apply(c.dataset.filter);
+    });
+  });
 })();

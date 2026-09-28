@@ -4,14 +4,12 @@
 @media (min-width: 760px) { .arc-stats { margin-top: 12px; font-size: 15px; line-height: 20px; color: var(--ink-2); } }
 @media (min-width: 1200px) { .arc-head { padding-top: 40px; } }
 
-/* ---------------------------------------------------------------- region tabs */
+/* ---------------------------------------------------------------- region tabs
+   .arc-tabs-w is a .tabs-x (base.css / base.js): the row scrolls sideways inside the page, never widens it, and draws the
+   paper fade while more tabs sit to the right. Phones bleed the row to the screen edges. */
 .arc-map { margin-top: 24px; }
-.arc-tabs-w { position: relative; margin-inline: calc(-1 * var(--m)); }
-.arc-tabs { display: flex; gap: 24px; padding-inline: var(--m); overflow-x: auto; scrollbar-width: none;
-  box-shadow: inset 0 -1px 0 var(--rule); }
-.arc-tabs::-webkit-scrollbar { display: none; }
-.arc-tabs-w::after { content: ""; position: absolute; right: 0; top: 0; bottom: 1px; width: 32px; pointer-events: none;
-  background: linear-gradient(to right, rgba(242, 241, 236, 0), var(--paper)); }
+.arc-tabs-w { margin-inline: calc(-1 * var(--m)); }
+.arc-tabs { display: flex; gap: 24px; padding-inline: var(--m); scroll-padding-inline: var(--m); box-shadow: inset 0 -1px 0 var(--rule); }
 .arc-tabs [role="tab"] { position: relative; flex-shrink: 0; height: 44px; display: inline-flex; align-items: center; gap: 6px;
   font: 500 15px/20px var(--sans); color: var(--ink-2); white-space: nowrap; }
 .arc-tabs [role="tab"]:hover { color: var(--ink); }
@@ -22,8 +20,7 @@
 @media (min-width: 760px) {
   .arc-map { margin-top: 32px; }
   .arc-tabs-w { margin-inline: 0; }
-  .arc-tabs { gap: 32px; padding-inline: 0; overflow: visible; }
-  .arc-tabs-w::after { content: none; }
+  .arc-tabs { gap: 32px; padding-inline: 0; scroll-padding-inline: 0; }
 }
 
 /* ---------------------------------------------------------------- panels */
@@ -48,7 +45,7 @@
 @media (min-width: 1000px) and (max-width: 1199.98px) {
   .arc-mapcol { grid-column: 1 / span 8; }
   .arc-side { grid-column: 9 / span 4; }
-  .arc-wd { display: none; }  /* 'APR 5, 2026 · 1.4 MI' keeps the region rows' meta on one line in the narrower column */
+  .arc-side .arc-wd { display: none; }  /* 'APR 5, 2026 · 1.4 MI' keeps the region rows' meta on one line in the narrower column */
 }
 
 /* legend */
@@ -79,45 +76,71 @@
 .arc-all-btn { margin-top: 4px; }
 .arc-all-btn[aria-expanded="true"] .ic { transform: rotate(180deg); }
 
-/* series card */
-.arc-series-w { margin-top: 32px; }
+/* ---------------------------------------------------------------- not on a region map
+   the series card(s), then one short list per region with fewer than three reports (1 / 2 / 3 columns) */
+.arc-other { margin-top: 32px; }
+/* #other-places, #region-utah and #yr-2024 land 16px under the sticky header through html's scroll-padding-top (base.css);
+   a scroll-margin here would add a second header height */
+.arc-series-w { margin-top: 16px; }
 .arc-series { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: start; column-gap: 16px;
   padding: 16px 16px 4px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); }
 .arc-series:hover { color: var(--ink); border-color: var(--rule-strong); }
 .arc-series:hover .arc-series-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 .arc-series-g { display: block; width: 64px; margin-top: 2px; }
-.arc-series-g svg { width: 100%; height: auto; aspect-ratio: 200 / 152; }
+.arc-series-g :is(svg, img) { width: 100%; height: auto; aspect-ratio: 200 / 152; }
 .arc-series-b { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .arc-series-t { font: 600 18px/24px var(--sans); }
 .arc-series-m { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 4px; }
 .arc-series-m .t-mono-s { text-transform: uppercase; }
 .arc-series-go { grid-column: 2; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 4px;
   font: 500 15px/20px var(--sans); }
+.arc-oregs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 32px; margin-top: 24px; }
+.arc-oreg-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--ink); }
+.arc-oreg-h .t-mono-s { text-transform: uppercase; margin-left: auto; text-align: right; }
+.arc-oreg-n { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
 @media (min-width: 760px) {
-  .arc-series-w { margin-top: 40px; }
+  .arc-other { margin-top: 40px; }
   .arc-series { grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; column-gap: 24px; padding: 16px 24px 16px 16px; }
   .arc-series-g { width: 120px; margin-top: 0; }
   .arc-series-go { grid-column: auto; margin: 0; }
+  .arc-oregs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 32px; }
 }
+@media (min-width: 1200px) { .arc-oregs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* ---------------------------------------------------------------- all reports */
 .arc-all .shead { flex-wrap: wrap; row-gap: 4px; }
 .arc-all .shead-t { white-space: nowrap; margin-right: auto; }
 .arc-filt { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
 @media (max-width: 759.98px) { .arc-filt { margin-top: 20px; } }
-.arc-chip { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border: 1px solid var(--rule-strong);
-  border-radius: 2px; font: 500 15px/20px var(--sans); color: var(--ink); white-space: nowrap; }
+/* 560–899: one row of chips that scrolls sideways (bleeding to the screen edges) instead of wrapping; phones keep two rows */
+@media (min-width: 560px) and (max-width: 899.98px) {
+  .arc-filt { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--m)); padding-inline: var(--m);
+    scroll-padding-inline: var(--m); }
+  .arc-filt::-webkit-scrollbar { display: none; }
+  .arc-chip { flex-shrink: 0; }
+}
+.arc-chip { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px;
+  border: 1px solid var(--rule-strong); border-radius: 2px; font: 500 15px/20px var(--sans); color: var(--ink); white-space: nowrap; }
+/* position: relative keeps the counts' spoken words (.sr, absolutely positioned) inside the chip, so they scroll and clip with
+   the chip row instead of widening the page */
 .arc-chip:hover { border-color: var(--ink); }
 .arc-chip .chip-sw { width: 10px; height: 10px; }
 .arc-chip-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
-.arc-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.arc-chip[aria-pressed="true"] .arc-chip-n { color: #B9B6AD; }
-.arc-chip[aria-pressed="true"] .chip-sw { outline: 1px solid var(--paper); }
+.arc-chip[aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.arc-chip[aria-checked="true"] .arc-chip-n { color: #B9B6AD; }
+.arc-chip[aria-checked="true"] .chip-sw { outline: 1px solid var(--paper); }
 @media (max-width: 899.98px) {
   /* compact chips: one row on tablets, two rows at 358 (the desktop size needs three / leaves "Other" alone) */
   .arc-chip { gap: 6px; padding: 0 10px; font-size: 14px; }
   .arc-chip .chip-sw { width: 8px; height: 8px; }
 }
+/* year index: one link per year group (the count follows the activity filter) */
+.arc-years { margin-top: 16px; }
+.arc-years ul { display: flex; flex-wrap: wrap; column-gap: 20px; }
+.arc-years a { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font: 500 15px/20px var(--sans); color: var(--ink); }
+.arc-years a:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.arc-years-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 .arc-table { border-bottom: 0; margin-top: 16px; }
 .arc-table .rtab-h { border-bottom: 0; }
 .arc-yr { margin-top: 16px; }
@@ -166,7 +189,7 @@
 }
 @media (min-width: 560px) and (max-width: 899.98px) {
   .arc-table .rtab-r { grid-template-columns: 136px auto auto minmax(0, 1fr); min-height: 80px; }
-  .arc-table .rtab-g svg { width: 112px; }
+  .arc-table .rtab-g :is(svg, img) { width: 112px; }
 }
 
 /* tablet (900–1199): track · title / icon · tag · place · date · dist · gain · GPS max (no gutters; the numbers are
@@ -178,7 +201,7 @@
   .arc-table .rtab-h { grid-template-columns: 112px minmax(0, 1fr) 148px 80px 96px 112px; column-gap: 0; }
   .arc-table .rtab-h > :nth-child(4) { padding-left: 16px; }
   .arc-table .rtab-r { grid-template-columns: 112px auto auto minmax(0, 1fr) 148px 80px 96px 112px; grid-template-rows: 1fr auto auto 1fr; }
-  .arc-table .rtab-g svg { width: 96px; }
+  .arc-table .rtab-g :is(svg, img) { width: 96px; }
   .arc-table .rtab-r > .rtab-act { grid-column: 2; grid-row: 3; }
   .arc-table .tag { grid-column: 3; grid-row: 3; margin: 4px 8px 0 0; }
   .arc-table .rtab-loc { grid-column: 4; grid-row: 3; margin-top: 4px; }

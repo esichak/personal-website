@@ -26,6 +26,8 @@
 .abo-dl dt { flex: 1; display: flex; align-items: baseline; gap: 8px; color: var(--ink-2); white-space: nowrap; }
 .abo-dl dt::after { content: ""; flex: 1; min-width: 16px; border-bottom: 1px dotted var(--rule-strong); transform: translateY(-5px); }
 .abo-dl dd { color: var(--ink); text-align: right; }
+/* below the two-column layout the list would span the whole measure (688px at 760): cap it like the report's Beta rail */
+@media (max-width: 999.98px) { .abo-dl { max-width: 480px; } }
 
 .abo-ol { display: flex; flex-direction: column; gap: 12px; }
 .abo-ol li { display: flex; align-items: baseline; gap: 16px; font: 400 15px/24px var(--sans); color: var(--ink); max-width: 612px; text-wrap: pretty; }

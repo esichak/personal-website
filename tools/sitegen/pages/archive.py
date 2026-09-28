@@ -93,11 +93,12 @@ def dist_line(t):
 
 # ---------------------------------------------------------------- page parts
 
-def head_block(site, regs):
+def head_block(site, regs, meta):
     pub = site['published']
     # same count as the "All reports" meta and the filter chips (series included); the planned route is never a report
     bits = [x for x in core.count_items(pub, site['planned']) if not x.startswith('INCL.')]
-    bits.append(core.nb(plural(len(regs), 'REGION')))
+    # every region a report is filed under, mapped or not (rendered/site/meta.json 'all_regions'; each has an anchor on this page)
+    bits.append(core.nb(plural(len(meta.get('all_regions') or [r[0] for r in regs]), 'REGION')))
     years = sorted({t['date'].year for t in pub if t['date']} | {t['end_date'].year for t in pub if t.get('end_date')})
     if years:
         bits.append(str(years[0]) if years[0] == years[-1] else '%d–%d' % (years[0], years[-1]))
@@ -134,7 +135,7 @@ def region_row(t, here, more=False):
     d = dist_line(t)
     if d:
         bits.append(d)
-    g = core.glyph(t, here, 'g64', 'rg-%s' % t['slug']).replace('<svg ', '<svg class="arc-row-g" ', 1)
+    g = core.glyph(t, here, 'g64', cls=' arc-row-g')
     # every row carries its key: the region map's planned line (mk-cat mk-planned) has one too, so hover highlights it
     return ('<li class="arc-row%s" data-key="%s"><a href="%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
             '<span class="t-mono-s arc-row-m"><span class="arc-row-i">%s</span><span class="sr">%s · </span><span>%s</span></span></span></a></li>'
@@ -151,6 +152,7 @@ def region_panel(name, slug, ts, here, meta, first):
     mp = share_casings(mp.replace('<div class="map', '<div id="%s" class="map' % map_id, 1), 'arc-' + slug)
     cap = '<div class="arc-cap">%s</div>' % core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])
     rows = ''.join(region_row(t, here, i >= SHOW and len(ts) > SHOW + 1) for i, t in enumerate(ts))
+    n_pub = sum(1 for t in ts if t['kind'] != 'planned')  # 'Show all 86' matches the tab's count (a planned route is not a report)
     return ('<div class="arc-panel" id="region-%s">'
             '<h3 class="arc-panel-h t-h3" id="arc-ph-%s">%s</h3>'
             '<div class="arc-grid"><div class="arc-mapcol">%s%s</div>'
@@ -159,13 +161,11 @@ def region_panel(name, slug, ts, here, meta, first):
             '</div></div></div>'
             % (slug, slug, esc(name), mp, cap, legend(ts, md), slug, count_line(ts, 'ml--end'), slug, slug, slug, map_id, rows,
                ('<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-%s" hidden>Show all %d%s</button>'
-                % (slug, len(ts), icon('chevron-down', 16))) if len(ts) > SHOW + 1 else ''))
+                % (slug, n_pub, icon('chevron-down', 16))) if len(ts) > SHOW + 1 else ''))
 
 
-def series_card(site, here):
-    ts = [t for t in site['published'] if t['kind'] == 'series']
-    if not ts:
-        return ''
+def series_cards(ts, here):
+    """One card per series: a series spans many places, so it is on no region map."""
     out = []
     for t in ts:
         meta = [core.trip_date(t, short=True)]
@@ -175,16 +175,45 @@ def series_card(site, here):
         if d:
             meta.append(d)
         g = '<span class="arc-series-g">%s</span>' % core.tile(t, here, 'sc-%s' % t['slug'])
-        out.append('<a class="arc-series" href="%s">%s<span class="arc-series-b"><span class="t-label">Not on a region map</span>'
+        out.append('<a class="arc-series" href="%s">%s<span class="arc-series-b">'
                    '<span class="arc-series-t">%s</span><span class="arc-series-m">%s%s<span class="t-mono-s arc-series-d">%s</span></span></span>'
                    '<span class="arc-series-go">%s%s</span></a>'
                    % (link(here, t['url']), g, core.title_html(t['title']), core.chip(t, variant='inline'), core.tag(series_tag(t)),
-                      core.meta_items([core.nb(x) if '<' not in x else x for x in meta]), 'Read the series' if t['kind'] == 'series' else 'Read report', icon('arrow-right', 16)))
+                      core.meta_items([core.nb(x) if '<' not in x else x for x in meta]), 'Read the series', icon('arrow-right', 16)))
     return '<div class="arc-series-w">%s</div>' % ''.join(out)
 
 
+def other_places(site, here, meta):
+    """'Not on a region map': the series card(s), then one short list per region with too few reports for a region map
+    (render.py draws one from three). Every region in meta 'all_regions' without a map panel gets its #region-<slug> anchor
+    here, so region links on Home and in report breadcrumbs always land (build.py --check verifies them)."""
+    series = [t for t in site['published'] if t['kind'] == 'series']
+    mapped = set(meta.get('regions') or [])
+    groups = []
+    for name in meta.get('all_regions') or []:
+        if name in mapped:
+            continue
+        ts = [t for t in site['trips'] if t['region'] == name and t['kind'] != 'series']
+        ts.sort(key=lambda t: t['kind'] == 'planned')  # stable: newest first, planned last
+        if ts:
+            groups.append((name, content.slugify(name), ts))
+    groups.sort(key=lambda g: (-sum(1 for t in g[2] if t['kind'] != 'planned'), g[0]))  # Utah 2, then A–Z
+    if not series and not groups:
+        return ''
+    regs = ''.join('<div class="arc-oreg" id="region-%s"><div class="arc-oreg-h"><h4 class="arc-oreg-n" id="arc-on-%s">%s</h4>'
+                   '<span class="t-mono-s">%s</span></div><ol class="arc-rows" aria-labelledby="arc-on-%s">%s</ol></div>'
+                   % (slug, slug, esc(name), count_line(ts, 'ml--end'), slug, ''.join(region_row(t, here) for t in ts))
+                   for name, slug, ts in groups)
+    every = series + [t for _, _, ts in groups for t in ts]
+    return ('<div class="arc-other" id="other-places"><div class="arc-inreg-h"><h3 class="t-label" id="arc-other-h">Not on a region map</h3>'
+            '<span class="t-mono-s">%s</span></div>%s%s</div>'
+            % (count_line(every, 'ml--end'), series_cards(series, here) if series else '',
+               ('<div class="arc-oregs">%s</div>' % regs) if regs else ''))
+
+
 def map_section(site, here, regs, meta):
-    if not regs:
+    other = other_places(site, here, meta)
+    if not regs and not other:
         return ''
     tabs = ''.join('<button type="button" role="tab" id="arc-tab-%s" aria-controls="region-%s" aria-selected="%s" tabindex="%s">'
                    '<span>%s</span><span class="arc-tab-n">%s</span></button>'
@@ -192,9 +221,11 @@ def map_section(site, here, regs, meta):
                       count_n(sum(1 for t in ts if t['kind'] != 'planned')))
                    for i, (name, slug, ts) in enumerate(regs))
     panels = ''.join(region_panel(name, slug, ts, here, meta, i == 0) for i, (name, slug, ts) in enumerate(regs))
+    # the tab row is a .tabs-x (base.css / base.js): it scrolls sideways with a fade instead of widening the page
     return ('<section class="arc-map wrap" aria-labelledby="arc-map-h"><h2 class="sr" id="arc-map-h">Map by region</h2>'
-            '<div class="arc-tabs-w"><div class="arc-tabs" role="tablist" aria-label="Region" hidden>%s</div></div>'
-            '%s%s</section>' % (tabs, panels, series_card(site, here)))
+            '%s%s%s</section>'
+            % (('<div class="arc-tabs-w tabs-x"><div class="arc-tabs" role="tablist" aria-label="Region" hidden>%s</div></div>' % tabs)
+               if tabs else '', panels, other))
 
 
 def archive_section(site, here):
@@ -207,37 +238,45 @@ def archive_section(site, here):
         groups[-1][1].append(t)
     if site['planned']:
         groups.append(('Planned', list(site['planned'])))
-    chips = ['<button type="button" class="arc-chip" data-filter="all" aria-pressed="true"><span class="arc-chip-l">All</span></button>']
+    # activity filter: a radio group (base.js gives it one tab stop and arrow / Home / End keys; archive.js applies it)
+    chips = ['<button type="button" class="arc-chip" role="radio" data-filter="all" aria-checked="true" tabindex="0">'
+             '<span class="arc-chip-l">All</span></button>']
     for a, lab in core.NAV:
         k = sum(1 for t in site['published'] if t['activity'] == a)
         if not k:
             continue
-        chips.append('<button type="button" class="arc-chip" data-filter="%s" aria-pressed="false">'
+        chips.append('<button type="button" class="arc-chip" role="radio" data-filter="%s" aria-checked="false" tabindex="-1">'
                      '<span class="chip-sw" style="background:%s" aria-hidden="true"></span><span class="arc-chip-l">%s</span>'
                      '<span class="arc-chip-n">%s</span></button>' % (a, core.ACT[a][3], esc(lab), count_n(k)))
     # rows are core.table_row (li > a): status-only tags (planned rows say PLANNED in the date cell) + filter data for archive.js
     row = lambda t: core.table_row(t, here, tags='' if t['kind'] == 'planned' else core.trip_tags(t, shape=False),  # noqa: E731
                                    attrs=' data-kind="%s"' % t['kind'])  # core.table_row emits data-act
-    body = []
+    body, years = [], []
     for y, ts in groups:
         gid = 'yr-%s' % str(y if y is not None else 'undated').lower()
         label = str(y) if y is not None else 'Undated'
         body.append('<div class="arc-yr" data-group="%s"><div class="arc-yr-h"><h3 class="t-label" id="%s">%s</h3>'
                     '<span class="t-mono-s arc-yr-n">%s</span></div><ol class="arc-rows2" aria-labelledby="%s">%s</ol></div>'
                     % (gid, gid, label, count_line(ts, 'ml--end'), gid, ''.join(row(t) for t in ts)))
+        # year index: the count is the group's published reports (archive.js rescopes it to the activity filter); none on Planned
+        k = sum(1 for t in ts if t['kind'] != 'planned')
+        years.append('<li data-group="%s"><a href="#%s">%s%s</a></li>'
+                     % (gid, gid, label, '' if y == 'Planned' else '<span class="arc-years-n">%s</span>' % count_n(k)))
+    index = ('<nav class="arc-years" aria-label="Jump to year"><ul>%s</ul></nav>' % ''.join(years)) if len(years) > 1 else ''
     return ('<section class="arc-all wrap sec" id="all-reports" aria-labelledby="all-reports-h">%s'
-            '<div class="arc-filt" role="group" aria-label="Filter by activity" hidden>%s</div>'
+            '<div class="arc-filt" role="radiogroup" aria-label="Filter by activity" hidden>%s</div>%s'
             '<p class="sr" id="arc-live" aria-live="polite"></p>'
             '<div class="rtab arc-table"><div aria-hidden="true">%s</div>%s</div></section>'
-            % (core.section_head('All reports', count_line(trips), id_='all-reports-h'), ''.join(chips), core.table_head(), ''.join(body)))
+            % (core.section_head('All reports', count_line(trips), id_='all-reports-h'), ''.join(chips), index,
+               core.table_head(), ''.join(body)))
 
 
 def build(site):
     here = HERE
     meta = site_meta()
     regs = regions(site, meta)
-    body = head_block(site, regs) + map_section(site, here, regs, meta) + archive_section(site, here)
-    desc = 'Every trip report on a map by region, and the full archive by year with GPX tracks.'
+    body = head_block(site, regs, meta) + map_section(site, here, regs, meta) + archive_section(site, here)
+    desc = 'Every trip report by region and by year, with GPX tracks; region maps where there are three or more reports.'
     head = ''
     if regs:
         # the first region panel's map is the first-screen image: preload its hillshade and base layer (other panels stay lazy)

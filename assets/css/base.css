@@ -28,6 +28,7 @@ body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/24
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 img, svg { display: block; max-width: 100%; }
 img { height: auto; }
+img.gl { display: block; }  /* track glyphs and tiles (core.glyph / core.tile): cached SVG images */
 a { color: inherit; text-decoration: none; }
 a:hover { color: var(--route-ink); }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
@@ -170,7 +171,7 @@ html.km .u-mi { display: none; }
   body.past-title .site-h .brand { display: none; }
   body.past-title .ab-trip { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; min-height: 44px; color: var(--ink);
     animation: ab-in .12s ease-out; }
-  .ab-g svg { width: 40px; height: 30px; }
+  .ab-g :is(svg, img) { width: 40px; height: 30px; }
   .ab-t { font: 600 15px/20px var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
 @keyframes ab-in { from { opacity: 0; } }
@@ -194,7 +195,6 @@ html.km .u-mi { display: none; }
 .menu-w { display: flex; flex-direction: column; gap: 2px; }
 .menu-sub { font: 400 13px/18px var(--sans); color: var(--ink-3); }
 .menu-sub .ml { --ml-sep: 1.1em; }
-@media (max-width: 559.98px) { .menu-sub .ml-br { display: block; } }
 .menu-units { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; }
 /* tablets: Reports | Site + Units side by side */
 @media (min-width: 760px) {
@@ -287,7 +287,9 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 .trow.is-map-hl .trow-t, .rtab-r.is-map-hl .rtab-tt { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 
 /* full-screen map page (trips/<slug>/map/) */
-.p-fsmap .fs-bar { padding: 12px 0; }
+.p-fsmap .fs-bar { padding: 12px 0; display: flex; align-items: center; }
+.fs-pan { display: none; color: var(--ink-3); margin-left: 12px; }
+.is-pannable .fs-pan { display: inline; }  /* base.js: the map is wider than the screen */
 .p-fsmap .fs-map { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100svh - 140px); }
 .p-fsmap .fs-map:focus-visible { outline-offset: -2px; }
 .p-fsmap .fs-map .map { width: 1440px; }
@@ -326,10 +328,20 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 .strip-v .unit { font: 400 13px/16px var(--mono); margin-left: 6px; }
 .dx-p { margin: 0 -0.14em; }  /* Data-XL punctuation between digits (core.dx) */
 .strip-s { text-transform: uppercase; }
-/* phones: an odd last cell (SUP's avg pace, MTB avg speed) runs the full width, so its top hairline is continuous */
-@media (max-width: 759.98px) { .strip:not(.mul-strip--long) .strip-c:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+/* phones: an odd last cell (SUP's avg pace, MTB avg speed) runs the full width as one compact 44px line,
+   'AVG SPEED' left and '7.3 mph' right, so its top hairline is continuous and the map starts higher */
+@media (max-width: 759.98px) {
+  .strip:not(.mul-strip--long) .strip-c:last-child:nth-child(odd) { grid-column: 1 / -1; flex-direction: row; align-items: baseline;
+    justify-content: space-between; gap: 16px; padding-block: 10px; padding-right: 0; }
+  .strip:not(.mul-strip--long) .strip-c:last-child:nth-child(odd) .strip-v { font-size: 20px; line-height: 24px; }
+  .strip:not(.mul-strip--long) .strip-c:last-child:nth-child(odd) .strip-s { display: none; }
+}
 @media (min-width: 760px) {
-  .strip { grid-template-columns: repeat(var(--cells, 4), minmax(0, 1fr)); }
+  .strip { grid-template-columns: repeat(var(--cells, 4), minmax(0, 1fr)); grid-template-rows: auto auto auto; }
+  /* label / value / sub-line each share one row across the cells (subgrid), so a label that wraps ('DISTANCE RECORDED')
+     never drops its value below the others */
+  .strip-c { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 4px; align-content: start; }
+  .strip-c > :first-child { align-self: end; }
   .strip-c { padding: 20px 24px; border-top: 0 !important; }
   .strip-c:first-child { padding-left: 0; }
   .strip-c + .strip-c { border-left: 1px solid var(--rule); }
@@ -388,7 +400,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 .trow-a { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 20px 0; color: var(--ink); }
 .trow-a:hover { color: var(--ink); background: var(--surface); }
 .trow-a:hover .trow-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
-.trow-tile svg { width: 100%; height: auto; aspect-ratio: 200 / 152; }
+.trow-tile :is(svg, img) { width: 100%; height: auto; aspect-ratio: 200 / 152; }
 .trow-body { display: flex; flex-direction: column; min-width: 0; }
 .trow-meta { text-transform: uppercase; }
 /* tablets: 'DATE' / 'PLACE · SHAPE' (desktop: one line; phones: date · place) */
@@ -407,6 +419,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 .trow-exl { margin-top: 16px; }
 .trow-ex { margin-top: 16px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .trow-exl + .trow-ex { margin-top: 4px; }
+.trow-ps { display: none; text-transform: uppercase; }  /* the phone stats line (core.row_stats_line) */
 @media (min-width: 560px) {
   .trow-a { grid-template-columns: 160px minmax(0, 1fr); gap: 20px; }
   .trow-tile { width: 160px; }
@@ -415,20 +428,42 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
   .trow-a { grid-template-columns: 200px minmax(0, 1fr); gap: 24px; padding: 24px 0; }
   .trow-tile { width: 200px; }
 }
-@media (max-width: 559.98px) {
-  .trow-shape, .trow-stats .u-hm { display: none; }
-  .trow-stats { column-gap: 12px; justify-content: space-between; }
+/* 560-759: four equal stat columns in the text column beside the tile, so values never shift with their digits */
+@media (min-width: 560px) and (max-width: 759.98px) {
+  .trow-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 8px; justify-content: normal; }
 }
-@media (max-width: 359.98px) { .trow-stats { grid-template-columns: repeat(2, max-content); justify-content: start; column-gap: 40px; } }
-/* 560-759: the text column beside the tile is too narrow for 4 x max-content + 32px gaps */
-@media (min-width: 560px) and (max-width: 759.98px) { .trow-stats { column-gap: 12px; justify-content: space-between; } }
 /* >= 760: fixed 120px stat columns, so DIST / GAIN / GPS MAX / MOVING start at the same x on every row */
 @media (min-width: 760px) { .trow-stats { grid-template-columns: repeat(4, minmax(0, 120px)); column-gap: 0; } }
+/* brief rows (no excerpt: track-only trips): a 120×91 tile top-left in the same 160/200 column, so every title still starts
+   at one x; a tighter row (1440: ~132px instead of 200) with the same hover fill and map highlight */
+.trow--brief .trow-a { padding-block: 16px; }
+@media (min-width: 560px) { .tlist .trow--brief .trow-tile { width: 120px; align-self: start; } }
+@media (min-width: 760px) {
+  .trow--brief .trow-t { font-size: 20px; line-height: 26px; }
+  .trow--brief .trow-stats { margin-top: 12px; }
+}
+/* phones: a 96px tile beside the meta line, title and Mono-S stats line (the stat grid goes); tags, day ruler and excerpt
+   run full width under them. The tile's extra height goes below the stats line (row 3 is the flexible one). */
+@media (max-width: 559.98px) {
+  .trow-a { grid-template-columns: 96px minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 14px; row-gap: 0; padding: 16px 0; }
+  .trow-tile { grid-column: 1; grid-row: 1 / span 3; align-self: start; }
+  .trow-body { display: contents; }
+  .trow-meta { grid-column: 2; grid-row: 1; }
+  .trow-shape { display: none; }
+  .trow-t { grid-column: 2; grid-row: 2; font-size: 18px; line-height: 23px; }
+  .trow-ps { display: block; grid-column: 2; grid-row: 3; align-self: start; margin-top: 4px; }
+  .trow-stats { display: none; }
+  .trow-tags, .trow-exl, .trow-ex, .trow-dr { grid-column: 1 / -1; }
+  .trow-tags { margin-top: 12px; }
+  .trow-ex { margin-top: 10px; }
+  .trow-exl + .trow-ex { margin-top: 4px; }
+  .trow-dr { max-width: none; }
+}
 
 /* phone rows */
 .prow { border-bottom: 1px solid var(--rule); }
 .prow a { min-height: 72px; padding: 10px 0; display: flex; align-items: center; gap: 12px; color: var(--ink); }
-.prow a > svg:first-child { width: 64px; height: 48px; background: var(--surface); }
+.prow a > :is(svg, img):first-child { width: 64px; height: 48px; background: var(--surface); }
 .prow-b { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .prow-t { font: 600 16px/21px var(--sans); }
 .prow-m { display: flex; align-items: center; gap: 6px; text-transform: uppercase; }
@@ -447,8 +482,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 .rtab-r + .rtab-r, .rtab > li + li > .rtab-r:first-child, .rtab .rtab-rows > li + li > .rtab-r { border-top: 1px solid var(--rule); }
 .rtab-r:hover { color: var(--ink); background: var(--surface); }
 .rtab-r > :nth-child(2), .rtab-r > :nth-child(4), .rtab-r > :nth-child(6), .rtab-r > :nth-child(7) { display: none; }
-.rtab-g svg { width: 64px; height: auto; aspect-ratio: 112 / 64; background: none; }
-.rtab-g .gl-trk { vector-effect: non-scaling-stroke; }
+.rtab-g :is(svg, img) { width: 64px; height: auto; aspect-ratio: 112 / 64; background: none; }
 .rtab-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .rtab-tt { font: 500 16px/21px var(--sans); }
 .rtab-loc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -461,8 +495,35 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
   .rtab-h > *, .rtab-r > * { display: block !important; }
   .rtab-h > :nth-child(2), .rtab-r > :nth-child(2) { display: none !important; }
   .rtab-r > .rtab-title { display: flex !important; }
-  .rtab-g svg { width: 112px; }
+  .rtab-g :is(svg, img) { width: 112px; }
   .rtab-r { min-height: 80px; }
+}
+/* 900–1199: no Activity column, so the title cell's parts join the row grid (display: contents) and the activity icon,
+   in its activity colour, leads the meta line under the title: 'icon · TAG · PLACE' (the word is spoken from the title's
+   .sr span). No gutters: the date carries 16px on its left, the numbers are right-aligned. */
+@media (min-width: 900px) and (max-width: 1199.98px) {
+  .rtab-h { grid-template-columns: 112px minmax(0, 1fr) 148px 80px 96px 112px; column-gap: 0; }
+  .rtab-h > :nth-child(4) { padding-left: 16px; }
+  .rtab-r { grid-template-columns: 112px auto auto minmax(0, 1fr) 148px 80px 96px 112px; grid-template-rows: 1fr auto auto 1fr;
+    column-gap: 0; row-gap: 0; }
+  .rtab-r > .rtab-title { display: contents !important; }
+  .rtab-r > .rtab-act { display: flex !important; grid-column: 2; grid-row: 3; margin: 4px 6px 0 0; }
+  .rtab-act .chip-word { display: none; }
+  .rtab-act .ic { width: 14px; height: 14px; }
+  [data-act="ski"] .rtab-act .chip { color: var(--ski); }
+  [data-act="climb"] .rtab-act .chip { color: var(--clm); }
+  [data-act="hike"] .rtab-act .chip { color: var(--hik); }
+  [data-act="mtb"] .rtab-act .chip { color: var(--mtb); }
+  [data-act="other"] .rtab-act .chip { color: var(--oth); }
+  .rtab-g { grid-column: 1; grid-row: 1 / -1; }
+  .rtab-g :is(svg, img) { width: 96px; }
+  .rtab-tt { grid-column: 2 / 5; grid-row: 2; }
+  .rtab .tag { grid-column: 3; grid-row: 3; margin: 4px 8px 0 0; }
+  .rtab-loc { grid-column: 4; grid-row: 3; margin-top: 4px; min-width: 0; }
+  .rtab-r > .rtab-date { grid-column: 5; grid-row: 1 / -1; padding-left: 16px; color: var(--ink-2); }
+  .rtab-r > .num:nth-child(5) { grid-column: 6; grid-row: 1 / -1; }
+  .rtab-r > .num:nth-child(6) { grid-column: 7; grid-row: 1 / -1; }
+  .rtab-r > .num:nth-child(7) { grid-column: 8; grid-row: 1 / -1; }
 }
 @media (min-width: 1200px) {
   .rtab-h, .rtab-r { grid-template-columns: 128px 168px minmax(0, 1fr) 128px 96px 96px 120px; column-gap: 0; }
@@ -480,7 +541,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
     min-height: 88px; padding: 12px 0; align-content: center; }
   .rtab--compact li:first-child > .rtab-r { border-top: 0; }
   .rtab--compact .rtab-r > .rtab-g { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
-  .rtab--compact .rtab-g svg { width: 64px; }
+  .rtab--compact .rtab-g :is(svg, img) { width: 64px; }
   .rtab--compact .rtab-r > .rtab-title { grid-column: 2 / 5; grid-row: 1; padding-left: 14px; }
   .rtab--compact .rtab-tt { font: 600 17px/22px var(--sans); }
   .rtab--compact .rtab-loc { display: none; }
@@ -505,7 +566,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
     border-top: 1.5px solid var(--ink-3); border-right: 1.5px solid var(--ink-3); transform: rotate(45deg); }
 }
 @media (min-width: 760px) and (max-width: 899.98px) {
-  .rtab--compact .rtab-g svg { width: 88px; }
+  .rtab--compact .rtab-g :is(svg, img) { width: 88px; }
   .rtab--compact .rtab-r { grid-template-columns: 88px auto auto minmax(0, 1fr) 20px; }
   .rtab--compact .rtab-r > .rtab-title, .rtab--compact .rtab-r > .rtab-act { padding-left: 20px; }
   .rtab--compact .rtab-loc { display: block; }
@@ -520,12 +581,12 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 .pager-n { font: 600 18px/24px var(--sans); }
 .pager .next { justify-content: flex-end; text-align: right; }
 .pager .next .pager-t { align-items: flex-end; }
-.pager svg.glyph { width: 112px; height: 64px; flex-shrink: 0; align-self: center; }
+.pager .glyph { width: 112px; height: 64px; flex-shrink: 0; align-self: center; }
 @media (max-width: 759.98px) {
   /* phones: both cells read glyph-first, left-aligned */
   .pager .next { flex-direction: row-reverse; justify-content: flex-end; text-align: left; }
   .pager .next .pager-t { align-items: flex-start; }
-  .pager svg.glyph { width: 64px; height: auto; }
+  .pager .glyph { width: 64px; height: auto; }
   .pager a { gap: 16px; }
 }
 @media (min-width: 760px) {
@@ -537,7 +598,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 /* tablets: 'MON, JAN 19, 2026' / '8.6 MI · 3,619 FT GAIN', and a smaller glyph gives the titles room */
 @media (min-width: 760px) and (max-width: 1199.98px) {
   .pager .ml-br { display: block; }
-  .pager svg.glyph { width: 80px; height: auto; }
+  .pager .glyph { width: 80px; height: auto; }
   .pager a { gap: 16px; }
 }
 @media (min-width: 760px) {
@@ -547,6 +608,16 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
   .pager .next:only-child { grid-column: 2; }
   .pager .prev:only-child { grid-column: 1 / -1; }
 }
+
+/* ---------------------------------------------------------------- scrollable tab row (.tabs-x > [role=tablist], base.js)
+   A tab row that never widens the page: it scrolls sideways (no scrollbar), a paper fade marks more tabs to the right,
+   and base.js keeps the selected tab in view. Pages keep their own tab typography and gaps. */
+.tabs-x { position: relative; }
+.tabs-x > [role="tablist"] { display: flex; overflow-x: auto; scrollbar-width: none; }
+.tabs-x > [role="tablist"]::-webkit-scrollbar { display: none; }
+.tabs-x::after { content: ""; position: absolute; right: 0; top: 0; bottom: 1px; width: 32px; pointer-events: none; opacity: 0;
+  transition: opacity .15s; background: linear-gradient(to right, rgba(242, 241, 236, 0), var(--paper)); }
+.tabs-x.is-scroll:not(.is-end)::after { opacity: 1; }
 
 /* ---------------------------------------------------------------- misc */
 .empty { padding: 40px 24px; border: 1px solid var(--rule); background: var(--surface); display: flex; flex-direction: column;
@@ -579,7 +650,8 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 @media (forced-colors: active) {
   .nav a[aria-current]::after, .arc-tabs [aria-selected="true"]::after, .sec-tabs [aria-selected="true"]::after, .mul-dn-i[aria-current]::after,
   .ser-mnav a[aria-current]::after, .bbar a[aria-current]::before, .rail-toc a[aria-current]::before { forced-color-adjust: none; background: Highlight; }
-  .sec-seg-a[aria-current="true"], .arc-chip[aria-pressed="true"], .units button[aria-checked="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  /* radios (aria-checked) and the no-JS section band's 'All' (aria-current) */
+  .sec-seg-a:is([aria-checked="true"], [aria-current="true"]), .arc-chip[aria-checked="true"], .units button[aria-checked="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
   .menu-list a[aria-current] { border-left: 3px solid Highlight; box-shadow: none; }
   .mk-pin:focus-visible > circle:nth-of-type(2) { stroke: Highlight; }
 }

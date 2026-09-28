@@ -6,6 +6,7 @@
 .sec-h1row .disc { width: 36px !important; height: 36px !important; }
 .sec-h1row .disc svg { width: 21px; height: 21px; }
 .sec-stats { margin-top: 12px; font: 400 13px/18px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); }
+.sec-stats .ml-br { display: block; }  /* counts on line 1, places (biggest first) on line 2 */
 .sec-intro { margin-top: 16px; max-width: 612px; font: 400 17px/27px var(--serif); color: var(--ink-2); }
 @media (min-width: 760px) {
   .sec-head { padding-top: 32px; }
@@ -32,15 +33,21 @@
 .sec-seg-a + .sec-seg-a { border-left: 1px solid var(--rule); }
 .sec-seg-a .ic { width: 20px; height: 20px; color: var(--ink-2); }
 .sec-seg-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
+/* the chosen segment: aria-checked once section.js has made the band a radio group; aria-current (All) without JS */
 a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
-.sec-seg-a[aria-current="true"], a.sec-seg-a[aria-current="true"]:hover { background: var(--ink); color: var(--paper); }
-.sec-seg-a[aria-current="true"] .ic { color: var(--paper); }
-.sec-seg-a[aria-current="true"] .sec-seg-n { color: #B9B6AD; }
-.sec-seg-a[aria-current="true"] + .sec-seg-a { border-left-color: var(--ink); }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]), a.sec-seg-a:is([aria-checked="true"], [aria-current="true"]):hover {
+  background: var(--ink); color: var(--paper); }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .ic { color: var(--paper); }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .sec-seg-n { color: #B9B6AD; }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) + .sec-seg-a { border-left-color: var(--ink); }
 .sec-seg-a[aria-disabled="true"] { color: var(--ink-3); cursor: default; }
 .sec-seg-a[aria-disabled="true"] .ic { color: var(--ink-3); }
 .sec-seg-a:focus-visible { outline-offset: -3px; }
-.sec-seg-a[aria-current="true"]:focus-visible { outline-color: var(--paper); }  /* ink ring on the ink segment would vanish */
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]):focus-visible { outline-color: var(--paper); }  /* ink ring on the ink segment would vanish */
+@media (forced-colors: active) {
+  .sec-seg-a[aria-checked="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .sec-seg-a[aria-checked="true"] .ic, .sec-seg-a[aria-checked="true"] .sec-seg-n { color: HighlightText; }
+}
 @media (max-width: 759.98px) {
   /* phones scroll the control edge to edge (it peeks off the screen instead of being clipped at the margin) */
   .sec-band-in { width: 100%; padding-inline: var(--m); scroll-padding-inline: var(--m); }
@@ -55,26 +62,17 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 /* ---------------------------------------------------------------- page flow */
 .sec-reports { margin-top: 32px; }
 .sec-reports > * + * { margin-top: var(--sec); }
+.sec-reports > :not(.is-off):not(:not(.is-off) ~ *) { margin-top: 0; }  /* a filter hid the blocks above: no section gap */
 @media (min-width: 760px) { .sec-reports { margin-top: 40px; } }
 @media (min-width: 1200px) { .sec-reports { margin-top: 48px; } }
 .p-section .is-off { display: none !important; }
 
 /* ---------------------------------------------------------------- list rows on section pages (core.trip_row) */
 .sec-tlist { max-width: 824px; border-top: 0; }  /* the section head / season divider ink rule is the list's top rule */
-@media (max-width: 559.98px) {
-  /* phones: 96px tile beside the meta line + title; tags, stats, ruler and excerpt run full width under them */
-  .p-section .trow-a { grid-template-columns: 96px minmax(0, 1fr); column-gap: 14px; row-gap: 0; padding: 16px 0 20px; }
-  .p-section .trow-tile { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
-  .p-section .trow-body { display: contents; }
-  .p-section .trow-meta { grid-column: 2; grid-row: 1; align-self: end; }
-  .p-section .trow-t { grid-column: 2; grid-row: 2; align-self: start; font-size: 18px; line-height: 23px; }
-  .p-section .trow-tags, .p-section .trow-stats, .p-section .trow-exl, .p-section .trow-ex, .p-section .trow-dr { grid-column: 1 / -1; }
-  .p-section .trow-tags { margin-top: 12px; }
-  .p-section .trow-ex { margin-top: 10px; }
-  .p-section .trow-exl + .trow-ex { margin-top: 4px; }
-  .p-section .trow-dr { max-width: none; }
-}
-/* 560–759: the 160px tile leaves ~350–400px, too tight for four stats at a fixed 32px gap */
+/* MTB / Hiking: year groups under the 'More <x>' head (the Ski season divider, 824 like the rows) */
+.sec-more .sec-season { max-width: 824px; }
+.sec-more .sec-season:first-of-type { margin-top: 24px; }
+/* the phone row layout (96px tile, Mono-S stats line) is the shared component's (base.css list rows) */
 
 /* ---------------------------------------------------------------- featured block */
 .sec-feat-l { display: block; }
@@ -139,6 +137,8 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
   .sec-feat-pics + .sec-feat-txt { margin-top: 0; }
   .sec-feat-grid--nophoto .sec-feat-side { display: block; }
 }
+/* 760–999: photo about 276 wide, write-up about 388 (about 44 characters a line); 1:1 from 1000 */
+@media (min-width: 760px) and (max-width: 999.98px) { .sec-feat-side { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } }
 @media (min-width: 1200px) {
   .sec-feat-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); row-gap: 0; }
   .sec-feat-map { grid-column: 1 / span 7; grid-row: 1; }
@@ -202,15 +202,25 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
 /* ---------------------------------------------------------------- ski: season list + sticky region panel */
 .sec-split { margin-top: 32px; }
 .sec-season + .sec-season { margin-top: 48px; }
+/* a filter hides groups (.is-off): the first group left shown sits where the first group does */
+.sec-list > .sec-season:not(.sec-season:not(.is-off) ~ *) { margin-top: 0; }
+.sec-more > .sec-season:not(.sec-season:not(.is-off) ~ *) { margin-top: 24px; }
 .sec-div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 .sec-div-t { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
 .sec-season .tlist { border-top: 0; }
 .sec-list { min-width: 0; max-width: 824px; }
-.sec-panel { margin-top: var(--sec); min-width: 0; }
+.sec-panel { min-width: 0; }
+/* below 960 the panel (tabs + map) leads the list, as on map/: header → season band → region tabs + map → seasons */
+@media (max-width: 959.98px) {
+  .sec-split { display: flex; flex-direction: column; }
+  .sec-panel { margin: 0 0 32px; }
+}
+@media (min-width: 760px) and (max-width: 959.98px) { .sec-panel { margin-bottom: 40px; } }
 .sec-panel-h { margin-bottom: 8px; font: 650 20px/26px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; }
 @media (min-width: 760px) { .sec-panel-h { font-size: 28px; line-height: 34px; margin-bottom: 12px; } }
-.sec-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
-.sec-tabs::-webkit-scrollbar { display: none; }
+/* region tabs biggest first; the row scrolls sideways inside .tabs-x (base.css / base.js) instead of widening the page */
+.sec-tabs { display: flex; gap: 16px; border-bottom: 1px solid var(--rule); }
+@media (min-width: 1200px) { .sec-tabs { gap: 24px; } }
 .sec-tabs [role="tab"] { position: relative; height: 44px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   font: 500 15px/20px var(--sans); color: var(--ink-2); }
 .sec-tabs [role="tab"]:hover { color: var(--ink); }
@@ -236,14 +246,15 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
   .sec-panel { max-width: none; }
   .sec-panel-in { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto auto 1fr;
     column-gap: 24px; align-items: start; }
-  .sec-panel-h, .sec-tabs, .sec-pcap { grid-column: 1; }
+  .sec-panel-h, .sec-tabs-x, .sec-pcap { grid-column: 1; }
   .sec-maps { grid-column: 2; grid-row: 1 / span 3; margin-top: 0; }
   .sec-maps .mv--desktop { display: none; }
   .sec-maps .mv--phone { display: block; }
 }
 @media (min-width: 960px) {
   .sec-split { display: grid; grid-template-columns: minmax(0, 1fr) 360px; column-gap: 24px; align-items: stretch; }
-  .sec-panel { margin-top: 0; }
+  .sec-list { grid-column: 1; grid-row: 1; }
+  .sec-panel { grid-column: 2; grid-row: 1; }
   .sec-panel-h { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .sec-panel-in { position: sticky; top: calc(var(--header-h) + 24px); margin-top: -16px; }
   .sec-list .trow-a { grid-template-columns: 160px minmax(0, 1fr); gap: 20px; }
@@ -255,7 +266,16 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
   .sec-maps .mv--desktop { display: none; }
   .sec-maps .mv--phone { display: block; }
   .sec-avy { max-width: none; }
+  /* the stuck panel fits the viewport: sticky top 24 + tabs 45 + 12 + map + caption (4 lines in the 360–390 column) + 12
+     to spare; the map (the 390×480 render) narrows, left-aligned */
+  .sec-maps .mv { width: min(100%, calc((100vh - var(--header-h) - 24px - 45px - 12px - 92px - 12px) * 390 / 480)); }
 }
+@media (min-width: 1200px) {
+  /* the same with the 506×680 render and a 3-line caption (1280×760: the map, its scale bar and the caption all show) */
+  .sec-maps .mv { width: min(100%, calc((100vh - var(--header-h) - 24px - 45px - 12px - 72px - 12px) * 506 / 680)); }
+}
+/* too short a window for any of that: the panel scrolls with the page */
+@media (min-width: 960px) and (max-height: 599.98px) { .sec-panel-in { position: static; } }
 /* 1100–1199: the 390×480 phone-shaped panel render shows at 1:1 */
 @media (min-width: 1100px) and (max-width: 1199.98px) { .sec-split { grid-template-columns: minmax(0, 1fr) 390px; } }
 @media (min-width: 760px) { .sec-split { margin-top: 40px; } .sec-season + .sec-season { margin-top: 64px; } }

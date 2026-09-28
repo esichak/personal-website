@@ -108,11 +108,26 @@
   .rep-aside-ph { max-width: 620px; }
   .rep-aside-ph img { aspect-ratio: 4 / 5; object-fit: cover; }
 }
+/* 760–999: the photo stands beside the write-up at 240×300 (4:5), top-aligned with it; the Beta rail (when there is one)
+   takes the row above, so auto-placement puts the write-up and the photo on the next row (or on row 1 without a rail) */
+@media (min-width: 760px) and (max-width: 999.98px) {
+  .rep-body--ph { grid-template-columns: minmax(0, 1fr) 240px; column-gap: 24px; align-items: start; }
+  .rep-body--ph .rep-rail { grid-column: 1 / -1; }
+  .rep-body--ph .rep-main { grid-column: 1; }
+  .rep-aside-ph { grid-column: 2; max-width: none; }
+  /* no write-up: the photo keeps its 240 column on the page's left edge */
+  .rep-body--ph:has(> .rep-main:empty) { grid-template-columns: 240px minmax(0, 1fr); }
+  .rep-body--ph:has(> .rep-main:empty) .rep-aside-ph { grid-column: 1; }
+}
 @media (min-width: 1000px) {
   .rep-body--ph .rep-rail { grid-column: 1 / span 3; }
   .rep-body--ph .rep-main { grid-column: 4 / span 6; }
   .rep-aside-ph { grid-column: 10 / span 3; grid-row: 1; align-self: start; }
+  /* no write-up: the photo takes the write-up's place (col 4), or the rail's when there is no Beta either */
+  .rep-body--ph:has(> .rep-main:empty) .rep-aside-ph { grid-column: 4 / span 3; }
+  .rep-body--ph:has(> .rep-main:empty):has(> .rep-rail:empty) .rep-aside-ph { grid-column: 1 / span 3; }
 }
+.rep-body--ph > .rep-main:empty { display: none; }
 
 /* photos: justified rows (core.photo_rows, base.css .jrows) */
 .rep-sh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }

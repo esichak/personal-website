@@ -2,10 +2,12 @@
 
 Maps = hillshade/band PNG (uploaded asset) + SVG overlay fragment (classes styled by MAP_CSS).
 """
+import bisect
 import json
 import math
 import os
 import re
+import zlib
 
 import geo
 from geo import FT, MI, Proj
@@ -127,6 +129,21 @@ def fmt_int(v):
 def esc(s):
     return (s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
             .replace('{{', '{ {'))
+
+
+def D(pts, closed=False):
+    """Path data as every mapkit writer emits it: relative ('M x y l dx dy …'), 0.1 px, no drift (geo.d_attr rel=True)."""
+    return geo.d_attr(pts, closed, rel=True)
+
+
+def u_span(mi_txt, km_txt):
+    """Unit-switched text for the MI|KM toggle (base.css hides .u-mi / .u-km): two tspans inside one <text>."""
+    return '<tspan class="u-mi">%s</tspan><tspan class="u-km">%s</tspan>' % (mi_txt, km_txt)
+
+
+def km_label(km_len):
+    """Scale-bar / axis wording for a metric length: under 1 km in metres ('250 m'), else km ('2 km')."""
+    return ('%d m' % round(km_len * 1000)) if km_len < 1 else ('%g km' % km_len)
 
 
 # ---------------------------------------------------------------- track processing
@@ -383,7 +400,7 @@ def contours_svg(proj, interval_ft, index_every=5, step=2.0, zoom=None, labels=T
             if geo.path_len(line) < min_len:
                 continue
             s_ = geo.rdp(line, eps)
-            d = geo.d_attr(s_, prec=1)
+            d = D(s_)
             (index if is_idx else minor).append(d)
             if is_idx and labels and geo.path_len(s_) > 220:
                 cands.append((geo.path_len(s_), k, s_))
@@ -480,22 +497,46 @@ def clip_runs(xy, w, h, m=CLIP_MARGIN):
 
 
 GAP_M = 2000.0  # consecutive fixes farther apart than this are a recording gap, drawn as a gap
+TRAIL_NEAR_M = 2000.0  # OSM trails are drawn only this close to a track
+BASE_GZ_KB_PHONE, BASE_GZ_KB = 40, 80  # base-layer budgets (gzipped): phone renders / desktop and wide renders
+# peak-name spots around its triangle (dx, baseline dy, anchor): E, W, NE, NW, SE, SW, N, S
+PEAK_SPOTS = ((8, 4, 'start'), (-8, 4, 'end'), (6, -8, 'start'), (-6, -8, 'end'), (6, 16, 'start'), (-6, 16, 'end'),
+              (0, -9, 'middle'), (0, 18, 'middle'))
+
+
+MIN_RUN_M = 60.0  # a piece left between two recording gaps that is shorter than this is noise, not a route: dropped
+
+
+def gap_ranges(cd, n=None):
+    """Index ranges [a, b) of a track split wherever consecutive fixes are more than GAP_M apart. When the track does
+    split, pieces shorter than MIN_RUN_M are dropped (the longest piece always stays); pieces of < 2 points never draw."""
+    n = len(cd) if n is None else min(n, len(cd))
+    runs, a = [], 0
+    for i in range(1, n):
+        if cd[i] - cd[i - 1] > GAP_M:
+            runs.append((a, i))
+            a = i
+    runs.append((a, n))
+    runs = [(a_, b_) for a_, b_ in runs if b_ - a_ >= 2]
+    if len(runs) > 1:
+        def ln(r):
+            return cd[r[1] - 1] - cd[r[0]]
+        longest = max(runs, key=ln)
+        runs = [r for r in runs if r is longest or ln(r) >= MIN_RUN_M]
+    return runs
 
 
 def gap_split(xy, cd):
     """Split a projected polyline into runs wherever the fixes behind it are more than GAP_M apart (cd: cumulative
     metres per point, same length as xy), so a lost signal or a skipped stretch stays a gap, not a straight line."""
-    runs, a = [], 0
-    for i in range(1, min(len(xy), len(cd))):
-        if cd[i] - cd[i - 1] > GAP_M:
-            runs.append(xy[a:i])
-            a = i
-    runs.append(xy[a:])
-    return [r for r in runs if len(r) >= 2]
+    return [xy[a:b] for a, b in gap_ranges(cd, len(xy))]
+
+
+TRACK_EPS = 0.4  # every track / casing run is simplified to at least this many output px before it is written
 
 
 def runs_d(xy, cd, eps):
-    return ''.join(geo.d_attr(geo.rdp(r, eps)) for r in gap_split(xy, cd))
+    return ''.join(D(geo.rdp(r, max(eps, TRACK_EPS))) for r in gap_split(xy, cd))
 
 
 def poly_d(proj, rings, eps=0.4, min_area=0.0, frame=None):
@@ -514,7 +555,7 @@ def poly_d(proj, rings, eps=0.4, min_area=0.0, frame=None):
                 pts = clip_ring(pts, -CLIP_MARGIN, -CLIP_MARGIN, fw + CLIP_MARGIN, fh + CLIP_MARGIN)
         pts = geo.rdp(pts, eps)
         if len(pts) >= 3:
-            parts.append(geo.d_attr(pts, closed=True))
+            parts.append(D(pts, closed=True))
     return ''.join(parts)
 
 
@@ -549,6 +590,43 @@ def track_avoid_fn(xy_list, markers):
     return avoid
 
 
+def join_ways(ways):
+    """Open OSM ways ([(lat, lon)…]) joined end to end wherever two share an endpoint (at a junction of three or more,
+    any one continues the line). Same points, fewer subpaths."""
+    ways = [list(w_) for w_ in ways if len(w_) >= 2]
+    ends = {}
+    for i, w_ in enumerate(ways):
+        ends.setdefault(w_[0], []).append(i)
+        ends.setdefault(w_[-1], []).append(i)
+    used = [False] * len(ways)
+    out = []
+
+    def take(pt, cur_i):
+        for j in ends.get(pt, ()):
+            if not used[j] and j != cur_i:
+                return j
+        return None
+    for i in range(len(ways)):
+        if used[i]:
+            continue
+        used[i] = True
+        line = list(ways[i])
+        for forward in (True, False):
+            while True:
+                pt = line[-1] if forward else line[0]
+                j = take(pt, None)
+                if j is None:
+                    break
+                used[j] = True
+                wj = ways[j] if ways[j][0] == pt else ways[j][::-1]  # oriented to start at the shared point
+                if forward:
+                    line += wj[1:]
+                else:
+                    line = wj[::-1][:-1] + line
+        out.append(line)
+    return out
+
+
 LAST_OSM = {}
 
 
@@ -560,6 +638,10 @@ def render_map(spec):
     w, h = spec['w'], spec['h']
     trks = spec['tracks']
     trim_m = spec.get('trim_m', 0.25 * MI)
+    if spec.get('skin') and any(t.get('style', 'route') == 'route' and getattr(t['track'], 'cat', 'SKI') != 'SKI' for t in trks):
+        # skin (ascent, dashed) / ski (descent, solid) styling means skis: a climb, hike or raft drawn this way is keyed
+        # as SKIN / SKI on its page
+        print('  ! %s: skin styling requested for a non-ski track (%s)' % (name, ', '.join(sorted({t['track'].cat for t in trks}))))
     # geometry per track
     all_pts = []
     for t in trks:
@@ -642,13 +724,30 @@ def render_map(spec):
 
     dense_trk = []
     for pt in proj_tracks:
-        for xy_ in gap_split(pt[1], pt[2]):
+        runs_ = gap_split(pt[1], pt[2])
+        if spec.get('skin') and pt[0].get('style', 'route') == 'route' and not spec.get('small_markers') and pt[0]['track'].ele \
+                and is_out_and_back(pt[0]['track']):
+            # skin / ski legs of an out-and-back are drawn 4 px either side of the track: labels keep clear of both
+            runs_ = runs_ + [offset_line(r_, d_) for r_ in runs_ for d_ in (-4, 4)]
+        for xy_ in runs_:
             for (xa, ya), (xb, yb) in zip(xy_, xy_[1:]):
-                n_ = max(1, int(math.hypot(xb - xa, yb - ya) / 4))
+                n_ = max(1, int(math.hypot(xb - xa, yb - ya) / 3))
                 dense_trk.extend((xa + (xb - xa) * k / n_, ya + (yb - ya) * k / n_) for k in range(n_))
+            if xy_:
+                dense_trk.append(xy_[-1])
+    DC = 32.0  # grid index over the densified track: a box test visits only the cells it covers
+    dense_grid = {}
+    for x_, y_ in dense_trk:
+        dense_grid.setdefault((int(x_ // DC), int(y_ // DC)), []).append((x_, y_))
 
     def hits_track_dense(b, pad=3):
-        return any(b[0] - pad <= x_ <= b[2] + pad and b[1] - pad <= y_ <= b[3] + pad for x_, y_ in dense_trk)
+        x0_, y0_, x1_, y1_ = b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad
+        for cx_ in range(int(x0_ // DC), int(x1_ // DC) + 1):
+            for cy_ in range(int(y0_ // DC), int(y1_ // DC) + 1):
+                for x_, y_ in dense_grid.get((cx_, cy_), ()):
+                    if x0_ <= x_ <= x1_ and y0_ <= y_ <= y1_:
+                        return True
+        return False
 
     def in_frame(b, m=EDGE):
         return b[0] >= m and b[2] <= w - m and b[1] >= m and b[3] <= h - m
@@ -717,7 +816,7 @@ def render_map(spec):
         if spec.get('osm') == 'report':
             for pts, tags in geo.osm_lines(osm, lambda t: t.get('waterway') in ('river', 'stream')):
                 cls = 'mk-river' if tags.get('waterway') == 'river' else 'mk-stream'
-                d = ''.join(geo.d_attr(geo.rdp(r, 0.5)) for r in clip_runs([proj.xy(a, b) for a, b in pts], w, h))
+                d = ''.join(D(geo.rdp(r, 0.5)) for r in clip_runs([proj.xy(a, b) for a, b in pts], w, h))
                 if d:
                     layers['water'].append('<path class="%s" d="%s"/>' % (cls, d))
         else:
@@ -725,42 +824,65 @@ def render_map(spec):
                 runs = [geo.rdp(r, max(0.7, peps)) for r in clip_runs([proj.xy(a, b) for a, b in pts], w, h)]
                 runs = [r for r in runs if geo.path_len(r) > 30]
                 if runs:
-                    layers['water'].append('<path class="mk-river" d="%s"/>' % ''.join(geo.d_attr(r) for r in runs))
+                    layers['water'].append('<path class="mk-river" d="%s"/>' % ''.join(D(r) for r in runs))
         # roads & trails
         road_lbls = []
         minors, majors, trails = [], [], []
         levels = spec.get('road_levels', ('motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified', 'path', 'footway', 'track'))
+        if phone:
+            # phones: the main roads only (a street grid at 390 px is noise, and most of the base layer's weight)
+            levels = tuple(l_ for l_ in levels if l_ in ('motorway', 'trunk', 'primary', 'path', 'footway', 'track'))
         reps = max(0.6, spec.get('poly_eps', 0.4))
+        # trails are drawn only near the route (within TRAIL_NEAR_M): the rest of a trail network is weight, not context
+        near_r = TRAIL_NEAR_M / proj.m_per_px
+        near_cells = {}
+        for pt_ in proj_tracks:
+            for x_, y_ in pt_[1][::3]:
+                near_cells.setdefault((int(x_ // near_r), int(y_ // near_r)), []).append((x_, y_))
+
+        def near_track(x, y):
+            cx_, cy_ = int(x // near_r), int(y // near_r)
+            return any((a_ - x) ** 2 + (b_ - y) ** 2 <= near_r * near_r
+                       for dx_ in (-1, 0, 1) for dy_ in (-1, 0, 1) for a_, b_ in near_cells.get((cx_ + dx_, cy_ + dy_), ()))
+        groups_ = {'major': [], 'minor': [], 'trail': []}
         for pts, tags in geo.osm_lines(osm, lambda t: 'highway' in t):
             hw = tags['highway']
             if hw not in levels:
                 continue
-            raw_xy = [proj.xy(a, b) for a, b in pts]
-            runs, cur = [], []
-            for x_, y_ in raw_xy:
-                if -12 <= x_ <= w + 12 and -12 <= y_ <= h + 12:
-                    cur.append((x_, y_))
-                else:
-                    if cur:
-                        cur.append((x_, y_))
-                        runs.append(cur)
-                    cur = []
-            if cur:
-                runs.append(cur)
-            runs = [geo.rdp(r, reps) for r in runs if len(r) >= 2]
-            if not runs:
+            is_trail = hw in ('path', 'footway', 'track')
+            if is_trail and not spec.get('trails', True):
                 continue
-            xy = max(runs, key=len)
-            d = ''.join(geo.d_attr(r) for r in runs)
-            if hw in ('motorway', 'trunk', 'primary', 'secondary'):
-                majors.append(d)
-                ref = tags.get('ref') or ''
-                if ref:
-                    road_lbls.append((xy, ref.replace(';', ' / ')))
-            elif hw in ('tertiary', 'unclassified'):
-                minors.append(d)
-            elif hw in ('path', 'footway', 'track') and spec.get('trails', True):
-                trails.append(d)
+            grp = 'trail' if is_trail else ('major' if hw in ('motorway', 'trunk', 'primary', 'secondary') else
+                                            ('minor' if hw in ('tertiary', 'unclassified') else None))
+            if grp is None:
+                continue
+            groups_[grp].append(pts)
+            ref = tags.get('ref') or ''
+            if grp == 'major' and ref:
+                runs = clip_runs([proj.xy(a_, b_) for a_, b_ in pts], w, h, 12)
+                if runs:
+                    road_lbls.append((geo.rdp(max(runs, key=len), reps), ref.replace(';', ' / ')))
+        for grp, ways in groups_.items():
+            is_trail = grp == 'trail'
+            ds = []
+            # OSM splits a road into many short ways: joined end to end first, each road is one subpath (fewer bytes, and
+            # simplification runs over the whole line)
+            for pts in join_ways(ways):
+                raw_xy = [proj.xy(a_, b_) for a_, b_ in pts]
+                runs, cur = [], []
+                for x_, y_ in raw_xy:
+                    if -12 <= x_ <= w + 12 and -12 <= y_ <= h + 12 and (not is_trail or near_track(x_, y_)):
+                        cur.append((x_, y_))
+                    else:
+                        if cur:
+                            cur.append((x_, y_))
+                            runs.append(cur)
+                        cur = []
+                if cur:
+                    runs.append(cur)
+                runs = [geo.rdp(r, 0.5 if is_trail else reps) for r in runs if len(r) >= 2]
+                ds += [D(r) for r in runs if geo.path_len(r) >= 1.5]  # a stub under 1.5 px only draws a blob
+            {'major': majors, 'minor': minors, 'trail': trails}[grp].extend(ds)
         if trails:
             layers['lines'].append('<path class="mk-trail" d="%s"/>' % ''.join(trails))
         if minors:
@@ -819,7 +941,7 @@ def render_map(spec):
                     run = geo.rdp(run, 1.0 if oab else 0.5)
                     if oab:
                         run = offset_line(run, -4 if dirn == 'up' else 4)
-                    (asc if dirn == 'up' else desc).append(geo.d_attr(run))
+                    (asc if dirn == 'up' else desc).append(D(run))
             wdt = t.get('width', 3)
             if desc:
                 layers['track'].append('<path class="mk-case" style="stroke-width: %.1f" d="%s"/>' % (wdt + 4, ''.join(desc)))
@@ -834,21 +956,48 @@ def render_map(spec):
             layers['track'].append('<path class="mk-case" style="stroke-width: %.1f" d="%s"/>' % (wdt + (2 if small else 4), d))
             layers['track'].append('<path class="mk-trk" style="stroke: {{route}}; stroke-width: %.1f" d="%s"/>' % (wdt, d))
         elif style == 'ghost':
-            gd = ''.join(geo.d_attr(r) for run in gap_split(xy, cds) for r in clip_runs(geo.rdp(run, eps_), w, h))
+            gd = ''.join(D(r) for run in gap_split(xy, cds) for r in clip_runs(geo.rdp(run, max(eps_, TRACK_EPS)), w, h))
             if gd:
                 layers['track'].insert(0, '<path class="mk-trk" style="stroke: {{route}}; stroke-opacity: .35; stroke-width: 2" d="%s"/>' % gd)
         elif style == 'cat':
             op = t.get('opacity', 1)
             wdt = t.get('width', 2.5)
-            case = '<path class="mk-case" style="stroke-width: %.1f" d="%s"/>' % (wdt + 3, d) if t.get('casing', True) else ''
-            layers['track'].append('<g class="mk-cat"%s style="opacity: %s">%s<path class="gl-trk" style="stroke: %s; stroke-width: %.1f" d="%s"/></g>'
-                                   % (' data-key="%s"' % esc(t['key']) if t.get('key') else '', op, case, CAT[t.get('cat', 'SKI')], wdt, d))
+            col = CAT[t.get('cat', 'SKI')]
+            g_open = '<g class="mk-cat"%s style="opacity: %s">' % (' data-key="%s"' % esc(t['key']) if t.get('key') else '', op)
+            tiny = spec.get('tiny_disc')
+            if tiny and xy:
+                xs_, ys_ = [q[0] for q in xy], [q[1] for q in xy]
+                if math.hypot(max(xs_) - min(xs_), max(ys_) - min(ys_)) < 2.5 * tiny:
+                    # a day that is a few pixels across (a crag, a lesson on one slope) reads as a spot, not a scribble
+                    mx_, my_ = xy[len(xy) // 2]
+                    layers['track'].append('%s<circle cx="%.1f" cy="%.1f" r="%g" style="fill: %s; stroke: #EEECE6; stroke-width: 1.5"/></g>'
+                                           % (g_open, mx_, my_, tiny, col))
+                    d = ''
+            if not d:
+                pass
+            elif t.get('casing', True):
+                # one geometry, drawn twice (casing + line) through <use>: the clone inherits each <use>'s class and style
+                spec['_tk'] = spec.get('_tk', 0) + 1
+                tid = 'tk-%d' % spec['_tk']
+                layers['track'].append('%s<defs><path id="%s" d="%s"/></defs><use href="#%s" class="mk-case" style="stroke-width: %g"/>'
+                                       '<use href="#%s" class="gl-trk" style="stroke: %s; stroke-width: %g"/></g>'
+                                       % (g_open, tid, d, tid, wdt + 3, tid, col, wdt))
+            else:
+                layers['track'].append('%s<path class="gl-trk" style="stroke: %s; stroke-width: %g" d="%s"/></g>' % (g_open, col, wdt, d))
         elif style == 'planned':
             if t.get('thin'):
                 # region / section maps: a light ink-3 dash that sits under the recorded tracks (KEY_SYMBOLS['planned_site'])
-                pl = ('<path class="mk-case" style="stroke-width: 3.5; stroke: #EEECE6" d="%s"/><path class="mk-trk" style="stroke: #66686D; stroke-width: 1.5; stroke-dasharray: 4 3; stroke-linecap: butt; stroke-linejoin: round" d="%s"/>' % (d, d))
+                cs_, ls_ = 'stroke-width: 3.5; stroke: #EEECE6', 'stroke: #66686D; stroke-width: 1.5; stroke-dasharray: 4 3; stroke-linecap: butt; stroke-linejoin: round'
             else:
-                pl = ('<path class="mk-case" style="stroke-width: 5.5; stroke: #EEECE6" d="%s"/><path class="mk-trk" style="stroke: #45474C; stroke-width: 2.5; stroke-dasharray: 8 5; stroke-linecap: butt; stroke-linejoin: round" d="%s"/>' % (d, d))
+                cs_, ls_ = 'stroke-width: 5.5; stroke: #EEECE6', 'stroke: #45474C; stroke-width: 2.5; stroke-dasharray: 8 5; stroke-linecap: butt; stroke-linejoin: round'
+            if t.get('key'):
+                # region / section maps: one geometry through <use> (the report's own map keeps <path class="mk-trk">)
+                spec['_tk'] = spec.get('_tk', 0) + 1
+                tid = 'tk-%d' % spec['_tk']
+                pl = ('<defs><path id="%s" d="%s"/></defs><use href="#%s" class="mk-case" style="%s"/><use href="#%s" class="mk-trk" style="%s"/>'
+                      % (tid, d, tid, cs_, tid, ls_))
+            else:
+                pl = '<path class="mk-case" style="%s" d="%s"/><path class="mk-trk" style="%s" d="%s"/>' % (cs_, d, ls_, d)
             if t.get('key'):
                 pl = '<g class="mk-cat mk-planned" data-key="%s">%s</g>' % (esc(t['key']), pl)
             layers['track'].append(pl)
@@ -895,12 +1044,20 @@ def render_map(spec):
                 if any(math.hypot(x - a_, y - b_) < 22 for a_, b_ in placed_discs):
                     return True
                 return overlaps((x - 10, y - 10, x + 10, y + 10), boxes, 1)
+
+            def in_gap(tgt):
+                # inside a recording gap (fixes > GAP_M apart): the map draws nothing there, so no disc either
+                k_ = bisect.bisect_left(cds, tgt)
+                return 0 < k_ < len(cds) and cds[k_] - cds[k_ - 1] > GAP_M
             while m * MI < limit:
+                if cds[0] <= m * MI <= cds[-1] and in_gap(m * MI):
+                    m += every  # the mile falls in a gap: try the next one
+                    continue
                 if cds[0] <= m * MI <= cds[-1]:
                     pos = None
                     for dm in (0, 0.05, -0.05, 0.1, -0.1, 0.15, -0.15, 0.2, -0.2, 0.25, -0.25):
                         tgt = (m + dm) * MI
-                        if not (cds[0] <= tgt <= cds[-1]):
+                        if not (cds[0] <= tgt <= cds[-1]) or in_gap(tgt):
                             continue
                         x, y, ang = along(xy, cds, tgt)
                         if not blocked(x, y):
@@ -986,19 +1143,30 @@ def render_map(spec):
                     summit = best_pk[1]
             gl = spec.get('gps_label', True)
 
-            def place_label(bw_, top_, bot_, cands_):
-                """First candidate clear of labels, markers and tracks; then the one clear of labels and markers that
+            def place_label(bw_, top_, bot_, cands_, optional=False):
+                """Compass spots around the triangle first (N, NE, E, SE, S, SW, W, NW at 10 px, then 18, then 28), then the
+                older hand-tuned spots (cands_), each clear of labels, markers and every track pixel (the box inflated by
+                2 px against the densified track); then (unless optional: None) the spot clear of labels and markers that
                 covers the least track; then just inside the frame and clear of reserved furniture.
-                cands_: (dx, dy, anchor) with dy the baseline offset."""
+                Offsets are (dx, dy, anchor), dy = baseline."""
                 def box_(dx, dy, anchor):
                     bx = gx + dx if anchor == 'start' else (gx + dx - bw_ if anchor == 'end' else gx - bw_ / 2)
                     return (bx - 2, gy + dy - top_, bx + bw_ + 2, gy + dy + bot_)
-                for dx, dy, anchor in cands_:
+                dy_c = -1 - (bot_ - top_) / 2.0  # baseline that centres the block on the triangle
+                compass = []
+                for d_ in (10, 18, 28):
+                    k_ = 0.7 * d_
+                    compass += [(0, -d_ - bot_, 'middle'), (k_, -k_ - bot_, 'start'), (d_, dy_c, 'start'), (k_, k_ + top_, 'start'),
+                                (0, d_ + top_, 'middle'), (-k_, k_ + top_, 'end'), (-d_, dy_c, 'end'), (-k_, -k_ - bot_, 'end')]
+                every_ = compass + list(cands_)
+                for dx, dy, anchor in every_:
                     b = box_(dx, dy, anchor)
-                    if free(b, 2, track=True):
+                    if not overlaps(b, boxes, 2) and in_frame(b) and not hits_track_dense((b[0], b[1] - 2, b[2], b[3] + 2), 0):
                         return dx, dy, anchor, b
+                if optional:
+                    return None
                 best_ = None
-                for k_, (dx, dy, anchor) in enumerate(cands_):
+                for k_, (dx, dy, anchor) in enumerate(every_):
                     b = box_(dx, dy, anchor)
                     if free(b, 2, track=False):
                         n_ = sum(1 for x_, y_ in dense_trk if b[0] - 2 <= x_ <= b[2] + 2 and b[1] - 2 <= y_ <= b[3] + 2)
@@ -1006,7 +1174,7 @@ def render_map(spec):
                             best_ = ((n_, k_), (dx, dy, anchor, b))
                 if best_:
                     return best_[1]
-                for dx, dy, anchor in cands_:
+                for dx, dy, anchor in every_:
                     b = box_(dx, dy, anchor)
                     if in_frame(b) and not overlaps(b, furn, 2):
                         return dx, dy, anchor, b
@@ -1014,6 +1182,7 @@ def render_map(spec):
                 bx = min(max(gx + dx, EDGE + 2), w - EDGE - 2 - bw_)
                 by = min(max(gy + dy, EDGE + top_), h - EDGE - bot_)
                 return bx - gx, by - gy, 'start', (bx - 2, by - top_, bx + bw_ + 2, by + bot_)
+            gmax_ft, gmax_m = fmt_int(tr.gps_max_m * FT), fmt_int(tr.gps_max_m)
             if gl and summit:
                 l1 = summit.upper()
                 if gl == 'name':
@@ -1021,33 +1190,48 @@ def render_map(spec):
                     bw_ = text_w(l1, 12, 0.12)
                     bot_ = 4
                 else:
-                    l2 = 'GPS MAX %s FT' % fmt_int(tr.gps_max_m * FT)
-                    bw_ = max(text_w(l1, 12, 0.12), text_w(l2, fs_s, 0.02, True))
+                    # the value line follows the MI|KM toggle; placed with the wider of the two
+                    l2_mi, l2_km = 'GPS MAX %s FT' % gmax_ft, 'GPS MAX %s M' % gmax_m
+                    bw_ = max(text_w(l1, 12, 0.12), text_w(l2_mi, fs_s, 0.02, True), text_w(l2_km, fs_s, 0.02, True))
                     bot_ = 18
                 cands = [(12, -6, 'start'), (12, 8, 'start'), (-12, -6, 'end'), (-12, 8, 'end'), (0, -34 + (14 if gl == 'name' else 0), 'middle'),
                          (0, 20, 'middle'), (16, -20, 'start'), (-16, -20, 'end'), (16, 22, 'start'), (-16, 22, 'end'),
                          (0, -48 + (14 if gl == 'name' else 0), 'middle'), (0, 34, 'middle'), (28, -6, 'start'), (-28, -6, 'end'), (28, 14, 'start'), (-28, 14, 'end')]
-                dx, dy, anchor, b = place_label(bw_, 10, bot_, cands)
+                # phones name the summit only (no value): a context label, left off when every spot crosses the route
+                placed_ = place_label(bw_, 10, bot_, cands, optional=(gl == 'name'))
+                dx, dy, anchor, b = placed_ or (0, 0, 'start', None)
                 lx = gx + dx if anchor == 'start' else (gx + dx - bw_ if anchor == 'end' else gx - bw_ / 2)
-                if gl == 'name':
+                if not placed_:
+                    pass
+                elif gl == 'name':
                     layers['labels'].append('<text class="mk-peak" x="%.1f" y="%.1f" style="fill: #16171A">%s</text>' % (lx, gy + dy, esc(l1)))
                 else:
                     layers['labels'].append('<text class="mk-peak" x="%.1f" y="%.1f" style="fill: #16171A">%s</text><text class="mk-gps" x="%.1f" y="%.1f">%s</text>'
-                                            % (lx, gy + dy, esc(l1), lx, gy + dy + 14, l2))
-                boxes.append(b)
-                tboxes.append(b)
+                                            % (lx, gy + dy, esc(l1), lx, gy + dy + 14, u_span(l2_mi, l2_km)))
+                if b:
+                    boxes.append(b)
+                    tboxes.append(b)
                 spec.setdefault('_prio_done', set()).add(summit)
             elif gl and gl != 'name':
-                txt = ('%s · GPS MAX %s FT' % (at_start, fmt_int(tr.gps_max_m * FT))) if at_start else ('GPS MAX %s FT' % fmt_int(tr.gps_max_m * FT))
-                tw = text_w(txt, fs_s, 0.02, True)
                 first = spec.get('gps_label_first')
                 cands = [(12, 4, 'start'), (12, 18, 'start'), (-12, 4, 'end'), (12, -10, 'start'), (-12, 18, 'end'), (-12, -10, 'end'),
                          (0, -16, 'middle'), (0, 24, 'middle'), (24, 4, 'start'), (-24, 4, 'end'), (18, 30, 'start'), (-18, 30, 'end'),
                          (18, -22, 'start'), (-18, -22, 'end'), (0, -30, 'middle'), (0, 38, 'middle')]
                 if first:
                     cands.insert(0, first)
-                dx, dy, anchor, b = place_label(tw, 9, 4, cands)
-                layers['labels'].append('<text class="mk-gps" x="%.1f" y="%.1f" text-anchor="%s">%s</text>' % (gx + dx, gy + dy, anchor, txt))
+                # at the start / end: 'START · GPS MAX …' where it fits clear of the route, else the shorter 'GPS MAX …'
+                # (the disc / square beside the triangle already marks the start, and the key decodes it)
+                placed_ = None
+                for pre_ in ((('%s · ' % at_start),) if at_start else ()) + ('',):
+                    txt_mi, txt_km = '%sGPS MAX %s FT' % (pre_, gmax_ft), '%sGPS MAX %s M' % (pre_, gmax_m)
+                    tw = max(text_w(txt_mi, fs_s, 0.02, True), text_w(txt_km, fs_s, 0.02, True))
+                    placed_ = place_label(tw, 9, 4, cands, optional=bool(pre_))
+                    if placed_:
+                        break
+                dx, dy, anchor, b = placed_
+                # anchored at the box edge (not the text's own anchor), so the shorter of the two unit texts stays in the box
+                ax_ = b[0] + 2 if anchor == 'start' else (b[2] - 2 if anchor == 'end' else (b[0] + b[2]) / 2)
+                layers['labels'].append('<text class="mk-gps" x="%.1f" y="%.1f" text-anchor="%s">%s</text>' % (ax_, gy + dy, anchor, u_span(txt_mi, txt_km)))
                 boxes.append(b)
                 tboxes.append(b)
         if t.get('pin'):
@@ -1059,6 +1243,27 @@ def render_map(spec):
     if spec.get('overall_startend') and proj_tracks:
         sx, sy = proj_tracks[0][1][0]
         ex, ey = proj_tracks[-1][1][-1]
+        if math.hypot(sx - ex, sy - ey) < 16:
+            cx_, cy_ = (sx + ex) / 2, (sy + ey) / 2
+            sx, sy, ex, ey = cx_ - 6, cy_, cx_ + 6, cy_
+        hut_boxes = spec.get('_hut_boxes', [])
+
+        def beside_hut(x, y, left_first):
+            # a numbered end-of-day square already sits here: the disc / square goes beside it, never under it (the start
+            # disc on its left, the end square on its right, where free: they read in order)
+            hb_ = next((b_ for b_ in hut_boxes if abs(b_['x'] - x) < b_['hw'] + 7 and abs(b_['y'] - y) < 17), None)
+            if not hb_:
+                return x, y
+            sides_ = ((-hb_['hw'] - 9, 0), (hb_['hw'] + 9, 0)) if left_first else ((hb_['hw'] + 9, 0), (-hb_['hw'] - 9, 0))
+            for dx_, dy_ in sides_ + ((0, -19), (0, 19)):
+                c_ = (hb_['x'] + dx_, hb_['y'] + dy_)
+                if not overlaps((c_[0] - 6, c_[1] - 6, c_[0] + 6, c_[1] + 6), boxes, 1):
+                    return c_
+            return hb_['x'] + hb_['hw'] + 9, hb_['y']
+        sx, sy = beside_hut(sx, sy, True)
+        boxes.append((sx - 7, sy - 7, sx + 7, sy + 7))
+        ex, ey = beside_hut(ex, ey, False)
+        boxes.pop()
         layers['markers'].append('<rect x="%.1f" y="%.1f" width="10" height="10" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 2; paint-order: stroke"/>' % (ex - 5, ey - 5))
         layers['markers'].append('<circle cx="%.1f" cy="%.1f" r="5" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 2; paint-order: stroke"/>' % (sx, sy))
         boxes += [(sx - 8, sy - 8, sx + 8, sy + 8), (ex - 8, ey - 8, ex + 8, ey + 8)]
@@ -1112,15 +1317,34 @@ def render_map(spec):
                 continue
             x, y = proj.xy(lat, lon)
             dmin = min((math.hypot(x - a, y - b) for a, b in txy), default=0)
-            cand.append((rank.get(tags.get('place'), 3) if spec.get('places_by_rank') else 0, dmin, x, y, tags))
+            try:
+                pop = int(re.sub(r'[^\d]', '', str(tags.get('population') or '')) or 0)
+            except ValueError:
+                pop = 0
+            if spec.get('places_by_rank'):
+                # region maps: cities before towns before villages, the biggest first (it anchors the map), then nearest
+                cand.append(((rank.get(tags.get('place'), 3), -pop), dmin, x, y, tags))
+            else:
+                cand.append((0, dmin, x, y, tags))
         cand.sort(key=lambda c: (c[0], c[1]))
+        pin_xy = [proj.xy(pn['lat'], pn['lon']) for pn in spec.get('pins', [])]
+        near_pins = spec.get('places_near_pins')
+
+        def by_pins(x, y):
+            return any(math.hypot(x - a_, y - b_) < near_pins for a_, b_ in pin_xy)
+        anchor_i = None
+        if near_pins:
+            # the anchor: the biggest city / town in the frame (cities first, then by population) is labelled wherever it
+            # is; every other place only near a pin
+            anchor_i = next((k_ for k_, c_ in enumerate(cand) if c_[4].get('place') in ('city', 'town')
+                             and 20 < c_[2] < w - 20 and 20 < c_[3] < h - 20), None)
         n_places = 0
         seen_pl = set()
-        pin_xy = [proj.xy(pn['lat'], pn['lon']) for pn in spec.get('pins', [])]
-        for _, _, x, y, tags in cand:
+        for k_c, (_, _, x, y, tags) in enumerate(cand):
             if n_places >= (99 if spec.get('places_allow') else spec.get('places_max', 8)):
                 break
-            if spec.get('places_near_pins') and not any(math.hypot(x - a_, y - b_) < spec['places_near_pins'] for a_, b_ in pin_xy):
+            is_anchor = k_c == anchor_i
+            if near_pins and not is_anchor and not by_pins(x, y):
                 continue
             if tags['name'] in seen_pl:
                 continue
@@ -1129,27 +1353,33 @@ def render_map(spec):
             tw = text_w(txt, 12)
             if not (EDGE < x < w - EDGE and EDGE < y < h - EDGE):
                 continue
-            # right of the ring; named places (places_allow) may also sit left of it, or above / below
-            cands_ = [(8, 4, 'start')]
-            if allow:
-                cands_ += [(-8, 4, 'end'), (6, -9, 'start'), (6, 17, 'start'), (-6, -9, 'end'), (-6, 17, 'end')]
-            # named places try every spot clear of the route first, then accept one that crosses it (on a halo)
-            tries_ = [(c_, True) for c_ in cands_] + ([(c_, False) for c_ in cands_] if allow else [])
-            for (dx, dy, anchor), clear_ in tries_:
+            if not allow and not (20 < x < w - 20 and 20 < y < h - 20):
+                continue
+            ring = (x - 5, y - 5, x + 5, y + 5)
+            if overlaps(ring, boxes, 1):
+                continue
+            # right of the ring, then left of it, then above / below either side: the first spot clear of every track;
+            # the route's named places (places_allow) and a region map's anchor town may instead take the free spot that
+            # crosses the least track (on a halo); any other place is left off
+            spots_ = []
+            for dx, dy, anchor in ((8, 4, 'start'), (-8, 4, 'end'), (6, -9, 'start'), (6, 17, 'start'), (-6, -9, 'end'), (-6, 17, 'end')):
                 bx = x + dx if anchor == 'start' else x + dx - tw
                 b = (bx - 1, y + dy - 11, bx + tw + 1, y + dy + 3)
-                ring = (x - 5, y - 5, x + 5, y + 5)
-                if allow and clear_ and hits_track_dense(b, 2):
-                    continue
-                if in_frame(b) and (allow or 20 < x < w - 20 - tw and 20 < y < h - 20) and not overlaps(b, boxes, 3) \
-                        and not overlaps(ring, boxes, 1):
-                    layers['labels'].append('<circle cx="%.1f" cy="%.1f" r="3.5" style="fill: #EEECE6; stroke: #45474C; stroke-width: 1.5"/><text class="mk-place" x="%.1f" y="%.1f"%s>%s</text>'
-                                            % (x, y, x + dx, y + dy, ' text-anchor="end"' if anchor == 'end' else '', esc(txt)))
-                    boxes.append(b)
-                    boxes.append(ring)
-                    tboxes.append(b)
-                    n_places += 1
-                    break
+                if in_frame(b) and not overlaps(b, boxes, 3):
+                    spots_.append((dx, dy, anchor, b))
+            pick = next((sp_ for sp_ in spots_ if not hits_track_dense(sp_[3], 2)), None)
+            if pick is None and (allow or is_anchor) and spots_:
+                pick = min(spots_, key=lambda sp_: sum(1 for x_, y_ in dense_trk if sp_[3][0] - 2 <= x_ <= sp_[3][2] + 2
+                                                        and sp_[3][1] - 2 <= y_ <= sp_[3][3] + 2))
+            if pick is None:
+                continue
+            dx, dy, anchor, b = pick
+            layers['labels'].append('<circle cx="%.1f" cy="%.1f" r="3.5" style="fill: #EEECE6; stroke: #45474C; stroke-width: 1.5"/><text class="mk-place" x="%.1f" y="%.1f"%s>%s</text>'
+                                    % (x, y, x + dx, y + dy, ' text-anchor="end"' if anchor == 'end' else '', esc(txt)))
+            boxes.append(b)
+            boxes.append(ring)
+            tboxes.append(b)
+            n_places += 1
 
     # named towns (places_allow: the route's endpoints) outrank day labels, contour labels and context peaks
     if osm and spec.get('places', True) and spec.get('places_allow'):
@@ -1181,18 +1411,21 @@ def render_map(spec):
                 if done:
                     break
 
-    # scale bar: compact single-unit bar in the freest corner
+    # scale bar: a compact bar in the freest corner, one per unit (the MI|KM toggle shows one); at most 25% of the width
     if spec.get('scale', True):
-        max_px = 80 if w <= 400 else 120
-        mi_len, mi_m = nice_len(max_px * proj.m_per_px, 'mi')
+        mpp = proj.m_per_px
+        cap_px = min(80 if w <= 400 else 120, SCALE_MAX_FRAC * w)
+        mi_len = nice_len(cap_px * mpp, 'mi')[0]
         spec['_scale'] = None
+
+        def sb_w(bar_px, lab):
+            lw_ = text_w(lab, fs_s, mono=True)
+            return bar_px + 6 + lw_ + 24 if bar_px < text_w('0', fs_s, mono=True) + 8 + lw_ else bar_px + 24
         for attempt in range(4):
-            bar_px = mi_m / proj.m_per_px
-            lab_w_ = text_w('%g mi' % mi_len, fs_s, mono=True)
-            if bar_px < text_w('0', fs_s, mono=True) + 8 + lab_w_:
-                bw_ = bar_px + 6 + lab_w_ + 24
-            else:
-                bw_ = bar_px + 24
+            mi_px = mi_len * MI / mpp
+            km_len = nice_len(mi_px * mpp, 'km')[0]  # the metric bar is never longer than the imperial one
+            km_px = km_len * 1000.0 / mpp
+            bw_ = max(sb_w(mi_px, '%g mi' % mi_len), sb_w(km_px, km_label(km_len)))
             bh_ = 30
             ix_ = 96 if w >= 1200 else (12 if w <= 400 else 16)
             iy_ = 12 if w <= 400 else 16
@@ -1207,18 +1440,12 @@ def render_map(spec):
                 score = n_box * 1000 + n_hit
                 if best is None or score < best[0]:
                     best = (score, c, b)
-            if best[0] == 0 or spec.get('scale_corner') or attempt == 3:
-                spec['_scale'] = (best[1], best[2], mi_len, bar_px, fs_s)
+            smaller = [c for c in NICE_LENS if c < mi_len]
+            if best[0] == 0 or spec.get('scale_corner') or attempt == 3 or not smaller:
+                spec['_scale'] = (best[1], best[2], mi_len, mi_px, km_len, km_px, fs_s)
                 boxes.append(best[2])
                 break
-            # step down to the next nice length
-            smaller = [c for c in (0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 50, 100) if c < mi_len]
-            if not smaller:
-                spec['_scale'] = (best[1], best[2], mi_len, bar_px, fs_s)
-                boxes.append(best[2])
-                break
-            mi_len = smaller[-1]
-            mi_m = mi_len * MI
+            mi_len = smaller[-1]  # step down to the next nice length
         spec['_scale_corner'] = spec['_scale'][0]
 
     # overall start / end dates beside the start disc and end square (series maps: 'APR 22' / 'SEP 21')
@@ -1302,14 +1529,15 @@ def render_map(spec):
             txt = tags['name'].upper()
             tw = text_w(txt, 12, 0.12)
             ok = False
-            strict_track = spec.get('prio_avoid_track') or spec.get('overview_labels')
+            trk_pad = 6 if spec.get('overview_labels') else 4
             for pad_ in ((4,) if spec.get('overview_labels') else (2, 1)):
-                # beside the triangle first, so each triangle sits at the start or end of its own name
-                for dx, dy, anchor in ((8, 4, 'start'), (-8, 4, 'end'), (8, -8, 'start'), (-8, -8, 'end'), (8, 16, 'start'), (-8, 16, 'end'), (0, -10, 'middle'), (0, 19, 'middle')):
+                # beside the triangle first, so each triangle sits at the start or end of its own name; never on a track
+                # (every track pixel, the box inflated by 4 px): a name that fits nowhere is left off
+                for dx, dy, anchor in PEAK_SPOTS:
                     bx = x + dx if anchor == 'start' else (x + dx - tw if anchor == 'end' else x - tw / 2)
                     b = (bx - 1, y + dy - 10, bx + tw + 1, y + dy + 3)
                     if not overlaps(b, boxes, pad_) and not overlaps((b[0] - 12, b[1], b[2] + 12, b[3]), tboxes, pad_) and in_frame(b) and \
-                            not (strict_track and hits_track(b, 6 if spec.get('overview_labels') else 2)):
+                            not hits_track_dense(b, trk_pad):
                         layers['labels'].append('<path class="mk-tri" d="M%.1f %.1fl3.5 6h-7z"/><text class="mk-peak" x="%.1f" y="%.1f" text-anchor="%s" style="fill: #16171A">%s</text>'
                                                 % (x, y - 3.5, x + dx, y + dy, anchor, esc(txt)))
                         boxes.append(b)
@@ -1368,11 +1596,13 @@ def render_map(spec):
                 continue
             txt = nm.upper()
             tw = text_w(txt, 12, 0.12)
-            for dx, dy, anchor in ((8, 4, 'start'), (-8, 4, 'end'), (0, -9, 'middle'), (0, 17, 'middle')):
+            # context peaks: 8 spots around the triangle, never on a track (the box inflated by 4 px against every track
+            # pixel); a name that fits nowhere is left off
+            for dx, dy, anchor in PEAK_SPOTS:
                 bx = x + dx if anchor == 'start' else (x + dx - tw if anchor == 'end' else x - tw / 2)
                 b = (bx - 1, y + dy - 10, bx + tw + 1, y + dy + 3)
                 if not overlaps(b, boxes, 8) and not overlaps((b[0] - 12, b[1], b[2] + 12, b[3]), tboxes, 8) and in_frame(b) and \
-                        not avoid((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, max(8, tw / 2 - 4)):
+                        not hits_track_dense(b, 4):
                     layers['labels'].append('<path class="mk-tri" d="M%.1f %.1fl3.5 6h-7z"/><text class="mk-peak" x="%.1f" y="%.1f" text-anchor="%s">%s</text>'
                                             % (x, y - 3.5, x + dx, y + dy, anchor, esc(txt)))
                     boxes.append(b)
@@ -1390,6 +1620,8 @@ def render_map(spec):
         for area, rings_xy, nm in water_named[:spec.get('water_labels', 6)]:
             if nm in seen or nm in manual:
                 continue
+            if ';' in nm or re.fullmatch(r'[A-Z]{0,3}\d+[A-Z]?\d*', nm) or not any(c_.islower() for c_ in nm):
+                continue  # reference codes, not names ('A2W', 'A5;A7;A8;A8S', 'A18', all-caps codes)
             seen.add(nm)
             big = max(rings_xy, key=ring_area_px)
             cx = sum(p[0] for p in big) / len(big)
@@ -1476,6 +1708,10 @@ def render_map(spec):
         with open(os.path.join(FRAG, name + '.base.svg'), 'w') as fh:
             fh.write(base_svg)
         meta['base'] = name + '.base.svg'
+        gz_kb = len(zlib.compress(base_svg.encode('utf-8'), 9)) / 1024.0
+        meta['base_gz_kb'] = round(gz_kb, 1)
+        if gz_kb > (BASE_GZ_KB_PHONE if phone else BASE_GZ_KB):
+            print('  ! %s.base.svg is %.0f KB gzipped (budget %d KB)' % (name, gz_kb, BASE_GZ_KB_PHONE if phone else BASE_GZ_KB))
         order = ['base', 'track', 'markers', 'labels']
     else:
         order = ['base', 'water', 'contours', 'lines', 'track', 'markers', 'labels']
@@ -1494,35 +1730,51 @@ def render_map(spec):
     return meta
 
 
+NICE_LENS = (0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 50, 100, 200)
+SCALE_MAX_FRAC = 0.25  # a scale bar never spans more than this share of the map width
+
+
 def nice_len(max_m, units):
+    """The largest nice length (NICE_LENS, in mi or km) that fits in max_m metres; the smallest one when none does."""
     unit_m = MI if units == 'mi' else 1000.0
-    cands = [0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 50, 100, 200]
-    best = cands[0]
-    for c in cands:
+    best = NICE_LENS[0]
+    for c in NICE_LENS:
         if c * unit_m <= max_m:
             best = c
     return best, best * unit_m
 
 
-def scale_bar_compact(corner, box, mi_len, bar_px, fs=11):
-    x0, y0 = box[0] + 12, box[1] + 22
-    seg = bar_px / 2
-    parts = []
-    for k in range(2):
-        parts.append('<rect x="%.1f" y="%.1f" width="%.1f" height="5" style="fill: %s; stroke: #16171A; stroke-width: .75"/>'
-                     % (x0 + k * seg, y0, seg, '#16171A' if k == 0 else '#FFFFFF'))
+def _scale_group(cls, x0, y0, bar_px, lab, fs, right=None):
+    """One unit's bar: two blocks, '0' over its start and the length over its end (beside it when the bar is short).
+    right: the x the group ends at (right-hand corners), else it starts at x0."""
     halo = 'stroke: #EEECE6; stroke-width: 3px; paint-order: stroke; stroke-linejoin: round; fill: #45474C'
-    lab = '%g mi' % mi_len
+    lw = text_w(lab, fs, mono=True)
+    beside = bar_px < text_w('0', fs, mono=True) + 8 + lw
+    if right is not None:
+        x0 = right - (bar_px + 6 + lw if beside else bar_px)
+    seg = bar_px / 2
+    parts = ['<rect x="%.1f" y="%.1f" width="%.1f" height="5" style="fill: %s; stroke: #16171A; stroke-width: .75"/>'
+             % (x0 + k * seg, y0, seg, '#16171A' if k == 0 else '#FFFFFF') for k in range(2)]
     parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" style="%s; text-anchor: start">0</text>' % (x0, y0 - 5, halo))
-    if bar_px < text_w('0', fs, mono=True) + 8 + text_w(lab, fs, mono=True):
+    if beside:
         parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" style="%s; text-anchor: start">%s</text>' % (x0 + bar_px + 6, y0 + 5, halo, lab))
     else:
         parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" style="%s; text-anchor: end">%s</text>' % (x0 + bar_px, y0 - 5, halo, lab))
-    return ''.join(parts)
+    return '<g class="%s">%s</g>' % (cls, ''.join(parts))
+
+
+def scale_bar_compact(corner, box, mi_len, mi_px, km_len, km_px, fs=11):
+    """The map's scale bar in both units (<g class="u-mi"> / <g class="u-km">, one shown by the MI|KM toggle), each with
+    its own nice length. Left-hand corners start at the box's inset; right-hand corners end there."""
+    x0, y0 = box[0] + 12, box[1] + 22
+    right = (box[2] - 12) if corner in ('br', 'tr') else None
+    return (_scale_group('u-mi', x0, y0, mi_px, '%g mi' % mi_len, fs, right) +
+            _scale_group('u-km', x0, y0, km_px, km_label(km_len), fs, right))
 
 
 def scale_bar(proj, w, h, corner='br'):
-    max_px = 180
+    """Legacy full scale bar (mi blocks over km ticks); render_map uses scale_bar_compact."""
+    max_px = min(180, SCALE_MAX_FRAC * w)
     mi_len, mi_m = nice_len(max_px * proj.m_per_px, 'mi')
     km_len, km_m = nice_len(max_px * proj.m_per_px, 'km')
     mi_px = mi_m / proj.m_per_px
@@ -1539,6 +1791,7 @@ def scale_bar(proj, w, h, corner='br'):
     for k in range(4):
         parts.append('<rect x="%.1f" y="%.1f" width="%.1f" height="6" style="fill: %s; stroke: #16171A; stroke-width: .75"/>'
                      % (x0 + k * mi_px / 4, y0, mi_px / 4, '#16171A' if k % 2 == 0 else '#FFFFFF'))
+
     def lab(v):
         return ('%g' % v)
     parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" text-anchor="middle" style="stroke-width: 0; fill: #45474C">0</text>' % (x0, y0 - 5))
@@ -1548,7 +1801,7 @@ def scale_bar(proj, w, h, corner='br'):
     parts.append('<path d="M%.1f %.1fv5M%.1f %.1fv5M%.1f %.1fv5" style="stroke: #16171A; stroke-width: 1"/>' % (x0, y0 + 6, x0 + km_px / 2, y0 + 6, x0 + km_px, y0 + 6))
     parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" text-anchor="middle" style="stroke-width: 0; fill: #45474C">0</text>' % (x0, y0 + 21))
     parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" text-anchor="middle" style="stroke-width: 0; fill: #45474C">%s</text>' % (x0 + km_px / 2, y0 + 21, lab(km_len / 2)))
-    parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" text-anchor="start" style="stroke-width: 0; fill: #45474C">%s km</text>' % (x0 + km_px - 4, y0 + 21, lab(km_len)))
+    parts.append('<text class="mk-lbl" x="%.1f" y="%.1f" text-anchor="start" style="stroke-width: 0; fill: #45474C">%s</text>' % (x0 + km_px - 4, y0 + 21, km_label(km_len)))
     return ''.join(parts)
 
 
@@ -1564,21 +1817,87 @@ def pin_svg(x, y, cat, num=None):
 
 
 # ---------------------------------------------------------------- profile
+AXIS_STEPS = (0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 20, 50, 100)
+ELEV_STEPS_M = (25, 50, 100, 200, 250, 500, 1000, 2000, 4000)
+RELIEF_FLOOR_FT = 250.0  # a profile never spans less than this (3 ft of noise must not draw as a mountain)
+
+
+def axis_step(total, w):
+    """Distance-tick spacing (in the axis unit: mi or km) for a profile w px wide: the finest step whose labels stay at
+    least 56 px apart below one unit ('0.25' is wider than '3') and 36 px apart otherwise; every sub-unit track gets real
+    fractional ticks ('0 · 0.25 · 0.5')."""
+    plot_w = w - (0 if w < 500 else 72)
+    for step in AXIS_STEPS:
+        if plot_w / max(total / step, 1) >= (56 if step < 1 else 36):
+            return step
+    return AXIS_STEPS[-1]
+
+
+def _seg_hits_box(x1, y1, x2, y2, b):
+    """Liang–Barsky: does segment (x1, y1)-(x2, y2) touch box b = (x0, y0, x1, y1)?"""
+    dx, dy = x2 - x1, y2 - y1
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x1 - b[0]), (dx, b[2] - x1), (-dy, y1 - b[1]), (dy, b[3] - y1)):
+        if p == 0:
+            if q < 0:
+                return False
+            continue
+        r = q / p
+        if p < 0:
+            t0 = max(t0, r)
+        else:
+            t1 = min(t1, r)
+        if t0 > t1:
+            return False
+    return True
+
+
+def _box_overlap(a, b):
+    return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
+
+
 def render_profile(name, tracks, w, plot_h, opts):
     """Elevation profile with a left y-axis gutter. Fragment size stays w x H (H unchanged vs earlier renders).
     Phone renders (w < 500) have no gutter: the y-axis labels sit inside the plot on a paper halo, 12px lettering
-    (.pf-ph), and the distance unit rides on the last tick."""
+    (.pf-ph), each placed where it crosses neither the line nor a marker (left edge, right edge, then under its grid
+    line; dropped when all collide, never fewer than two), and the distance unit rides on the last tick.
+
+    Both unit systems are drawn and the MI|KM toggle shows one: grid lines, elevation labels (ft | m) and distance ticks
+    (mi | km) sit in <g class="u-mi"> / <g class="u-km"> groups. Distance tick labels carry class "pf-ax pf-xl".
+
+    opts: transfers [(a, b)] (content road transfers: TRANSFER in the day band, dark divider), gaps [b] (day b starts
+    somewhere else with no transfer: plain divider), both break the line; within a track the line and fill also break
+    wherever consecutive fixes are more than GAP_M apart. A profile spans at least RELIEF_FLOOR_FT."""
     phone = w < 500
     pts = []  # (dist_m, ele_m, day)
+    starts = set()  # indices where a new drawn run starts (a break before it)
+    xfer_b = set(b_ for a_, b_ in opts.get('transfers', ()))  # day index that starts after a content transfer
+    breaks = xfer_b | set(opts.get('gaps', ()))
     off = 0.0
     for di, tr in enumerate(tracks):
-        for d, e in zip(tr.cd, tr.ele):
+        base_i = len(pts)
+        if di > 0 and di in breaks:
+            starts.add(base_i)
+        for k, (d, e) in enumerate(zip(tr.cd, tr.ele)):
+            if k > 0 and d - tr.cd[k - 1] > GAP_M:
+                starts.add(base_i + k)  # a recording gap inside the day: no line across it
             pts.append((off + d, e, di))
         off += tr.total
     total = off
+    runs = []  # [a, b) index ranges drawn as one line
+    a_ = 0
+    for i in sorted(starts):
+        if i > a_:
+            runs.append((a_, i))
+        a_ = i
+    runs.append((a_, len(pts)))
+    runs = [r for r in runs if r[1] - r[0] >= 2]
     eles = [p[1] for p in pts]
     lo, hi = min(eles), max(eles)
     lo_ft, hi_ft = lo * FT, hi * FT
+    if hi_ft - lo_ft < RELIEF_FLOOR_FT:
+        mid_ = (hi_ft + lo_ft) / 2
+        lo_ft, hi_ft = mid_ - RELIEF_FLOOR_FT / 2, mid_ + RELIEF_FLOOR_FT / 2
     rng = max(hi_ft - lo_ft, 1)
     pad_l = 0 if phone else 72
     pw = w - pad_l
@@ -1586,55 +1905,61 @@ def render_profile(name, tracks, w, plot_h, opts):
     ph = plot_h
     y_lo = lo_ft - 0.06 * rng
     y_hi = hi_ft + 0.10 * rng
-    lab_every = opts.get('label_every_ft') or (1000 if rng > 4000 else 500)
     max_lab = 3 if plot_h <= 96 else 5
-    while True:
-        n_ticks = int(math.floor(y_hi / lab_every) - math.ceil(y_lo / lab_every)) + 1
-        roomy = not phone or lab_every / (y_hi - y_lo) * (ph - top) >= 20  # phone labels sit inside the plot: 20px apart
-        if (n_ticks <= max_lab and roomy) or lab_every >= 8000:
-            break
-        lab_every *= 2
-
-    def n_labels(le):  # ticks that get a label (the grid line is at least 12px above the axis)
-        return sum(1 for k in range(int(math.ceil(y_lo / le)), int(math.floor(y_hi / le)) + 1)
-                   if plot_h - (top + (y_hi - k * le) / (y_hi - y_lo) * (plot_h - top)) >= 12)
-    # a low-relief track (a crag approach, a flat day) still gets two elevation labels: step down to a finer interval
-    for le in (1000, 500, 250, 200, 100, 50):
-        if n_labels(lab_every) >= 2 or le >= lab_every:
-            continue
-        if not phone or le / (y_hi - y_lo) * (plot_h - top) >= 20:
-            lab_every = le
 
     def X(d):
         return pad_l + d / total * pw
 
     def Y(e_m):
         return top + (y_hi - e_m * FT) / (y_hi - y_lo) * (ph - top)
+
+    # ---- elevation label steps: ft (the round-2 rules) and m (the same spacing / count rules over ELEV_STEPS_M)
+    def n_ticks(le, f):
+        return int(math.floor(y_hi * f / le) - math.ceil(y_lo * f / le)) + 1
+
+    def roomy(le, f):  # phone labels sit inside the plot: 20px apart
+        return not phone or le / ((y_hi - y_lo) * f) * (ph - top) >= 20
+
+    def n_labels(le, f):  # ticks that get a label (the grid line is at least 12px above the axis)
+        return sum(1 for k in range(int(math.ceil(y_lo * f / le)), int(math.floor(y_hi * f / le)) + 1)
+                   if plot_h - (top + (y_hi - k * le / f) / (y_hi - y_lo) * (plot_h - top)) >= 12)
+    lab_ft = opts.get('label_every_ft') or (1000 if rng > 4000 else 500)
+    while not ((n_ticks(lab_ft, 1) <= max_lab and roomy(lab_ft, 1)) or lab_ft >= 8000):
+        lab_ft *= 2
+    # a low-relief track (a crag approach, a flat day) still gets two elevation labels: step down to a finer interval
+    for le in (1000, 500, 250, 200, 100, 50):
+        if n_labels(lab_ft, 1) >= 2 or le >= lab_ft:
+            continue
+        if roomy(le, 1):
+            lab_ft = le
+    fm = 1 / FT  # ft -> m
+    start_m = max([s_ for s_ in ELEV_STEPS_M if s_ <= lab_ft * fm * 1.05] or [ELEV_STEPS_M[0]])
+    lab_m = start_m
+    while not ((n_ticks(lab_m, fm) <= max_lab and roomy(lab_m, fm)) or lab_m >= ELEV_STEPS_M[-1]):
+        lab_m = next(s_ for s_ in ELEV_STEPS_M if s_ > lab_m)
+    for le in reversed(ELEV_STEPS_M):
+        if n_labels(lab_m, fm) >= 2 or le >= lab_m:
+            continue
+        if roomy(le, fm):
+            lab_m = le
+
+    def elev_ticks(le, f):
+        """[(value in the unit, y px)] top-down."""
+        out_, v = [], math.floor(y_hi * f / le) * le
+        while v >= y_lo * f - 0.1:
+            out_.append((v, top + (y_hi - v / f) / (y_hi - y_lo) * (ph - top)))
+            v -= le
+        return out_
+
     step = max(1, len(pts) // (w * 2))
-    sp = pts[::step] + [pts[-1]]
     out = []
     uid = name.replace('-', '_')
     out.append('<defs><pattern id="%s_hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
                '<rect width="5" height="5" style="fill: #E2DFD6"/><path d="M0 0V5" style="stroke: #66686D; stroke-width: 1"/></pattern></defs>' % uid)
-    ylabels = []
-    v = math.floor(y_hi / lab_every) * lab_every
-    first_tick = True
-    while v >= y_lo - 0.1:
-        yy = Y(v / FT)
-        out.append('<path class="pf-grid" d="M%d %.1fH%d"/>' % (pad_l, yy, w))
-        if opts.get('ylabels', True) and ph - yy >= 12:
-            if phone:
-                # inside the plot, just above its grid line (below it when the line is at the very top); nudged right
-                # when the start disc sits under it
-                ly_ = yy - 4 if yy - 4 >= 10 else yy + 13
-                lx_ = 12 if (ly_ - 14 <= Y(pts[0][1]) <= ly_ + 6) else 2
-                ylabels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: start; %s">%s%s</text>'
-                               % (lx_, ly_, AX_HALO, fmt_int(v), ' ft' if first_tick else ''))
-            else:
-                ylabels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: end; dominant-baseline: central">%s%s</text>'
-                               % (pad_l - 8, yy, fmt_int(v), ' ft' if first_tick else ''))
-            first_tick = False
-        v -= lab_every
+    grid_i = len(out)
+    out.append('')  # grid lines: filled in once the phone labels have settled each unit's step (below)
+
+    # ---- fills (skin hatch / day tints / one fill), split at every break
     segs = []
     if opts.get('skin'):
         base_i = 0
@@ -1644,102 +1969,49 @@ def render_profile(name, tracks, w, plot_h, opts):
             base_i += len(tr.cd)
     else:
         segs = [(0, len(pts) - 1, 'down')]
-    base_y = ph
     if opts.get('day_tints') and len(tracks) > 1:
         segs = []
         base_i = 0
         for di_, tr in enumerate(tracks):
             segs.append((base_i, base_i + len(tr.cd) - 1, 'tint%d' % (di_ % 2)))
             base_i += len(tr.cd)
+    base_y = ph
     for a, b, dirn in segs:
-        sub = pts[a:b + 1:max(1, step)] + [pts[b]]
-        # simplify the top edge like the line (0.3px), so the fill carries no runs of coincident points
-        poly = [(X(sub[0][0]), base_y)] + geo.rdp([(X(d), Y(e)) for d, e, _ in sub], 0.3) + [(X(sub[-1][0]), base_y)]
-        fill = {'up': 'url(#%s_hatch)' % uid, 'tint0': '#E2DFD6', 'tint1': '#EAE7DF'}.get(dirn, '#E2DFD6')
-        out.append('<path d="%s" style="fill: %s"/>' % (geo.d_attr(poly, closed=True), fill))
+        for ra, rb in runs:  # the part of this fill inside each drawn run
+            a2, b2 = max(a, ra), min(b, rb - 1)
+            if b2 <= a2:
+                continue
+            sub = pts[a2:b2 + 1:max(1, step)] + [pts[b2]]
+            # simplify the top edge like the line (0.3px), so the fill carries no runs of coincident points
+            poly = [(X(sub[0][0]), base_y)] + geo.rdp([(X(d), Y(e)) for d, e, _ in sub], 0.3) + [(X(sub[-1][0]), base_y)]
+            fill = {'up': 'url(#%s_hatch)' % uid, 'tint0': '#E2DFD6', 'tint1': '#EAE7DF'}.get(dirn, '#E2DFD6')
+            out.append('<path d="%s" style="fill: %s"/>' % (D(poly, closed=True), fill))
+
+    # ---- the line, one subpath per run
+    run_xy = []  # (day or None, [(x, y)…]) sampled, for drawing and for the label collision test
     sel = opts.get('selected')
-    breaks = set(b_ for a_, b_ in opts.get('transfers', ()))  # day index that starts after a transfer
-    if sel is None and breaks:
-        groups, cur = [], []
-        for d, e, dd in sp:
-            if cur and dd in breaks and cur[-1][2] != dd:
-                groups.append(cur)
-                cur = []
-            cur.append((d, e, dd))
-        groups.append(cur)
-        out.append('<path class="pf-line" style="stroke: {{route}}" d="%s"/>'
-                   % ''.join(geo.d_attr(geo.rdp([(X(d), Y(e)) for d, e, _ in g_], 0.3)) for g_ in groups if len(g_) > 1))
-    elif sel is None:
-        line = [(X(d), Y(e)) for d, e, _ in sp]
-        out.append('<path class="pf-line" style="stroke: {{route}}" d="%s"/>' % geo.d_attr(geo.rdp(line, 0.3)))
-    else:
-        for di in range(len(tracks)):
-            sub = [(X(d), Y(e)) for d, e, dd in sp if dd == di]
-            if not sub:
-                continue
-            if di == sel:
-                out.append('<path class="pf-line" style="stroke: {{route}}; stroke-width: 2.5" d="%s"/>' % geo.d_attr(geo.rdp(sub, 0.3)))
-            else:
-                out.append('<path class="pf-ghost" d="%s"/>' % geo.d_attr(geo.rdp(sub, 0.3)))
-    out.extend(ylabels)
-    if len(tracks) > 1:
-        off = 0
-        band = []  # (priority, x, text, style) — placed without collisions after the loop
-        for di, tr in enumerate(tracks):
-            if di > 0:
-                xx = X(off)
-                if opts.get('day_band') and di in breaks:
-                    out.append('<path d="M%.1f %dV%.1f" style="stroke: #66686D; stroke-width: 1; stroke-dasharray: 2 2"/>' % (xx, 18, ph))
-                    band.append((1, xx, 'TRANSFER', 'fill: #66686D'))
-                elif opts.get('day_band'):
-                    out.append('<path d="M%.1f %dV%.1f" style="stroke: #8C8A83; stroke-width: 1; stroke-dasharray: 2 2"/>' % (xx, 4, ph))
-                else:
-                    out.append('<path class="pf-div" d="M%.1f %dV%.1f"/>' % (xx, top - 6, ph))
-            xm = X(off + tr.total / 2)
-            if opts.get('day_band'):
-                band.append((0, xm, 'D%d' % (di + 1), 'fill: #45474C; font-weight: 600'))
-            else:
-                out.append('<text class="pf-ax" x="%.1f" y="%d" style="text-anchor: middle; fill: %s; font-weight: 600; stroke: #F2F1EC; stroke-width: 3px; paint-order: stroke">D%d</text>'
-                           % (xm, top + 12, '#16171A' if sel in (None, di) else '#66686D', di + 1))
-            off += tr.total
-        placed = []
-        for pri, x_, txt, sty in sorted(band, key=lambda b: (b[0], b[1])):
-            half = text_w(txt, 11, mono=True) / 2 + 4
-            if x_ - half < pad_l - 4 or x_ + half > w + 2 or any(not (x_ + half <= a or x_ - half >= b) for a, b in placed):
-                continue
-            placed.append((x_ - half, x_ + half))
-            out.append('<text class="pf-ax" x="%.1f" y="12" style="text-anchor: middle; %s">%s</text>' % (x_, sty, txt))
-    out.append('<path class="pf-axk" d="M%d %.1fH%d"/>' % (pad_l, ph + 0.5, w))
-    tot_mi = total / MI
-    ev = opts.get('axis_every_mi') or (1 if tot_mi <= 15 else (2 if tot_mi <= 30 else 5))
-    ticks = []
-    m = 0
-    while m <= tot_mi + 1e-6:
-        ticks.append(m)
-        m += ev
-    ly = ph + (23 if opts.get('grade', True) else 15)
-    labs = []
-    for m in ticks:
-        xx = X(m * MI)
-        anchor = 'start' if m == 0 else ('end' if xx > w - 20 else 'middle')
-        if phone:  # the unit rides on the last tick ('12 mi'); the first reads '0'
-            lab = ('%d mi' % m) if (m == ticks[-1]) else '%d' % m
-        else:
-            lab = '0 mi' if m == 0 else '%d' % m
-        tw = text_w(lab, 12.1 if phone else 11, mono=True)
-        x0 = xx if anchor == 'start' else (xx - tw if anchor == 'end' else xx - tw / 2)
-        labs.append([xx, anchor, lab, x0, x0 + tw, True])
-    # the last label (it carries the unit on phones) wins: drop any earlier label that would touch its neighbour
-    keep_x0 = None
-    for L in reversed(labs):
-        if keep_x0 is not None and L[4] + 6 > keep_x0:
-            L[5] = False
+    for ra, rb in runs:
+        sub = pts[ra:rb:step] + [pts[rb - 1]]
+        if sel is None:  # one continuous subpath per run, across day boundaries
+            run_xy.append((None, [(X(d), Y(e)) for d, e, _ in sub]))
             continue
-        keep_x0 = L[3]
-    for xx, anchor, lab, _x0, _x1, show in labs:
-        out.append('<path class="pf-axk" d="M%.1f %.1fv4"/>' % (xx, ph))
-        if show:
-            out.append('<text class="pf-ax" x="%.1f" y="%.1f" style="text-anchor: %s">%s</text>' % (xx, ly, anchor, lab))
+        by_day = {}
+        for d, e, dd in sub:
+            by_day.setdefault(dd, []).append((X(d), Y(e)))
+        for dd, xy_ in sorted(by_day.items()):
+            if len(xy_) > 1:
+                run_xy.append((dd, xy_))
+    if sel is None:
+        out.append('<path class="pf-line" style="stroke: {{route}}" d="%s"/>' % ''.join(D(geo.rdp(xy_, 0.3)) for _, xy_ in run_xy))
+    else:
+        mine = ''.join(D(geo.rdp(xy_, 0.3)) for dd, xy_ in run_xy if dd == sel)
+        other = ''.join(D(geo.rdp(xy_, 0.3)) for dd, xy_ in run_xy if dd != sel)
+        if other:
+            out.append('<path class="pf-ghost" d="%s"/>' % other)
+        if mine:
+            out.append('<path class="pf-line" style="stroke: {{route}}; stroke-width: 2.5" d="%s"/>' % mine)
+
+    # ---- markers (positions first: phone labels keep clear of them)
     imax = max(range(len(pts)), key=lambda i_: pts[i_][1])
     raw_max_m = max((t.gps_max_m for t in tracks if t.gps_max_m is not None), default=hi)
     gx, gy = X(pts[imax][0]), Y(pts[imax][1])
@@ -1749,11 +2021,167 @@ def render_profile(name, tracks, w, plot_h, opts):
         gx = min(gx - 10, X(total) - 16)
     elif abs(gx - X(0)) < 12:
         gx = max(gx + 10, X(0) + 16)
+    sx0, sy0 = X(0), Y(pts[0][1])
+    exs, eys = X(total), Y(pts[-1][1])
+    marker_boxes = [(sx0 - 1, sy0 - 5, sx0 + 8, sy0 + 5), (exs - 8, eys - 4, exs, eys + 4), (gx - 7, gy - 12, gx + 7, gy)]
+
+    # ---- day band (multi-day): D-labels and TRANSFER above the plot
+    band_out, band_boxes = [], []
+    if len(tracks) > 1:
+        off = 0
+        band = []  # (priority, x, text, style) — placed without collisions after the loop
+        for di, tr in enumerate(tracks):
+            if di > 0:
+                xx = X(off)
+                if opts.get('day_band') and di in xfer_b:
+                    band_out.append('<path d="M%.1f %dV%.1f" style="stroke: #66686D; stroke-width: 1; stroke-dasharray: 2 2"/>' % (xx, 18, ph))
+                    band.append((1, xx, 'TRANSFER', 'fill: #66686D'))
+                elif opts.get('day_band'):
+                    band_out.append('<path d="M%.1f %dV%.1f" style="stroke: #8C8A83; stroke-width: 1; stroke-dasharray: 2 2"/>' % (xx, 4, ph))
+                else:
+                    band_out.append('<path class="pf-div" d="M%.1f %dV%.1f"/>' % (xx, top - 6, ph))
+            xm = X(off + tr.total / 2)
+            if opts.get('day_band'):
+                band.append((0, xm, 'D%d' % (di + 1), 'fill: #45474C; font-weight: 600'))
+            else:
+                band_out.append('<text class="pf-ax" x="%.1f" y="%d" style="text-anchor: middle; fill: %s; font-weight: 600; stroke: #F2F1EC; stroke-width: 3px; paint-order: stroke">D%d</text>'
+                                % (xm, top + 12, '#16171A' if sel in (None, di) else '#66686D', di + 1))
+                half = text_w('D%d' % (di + 1), 12.1 if phone else 11, mono=True) / 2
+                band_boxes.append((xm - half - 2, top + 1, xm + half + 2, top + 15))
+            off += tr.total
+        placed = []
+        for pri, x_, txt, sty in sorted(band, key=lambda b: (b[0], b[1])):
+            half = text_w(txt, 11, mono=True) / 2 + 4
+            if x_ - half < pad_l - 4 or x_ + half > w + 2 or any(not (x_ + half <= a or x_ - half >= b) for a, b in placed):
+                continue
+            placed.append((x_ - half, x_ + half))
+            band_boxes.append((x_ - half, 1, x_ + half, 15))
+            band_out.append('<text class="pf-ax" x="%.1f" y="12" style="text-anchor: middle; %s">%s</text>' % (x_, sty, txt))
+
+    # ---- elevation labels, one group per unit
+    segs_xy = [(p_[0], p_[1], q_[0], q_[1]) for _, xy_ in run_xy for p_, q_ in zip(xy_, xy_[1:])]
+
+    def hits(b):
+        n_ = sum(1 for s_ in segs_xy if _seg_hits_box(s_[0], s_[1], s_[2], s_[3], b))
+        return n_ + sum(3 for mb in marker_boxes + band_boxes if _box_overlap(b, mb))
+
+    def ylabels(ticks, unit):
+        """(labels placed clear of the line and markers, html)."""
+        if not opts.get('ylabels', True):
+            return 0, ''
+        rows = [(v, yy) for v, yy in ticks if ph - yy >= 12]
+        if not phone:
+            return len(rows), ''.join('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: end; dominant-baseline: central">%s%s</text>'
+                                      % (pad_l - 8, yy, fmt_int(v), unit if k == 0 else '') for k, (v, yy) in enumerate(rows))
+        def spots(yy):
+            # the plot edges first (above the grid line, then below it), then along the line inside the plot
+            above = yy - 4 if yy - 4 >= 10 else yy + 13
+            ys_ = [above] + ([yy + 13] if above != yy + 13 and yy + 16 <= ph - 1 else [])
+            return ([(x_, y_, a_) for y_ in ys_ for x_, a_ in ((2, 'start'), (w - 2, 'end'))] +
+                    [(w * f_, y_, 'middle') for y_ in ys_ for f_ in (0.25, 0.5, 0.75)])
+
+        def place(v, yy, first, taken):
+            best = None
+            txt = fmt_int(v) + (unit if first else '')
+            tw_ = text_w(txt, 12.1, mono=True)
+            for x_, ly_, anc in spots(yy):
+                lx0 = x_ if anc == 'start' else (x_ - tw_ if anc == 'end' else x_ - tw_ / 2)
+                b = (lx0 - 2, ly_ - 13, lx0 + tw_ + 2, ly_ + 5)
+                if any(_box_overlap(b, tb) for tb in taken):
+                    continue  # never on another label
+                n_ = hits(b)
+                if best is None or n_ < best[0]:
+                    best = (n_, x_, ly_, anc, txt, b)
+                if n_ == 0:
+                    break
+            return best
+        kept, dropped = [], []
+        for v, yy in rows:
+            best = place(v, yy, not kept, [k_[5] for k_ in kept])
+            if best and best[0] == 0:
+                kept.append(best)
+            else:
+                dropped.append((v, yy))
+        # never fewer than two labels: the least-colliding dropped ones come back (still never on another label)
+        n_clear = len(kept)
+        while len(kept) < 2 and dropped:
+            cands_ = [(place(v, yy, not kept, [k_[5] for k_ in kept]), (v, yy)) for v, yy in dropped]
+            cands_ = [c_ for c_ in cands_ if c_[0]]
+            if not cands_:
+                break
+            best, row = min(cands_, key=lambda c_: c_[0][0])
+            kept.append(best)
+            dropped.remove(row)
+        kept.sort(key=lambda z: z[2])
+        out_ = []
+        for k, (_, x_, ly_, anc, txt, _b) in enumerate(kept):
+            txt = txt[:-len(unit)] if txt.endswith(unit) else txt
+            out_.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: %s; %s">%s%s</text>'
+                        % (x_, ly_, anc, AX_HALO, txt, unit if k == 0 else ''))
+        return n_clear, ''.join(out_)
+
+    def settle(le0, f, steps, unit):
+        """Phones: the first step (the chosen one, then finer, then coarser; >= 20 px apart) whose labels include two
+        clear of the line; else the chosen step with its least-colliding labels."""
+        order = [le0] + [s_ for s_ in sorted(steps, reverse=True) if s_ < le0] + [s_ for s_ in sorted(steps) if s_ > le0]
+        first_ = None
+        for le in order:
+            if le != le0 and (not phone or not roomy(le, f) or n_labels(le, f) < 2):
+                continue
+            ticks = elev_ticks(le, f)
+            n_clear, html_ = ylabels(ticks, unit)
+            first_ = first_ or (ticks, html_)
+            if not phone or n_clear >= 2:
+                return ticks, html_
+        return first_
+    ft_ticks, ft_html = settle(lab_ft, 1, (50, 100, 200, 250, 500, 1000, 2000, 4000, 8000), ' ft')
+    m_ticks, m_html = settle(lab_m, fm, ELEV_STEPS_M, ' m')
+    out[grid_i] = ''.join('<g class="%s">%s</g>' % (cls, ''.join('<path class="pf-grid" d="M%d %.1fH%d"/>' % (pad_l, yy, w) for _, yy in ticks))
+                          for cls, ticks in (('u-mi', ft_ticks), ('u-km', m_ticks)))
+    out.append('<g class="u-mi">%s</g><g class="u-km">%s</g>' % (ft_html, m_html))
+    out.extend(band_out)
+
+    # ---- distance axis, one group per unit
+    out.append('<path class="pf-axk" d="M%d %.1fH%d"/>' % (pad_l, ph + 0.5, w))
+    ly = ph + (23 if opts.get('grade', True) else 15)
+    tot_mi, tot_km = total / MI, total / 1000.0
+
+    def dist_ticks(tot_u, unit_m, ev, unit):
+        ticks = [k * ev for k in range(int(tot_u / ev + 1e-6) + 1)]
+        labs = []
+        for m in ticks:
+            xx = X(m * unit_m)
+            anchor = 'start' if m == 0 else ('end' if xx > w - 20 else 'middle')
+            num = '%g' % round(m, 2)
+            if phone:  # the unit rides on the last tick ('12 mi'); the first reads '0'
+                lab = (num + ' ' + unit) if m == ticks[-1] else num
+            else:
+                lab = ('0 ' + unit) if m == 0 else num
+            tw = text_w(lab, 12.1 if phone else 11, mono=True)
+            x0 = xx if anchor == 'start' else (xx - tw if anchor == 'end' else xx - tw / 2)
+            labs.append([xx, anchor, lab, x0, x0 + tw, True])
+        # the last label (it carries the unit on phones) wins: drop any earlier label that would touch its neighbour
+        keep_x0 = None
+        for L in reversed(labs):
+            if keep_x0 is not None and L[4] + 6 > keep_x0:
+                L[5] = False
+                continue
+            keep_x0 = L[3]
+        o_ = []
+        for xx, anchor, lab, _x0, _x1, show in labs:
+            o_.append('<path class="pf-axk" d="M%.1f %.1fv4"/>' % (xx, ph))
+            if show:
+                o_.append('<text class="pf-ax pf-xl" x="%.1f" y="%.1f" style="text-anchor: %s">%s</text>' % (xx, ly, anchor, lab))
+        return ''.join(o_)
+    ev_mi = opts.get('axis_every_mi') or axis_step(tot_mi, w)
+    ev_km = opts.get('axis_every_km') or axis_step(tot_km, w)
+    out.append('<g class="u-mi">%s</g><g class="u-km">%s</g>' % (dist_ticks(tot_mi, MI, ev_mi, 'mi'), dist_ticks(tot_km, 1000.0, ev_km, 'km')))
+
     gh = opts.get('grade_h', 8)
     if opts.get('grade', True):
         gy0 = ph + 1
         bin_m = 0.25 * MI
-        runs = []
+        gruns = []
         d0 = 0.0
         i_ = 0
         while d0 < total:
@@ -1767,14 +2195,14 @@ def render_profile(name, tracks, w, plot_h, opts):
                 i_ += 1
             g = gsum / glen * 100 if glen > 0 else 0
             c = 0 if g < 10 else (1 if g < 20 else (2 if g < 30 else 3))
-            if runs and runs[-1][2] == c:
-                runs[-1][1] = d1
+            if gruns and gruns[-1][2] == c:
+                gruns[-1][1] = d1
             else:
-                runs.append([d0, d1, c])
+                gruns.append([d0, d1, c])
             d0 = d1
         # merge runs narrower than 12px into the previous run
         merged = []
-        for r in runs:
+        for r in gruns:
             if merged and (X(r[1]) - X(r[0])) < 12:
                 merged[-1][1] = r[1]
             else:
@@ -1810,9 +2238,8 @@ def render_profile(name, tracks, w, plot_h, opts):
         out.append('<rect x="%.1f" y="%.1f" width="%.1f" height="24" style="fill: #16171A"/><text x="%.1f" y="%.1f" style="font: 500 12px/1 %s; fill: #F2F1EC; dominant-baseline: central">%s</text>'
                    % (bx, fy, tw, bx + 8, fy + 12.5, MONO, txt))
         info['scrub'] = txt
-    sx0, sy0 = X(0), Y(pts[0][1])
     out.append('<circle cx="%.1f" cy="%.1f" r="3.5" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 1.5"/>' % (sx0 + 3.5, sy0))
-    out.append('<rect x="%.1f" y="%.1f" width="7" height="7" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 1.5"/>' % (X(total) - 8, Y(pts[-1][1]) - 3.5))
+    out.append('<rect x="%.1f" y="%.1f" width="7" height="7" style="fill: #16171A; stroke: #FFFFFF; stroke-width: 1.5"/>' % (exs - 8, eys - 3.5))
     H = ph + 22 + (gh + 4 if opts.get('grade', True) else 0)
     vpx = (ph - top) / ((y_hi - y_lo) / FT)
     hpx = pw / total
@@ -1826,27 +2253,38 @@ def render_profile(name, tracks, w, plot_h, opts):
 
 
 # ---------------------------------------------------------------- glyphs & sparklines
-def render_glyph(name, track_or_tracks, w, h, cat, pad=6, stroke=2.0, bg=None, planned=False, style=None, transfer_dash=None):
+def render_glyph(name, track_or_tracks, w, h, cat, pad=6, stroke=2.0, bg=None, planned=False, style=None, transfer_dash=None,
+                 transfers=(), tiny_r=3):
+    """Track glyph (list rows, cards). transfers: [(a, b)] day pairs joined by a content road transfer, drawn as a dashed
+    connector (transfer_dash) from day a's end to day b's start; nothing else is connected (separate crags stay apart).
+    tiny_r: with several tracks, a day whose drawing would be under 2 * tiny_r px across becomes a disc of that radius
+    (None: always a line, e.g. a thru-hike's many short days)."""
     trs = track_or_tracks if isinstance(track_or_tracks, list) else [track_or_tracks]
     pts_all = [[(p[0], p[1]) for p in decimate(t.raw, 1500)] for t in trs]
-    proj = Proj(geo.bbox_of(pts_all), w, h, pad=0)
-    # manual padding
     proj = Proj(geo.bbox_of(pts_all), w - 2 * pad, h - 2 * pad, pad=0)
+    col = CAT[cat] if cat in CAT else cat
     parts = []
-    if transfer_dash and len(pts_all) > 1:
-        for a_, b_ in zip(pts_all[:-1], pts_all[1:]):
-            if geo.hav(a_[-1], b_[0]) > 500:
-                x1, y1 = proj.xy(*a_[-1])
-                x2, y2 = proj.xy(*b_[0])
-                parts.append('<path d="M%.1f %.1fL%.1f %.1f" style="stroke: #66686D; stroke-width: 1; stroke-dasharray: %s; stroke-linecap: butt; fill: none"/>'
-                             % (x1 + pad, y1 + pad, x2 + pad, y2 + pad, transfer_dash))
-    for pts in pts_all:
-        xy = [(x + pad, y + pad) for x, y in (proj.xy(a, b) for a, b in pts)]
+    xys = [[(x + pad, y + pad) for x, y in (proj.xy(a, b) for a, b in pts)] for pts in pts_all]
+    for a_, b_ in transfers or ():
+        if 0 <= a_ < len(xys) and 0 <= b_ < len(xys) and xys[a_] and xys[b_]:
+            (x1, y1), (x2, y2) = xys[a_][-1], xys[b_][0]
+            parts.append('<path d="M%.1f %.1fL%.1f %.1f" style="stroke: #66686D; stroke-width: 1; stroke-dasharray: %s; stroke-linecap: butt; fill: none"/>'
+                         % (x1, y1, x2, y2, transfer_dash or '2 2'))
+    for pts, xy in zip(pts_all, xys):
+        if not xy:
+            continue
+        if tiny_r and len(xys) > 1:
+            xs_, ys_ = [q[0] for q in xy], [q[1] for q in xy]
+            if math.hypot(max(xs_) - min(xs_), max(ys_) - min(ys_)) < 2 * tiny_r:
+                mx_, my_ = xy[len(xy) // 2]
+                parts.append('<circle cx="%.1f" cy="%.1f" r="%g" style="fill: %s; stroke: #EEECE6; stroke-width: 1.5"/>'
+                             % (mx_, my_, tiny_r, '#45474C' if planned else col))
+                continue
         d = runs_d(xy, geo.cumdist(pts), 0.25)
         if planned:
             parts.append('<path class="gl-trk" style="stroke: #45474C; stroke-width: 2; stroke-dasharray: 6 4; stroke-linecap: butt" d="%s"/>' % d)
         else:
-            parts.append('<path class="gl-trk" style="stroke: %s; stroke-width: %.1f" d="%s"/>' % (CAT[cat] if cat in CAT else cat, stroke, d))
+            parts.append('<path class="gl-trk" style="stroke: %s; stroke-width: %.1f" d="%s"/>' % (col, stroke, d))
     bgrect = '<rect width="%d" height="%d" style="fill: %s"/>' % (w, h, bg) if bg else ''
     svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d" aria-hidden="true" style="display: block; flex-shrink: 0%s">%s%s</svg>'
            % (w, h, w, h, '; ' + style if style else '', bgrect, ''.join(parts)))
@@ -1854,7 +2292,8 @@ def render_glyph(name, track_or_tracks, w, h, cat, pad=6, stroke=2.0, bg=None, p
     return svg
 
 
-def render_tile(name, track, w, h, cat, osm_detail=None, extra_tracks=(), osm_data=None, planned=False, tracks=None, transfers=()):
+def render_tile(name, track, w, h, cat, osm_detail=None, extra_tracks=(), osm_data=None, planned=False, tracks=None, transfers=(),
+                tiny_disc=4):
     """Mini-topo tile: map-paper, index contours only, water fill, track 2.5px on a 1.5px casing."""
     trs = tracks or [{'track': track, 'style': 'planned' if planned else 'cat', 'cat': cat, 'width': 2.5, 'trim': DEFAULT_TRIM}]
     spec = {'name': name, 'w': w, 'h': h, 'tracks': trs,
@@ -1862,7 +2301,8 @@ def render_tile(name, track, w, h, cat, osm_detail=None, extra_tracks=(), osm_da
             'graticule': False, 'miles': False, 'chevrons': False, 'startend': False, 'gpsmax': False,
             'contour_labels': False, 'contour_density': 1.6, 'contour_step': 2.0, 'minor_contours': False, 'peaks_max': 0, 'places': False,
             'water_labels': 0, 'trails': False, 'road_levels': (), 'min_extent_m': 900, 'trim': DEFAULT_TRIM, 'osm_data': osm_data,
-            'transfers': list(transfers), 'transfer_dash': '2 3', 'transfer_w': 1, 'transfer_label': False, 'split_base': False}
+            'transfers': list(transfers), 'transfer_dash': '2 3', 'transfer_w': 1, 'transfer_label': False, 'split_base': False,
+            'tiny_disc': tiny_disc}
     meta = render_map(spec)
     p = os.path.join(FRAG, name + '.svg.html')
     s = open(p).read()
@@ -1881,7 +2321,7 @@ def render_sparkline(name, track, w, h, color='#45474C', stroke=1.5, domain=None
     xy = [(cd[i] / track.total * (w - 2) + 1, h - 1 - (eles[i] - lo) / max(hi - lo, 1) * (h - 2)) for i in range(0, len(eles), step)]
     svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d" aria-hidden="true" style="display: block; flex-shrink: 0">'
            '<path d="%s" style="fill: none; stroke: %s; stroke-width: %s; stroke-linejoin: round"/></svg>'
-           % (w, h, w, h, geo.d_attr(geo.rdp(xy, 0.2)), color, stroke))
+           % (w, h, w, h, D(geo.rdp(xy, 0.2)), color, stroke))
     write_frag(name, svg)
     return svg
 
@@ -1942,31 +2382,44 @@ def render_speed_chart(name, track, w, h=96):
     if stopped_total >= 120:
         for a, b in stops:
             parts.append('<rect x="%.1f" y="%d" width="%.1f" height="%.1f" style="fill: #E8E6DF"/>' % (X(a), top, X(b) - X(a), ph - top))
+    line = geo.rdp([(X(t), Y(v_)) for t, v_ in series], 0.4)
+    segs_xy = [(p_[0], p_[1], q_[0], q_[1]) for p_, q_ in zip(line, line[1:])]
     labels = []
-    k = 1
-    while k * step <= top_v + 1e-9:
-        v = k * step
+    taken = []
+    vals_ = [k_ * step for k_ in range(1, int(top_v / step + 1e-9) + 1)]
+    for v in (sorted(vals_, reverse=True) if phone else vals_):  # phones: top-down, so the unit rides on the top label
         yy = Y(v)
         parts.append('<path class="pf-grid" d="M%d %.1fH%d"/>' % (pad_l, yy, w))
-        txt = ('%g mph' % v) if abs(v - top_v) < 1e-9 else ('%g' % v)
         if phone:
-            labels.append('<text class="pf-ax" x="2" y="%.1f" style="text-anchor: start; %s">%s</text>' % (yy - 4 if yy - 4 >= 10 else yy + 13, AX_HALO, txt))
+            # inside the plot: the first spot clear of the line (left edge, right edge, under the grid line, then along
+            # it); a value that fits nowhere is left off (the grid line stays). The unit rides on the top label placed.
+            txt = ('%g mph' % v) if not taken else ('%g' % v)
+            tw_ = text_w(txt, 12.1, mono=True)
+            above = yy - 4 if yy - 4 >= 10 else yy + 13
+            ys_ = [above] + ([yy + 13] if above != yy + 13 and yy + 16 <= ph - 1 else [])
+            for x_, ly_, anc in ([(x0, y_, a_) for y_ in ys_ for x0, a_ in ((2, 'start'), (w - 2, 'end'))] +
+                                 [(w * f_, y_, 'middle') for y_ in ys_ for f_ in (0.25, 0.5, 0.75)]):
+                lx0 = x_ if anc == 'start' else (x_ - tw_ if anc == 'end' else x_ - tw_ / 2)
+                bx_ = (lx0 - 2, ly_ - 13, lx0 + tw_ + 2, ly_ + 5)
+                if any(_box_overlap(bx_, tb) for tb in taken) or any(_seg_hits_box(s_[0], s_[1], s_[2], s_[3], bx_) for s_ in segs_xy):
+                    continue
+                labels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: %s; %s">%s</text>' % (x_, ly_, anc, AX_HALO, txt))
+                taken.append(bx_)
+                break
         else:
+            txt = ('%g mph' % v) if abs(v - top_v) < 1e-9 else ('%g' % v)
             labels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: end; dominant-baseline: central">%s</text>' % (pad_l - 8, yy, txt))
-        k += 1
     if not phone:  # on phones the axis line itself reads as 0
         labels.append('<text class="pf-ax" x="%d" y="%.1f" style="text-anchor: end; dominant-baseline: central">0</text>' % (pad_l - 8, Y(0)))
-    line = geo.rdp([(X(t), Y(v_)) for t, v_ in series], 0.4)
-    parts.append('<path class="pf-line" style="stroke: {{route}}; stroke-width: 2" d="%s"/>' % geo.d_attr(line))
+    parts.append('<path class="pf-line" style="stroke: {{route}}; stroke-width: 2" d="%s"/>' % D(line))
     parts.extend(labels)
     parts.append('<path class="pf-axk" d="M%d %.1fH%d"/>' % (pad_l, ph + 0.5, w))
     mins = span / 60
-    every = 10 if pw / max(mins / 10, 1) >= 36 else 20
-    ticks = []
-    m = 0
-    while m <= mins + 0.1:
-        ticks.append(m)
-        m += every
+    # minute ticks: the finest step whose labels stay >= 40 px apart ('240' is three digits); the last (it carries the
+    # unit on phones) wins where two would touch
+    every = next((e_ for e_ in (5, 10, 15, 20, 30, 60, 120, 240) if pw / max(mins / e_, 1) >= 40), 480)
+    ticks = [k_ * every for k_ in range(int(mins / every + 1e-6) + 1)]
+    labs = []
     for m in ticks:
         x = X(m * 60)
         anchor = 'start' if m == 0 else ('end' if x > w - 20 else 'middle')
@@ -1974,8 +2427,19 @@ def render_speed_chart(name, track, w, h=96):
             lab = ('%d min' % m) if m == ticks[-1] else '%d' % m
         else:
             lab = '0 min' if m == 0 else '%d' % m
-        parts.append('<path class="pf-axk" d="M%.1f %.1fv4"/><text class="pf-ax" x="%.1f" y="%.1f" style="text-anchor: %s">%s</text>'
-                     % (x, ph, x, ph + 16, anchor, lab))
+        tw_ = text_w(lab, 12.1 if phone else 11, mono=True)
+        x0 = x if anchor == 'start' else (x - tw_ if anchor == 'end' else x - tw_ / 2)
+        labs.append([x, anchor, lab, x0, x0 + tw_, True])
+    keep_x0 = None
+    for L in reversed(labs):
+        if keep_x0 is not None and L[4] + 6 > keep_x0:
+            L[5] = False
+            continue
+        keep_x0 = L[3]
+    for x, anchor, lab, _x0, _x1, show in labs:
+        parts.append('<path class="pf-axk" d="M%.1f %.1fv4"/>' % (x, ph))
+        if show:
+            parts.append('<text class="pf-ax pf-xl" x="%.1f" y="%.1f" style="text-anchor: %s">%s</text>' % (x, ph + 16, anchor, lab))
     svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d"%s role="img" aria-label="Speed over the paddle, 3-minute average, in miles per hour" style="display: block; overflow: visible">%s</svg>'
            % (w, h, w, h, ' class="pf-ph"' if phone else '', ''.join(parts)))
     write_frag(name, svg)

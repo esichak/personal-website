@@ -3,7 +3,6 @@
 Sections: hero · featured report · latest reports (report table) · by activity · where I've been (region maps).
 Every count and stat is computed from the content; nothing here is written about Eric beyond the site lead.
 """
-import json
 import os
 import re
 
@@ -40,11 +39,6 @@ def meta_line(bits):
 
 def slug(s):
     return core.content.slugify(s)
-
-
-def site_meta():
-    p = os.path.join(core.ROOT, 'rendered', 'site', 'meta.json')
-    return json.load(open(p)) if os.path.exists(p) else {'maps': {}}
 
 
 # ---------------------------------------------------------------- hero
@@ -100,9 +94,9 @@ def mini_strip(t):
 def map_caption(t):
     """The shared map caption (core.map_caption), as on report and section maps."""
     if t['days']:
-        first = ['Tracks: Garmin, %s' % core.frange(t['date'], t['end_date']), 'full tracks, not trimmed', 'North up']
+        first = ['Tracks: %s' % core.frange(t['date'], t['end_date']), 'full tracks, not trimmed', 'North up']
     else:
-        first = ['Track: Garmin, %s' % core.fdate(t['date'], 'short'), 'full track, not trimmed', 'North up']
+        first = ['Track: %s' % core.fdate(t['date'], 'short'), 'full track, not trimmed', 'North up']
     return '<div class="hom-fcap">%s</div>' % core.map_caption(first)
 
 
@@ -198,10 +192,11 @@ def activity_tile(site, act, label):
         latest_ = '<div class="hom-tile-latest hom-tile-latest--none"><span class="t-label">Latest</span><span class="hom-tile-t">No reports yet</span></div>'
     subtypes = ''
     if act == 'other':
-        words = [core.SUB_WORD[s] for s in core.content.OTHER_SUBTYPES]
-        # two per line (a balanced 2×2), each pair one .ml line so a narrow wrap never leaves a trailing dot
-        subtypes = ('<span class="hom-tile-sub">%s</span>'
-                    % ''.join(core.meta_items([esc(w) for w in words[i:i + 2]]) for i in range(0, len(words), 2)))
+        # only the sub-types that have reports (core.other_subtypes, as the menu's Other row), most reports first:
+        # one .ml line, 'Paddleboarding · Rafting'
+        words = [core.SUB_WORD.get(s, s) for s in core.other_subtypes(pub)]
+        line = core.meta_items([core.nb(esc(w)) for w in words])
+        subtypes = ('<span class="hom-tile-sub">%s</span>' % line) if line else ''
     # the link's name is the activity; the count block is its description (the Latest title stays out of both)
     return ('<li><a class="hom-tile" href="%s" aria-labelledby="act-%s-n" aria-describedby="act-%s-c">'
             '<div class="hom-tile-top">%s%s</div>'
@@ -272,8 +267,34 @@ def region_key(site, meta, names):
     return '<ul class="keyrow keyrow--compact hom-rkey" aria-label="Map key">%s</ul>' % ''.join(items)
 
 
+def also_items(site):
+    """The 'Also' line under the region maps: every other mapped region (core.site_meta()['regions'], most reports first,
+    each to its panel on map/), then one 'N more regions' item for the regions without a region map (map/'s 'Not on a
+    region map' block, #other-places), then the series. Region counts are published reports, series left out (a series
+    has its own item)."""
+    mapped = set(core.site_meta().get('regions') or [])
+    counts = {}
+    for t in site['published']:
+        r = t.get('region')
+        if r and is_report(t) and t['kind'] != 'series':
+            counts[r] = counts.get(r, 0) + 1
+    item = '<li><a href="%s"><span class="hom-also-w">%s</span>%s</a></li>'
+    out = []
+    for r in sorted((r for r in mapped if r not in HOME_REGIONS), key=lambda r: (-counts.get(r, 0), r)):
+        k = counts.get(r, 0)
+        out.append(item % (core.region_map_href(HERE, r) or link(HERE, 'map/#region-' + slug(r)), esc(r),
+                           ('<span class="hom-also-c">%d</span>' % k) if k else ''))
+    unmapped = [r for r in counts if r not in mapped and r not in HOME_REGIONS]
+    if unmapped:
+        more = '%d more region%s' % (len(unmapped), '' if len(unmapped) == 1 else 's')
+        out.append(item % (link(HERE, 'map/#other-places'), esc(more), ''))
+    out += [item % (link(HERE, t['url']), esc(t['title']), '<span class="hom-also-c">SERIES</span>')
+            for t in site['published'] if t['kind'] == 'series']
+    return out
+
+
 def where(site):
-    meta = site_meta()['maps']
+    meta = core.site_meta().get('maps', {})
     blocks = []
     drawn = []
     for region in HOME_REGIONS:
@@ -284,7 +305,9 @@ def where(site):
         drawn += [x for x in (dk, ph) if x in meta]
         slugs = (meta.get(dk) or meta.get(ph)).get('trips', [])
         bits = region_counts(site, slugs)
-        line = meta_line(bits)
+        # the caption shows the count only ('86 REPORTS'); the multi-day / planned breakdown lives on map/, and the link's
+        # aria-label keeps the full spoken text
+        line = meta_line(bits[:1])
         spoken = ', '.join(b.replace('\u00a0', ' ').replace('+ ', '') for b in bits).lower()
         aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
         mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False)
@@ -294,15 +317,7 @@ def where(site):
                       % (esc(region), line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16), mp))
     if not blocks:
         return ''
-    # regions not drawn here (by number of reports), then series, as one "Also" line
-    others = {}
-    for t in site['published']:
-        r = t.get('region')
-        if is_report(t) and t['kind'] != 'series' and r and r not in HOME_REGIONS:
-            others[r] = others.get(r, 0) + 1
-    item = '<li><a href="%s"><span class="hom-also-w">%s</span><span class="hom-also-c">%s</span></a></li>'
-    also = [item % (link(HERE, 'map/#region-' + slug(r)), esc(r), k) for r, k in sorted(others.items(), key=lambda kv: (-kv[1], kv[0]))]
-    also += [item % (link(HERE, t['url']), esc(t['title']), 'SERIES') for t in site['published'] if t['kind'] == 'series']
+    also = also_items(site)
     also_html = ('<div class="hom-also"><span class="t-mono-s" id="also-l">ALSO</span><ul aria-labelledby="also-l">%s</ul></div>'
                  % ''.join(also)) if also else ''
     head_meta = plural(sum(1 for t in site['published'] if is_report(t)), 'REPORT')

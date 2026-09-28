@@ -1,5 +1,5 @@
 {
- "hash": "831f5028c19f3a179baf8020ab86bfc91308a99f",
+ "hash": "dacef967e4399c19db249765ea2f0d49e0da2855",
  "slug": "ltcc-intermediate-rafting",
  "kind": "multi-day",
  "maps": {
@@ -129,12 +129,12 @@
    "min_ft": 4955.87,
    "total_mi": 11.49,
    "gx": 90,
-   "gy": 15.59,
+   "gy": 18.45,
    "gps_max_mi": 0.0,
-   "y_lo": 4942.0,
-   "y_hi": 5210.12,
+   "y_lo": 4931.44,
+   "y_hi": 5221.44,
    "pad_l": 72,
-   "vx": 30.82,
+   "vx": 28.5,
    "h": 118
   },
   "day-02-profile-phone": {
@@ -144,12 +144,12 @@
    "min_ft": 4955.87,
    "total_mi": 11.49,
    "gx": 18,
-   "gy": 20.38,
+   "gy": 22.79,
    "gps_max_mi": 0.0,
-   "y_lo": 4942.0,
-   "y_hi": 5210.12,
+   "y_lo": 4931.44,
+   "y_hi": 5221.44,
    "pad_l": 0,
-   "vx": 46.77,
+   "vx": 43.24,
    "h": 110
   }
  },

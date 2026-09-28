@@ -60,7 +60,10 @@ def _n10(v):
 
 
 def compact_path(d):
-    """'M50.3 42.9L49.8 42.5…' (absolute, 1 dp) -> 'M50.3 42.9l-.5-.4…' (relative, same points, about half the bytes)."""
+    """'M50.3 42.9L49.8 42.5…' (absolute, 1 dp) -> 'M50.3 42.9l-.5-.4…' (relative, same points, about half the bytes).
+    Anything but a plain absolute M/L polyline (e.g. a fragment render.py already wrote in relative form) passes unchanged."""
+    if re.search(r'[^ML0-9.,\s-]', d):
+        return d
     pts = _PT.findall(d)
     if not pts or pts[0][0] != 'M' or any(c != 'L' for c, _, _ in pts[1:]) or len(pts) != d.count('M') + d.count('L'):
         return d
@@ -157,7 +160,7 @@ def strip(t):
     photos = sum(len(d['photos']) for d in days)
     cells.append(('Write-ups', '%s<span class="unit">day%s</span>' % (n(wu), '' if wu == 1 else 's'),
                   ('%s PHOTO%s' % (n(photos), '' if photos == 1 else 'S')) if photos else ''))
-    note = ('<p class="strip-note">Stats from the Garmin recordings via Strava. Distance and gain are the sums of all %s recordings, '
+    note = ('<p class="strip-note">Stats from the GPS recordings via Strava. Distance and gain are the sums of all %s recordings, '
             'short town days included.</p>' % n(len(days)))
     # core.strip: the shared Datum strip (Label / Data-XL value with core.dx punctuation / Mono-S sub-line)
     return '<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(cells, label='Series stats'), note)
@@ -168,7 +171,7 @@ def strip(t):
 def map_caption(t):
     """The shared map caption (core.map_caption), as on the report and multi-day maps: the track line, then the credit
     (two lines from 1200, one flowing paragraph below; phones drop the credit, which the in-map tag and footer carry)."""
-    return core.map_caption(['Tracks: Garmin, ' + core.frange(t['date'], t['end_date']), 'full tracks, not trimmed', 'North up'])
+    return core.map_caption(['Tracks: ' + core.frange(t['date'], t['end_date']), 'full tracks, not trimmed', 'North up'])
 
 
 def lede(t):
@@ -249,14 +252,42 @@ def map_keys(t, name):
     return ['start_end'] if (start and end) else (['start'] if start else (['end'] if end else []))
 
 
+# which overview render each band shows (series.css): the 560x860 render 1:1 in the 560 column >= 1200 and in the
+# one-column 560-759 band (map up to 560 wide); the 390x600 render on phones and in the tablet 5fr/6fr column beside the
+# overview text at 760-1199 (about 297x457 at 768: 0.76x at 760 up to 1.26x at 1199; the 560 render would be 0.53-0.88x)
+# One query per <link>: Chrome's preload scanner fetches a link whose media is a comma list whether or not it matches.
+OV_MEDIA = (('overview-tall', ('(min-width: 1200px)', '(min-width: 560px) and (max-width: 759.98px)')),
+            ('overview-phone', ('(max-width: 559.98px)', '(min-width: 760px) and (max-width: 1199.98px)')))
+
+
+def ov_preloads(t, here):
+    """<link rel="preload"> for the overview render each band shows (OV_MEDIA), so every width, tablets included, fetches the
+    hero hillshade (and base layer, when rendered) at once and never the render it hides."""
+    maps = core.render_meta(t)['maps']
+    base = link(here, t['url'] + 'map/')
+    out = []
+    for name, queries in OV_MEDIA:
+        m = maps.get(name) or {}
+        for media in queries:
+            if m.get('png'):
+                out.append('<link rel="preload" as="image" href="%s%s" media="%s" fetchpriority="high">' % (base, m['png'], media))
+            if m.get('base'):
+                out.append('<link rel="preload" as="image" type="image/svg+xml" href="%s%s" media="%s" fetchpriority="high">'
+                           % (base, m['base'], media))
+    return ''.join(out)
+
+
 def intro(t, here, months):
-    # wide (>= 1200): the 560x860 render 1:1 in the 560 column. col (560-1199) + phone: the 390x600 render, which the tablet
-    # 5fr/6fr column shows at about 0.9-1.05x (the 560 render there was 0.63x). series.css swaps the 560 render back in for
-    # the one-column 560-899 band, where the map is up to 560 wide.
+    # map_block shows wide >= 1200 and col 560-1199; series.css swaps the 560x860 render back in for 560-759 (OV_MEDIA)
     mp = core.map_block(t, here, [('overview-tall', 'wide'), ('overview-phone', 'col'), ('overview-phone', 'phone')],
                         t['url'] + 'map/', 'ov', cls='ser-map', id_=MAP_ID, fullscreen_href=link(here, t['url'] + 'map/'))
-    desk, phone = map_keys(t, 'overview-tall'), map_keys(t, 'overview-phone')
-    keys = core.key_rows(desk, phone, 'ser-mkey') if (desk or phone) else ''
+    tall, small = map_keys(t, 'overview-tall'), map_keys(t, 'overview-phone')
+    if tall == small:
+        keys = core.key_row(tall, 'ser-mkey') if tall else ''
+    else:
+        # one row per render, each shown with its render (series.css), since the swap is not at core's 560 line
+        keys = ((core.key_row(tall, 'ser-mkey ser-mkey--tall') if tall else '')
+                + (core.key_row(small, 'ser-mkey ser-mkey--390') if small else ''))
     return ('<section class="ser-intro wrap" id="map" aria-labelledby="ov-h">'
             '<div class="ser-intro-map">%s%s%s</div>'
             '<div class="ser-intro-t"><div class="shead"><h2 class="shead-t" id="ov-h">Overview</h2></div>%s%s</div></section>'
@@ -411,9 +442,8 @@ def page(t, site):
         (' and %s written up' % n(n_wu)) if n_wu else '')
     first_photo = next((d['photos'][0] for d in t['days'] if d['photos']), None)
     img = (t['url'] + first_photo['file']) if first_photo else ((t['url'] + t['photos'][0]['file']) if t['photos'] else None)
-    # the overview map's hillshade and base layer load at once where one render serves the breakpoint (series.css swaps
-    # renders inside 560-899, so the tablet band is left to the lazy images)
-    head = core.map_preloads(t, here, [('overview-tall', 'wide'), ('overview-phone', 'phone')], t['url'] + 'map/')
+    # the overview map's hillshade (and base layer) load at once at every width, each band fetching the render it shows
+    head = ov_preloads(t, here)
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img,
                                          body_cls='p-series', og_type='article', extra_head=head), t['title'])
 

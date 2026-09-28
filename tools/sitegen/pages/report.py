@@ -73,7 +73,7 @@ def map_caption(t):
         first.append('Planned route, not a recorded track')
     else:
         if t['date']:
-            first.append('Track: Garmin, %s' % core.fdate(t['date'], 'short'))
+            first.append('Track: %s' % core.fdate(t['date'], 'short'))
         first.append('full track, not trimmed')
     first.append('North up')
     return core.map_caption(first)
@@ -108,10 +108,17 @@ def elevation_table(t, track_path, stats):
             % (icon('chevron-down', 18), U('Mile', 'Km'), U('Elevation (ft)', 'Elevation (m)'), ''.join(rows)))
 
 
+def has_chart(meta):
+    """The chart profile_section() draws: 'speed' (flat water), 'profile' or '' (none)."""
+    ch = meta.get('charts', {})
+    return 'speed' if 'speed-wide' in ch else ('profile' if 'profile-wide' in ch else '')
+
+
 def profile_section(t, here, meta, ns='pf'):
+    """The Elevation (or flat-water Speed) section; id="profile" is the phone bottom bar's target."""
     ch = meta.get('charts', {})
     if 'speed-wide' in ch:
-        return ('<section class="rep-prof wrap sec" aria-labelledby="%s-h"><div class="rep-prof-h"><h2 class="t-label" id="%s-h">Speed</h2>'
+        return ('<section class="rep-prof wrap sec" id="profile" aria-labelledby="%s-h"><div class="rep-prof-h"><h2 class="t-label" id="%s-h">Speed</h2>'
                 '<p class="t-mono-s">%s</p>%s</div>%s</section>'
                 % (ns, ns, core.speed_meta(t), core.key_row(['speed'], 'keyrow--inline', label='Speed key'),
                    core.chart_block(t, here, [('speed-wide', 'wide'), ('speed-col', 'col'), ('speed-phone', 'phone')], ns)))
@@ -125,7 +132,7 @@ def profile_section(t, here, meta, ns='pf'):
     meta_line = core.meta_items(['GPS\u00a0MAX\u00a0' + U(core.nb(n(hi * FT) + ' FT'), core.nb(n(hi) + ' M')),
                                  'MIN\u00a0' + U(core.nb(n(lo * FT) + ' FT'), core.nb(n(lo) + ' M'))] + core.vx_line(ch, variants, items=True))
     keys = core.key_row(['hatch', 'fill'], 'keyrow--inline', label='Elevation key') if t['activity'] == 'ski' else ''
-    return ('<section class="rep-prof wrap sec" aria-labelledby="%s-h"><div class="rep-prof-h"><h2 class="t-label" id="%s-h">Elevation</h2>'
+    return ('<section class="rep-prof wrap sec" id="profile" aria-labelledby="%s-h"><div class="rep-prof-h"><h2 class="t-label" id="%s-h">Elevation</h2>'
             '<p class="t-mono-s">%s</p>%s</div>%s%s</section>'
             % (ns, ns, meta_line, keys, core.chart_block(t, here, variants, ns),
                elevation_table(t, t['track'], st)))
@@ -166,7 +173,7 @@ def aside_photo(t, here, p):
     fc = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if p.get('caption') else ''
     return ('<figure class="rep-aside-ph"><a class="jph jph--p" href="%s%s"%s>%s</a>%s</figure>'
             % (link(here, t['url']), p['file'], cap,
-               core.photo(t, p, here, sizes='(min-width: 1200px) 294px, (min-width: 1000px) 22vw, (min-width: 760px) 620px, 100vw',
+               core.photo(t, p, here, sizes='(min-width: 1200px) 294px, (min-width: 1000px) 22vw, (min-width: 760px) 240px, 100vw',
                           caption=False), fc))
 
 
@@ -193,7 +200,7 @@ def pager(t, here, site):
             continue
         arrow = icon('arrow-left' if cls == 'prev' else 'arrow-right', 14)
         lbl = ('%s<span>%s</span>' % (arrow, lab)) if cls == 'prev' else ('<span>%s</span>%s' % (lab, arrow))
-        g = core.glyph(x, here, 'g112', 'pg-%s' % x['slug']).replace('<svg ', '<svg class="glyph" ', 1)
+        g = core.glyph(x, here, 'g112', cls=' glyph')
         meta = core.meta_items([core.trip_date(x)] + core.plain_stats(x, items=True), br_after=0)
         txt = ('<span class="pager-t"><span class="t-label pager-l">%s</span><span class="pager-n">%s</span>'
                '<span class="t-mono-s">%s</span></span>' % (lbl, core.title_html(x['title']), meta))
@@ -219,12 +226,17 @@ def planned_pager(t, here, site):
     return '<nav class="pager wrap sec" aria-label="More %s">%s</nav>' % (esc(word.lower()), ''.join(cells))
 
 
-def bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery):
+def bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery, chart=''):
+    """Phone bottom bar, in page order: Map · Beta (or the Profile / Speed chart when there is no beta, or Stats when there
+    is neither) · Report (or Photos) · GPX. chart: has_chart(meta)."""
     items = [('#map', 'map', 'Map')]
     if has_beta:
         items.append(('#beta', 'beta', 'Beta'))
     elif t['kind'] != 'planned':
-        items.append(('#stats', 'beta', 'Stats'))
+        if chart:
+            items.append(('#profile', 'profile', 'Speed' if chart == 'speed' else 'Profile'))
+        else:
+            items.append(('#stats', 'beta', 'Stats'))
     if has_report:
         items.append(('#report', 'report', 'Report'))
     elif has_gallery:
@@ -283,12 +295,35 @@ def page(t, site):
     if has_gallery:
         body.append(gallery(t, here, t['photos']))
     body.append(planned_pager(t, here, site) if planned else pager(t, here, site))
-    desc = core.excerpt(t, 155) or core.summary(t)
+    # a title shared by several reports ('Ride near Day Valley') gets its date in the <title> / og:title (the H1 stays
+    # verbatim) and a description that leads with the factual summary, as does a report with little or no write-up
+    dup = not planned and t['date'] and title_counts(site).get(t['title'].casefold(), 0) > 1
+    full_title = ('%s, %s · %s' % (t['title'], core.fdate(t['date'], 'short'), core.SITE_NAME)) if dup else None
+    desc = core.excerpt(t, 155)
+    if dup or len(desc) < 100:
+        ex = core.excerpt(t, 400)
+        desc = core.clip_words(core.summary(t) + ((' ' + ex) if ex else ''), 155)
     img = (t['url'] + t['photos'][0]['file']) if t['photos'] else None
     head = core.map_preloads(t, here, variants, t['url'] + 'map/', nowide=nowide)
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img, body_cls='p-report',
-                                         bottom=bottom_bar(t, here, gpx_href, bool(beta), has_report, has_gallery), extra_head=head,
-                                         og_type='article', trip=t), t['title'])
+                                         bottom=bottom_bar(t, here, gpx_href, bool(beta), has_report, has_gallery,
+                                                           '' if planned else has_chart(meta)),
+                                         extra_head=head, og_type='article', trip=t, full_title=full_title), t['title'])
+
+
+_TITLE_COUNTS = {}
+
+
+def title_counts(site):
+    """How many published reports carry each title (casefolded), counted once per build."""
+    key = id(site['published'])
+    if key not in _TITLE_COUNTS:
+        c = {}
+        for x in site['published']:
+            c[x['title'].casefold()] = c.get(x['title'].casefold(), 0) + 1
+        _TITLE_COUNTS.clear()
+        _TITLE_COUNTS[key] = c
+    return _TITLE_COUNTS[key]
 
 
 def fullscreen_page(t, variants=None, key_html=None, cls=None, caption=None, post=None):
@@ -305,7 +340,8 @@ def fullscreen_page(t, variants=None, key_html=None, cls=None, caption=None, pos
     mp = core.map_block(t, here, variants, t['url'] + 'map/', 'fs', attrib=False, cls=cls or 'map--fs')
     if post:
         mp = post(mp)
-    body = ('<h1 class="sr">%s: map</h1><div class="wrap fs-bar"><a class="btn" href="../#map">%sBack to report</a></div>'
+    body = ('<h1 class="sr">%s: map</h1><div class="wrap fs-bar"><a class="btn" href="../#map">%sBack to report</a>'
+            '<span class="t-small fs-pan">Drag to pan</span></div>'
             '<div class="fs-map" tabindex="0" role="region" aria-label="Map, scroll to pan">%s</div><div class="wrap fs-foot">%s%s</div>'
             % (esc(t['title']), icon('arrow-left', 18), mp,
                key_html if key_html is not None else core.key_row(key_items(t, meta)),

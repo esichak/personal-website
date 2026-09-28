@@ -1,5 +1,5 @@
 {
- "hash": "543592cee2ddb9a0e0a679dfc71b9e8cf5a1c05d",
+ "hash": "86e27f30b604d22ec3085a7d7fcc901e31816d91",
  "slug": "ltcc-trad-climbing",
  "kind": "multi-day",
  "maps": {
@@ -141,12 +141,12 @@
    "min_ft": 6599.74,
    "total_mi": 0.44,
    "gx": 633.4,
-   "gy": 15.59,
+   "gy": 45.55,
    "gps_max_mi": 0.38,
-   "y_lo": 6596.59,
-   "y_hi": 6657.48,
+   "y_lo": 6485.98,
+   "y_hi": 6775.98,
    "pad_l": 72,
-   "vx": 5.21,
+   "vx": 1.09,
    "h": 118
   },
   "day-02-profile-phone": {
@@ -156,12 +156,12 @@
    "min_ft": 6599.74,
    "total_mi": 0.44,
    "gx": 311.12,
-   "gy": 20.38,
+   "gy": 45.58,
    "gps_max_mi": 0.38,
-   "y_lo": 6596.59,
-   "y_hi": 6657.48,
+   "y_lo": 6485.98,
+   "y_hi": 6775.98,
    "pad_l": 0,
-   "vx": 7.91,
+   "vx": 1.66,
    "h": 110
   },
   "day-03-profile-col": {

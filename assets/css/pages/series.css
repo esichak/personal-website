@@ -8,16 +8,26 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
 .ser-intro { margin-top: 32px; display: grid; row-gap: 40px; }
 .ser-intro-map { min-width: 0; }
 .ser-intro-map .keyrow { padding-top: 12px; }
+/* two key rows only when the renders draw different symbols: each follows the render its band shows (the 560x860 render
+   >= 1200 and at 560-759, the 390x600 render on phones and at 760-1199) */
+.ser-intro-map .ser-mkey--390 { display: none; }
+@media (max-width: 559.98px), (min-width: 760px) and (max-width: 1199.98px) {
+  .ser-intro-map .ser-mkey--tall { display: none; }
+  .ser-intro-map .ser-mkey--390 { display: flex; }
+}
 @media (max-width: 559.98px) { .ser-intro-map .ser-map { margin-inline: calc(-1 * var(--m)); } }
-/* one column (560-899): the map is up to 560 wide, so it keeps the 560x860 render at 1:1 instead of the 390x600 col render */
-@media (min-width: 560px) and (max-width: 899.98px) {
+/* one column (560-759): the map is up to 560 wide, so it keeps the 560x860 render at 1:1 instead of the 390x600 col render */
+@media (min-width: 560px) and (max-width: 759.98px) {
   .ser-intro-map { width: 100%; max-width: 560px; }
   .ser-map .mv--wide { display: block; }
   .ser-map .mv--col { display: none; }
 }
-@media (min-width: 900px) {
-  .ser-intro { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: 40px; align-items: start; }
+/* tablets (760-1199): the 390x600 render beside the overview text and month bars (about 297x457 at 768), so 'Overview'
+   starts in the first screen instead of under a 560-wide map */
+@media (min-width: 760px) {
+  .ser-intro { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: 32px; align-items: start; }
 }
+@media (min-width: 1000px) { .ser-intro { column-gap: 40px; } }
 @media (min-width: 1200px) {
   .ser-intro { margin-top: 48px; grid-template-columns: 560px minmax(0, 1fr); column-gap: 72px; }
 }
@@ -42,8 +52,13 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
 .ser-key { margin-top: 12px; }
 .ser-key .ser-key-n { color: var(--ink-3); }
 @media (min-width: 1200px) { .ser-mi-a { padding: 16px 0 18px; } }
-/* phones: the day range / write-up count sits on its own line under the month name, the same on every row */
-@media (max-width: 559.98px) { .ser-mi-h { flex-direction: column; align-items: flex-start; } .ser-mi-a { row-gap: 10px; } }
+/* phones, and the narrow tablet text column beside the map (760-849, about 345-400px): the day range / write-up count sits
+   on its own line under the month name, the same on every row (the longest, 'September · DAYS 133-153 · 2 WRITE-UPS'
+   plus its distance, needs about 380px, so one row would otherwise wrap alone) */
+@media (max-width: 559.98px), (min-width: 760px) and (max-width: 849.98px) {
+  .ser-mi-h { flex-direction: column; align-items: flex-start; }
+  .ser-mi-a { row-gap: 10px; }
+}
 
 /* ---------------------------------------------------------------- day log: head, filter, sticky month nav */
 .ser-log-h { align-items: center; padding-bottom: 8px; }

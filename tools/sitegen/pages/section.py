@@ -1,9 +1,12 @@
 """Section index pages — /ski/, /climbing/, /hiking/, /mountain-biking/, /other/ (one module, five pages).
 
-Anatomy: breadcrumb, H1 with the activity disc, Mono-S totals line, optional filter band (Ski: seasons, Other: sub-types),
-then either the Ski list + sticky region map panel, or a Featured block followed by "More <x>".
-Hiking adds the series section (after Featured) and a Planned block; Mountain Biking adds a full-width elevation profile;
-Other adds one line under the filter band naming the sub-types without reports.
+Anatomy: breadcrumb, H1 with the activity disc, Mono-S totals line (counts on line 1, places by size on line 2), optional
+filter band, then either the Ski list + sticky region map panel, or a Featured block followed by "More <x>".
+Filter bands: Ski (seasons), Other (sub-types), Mountain Biking and Hiking (years). The long MTB and Hiking lists are
+grouped by year under their "More <x>" head (the Ski season markup, one level down). section.js turns each band into a
+radio group that filters [data-f]; without JS the segments are links that jump to the group.
+Hiking adds the series section (after Featured) and a Planned block (shown under All only); Mountain Biking adds a
+full-width elevation profile; Other adds one line under the filter band naming the sub-types without reports.
 """
 import json
 import os
@@ -21,6 +24,8 @@ AVY = [('Eastern Sierra Avalanche Center', 'https://www.esavalanche.org/'),
        ('Sierra Avalanche Center', 'https://www.sierraavalanchecenter.org/')]
 FULL_TRACK = 'full track, not trimmed'
 MAX_AREAS = 3
+YEAR_ACTS = ('mtb', 'hike')  # long lists grouped by year, with a year band
+YEAR_ROWS = 20  # ... when 'More <x>' has more rows than this (Climbing and Other stay flat)
 
 
 # ---------------------------------------------------------------- small helpers
@@ -42,30 +47,37 @@ def reports_of(site, act):
     return [t for t in site['published'] if t['activity'] == act]
 
 
-def areas(ts):
-    """Where the reports are: the distinct regions, newest trip first; when every report shares one region, the distinct
-    places inside it instead (climbing: LOVER'S LEAP · KINGSBURY GRADE). At most MAX_AREAS, then 'N MORE'."""
-    def distinct(key):
-        out = []
-        for t in ts:  # newest first
+def area_names(ts):
+    """Where the reports are, biggest first: the distinct regions ordered by (-reports, name); when every report shares one
+    region, the distinct places inside it instead, ordered the same way (climbing: LOVER'S LEAP · KINGSBURY GRADE)."""
+    def by_size(key):
+        k = {}
+        for t in ts:
             v = (t.get(key) or '').strip()
-            if v and v not in out:
-                out.append(v)
-        return out
-    names = distinct('region')
+            if v:
+                k[v] = k.get(v, 0) + 1
+        return sorted(k, key=lambda v: (-k[v], v))
+    names = by_size('region')
     if len(names) == 1:
-        names = distinct('place') or names
-    items = [core.nb(esc(x).upper()) for x in names[:MAX_AREAS]]
-    if len(names) > MAX_AREAS:
-        items.append(core.nb('%d MORE' % (len(names) - MAX_AREAS)))
-    return items
+        names = by_size('place') or names
+    return names
+
+
+def areas(ts):
+    """The places items of the totals line: every name when there are at most MAX_AREAS + 1 (never '1 MORE'), otherwise
+    the MAX_AREAS biggest and 'N MORE'."""
+    names = area_names(ts)
+    if len(names) <= MAX_AREAS + 1:
+        return [core.nb(esc(x).upper()) for x in names]
+    return [core.nb(esc(x).upper()) for x in names[:MAX_AREAS]] + [core.nb('%d MORE' % (len(names) - MAX_AREAS))]
 
 
 def totals_line(ts, act=None, planned=()):
-    """Counts and areas only (a meta_items() line): '4 REPORTS · INCL. 1 SERIES · + 1 PLANNED ROUTE · EASTERN SIERRA · …'.
-    No summed distance or gain: climbing gain is the walk-off only, and one series would dominate the hiking totals.
-    act is accepted for symmetry with the other section helpers; the counts come from core.count_items."""
-    return core.meta_items(core.count_items(ts, list(planned)) + areas(ts))
+    """Counts and places only (a meta_items() line in two lines: .ml-br after the counts): '4 REPORTS · INCL. 1 SERIES ·
+    + 1 PLANNED ROUTE' / 'LAKE TAHOE · OREGON · …'. No summed distance or gain: climbing gain is the walk-off only, and one
+    series would dominate the hiking totals. act is accepted for symmetry with the other section helpers."""
+    counts = core.count_items(ts, list(planned))
+    return core.meta_items(counts + areas(ts), br_after=len(counts) - 1)
 
 
 def count_html(k, cls):
@@ -79,7 +91,7 @@ def map_caption(t):
     since the credit moves into the map tag and the footer (.mapcap-2) and the report carries 'full track, not trimmed'."""
     first = []
     if t['date']:
-        first.append('Track: Garmin, %s' % core.fdate(t['date'], 'short'))
+        first.append('Track: %s' % core.fdate(t['date'], 'short'))
     first.append((FULL_TRACK, 'sec-cap-x'))
     first.append('North up')
     return core.map_caption(first)
@@ -131,13 +143,15 @@ def band(label, segs, scope_id):
 
 # ---------------------------------------------------------------- featured block
 
-def featured(t, here, full_row=''):
+def featured(t, here, full_row='', fkey=None):
     """Datum featured anatomy: label → chips → H2 row (Download GPX bottom-aligned) → place line → strip → map, key row,
     caption | photo + write-up.
 
     With no chart under the map, the write-up moves under the map on desktop and a second photo fills the right column
     (ClimbingIndex artboard), so neither column ends in a large blank. Phones (< 760) get the compact block (CSS): no GPX
-    button, strip sub-lines, footnote or charts (the report keeps them), one photo and four lines of the write-up."""
+    button, strip sub-lines, footnote or charts (the report keeps them), one photo and four lines of the write-up.
+    The map is the page's LCP image: eager, with page() preloading it (core.map_preloads). fkey: the block's filter key
+    (data-f; the year on MTB / Hiking), default the sub-type (Other)."""
     act = t['activity']
     href = link(here, t['url'])
     gpx = link(here, t['url'] + t['slug'] + '.gpx')
@@ -148,7 +162,7 @@ def featured(t, here, full_row=''):
     place_html = ('<p class="t-mono-s sec-feat-place">%s</p>'
                   % core.meta_items([(date, 'sec-feat-pdate')] + core.place_line(t, items=True)))
     variants = [('map-col', 'col'), ('map-phone', 'phone')]
-    map_ = core.map_block(t, here, variants, t['url'] + 'map/', 'fm', cls='map--nowide sec-feat-mapv')
+    map_ = core.map_block(t, here, variants, t['url'] + 'map/', 'fm', eager=True, cls='map--nowide sec-feat-mapv')
     key = core.feature_key(t, variants, miles=True)
     ch = meta.get('charts', {})
     chart = ''
@@ -175,7 +189,7 @@ def featured(t, here, full_row=''):
             '<div class="sec-feat-strip">%s%s</div>'
             '<div class="sec-feat-grid%s"><div class="sec-feat-map">%s%s%s%s</div>'
             '<div class="sec-feat-side">%s%s</div></div>%s</section>'
-            % (esc(t.get('subtype') or ''), chips, href, core.title_html(t['title']), place_html,
+            % (esc(fkey if fkey is not None else (t.get('subtype') or '')), chips, href, core.title_html(t['title']), place_html,
                gpx, icon('download', 18), core.strip(core.strip_cells(t)), core.stats_note(t), grid_cls,
                map_, key, map_caption(t), chart, ('<div class="sec-feat-pics">%s</div>' % pics) if pics else '', txt, full_row))
 
@@ -209,25 +223,66 @@ def pick_featured(ts):
     return next((t for t in singles if t['featured']), singles[0] if singles else None)
 
 
-def row(t, here, tagged=False):
-    """The shared list row; on Other each row carries its sub-type so the filter band can show / hide it."""
-    return core.trip_row(t, here, filter_key=(t.get('subtype') or '') if tagged else None)
+def row(t, here, fkey=None):
+    """The shared list row. fkey(t) -> the row's filter key (data-f: the sub-type on Other, the year on MTB / Hiking), so
+    the filter band can show / hide it; None: no filter."""
+    return core.trip_row(t, here, filter_key=fkey(t) if fkey else None)
 
 
-def more_list(title, rows_ts, here, id_='more', meta=None, extra='', tagged=False):
+def sub_key(t):
+    return t.get('subtype') or ''
+
+
+def year_key(t):
+    """A non-ski trip's year ('2022'); '' when undated (shown under All only)."""
+    return t.get('season') or ''
+
+
+def years_of(t):
+    """Every year a report covers: a series spans its days' years, anything else its start year."""
+    if t['kind'] == 'series' and t['days']:
+        ys = sorted({str(d['date'].year) for d in t['days'] if d.get('date')}, reverse=True)
+        if ys:
+            return ys
+    return [year_key(t)] if year_key(t) else []
+
+
+def year_groups(rows_ts, here):
+    """The Ski season markup one level down (H3 under the 'More <x>' head), newest year first; undated rows last."""
+    years = sorted({year_key(t) for t in rows_ts if year_key(t)}, reverse=True)
+    if any(not year_key(t) for t in rows_ts):
+        years.append('')
+    out = []
+    for y in years:
+        rs = [t for t in rows_ts if year_key(t) == y]
+        yid = 'year-' + (y or 'undated')
+        out.append('<section class="sec-season sec-year" id="%s" aria-labelledby="%s-h" data-f="%s">'
+                   '<div class="sec-div"><h3 class="sec-div-t" id="%s-h">%s</h3><span class="t-mono-s">%s</span></div>'
+                   '<ol class="tlist sec-tlist">%s</ol></section>'
+                   % (yid, yid, y, yid, esc(y or 'Undated'), plural(len(rs), 'REPORT'),
+                      ''.join(row(t, here, year_key) for t in rs)))
+    return ''.join(out)
+
+
+def more_list(title, rows_ts, here, id_='more', meta=None, extra='', fkey=None, by_year=False, sec_f=None):
+    """'More <x>': H2 section head with the count, then one list, or year groups (by_year). sec_f: a filter key for the
+    whole block (the Planned block's 'planned' shows under All only)."""
     if not rows_ts:
         return ''
     meta = meta if meta is not None else plural(len(rows_ts), 'REPORT')
-    return ('<section class="sec-more wrap" aria-labelledby="%s-h">%s<ol class="tlist sec-tlist">%s</ol>%s</section>'
-            % (id_, core.section_head(title, meta, id_=id_ + '-h'), ''.join(row(t, here, tagged) for t in rows_ts), extra))
+    body = (year_groups(rows_ts, here) if by_year
+            else '<ol class="tlist sec-tlist">%s</ol>' % ''.join(row(t, here, fkey) for t in rows_ts))
+    return ('<section class="sec-more wrap" aria-labelledby="%s-h"%s>%s%s%s</section>'
+            % (id_, (' data-f="%s"' % esc(sec_f)) if sec_f else '', core.section_head(title, meta, id_=id_ + '-h'), body, extra))
 
 
 # ---------------------------------------------------------------- hiking: series section (HikingIndex artboard)
 
-def series_block(t, here):
+def series_block(t, here, fkey=None):
     """Open section after Featured: head (title link · date range), overview map | tag, place line, the series page's
     stats, first photo of the first three days with photos, first written day, actions. The map is the 390×600 render
-    the series page uses for its column, so it shows near 1:1 (6 of 12 columns at 560–999, 5 at 1000–1199, 4 from 1200)."""
+    the series page uses for its column, so it shows near 1:1 (6 of 12 columns at 560–999, 5 at 1000–1199, 4 from 1200).
+    fkey: its filter key (data-f: the space-joined years of its days) when the page has a year band."""
     href = link(here, t['url'])
     days = t['days']
     written = [d for d in days if d['body_md']]
@@ -251,7 +306,7 @@ def series_block(t, here):
                   % (lab, esc(markdown.plain(d['body_md'], 200))))
     mp = core.map_block(t, here, [('overview-phone', 'desktop')], t['url'] + 'map/', 'ser', cls='sec-ser-map')
     place = core.meta_items(core.place_line(t, items=True))
-    return ('<section class="sec-ser wrap" aria-labelledby="ser-title">%s'
+    return ('<section class="sec-ser wrap" id="series" aria-labelledby="ser-title"%s>%s'
             '<div class="sec-ser-g">'
             '<div class="sec-ser-mapc">%s%s</div>'
             '<div class="sec-ser-b">'
@@ -259,7 +314,8 @@ def series_block(t, here):
             '%s%s'
             '<div class="sec-ser-a">%s<a class="btn" href="%s#days">%sDay by day</a></div>'
             '</div></div></section>'
-            % (core.section_head('<a href="%s">%s</a>' % (href, esc(t['title'])), core.trip_date(t), id_='ser-title'),
+            % ((' data-f="%s"' % esc(fkey)) if fkey is not None else '',
+               core.section_head('<a href="%s">%s</a>' % (href, esc(t['title'])), core.trip_date(t), id_='ser-title'),
                mp, core.map_caption(['North up']), core.tag('Series'),
                ('<p class="t-mono-s sec-ser-place">%s</p>' % place) if place else '', stats,
                ('<div class="sec-ser-phs">%s</div>' % pics) if pics else '', sample,
@@ -284,10 +340,13 @@ def dedupe_roads(svg, ns):
 
 
 def ski_regions(ts):
+    """The panel's regions, biggest first (as on map/); the sort is stable, so ties keep the newest trip's region first.
+    Only regions with a rendered ski panel map."""
     regions = []
-    for t in ts:  # newest first -> region of the latest trip first
+    for t in ts:  # newest first
         if t.get('region') and t['region'] not in regions:
             regions.append(t['region'])
+    regions.sort(key=lambda r: -sum(1 for t in ts if t.get('region') == r))
     meta_p = os.path.join(core.ROOT, 'rendered', 'site', 'meta.json')
     have = json.load(open(meta_p))['maps'] if os.path.exists(meta_p) else {}
     return [r for r in regions if ('ski-%s-desktop' % slug(r)) in have]
@@ -314,7 +373,7 @@ def ski_panel(ts, here):
     cap = '<div class="sec-pcap">%s</div>' % core.map_caption([('Hover a report to highlight its track', 'sec-pcap-h'), 'North up'])
     return ('<aside class="sec-panel" aria-labelledby="panel-h"><div class="sec-panel-in">'
             '<h2 class="sec-panel-h" id="panel-h">Ski map by region</h2>'
-            '<div class="sec-tabs" role="tablist" aria-label="Region">%s</div>'
+            '<div class="tabs-x sec-tabs-x"><div class="sec-tabs" role="tablist" aria-label="Region">%s</div></div>'
             '<div class="map sec-maps" id="ski-map">%s</div>%s</div></aside>'
             % (''.join(tabs), ''.join(panels), cap))
 
@@ -334,13 +393,17 @@ def ski_body(ts, here):
                       % (sid, sid, slug(s), sid, esc(s), plural(len(rows), 'REPORT'), ''.join(row(t, here) for t in rows)))
     avy = ('<div class="sec-avy"><p class="t-label">Current avalanche forecasts</p><ul>%s</ul></div>'
            % ''.join('<li>%s</li>' % arrow_link(u, esc(nm)) for nm, u in AVY))
-    return ('<div class="sec-split wrap" id="reports"><div class="sec-list" data-map-target="ski-map">%s</div>%s</div>'
-            '<div class="wrap sec-avy-w">%s</div>' % (''.join(groups), ski_panel(ts, here), avy)), seasons
+    # the panel comes first in reading order, as it shows below 960 (tabs + map above the seasons, as on map/); from 960
+    # the grid puts it in the right-hand column beside the list
+    return ('<div class="sec-split wrap" id="reports">%s<div class="sec-list" data-map-target="ski-map">%s</div></div>'
+            '<div class="wrap sec-avy-w">%s</div>' % (ski_panel(ts, here), ''.join(groups), avy)), seasons
 
 
+# without JS every region map shows (no tabs), so below 960 the panel moves under the list
 NOSCRIPT = ('<noscript><style>.sec-rp[hidden]{display:block!important}.sec-rp+.sec-rp{margin-top:24px}'
-            '.sec-rp-l{display:block!important}.sec-tabs,.sec-pcap-h{display:none!important}'
-            '.sec-panel-in{position:static!important}</style></noscript>')
+            '.sec-rp-l{display:block!important}.sec-tabs-x,.sec-pcap-h{display:none!important}'
+            '.sec-panel-in{position:static!important}'
+            '@media (max-width:959.98px){.sec-panel{order:1!important;margin:var(--sec) 0 0!important}}</style></noscript>')
 
 
 # ---------------------------------------------------------------- other: sub-types without reports
@@ -369,11 +432,19 @@ def act_words(act, ts):
 
 
 def description(act, ts):
+    """'61 mountain biking trip reports (Santa Cruz, Lake Tahoe, Bay Area and 2 more regions), each with …' — the regions
+    in the totals line's order (biggest first); every name when there are at most MAX_AREAS + 1."""
     regions = []
     for t in ts:
         if t.get('region') and t['region'] not in regions:
             regions.append(t['region'])
-    where = (' (%s)' % ', '.join(regions)) if regions else ''
+    regions.sort(key=lambda r: (-sum(1 for t in ts if t.get('region') == r), r))
+    where = ''
+    if len(regions) > MAX_AREAS + 1:
+        k = len(regions) - MAX_AREAS
+        where = ' (%s and %d more regions)' % (', '.join(regions[:MAX_AREAS]), k)
+    elif regions:
+        where = ' (%s)' % words_list(regions, 'and')
     word = act_words(act, ts)
     if len(ts) == 1:
         return '1 %s trip report%s, with the full GPX track and map.' % (word, where)
@@ -385,6 +456,23 @@ def og_image(ts):
         if t['photos']:
             return t['url'] + t['photos'][0]['file']
     return None
+
+
+def year_segs(years, shown, feat, ser, rest):
+    """The year band: All, then each year with its published reports (rows + featured + series). A segment jumps to its
+    year group without JS; a year whose only report is the featured trip or the series jumps there instead."""
+    grouped = {year_key(t) for t in rest}
+    segs = [('all', 'All', None, '#reports', None)]
+    for y in years:
+        k = sum(1 for t in shown if y in years_of(t))
+        if y in grouped:
+            href = '#year-' + y
+        elif feat is not None and year_key(feat) == y:
+            href = '#featured'
+        else:
+            href = '#series'
+        segs.append((y, y, k, href, None))
+    return segs
 
 
 def page(act, site):
@@ -405,6 +493,12 @@ def page(act, site):
         body.append(main)
         extra_head = NOSCRIPT
     else:
+        feat = pick_featured(ts)
+        ser = next((t for t in ts if t['kind'] == 'series' and t['days']), None) if act == 'hike' else None
+        rest = [t for t in ts if t is not feat and not (act == 'hike' and t['kind'] == 'series')]
+        shown = ([feat] if feat else []) + ([ser] if ser else []) + rest
+        years = sorted({y for t in shown for y in years_of(t)}, reverse=True)
+        by_year = act in YEAR_ACTS and len(rest) > YEAR_ROWS and len(years) > 1
         if act == 'other':
             counts = {s: len([t for t in ts if t.get('subtype') == s]) for s in content.OTHER_SUBTYPES}
             segs = [('all', 'All', None, '#reports', 'OTH')]
@@ -412,21 +506,24 @@ def page(act, site):
                 segs.append((s, core.SUB_WORD[s], counts[s] or None, ('#featured' if counts[s] else None), core.SUB_ICON[s]))
             body.append(band('Filter by type', segs, 'reports'))
             body.append(none_line([s for s in content.OTHER_SUBTYPES if not counts[s]]))
-        body.append('<div id="reports" class="sec-reports%s">' % (' sec-reports--band' if act == 'other' else ''))
-        feat = pick_featured(ts)
+        if by_year:
+            body.append(band('Filter by year', year_segs(years, shown, feat, ser, rest), 'reports'))
+        body.append('<div id="reports" class="sec-reports%s">' % (' sec-reports--band' if (act == 'other' or by_year) else ''))
         if feat:
             full = ''
             if act == 'mtb':
                 full = profile_block(feat, here, [('profile-wide', 'wide'), ('profile-col', 'col')], 'fw')
                 full = ('<div class="sec-feat-full">%s</div>' % full) if full else ''
-            body.append(featured(feat, here, full_row=full))
-        series = [t for t in ts if t['kind'] == 'series' and t['days']]
-        if act == 'hike' and series:
-            body.append(series_block(series[0], here))
-        rest = [t for t in ts if t is not feat and not (act == 'hike' and t['kind'] == 'series')]
-        body.append(more_list(MORE[act], rest, here, tagged=(act == 'other')))
+            body.append(featured(feat, here, full_row=full, fkey=year_key(feat) if by_year else None))
+            # the featured map is the LCP image: preload the variant each breakpoint shows
+            extra_head = core.map_preloads(feat, here, [('map-col', 'col'), ('map-phone', 'phone')], feat['url'] + 'map/',
+                                           nowide=True)
+        if ser:
+            body.append(series_block(ser, here, fkey=' '.join(years_of(ser)) if by_year else None))
+        body.append(more_list(MORE[act], rest, here, fkey=sub_key if act == 'other' else None, by_year=by_year))
         if act == 'hike' and planned:
-            body.append(more_list('Planned', planned, here, id_='planned', meta=plural(len(planned), 'PLANNED ROUTE')))
+            body.append(more_list('Planned', planned, here, id_='planned', meta=plural(len(planned), 'PLANNED ROUTE'),
+                                  sec_f='planned' if by_year else None))
         body.append('</div>')
     title = '%s trip reports' % core.ACT[act][0]
     return core.Page(here, core.document(here, title, ''.join(body), description(act, ts), active=act,

@@ -1,37 +1,55 @@
-/* Section index pages: filter band (seasons / sub-types) and the ski region tablist. No dependencies. */
+/* Section index pages: filter bands (Ski seasons, Other sub-types, MTB / Hiking years) and the ski region tablist.
+   No dependencies; base.js supplies the radio-group keys (arrows, Home / End, Space / Enter). */
 (function () {
   'use strict';
   if (!document.body.classList.contains('p-section')) return;
 
-  // ------------------------------------------------------------ filter band: links that jump without JS, filter with it
+  // ------------------------------------------------------------ filter bands: links that jump without JS, a radio group with it
   document.querySelectorAll('[data-filter-nav]').forEach(function (nav) {
     var scope = document.getElementById(nav.dataset.filterNav) || document.body;
-    var links = nav.querySelectorAll('a[data-filter]');
+    var links = Array.prototype.slice.call(nav.querySelectorAll('a[data-filter]'));
     var live = nav.parentNode.querySelector('[data-filter-live]');
     var items = scope.querySelectorAll('[data-f]');
 
+    // one radio per segment (the nav's aria-label names the group); a sub-type with no reports stays, disabled
+    nav.setAttribute('role', 'radiogroup');
+    nav.querySelectorAll('.sec-seg-a').forEach(function (a) {
+      a.setAttribute('role', 'radio');
+      a.removeAttribute('aria-current');
+      if (!a.dataset.filter) {
+        a.setAttribute('aria-disabled', 'true');
+        a.setAttribute('aria-checked', 'false');
+        a.tabIndex = -1;
+      }
+    });
+
+    function visible(el) { return !el.classList.contains('is-off') && !el.closest('.is-off'); }
+
     function apply(key, announce) {
-      var shown = 0;
       links.forEach(function (a) {
-        if (a.dataset.filter === key) a.setAttribute('aria-current', 'true');
-        else a.removeAttribute('aria-current');
+        var on = a.dataset.filter === key;
+        a.setAttribute('aria-checked', String(on));
+        a.tabIndex = on ? 0 : -1;
       });
       items.forEach(function (el) {
         var keys = (el.dataset.f || '').split(' ');
-        var on = key === 'all' || keys.indexOf(key) !== -1;
-        el.classList.toggle('is-off', !on);
+        el.classList.toggle('is-off', !(key === 'all' || keys.indexOf(key) !== -1));
       });
-      // a list section whose rows are all filtered out disappears too
-      scope.querySelectorAll('.sec-more').forEach(function (sec) {
+      // a list section whose rows are all filtered out disappears too (a section with its own key, like the Planned
+      // block, was set above)
+      scope.querySelectorAll('.sec-more:not([data-f])').forEach(function (sec) {
         var rows = sec.querySelectorAll('.trow');
-        var vis = Array.prototype.filter.call(rows, function (r) { return !r.classList.contains('is-off'); }).length;
+        var vis = Array.prototype.filter.call(rows, function (r) { return !r.classList.contains('is-off') && !r.closest('.sec-season.is-off'); }).length;
         sec.classList.toggle('is-off', rows.length > 0 && vis === 0);
       });
+      if (!announce || !live) return;
+      // published reports shown: rows (planned routes aside), the featured trip and the series
+      var shown = 0;
       scope.querySelectorAll('.trow').forEach(function (r) {
-        if (!r.classList.contains('is-off') && !r.closest('.is-off')) shown++;
+        if (visible(r) && !r.closest('[data-f="planned"]')) shown++;
       });
-      if (scope.querySelector('#featured') && !scope.querySelector('#featured').classList.contains('is-off')) shown++;
-      if (announce && live) live.textContent = shown === 1 ? '1 report shown' : shown + ' reports shown';
+      scope.querySelectorAll('#featured, #series').forEach(function (b) { if (visible(b)) shown++; });
+      live.textContent = shown === 1 ? '1 report shown' : shown + ' reports shown';
     }
 
     nav.addEventListener('click', function (e) {
@@ -45,12 +63,16 @@
       } catch (err) { /* file:// */ }
     });
 
-    // deep link: /ski/#season-2024-25 opens with that filter applied
-    if (location.hash) {
+    // deep link: /ski/#season-2024-25 or /mountain-biking/#year-2022 opens with that filter applied (only a link to a
+    // group does: #featured is shared by several segments on Other)
+    var key = 'all';
+    var target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (target && target.classList.contains('sec-season')) {
       links.forEach(function (a) {
-        if (a.getAttribute('href') === location.hash && a.dataset.filter !== 'all') apply(a.dataset.filter, false);
+        if (a.getAttribute('href') === location.hash && a.dataset.filter !== 'all') key = a.dataset.filter;
       });
     }
+    apply(key, false);
   });
 
   // ------------------------------------------------------------ ski region tablist

@@ -1,5 +1,5 @@
 {
- "hash": "efc81f18efdf2621f5924b331072f21a9a1ed574",
+ "hash": "cfa151e7cf8eb58bbbb053a577ebd01a98bb983b",
  "slug": "paddle-near-tahoma",
  "kind": "trip",
  "maps": {
@@ -9,7 +9,7 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": null
   },
   "map-col": {
    "w": 718,
@@ -17,7 +17,7 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": true
+   "outbound_only": null
   },
   "map-phone": {
    "w": 390,
@@ -28,7 +28,41 @@
    "outbound_only": null
   }
  },
- "charts": {},
+ "charts": {
+  "speed-wide": {
+   "w": 1248,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 270.1666666666667,
+    "vmax_mph": 3.8872585934926436,
+    "stopped_s": 0,
+    "top_mph": 6
+   }
+  },
+  "speed-col": {
+   "w": 718,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 270.1666666666667,
+    "vmax_mph": 3.8872585934926436,
+    "stopped_s": 0,
+    "top_mph": 6
+   }
+  },
+  "speed-phone": {
+   "w": 358,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 270.1666666666667,
+    "vmax_mph": 3.8872585934926436,
+    "stopped_s": 0,
+    "top_mph": 6
+   }
+  }
+ },
  "start": [
   39.000859,
   -120.101503

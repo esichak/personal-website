@@ -1,5 +1,5 @@
-/* Site behaviour: units toggle, phone menu, list ↔ map highlighting, current-section markers, phone app bar, photo viewer,
-   full-screen map. No dependencies. */
+/* Site behaviour: units toggle, radio groups, scrollable tab rows, phone menu, list ↔ map highlighting, current-section
+   markers, phone app bar, photo viewer, full-screen map. No dependencies. */
 (function () {
   'use strict';
   var root = document.documentElement;
@@ -22,18 +22,81 @@
     var b = e.target.closest('.units button');
     if (b) setUnits(b.dataset.units, true);
   });
-  document.addEventListener('keydown', function (e) {
-    var b = e.target.closest && e.target.closest('.units button');
-    if (!b || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
-    e.preventDefault();
-    var next = b.dataset.units === 'mi' ? 'km' : 'mi';
-    setUnits(next, true);
-    var t = b.parentNode.querySelector('[data-units="' + next + '"]');
-    if (t) t.focus();
-  });
   var live = document.createElement('p');
   live.id = 'units-live'; live.className = 'sr'; live.setAttribute('aria-live', 'polite');
   document.body.appendChild(live);
+
+  // ------------------------------------------------------------ radio groups (units, filter bands, activity chips)
+  // One tab stop per [role=radiogroup] (roving tabindex on the checked radio). Arrow keys (wrapping), Home and End move
+  // focus and select (el.click(), so each page's own click handler applies the choice); Space / Enter select. Disabled
+  // radios (aria-disabled="true") are skipped.
+  var RADIO = '[role="radio"]:not([aria-disabled="true"])';
+  var radios = function (g) {
+    return Array.prototype.filter.call(g.querySelectorAll(RADIO), function (r) {
+      return !r.hidden && r.closest('[role="radiogroup"]') === g;
+    });
+  };
+  var syncRadios = function (g) {
+    var rs = radios(g);
+    if (!rs.length) return;
+    var on = rs.filter(function (r) { return r.getAttribute('aria-checked') === 'true'; })[0] || rs[0];
+    g.querySelectorAll('[role="radio"]').forEach(function (r) { r.tabIndex = r === on ? 0 : -1; });
+  };
+  document.querySelectorAll('[role="radiogroup"]').forEach(syncRadios);
+  document.addEventListener('click', function (e) {
+    var g = e.target.closest && e.target.closest('[role="radiogroup"]');
+    if (g) window.requestAnimationFrame(function () { syncRadios(g); });
+  });
+  document.addEventListener('keydown', function (e) {
+    var r = e.target.closest && e.target.closest('[role="radio"]');
+    var g = r && r.closest('[role="radiogroup"]');
+    if (!g || e.altKey || e.ctrlKey || e.metaKey) return;
+    var k = e.key;
+    if (k === ' ' || k === 'Enter') {
+      if (r.tagName === 'BUTTON' || (k === 'Enter' && r.tagName === 'A')) return;  // the browser activates these itself
+      e.preventDefault();
+      r.click();
+      return;
+    }
+    var rs = radios(g), i = rs.indexOf(r), j = null;
+    if (!rs.length) return;
+    if (k === 'ArrowRight' || k === 'ArrowDown') j = (i + 1) % rs.length;
+    else if (k === 'ArrowLeft' || k === 'ArrowUp') j = (i - 1 + rs.length) % rs.length;
+    else if (k === 'Home') j = 0;
+    else if (k === 'End') j = rs.length - 1;
+    if (j === null) return;
+    e.preventDefault();
+    rs[j].focus();
+    rs[j].click();
+  });
+
+  // ------------------------------------------------------------ scrollable tab rows (.tabs-x > [role=tablist])
+  // The row scrolls sideways instead of widening the page: .is-scroll when it overflows, .is-end at the right end (the fade
+  // hides), and after a click or a key press the selected tab is scrolled into the row (never the page: no scrollIntoView).
+  document.querySelectorAll('.tabs-x').forEach(function (box) {
+    var tl = box.querySelector('[role="tablist"]');
+    if (!tl) return;
+    var upd = function () {
+      box.classList.toggle('is-scroll', tl.scrollWidth > tl.clientWidth + 1);
+      box.classList.toggle('is-end', tl.scrollLeft + tl.clientWidth >= tl.scrollWidth - 1);
+    };
+    var reveal = function () {
+      window.requestAnimationFrame(function () {
+        var tab = tl.querySelector('[aria-selected="true"]');
+        if (!tab || tl.scrollWidth <= tl.clientWidth + 1) { upd(); return; }
+        var l = tab.getBoundingClientRect().left - tl.getBoundingClientRect().left + tl.scrollLeft, r = l + tab.offsetWidth;
+        if (l < tl.scrollLeft) tl.scrollLeft = l - 16;
+        else if (r > tl.scrollLeft + tl.clientWidth) tl.scrollLeft = r - tl.clientWidth + 32;
+        upd();
+      });
+    };
+    if ('ResizeObserver' in window) new ResizeObserver(upd).observe(tl);
+    tl.addEventListener('scroll', upd, { passive: true });
+    tl.addEventListener('click', reveal);
+    tl.addEventListener('keydown', reveal);
+    upd();
+    reveal();
+  });
 
   // ------------------------------------------------------------ phone / tablet menu
   var btn = document.querySelector('.menu-btn');
@@ -111,6 +174,12 @@
       el.addEventListener('click', function () {
         var row = Array.prototype.find.call(rowsFor(map), function (r) { return keys.indexOf(r.dataset.key) !== -1; });
         if (!row) return;
+        if (row.offsetParent === null) {
+          // the row sits in a collapsed list ("Show all N"): open it first
+          var ol = row.closest('ol[id]');
+          var more = ol && document.querySelector('[aria-controls="' + ol.id + '"][aria-expanded="false"]');
+          if (more) more.click();
+        }
         row.scrollIntoView({ block: 'center' });
         var a = row.matches('a') ? row : row.querySelector('a');
         if (a) a.focus({ preventScroll: true });
@@ -181,9 +250,11 @@
   if (lb && typeof lb.showModal === 'function') {
     var lbImg = lb.querySelector('.lb-img'), lbN = lb.querySelector('.lb-n'), lbCap = lb.querySelector('.lb-cap');
     var lbPrev = lb.querySelector('.lb-prev'), lbNext = lb.querySelector('.lb-next'), lbClose = lb.querySelector('.lb-close');
+    var lbLive = document.getElementById('lb-live');
     var group = [], at = 0, opener = null;
     var LINKS = 'a.jph, a.mul-ph, a.ser-ph';
-    var show = function (i) {
+    // announce: moving within the open viewer (keys, buttons, swipes) says 'Photo N of M. <alt>'; the first open does not
+    var show = function (i, announce) {
       at = Math.max(0, Math.min(group.length - 1, i));
       var a = group[at], th = a.querySelector('img');
       var ss = th && th.getAttribute('srcset');
@@ -192,6 +263,9 @@
       // width descriptors (800/1600 copies) let a phone take the small file; density-only thumbnail sets would pick a
       // thumbnail, so those open the full file (the href)
       if (ss && /\s\d+w\s*(,|$)/.test(ss)) { lbImg.setAttribute('sizes', '100vw'); lbImg.setAttribute('srcset', ss); }
+      // the thumbnail's size attributes give the viewer its shape before the file arrives, so the bar never jumps
+      lbImg.style.aspectRatio = (th && th.getAttribute('width') && th.getAttribute('height'))
+        ? th.getAttribute('width') + ' / ' + th.getAttribute('height') : '';
       lbImg.src = a.getAttribute('href');
       lbImg.alt = th ? th.alt : '';
       lbN.textContent = 'PHOTO ' + (at + 1) + ' / ' + group.length;
@@ -199,6 +273,7 @@
       lbPrev.hidden = at === 0;
       lbNext.hidden = at === group.length - 1;
       if (document.activeElement && document.activeElement.hidden) lbClose.focus();
+      if (lbLive) lbLive.textContent = announce ? 'Photo ' + (at + 1) + ' of ' + group.length + '. ' + lbImg.alt : '';
     };
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest(LINKS);
@@ -212,12 +287,12 @@
       lb.showModal();
       lbClose.focus();
     });
-    lbPrev.addEventListener('click', function () { show(at - 1); });
-    lbNext.addEventListener('click', function () { show(at + 1); });
+    lbPrev.addEventListener('click', function () { show(at - 1, true); });
+    lbNext.addEventListener('click', function () { show(at + 1, true); });
     lbClose.addEventListener('click', function () { lb.close(); });
     lb.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowLeft' && at > 0) { e.preventDefault(); show(at - 1); }
-      if (e.key === 'ArrowRight' && at < group.length - 1) { e.preventDefault(); show(at + 1); }
+      if (e.key === 'ArrowLeft' && at > 0) { e.preventDefault(); show(at - 1, true); }
+      if (e.key === 'ArrowRight' && at < group.length - 1) { e.preventDefault(); show(at + 1, true); }
     });
     var sx = null, swiped = false;
     lb.addEventListener('pointerdown', function (e) { sx = e.clientX; swiped = false; });
@@ -227,8 +302,8 @@
       sx = null;
       if (Math.abs(dx) > 40) {
         swiped = true;
-        if (dx < 0 && at < group.length - 1) show(at + 1);
-        if (dx > 0 && at > 0) show(at - 1);
+        if (dx < 0 && at < group.length - 1) show(at + 1, true);
+        if (dx > 0 && at > 0) show(at - 1, true);
       }
     });
     lbImg.addEventListener('dragstart', function (e) { e.preventDefault(); });
@@ -239,7 +314,36 @@
     });
   }
 
-  // ------------------------------------------------------------ full-screen map page: start centred on the track
+  // ------------------------------------------------------------ full-screen map page: open on the route, not the image
+  // centre. A route that fits the screen is centred; a wider one opens on its start (kept in view, as much of the route as
+  // fits beside it). A map wider than the screen shows 'Drag to pan'.
   var fm = document.querySelector('.fs-map');
-  if (fm) fm.scrollLeft = (fm.scrollWidth - fm.clientWidth) / 2;
+  if (fm) {
+    var svg = fm.querySelector('.mv svg'), mapEl = fm.querySelector('.map');
+    var vb = svg && svg.viewBox && svg.viewBox.baseVal;
+    var bb = null, start = null;
+    fm.querySelectorAll('.mk-trk').forEach(function (p) {
+      try {
+        var b = p.getBBox();
+        if (!b.width && !b.height) return;
+        if (!start && p.getPointAtLength) start = p.getPointAtLength(0);
+        bb = bb ? { x0: Math.min(bb.x0, b.x), y0: Math.min(bb.y0, b.y), x1: Math.max(bb.x1, b.x + b.width), y1: Math.max(bb.y1, b.y + b.height) }
+          : { x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height };
+      } catch (err) { /* not rendered */ }
+    });
+    // one axis: centre the route when it fits, else keep the start in view and show as much of the route as fits
+    var fit = function (a0, a1, s, size) {
+      if ((a1 - a0) <= size - 32) return (a0 + a1) / 2 - size / 2;
+      var lo = a0 - 24, hi = a1 + 24 - size;
+      return s === null ? lo : Math.max(lo, Math.min(s - size / 2, hi));
+    };
+    if (bb && vb && vb.width && mapEl) {
+      var k = mapEl.getBoundingClientRect().width / vb.width;
+      fm.scrollLeft = fit(bb.x0 * k, bb.x1 * k, start ? start.x * k : null, fm.clientWidth);
+      fm.scrollTop = fit(bb.y0 * k, bb.y1 * k, start ? start.y * k : null, fm.clientHeight);
+    } else {
+      fm.scrollLeft = (fm.scrollWidth - fm.clientWidth) / 2;
+    }
+    if (fm.scrollWidth > fm.clientWidth + 1) document.body.classList.add('is-pannable');
+  }
 })();

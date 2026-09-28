@@ -37,6 +37,9 @@ menu button below 1140px.
 - Facts only from the content files. Never invent stats, grades, conditions, bios or captions. Hide empty fields.
 - Eric's write-ups are verbatim (`markdown.to_html(t['body_md'])`).
 - Units: every distance/elevation goes through `core.U` / `core.distance` / `core.elev` so the MI|KM toggle works.
+  Rendered fragments carry both units too: profile grid lines, y labels and distance ticks, map scale bars and GPS-max
+  labels sit in `<g class="u-mi">` / `<g class="u-km">` (or `<tspan>`s), which base.css shows one at a time. Mile discs
+  and contour labels stay imperial.
 - Links are relative: build hrefs with `core.link(here, target)` where `here` is the page URL (`''`, `ski/`,
   `trips/<slug>/`). Rendered fragments use `@@ROOT@@` which `core.frag` rewrites.
 - Maps are static: `core.map_block(t, here, [(name, size)…], asset_dir, ns)` shows exactly one variant per
@@ -44,8 +47,16 @@ menu button below 1140px.
   Charts: `core.chart_block`. Every inline fragment needs a unique `ns` (ids are namespaced with it).
 - Key rows decode symbols only, never values (`core.key_row(['skin','ski','start_end','gps','mile'])`).
 - Mono-S meta lines are ALL CAPS with units (`SAT, JAN 17, 2026 · 12.8 MI`).
-- Accessibility: landmarks, one h1 per page, headings in order, `aria-current` on the active nav/filter,
+- Accessibility: landmarks, one h1 per page, headings in order, `aria-current` on the active nav; filters are
+  `role="radiogroup"` / `role="radio"` with `aria-checked` (base.js gives every radio group one tab stop, arrow / Home /
+  End keys and Space / Enter); tab rows sit in `.tabs-x` (base.css + base.js: they scroll sideways, never widen the page);
   visible focus (base.css), alt text from front matter, `role="img"` + aria-label on maps (already in fragments).
+- Copy: tracks are "GPS recordings via Strava" — never name a device (some tracks are Strava GPX exports). Map captions
+  read `Track: <Mon D, YYYY> · full track, not trimmed · North up` (`core.map_caption`). The menu's Other row names only
+  the sub-types that have reports (`core.other_subtypes()`); flat water is `core.is_flat()` (SUP / Kayaking, or under
+  30 m of relief — render.py uses the same rule).
+- Lists: `core.trip_row` is the one index row; a single-day row with no excerpt is `.trow--brief` (120px tile in the same
+  column, tighter row), and phones show a Mono-S stats line (`.trow-ps`) instead of the stat grid.
 
 ## Trip dict (from tools/lib/content.py)
 `slug, title, activity (ski|climb|hike|mtb|other), activity_label, cat, subtype, kind (trip|multi-day|series|planned),
@@ -57,7 +68,9 @@ Day: `n, id, label, title, date, start_time, hut, transfer_before, stats, photos
 
 Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
 - single: `map-wide` 1440×640, `map-col` 718×400, `map-phone` 390×336, `profile-wide|col|phone` (1248/718/358)
-  or `speed-wide|col|phone` for flat water, `tile` 200×152, `g112` 112×64, `g64` 64×48.
+  or `speed-wide|col|phone` for flat water, `tile` 200×152, `g112` 112×64, `g64` 64×48. `tile`, `g112` and `g64` are
+  served as cached images: build.py writes them to `trips/<slug>/<name>.svg` and `core.tile` / `core.glyph` return an
+  `<img>` (series day glyphs and sparklines stay inline).
 - multi-day: `overview-wide` 1440×560, `overview-col` 718×440, `overview-phone` 390×260, `day-NN-col` 718×400,
   `day-NN-phone` 390×240, `profile-wide` 1248, `profile-phone` 358, `day-NN-profile-col|phone`, `spark-NN(-cur)`
   96×24, `tile`, `g112`, `g64`.
@@ -68,4 +81,5 @@ Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
   PNGs are copied to `assets/maps/` — pass `site_maps=True, asset_dir='assets/maps/'` to `core.map_block`.
 
 ## Checking your work
-`python3 tools/build.py --check` builds everything and verifies every internal link, image and anchor.
+`python3 tools/build.py --check` builds everything and verifies every internal link, image and anchor, including
+anchors on other pages (`map/#region-utah` must land on an element with that id).

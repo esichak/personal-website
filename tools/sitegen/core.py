@@ -61,11 +61,14 @@ def site_meta():
 
 
 def region_map_href(here, region):
-    """Link to the region's panel on map/ when a region map is rendered for it, else None."""
+    """Link to the region on map/: its map panel when a region map is rendered for it, else its entry in the 'Not on a
+    region map' block (every region in rendered/site/meta.json 'all_regions' has an anchor there). None for an unknown
+    region. build.py --check verifies every map/#region-* anchor resolves."""
     if not region:
         return None
     s = content.slugify(region)
-    if ('region-%s-desktop' % s) not in site_meta().get('maps', {}):
+    sm = site_meta()
+    if ('region-%s-desktop' % s) not in sm.get('maps', {}) and region not in sm.get('all_regions', []):
         return None
     return link(here, 'map/#region-' + s)
 
@@ -202,6 +205,14 @@ def plain_stats(t, items=False):
     if t['activity'] != 'climb' and not is_flat(t) and st.get('gain_m') is not None and st.get('gain_m') > 30:
         parts.append(U(nb(n(st['gain_m'] * FT) + ' FT GAIN'), nb(n(st['gain_m']) + ' M GAIN')))
     return parts if items else SEP.join(parts)
+
+
+def clip_words(s, limit=155):
+    """Plain text cut to <= limit characters on a word boundary, with an ellipsis (meta descriptions)."""
+    if len(s) <= limit:
+        return s
+    cut = s[:limit - 1].rsplit(' ', 1)[0].rstrip(',;:·')
+    return cut if cut.endswith(('.', '!', '?')) else cut + '…'
 
 
 def hm(sec):
@@ -479,12 +490,29 @@ def chart_block(t, here, variants, ns, cls=''):
     return '<div class="chart%s">%s</div>' % ((' ' + cls) if cls else '', ''.join(out))
 
 
-def glyph(t, here, size='g112', ns=None):
-    return frag(rendered(t, size + '.svg.html'), here, ns)
+GLYPH_SIZES = {'g112': (112, 64), 'g64': (64, 48), 'tile': (200, 152)}
 
 
-def tile(t, here, ns=None):
-    return frag(rendered(t, 'tile.svg.html'), here, ns)
+def _drawing(t, here, name, cls):
+    """A trip's track drawing as a cached image: build.py writes rendered/trips/<slug>/<name>.svg.html out as the standalone
+    trips/<slug>/<name>.svg (route colour and the map CSS it uses baked in), so every page that lists the trip shares one
+    file. Decorative (alt=""): rows and links name the trip in text. '' when the drawing is not rendered."""
+    if not os.path.exists(rendered(t, name + '.svg.html')):
+        return ''
+    w, h = GLYPH_SIZES[name]
+    return ('<img class="gl gl--%s%s" src="%s%s.svg" width="%d" height="%d" alt="" loading="lazy" decoding="async">'
+            % (name, cls, link(here, t['url']), name, w, h))
+
+
+def glyph(t, here, size='g112', ns=None, cls=''):
+    """Track glyph (g112 112×64 or g64 64×48) as an <img> (see _drawing). ns is unused (images need no id namespace);
+    cls: extra classes with a leading space (' glyph')."""
+    return _drawing(t, here, size, cls)
+
+
+def tile(t, here, ns=None, cls=''):
+    """200×152 map tile (list rows, cards) as an <img> (see _drawing)."""
+    return _drawing(t, here, 'tile', cls)
 
 
 KEY_SYMBOLS = {
@@ -564,8 +592,9 @@ def feature_key(t, variants, miles=True, cls='keyrow--compact'):
 
 
 def map_caption(first_items, attrib=True):
-    """The one map caption (Small, under the key row): first_items (e.g. ['Track: Garmin, Mar 28, 2026', 'full track, not
-    trimmed', 'North up'], or ['North up'] for maps with no single track), then the terrain / OSM / not-for-navigation
+    """The one map caption (Small, under the key row): first_items (e.g. ['Track: Mar 28, 2026', 'full track, not trimmed',
+    'North up'] — no device name: some tracks are Strava GPX exports, so the caption only claims what every file supports —
+    or ['North up'] for maps with no single track), then the terrain / OSM / not-for-navigation
     credit. Two lines from 1200 (.ml-br), one flowing paragraph below; phones (< 560) drop the credit (.mapcap-2): the
     in-map tag and the footer carry it. No button slot: the title block and the phone bottom bar carry GPX."""
     items = list(first_items)
@@ -638,11 +667,13 @@ def photo_partition(photos, per_row=4):
     return [r['ph'] for r in out]
 
 
-def photo_rows(t, here, photos, per_row=4, ns='ph'):
+def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280, gap=24):
     """Justified photo rows (reports, multi-day chapters): every row fills the column at one height (1248: a landscape
     alone 1248×624, four portraits 294×392), clamped in CSS so a row of portraits never runs taller than 624. Phones
     (< 760) show a 2-column grid: landscapes and unpaired portraits full width. Each photo links to its full-size file
-    (the lightbox opens it in-page; data-cap carries a caption when the content has one)."""
+    (the lightbox opens it in-page; data-cap carries a caption when the content has one).
+    col / jmax / jmin / gap: the desktop column and the CSS clamp (.jrows --jmax / --jmin / --jgap) of the page, so each
+    image's sizes attribute declares the width it is drawn at (a 294px portrait picks the 800px .sm file)."""
     photos = [p for p in photos if p.get('file')]
     if not photos:
         return ''
@@ -651,7 +682,12 @@ def photo_rows(t, here, photos, per_row=4, ns='ph'):
     k = 0
     for row in photo_partition(photos, per_row):
         ars = [photo_ar(p) for p in row]
+        tot = sum(ars)
         lone_land = len(row) == 1 and ars[0] >= 1
+        one = len(row) == 1 and not lone_land
+        # drawn height at >= 1200: the row's natural height, never below jmin (object-fit: cover then crops the sides); a row
+        # clamped at jmax still fills the column (the photos flex-grow), so its widths stay the natural ones
+        h = max((col - gap * (len(row) - 1)) / tot, jmin)
         # portraits pair up in order within the row (phones show a pair side by side); an odd one out is 'solo'
         port = [i for i, a in enumerate(ars) if a < 1]
         solo = set(port[len(port) - (len(port) % 2):])
@@ -660,15 +696,17 @@ def photo_rows(t, here, photos, per_row=4, ns='ph'):
             k += 1
             land = a >= 1
             if lone_land:
-                sizes = '(min-width: 1200px) 1248px, 100vw'
+                sizes = '(min-width: 1200px) %dpx, 100vw' % col
+            elif one:
+                sizes = '(min-width: 760px) %dpx, 100vw' % round(min(col, a * jmax))  # .jrow--one: min(100%, ar × jmax)
             else:
-                sizes = '(min-width: 1200px) 640px, (min-width: 760px) 50vw, %s' % ('100vw' if (land or i in solo) else '50vw')
+                sizes = ('(min-width: 1200px) %dpx, (min-width: 760px) calc((100vw - 80px) * %.3f), %s'
+                         % (round(a * h), a / tot, '100vw' if (land or i in solo) else '50vw'))
             c = 'jph jph--%s%s' % ('l' if land else 'p', ' jph--solo' if i in solo else '')
             name = '' if p.get('alt') else ' aria-label="Photo %d of %d, full size"' % (k, len(photos))
             cap = (' data-cap="%s"' % esc(p['caption'])) if p.get('caption') else ''
             figs.append('<a class="%s" href="%s%s" style="--ar:%.4f;--fg:%d"%s%s>%s</a>'
                         % (c, base, p['file'], a, round(a * 1000), cap, name, photo(t, p, here, sizes=sizes, caption=False)))
-        one = len(row) == 1 and not lone_land
         out.append('<div class="jrow%s" style="--n:%d;--sum:%.4f;--ar:%.4f">%s</div>'
                    % (' jrow--one' if one else '', len(row), sum(ars), ars[0], ''.join(figs)))
         caps = [p['caption'] for p in row if p.get('caption')]
@@ -685,8 +723,13 @@ def dx(html_):
 
 
 def is_flat(t):
-    """Flat water (SUP and the like): no meaningful gain, so pace + speed chart instead of gain / GPS max / profile."""
-    return t['activity'] == 'other' and (t['stats'].get('gain_m') or 0) < 30
+    """Flat water: paddling sub-types (SUP, Kayaking), or any 'other' trip whose track has under 30 m of relief (high minus
+    low). render.py uses the identical rule to choose the speed chart, so the list cells, strip and chart always agree:
+    pace + speed chart instead of gain / GPS max / profile."""
+    if t['activity'] != 'other':
+        return False
+    st = t['stats']
+    return t.get('subtype') in ('SUP', 'Kayaking') or ((st.get('high_m') or 0) - (st.get('low_m') or 0)) < 30
 
 
 def beta_value(t, label):
@@ -767,7 +810,7 @@ def strip(cells, cls='', label='Trip stats'):
 
 def stats_note(t, cls=''):
     """The one stats footnote under a strip (source, track note from the beta, how derived values are computed)."""
-    bits = ['Stats from the Garmin recording via Strava.']
+    bits = ['Stats from the GPS recording via Strava.']
     track = beta_value(t, 'Track')
     if track:
         bits.append('Track: %s.' % esc(track.rstrip('.')))
@@ -835,11 +878,30 @@ def day_ruler(t):
             % ''.join('<span style="flex-grow:%.2f">D%s</span>' % (v, esc(str(d['label']))) for v, d in zip(ds, t['days'])))
 
 
+def row_stats_line(t):
+    """The phone list row's Mono-S stats line (it replaces the 4-cell stat grid below 560): climbing '3 PITCHES · 1.2 MI',
+    flat water '3.1 MI · 1:05 MOVING', everything else plain_stats() ('7.9 MI · 2,930 FT GAIN')."""
+    st = t['stats']
+    if t['activity'] == 'climb':
+        mi, km = dist_vals(st.get('distance_km'))
+        p = beta_value(t, 'Pitches').strip()
+        return meta_items([nb(esc('%s PITCH%s' % (p, '' if p == '1' else 'ES'))) if p else '',
+                           U(nb(mi + ' MI'), nb(km + ' KM')) if mi else ''])
+    if is_flat(t):
+        mi, km = dist_vals(st.get('distance_km'))
+        return meta_items([U(nb(mi + ' MI'), nb(km + ' KM')) if mi else '',
+                           nb(hm(st['moving_s']) + ' MOVING') if st.get('moving_s') else ''])
+    return meta_items(plain_stats(t, items=True))
+
+
 def trip_row(t, here, ns='', filter_key=None, cls=''):
     """Index list row (one component everywhere): 200×152 tile · Mono-S meta (date · place · route shape, a meta_items()
     line: phones drop the shape, 560–1199 break after the date) · H3 · status tags · activity-aware stats · day ruler
     (multi-day) · two-line excerpt. The region lives in breadcrumbs, table title cells and map tabs, so the row names
-    only the place (the region when there is no place)."""
+    only the place (the region when there is no place).
+    A single-day or planned row with no excerpt is .trow--brief: a 120px tile in the same column (titles keep one x) and a
+    tighter row. Phones (< 560) show a Mono-S stats line (.trow-ps) instead of the stat grid. The link is named by the
+    title, then the meta line, so repeated titles ('Ride near Day Valley') stay distinct."""
     href = link(here, t['url'])
     k = ns + t['slug']
     date_ = 'PLANNED ROUTE' if t['kind'] == 'planned' else trip_date(t)
@@ -850,12 +912,16 @@ def trip_row(t, here, ns='', filter_key=None, cls=''):
     exh = ''
     if ex:
         exh = (('<p class="t-label trow-exl">%s</p>' % lab) if lab else '') + '<p class="t-excerpt trow-ex">%s</p>' % esc(ex)
-    return ('<li class="trow%s" data-key="%s"%s><a class="trow-a" href="%s" aria-labelledby="tt-%s" aria-describedby="tm-%s">'
+    brief = not ex and t['kind'] in ('trip', 'planned')
+    c = ' '.join(x for x in (cls.strip(), 'trow--brief' if brief else '') if x)
+    ps = row_stats_line(t)
+    return ('<li class="trow%s" data-key="%s"%s><a class="trow-a" href="%s" aria-labelledby="tt-%s tm-%s">'
             '<div class="trow-tile" aria-hidden="true">%s</div><div class="trow-body">'
-            '<p class="t-mono-s trow-meta" id="tm-%s">%s</p><h3 class="t-h3 trow-t" id="tt-%s">%s</h3>'
+            '<p class="t-mono-s trow-meta" id="tm-%s">%s</p><h3 class="t-h3 trow-t" id="tt-%s">%s</h3>%s'
             '<div class="trow-tags">%s</div><dl class="trow-stats">%s</dl>%s%s</div></a></li>'
-            % ((' ' + cls) if cls else '', t['slug'], (' data-f="%s"' % esc(filter_key)) if filter_key is not None else '',
-               href, k, k, tile(t, here, 'tl-' + k), k, meta, k, title_html(t['title']),
+            % ((' ' + c) if c else '', t['slug'], (' data-f="%s"' % esc(filter_key)) if filter_key is not None else '',
+               href, k, k, tile(t, here), k, meta, k, title_html(t['title']),
+               ('<p class="t-mono-s trow-ps">%s</p>' % ps) if ps else '',
                trip_tags(t, shape=False, status=t['kind'] != 'planned'), stats_cells(t), day_ruler(t), exh))
 
 
@@ -986,13 +1052,25 @@ def units_control():
 
 
 _TRIPS_BY_URL = {}
+_OTHER_SUBS = []
+
+
+def other_subtypes(ts):
+    """The sub-types present among published 'other' trips, most reports first, then by name (e.g. ['SUP', 'Rafting']).
+    The menu's Other row names exactly these, so it never lists a sub-type with no report."""
+    counts = {}
+    for t in ts:
+        if t['activity'] == 'other' and t['kind'] != 'planned' and t.get('subtype'):
+            counts[t['subtype']] = counts.get(t['subtype'], 0) + 1
+    return sorted(counts, key=lambda s: (-counts[s], s))
 
 
 def register_site(site):
     """build.py hands over the loaded site, so document() can find the trip a page belongs to (the phone app bar's
-    glyph + title) without every page module passing it."""
+    glyph + title) and the header can name the Other sub-types that exist, without every page module passing them."""
     _TRIPS_BY_URL.clear()
     _TRIPS_BY_URL.update({t['url']: t for t in site['trips']})
+    _OTHER_SUBS[:] = other_subtypes(site.get('published') or [t for t in site['trips'] if t['kind'] != 'planned'])
 
 
 def header(here, active=None, trip=None):
@@ -1009,9 +1087,10 @@ def header(here, active=None, trip=None):
               for key, lab, url in (('map', 'Map &amp; archive', 'map/'), ('about', 'About', 'about/'))]
     menu_rows = []
     for act, lab in NAV:
-        # phones break the 'Other' sub-line after Rafting; wider menus let it flow (.ml draws the separators)
-        sub = ('<span class="menu-sub">%s</span>' % meta_items(['Paddleboarding', 'Rafting', 'Kayaking', 'Mountaineering'], br_after=1)
-               if act == 'other' else '')
+        # the 'Other' row names the sub-types that have reports (other_subtypes, via register_site); .ml draws the separators
+        sub = ''
+        if act == 'other' and _OTHER_SUBS:
+            sub = '<span class="menu-sub">%s</span>' % meta_items([nb(esc(SUB_WORD.get(s, s))) for s in _OTHER_SUBS])
         menu_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span>%s</span>%s</a></li>'
                          % (link(here, section_url(act)), cur(act, section_url(act)), disc(act, 32), lab, sub,
                             icon('chevron-right', 20)))
@@ -1054,12 +1133,14 @@ def footer(here):
 
 
 def lightbox():
-    """The in-page photo viewer (base.js). Photo links keep their .webp hrefs, so without JS they still open the file."""
+    """The in-page photo viewer (base.js). Photo links keep their .webp hrefs, so without JS they still open the file.
+    #lb-live announces 'Photo N of M. <alt>' when the viewer moves to another photo."""
     return ('<dialog class="lb" aria-label="Photo viewer"><img class="lb-img" alt=""><div class="lb-bar">'
             '<span class="t-mono-s lb-n"></span><p class="t-small lb-cap"></p>'
             '<button type="button" class="lb-prev" aria-label="Previous photo">%s</button>'
             '<button type="button" class="lb-next" aria-label="Next photo">%s</button>'
-            '<button type="button" class="lb-close" aria-label="Close">%s</button></div></dialog>'
+            '<button type="button" class="lb-close" aria-label="Close">%s</button></div>'
+            '<p class="sr" id="lb-live" aria-live="polite"></p></dialog>'
             % (icon('arrow-left', 20), icon('arrow-right', 20), icon('close', 20)))
 
 

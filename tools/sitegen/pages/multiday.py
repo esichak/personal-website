@@ -345,7 +345,7 @@ def strip(t):
 def stats_note(cls=''):
     """The one stats footnote (under the strip; phones show the rep-note-ph copy under the overview map caption instead).
     Plural: a multi-day trip is one recording per day."""
-    return ('<p class="strip-note%s">Stats from the Garmin recordings via Strava. '
+    return ('<p class="strip-note%s">Stats from the GPS recordings via Strava. '
             'GPS max is the highest point in the GPX files, not a surveyed summit height.</p>' % ((' ' + cls) if cls else ''))
 
 
@@ -360,7 +360,7 @@ def gpx_all(t):
 
 
 def overview_caption(t):
-    return core.map_caption(['Track: Garmin, %s' % core.frange(t['date'], t['end_date']), 'full track, not trimmed', 'North up'])
+    return core.map_caption(['Track: %s' % core.frange(t['date'], t['end_date']), 'full track, not trimmed', 'North up'])
 
 
 def fullscreen(t):
@@ -511,10 +511,13 @@ def stitched_profile(t, here, meta):
 def stage_table(t, here):
     days = t['days']
     has_route = any(day_title(d) for d in days)
+    # 'From → To' only when the day titles are stages ('Argentière → Refuge d'Argentière'); course days titled by
+    # their venue ('CHP Wall Approach') get a plain 'Route' header and no ends in the Total row
+    arrows = any('→' in day_title(d) for d in days)
     unit = lambda a, b: '<span class="u"><span class="u-mi">%s</span><span class="u-km">%s</span></span>' % (a, b)  # noqa: E731
     head = ['<th scope="col" class="c-day">Day</th>', '<th scope="col" class="c-date">Date</th>']
     if has_route:
-        head.append('<th scope="col" class="c-route">From → To</th>')
+        head.append('<th scope="col" class="c-route">%s</th>' % ('From → To' if arrows else 'Route'))
     head += ['<th scope="col" class="num c-dist">Dist %s</th>' % unit('mi', 'km'),
              '<th scope="col" class="num c-gain">Gain %s</th>' % unit('ft', 'm'),
              '<th scope="col" class="num c-loss">Loss %s</th>' % unit('ft', 'm'),
@@ -550,14 +553,14 @@ def stage_table(t, here):
     mi, km = core.dist_vals(st.get('distance_km'))
     foot = ['<th scope="row" class="c-day">Total</th>', '<td class="c-date"></td>']
     if has_route:
-        foot.append('<td class="c-route">%s</td>' % arrow_html(route_ends(days)))
+        foot.append('<td class="c-route">%s</td>' % (arrow_html(route_ends(days)) if arrows else ''))
     foot += ['<td class="num c-dist">%s</td>' % (U(mi, km) if mi else '—'),
              '<td class="num c-gain">%s</td>' % elev_cell(st.get('gain_m')),
              '<td class="num c-loss">%s</td>' % elev_cell(st.get('loss_m')),
              '<td class="num c-high">%s</td>' % elev_cell(st.get('high_m')),
              '<td class="num c-time">%s</td>' % (core.hm(st['moving_s']) if st.get('moving_s') else '—'),
              '<td class="c-gpx"></td>']
-    return ('<table class="mul-st%s" id="stages"><caption class="sr">Stages, one row per day, with a GPX download for each day</caption>'
+    return ('<table class="mul-st%s" id="stages"><caption class="sr">Stages, one row per day</caption>'
             '<thead><tr>%s</tr></thead><tbody>%s</tbody><tfoot><tr>%s</tr></tfoot></table>'
             % ('' if has_route else ' mul-st--noroute', ''.join(head), ''.join(rows), ''.join(foot)))
 
@@ -648,7 +651,7 @@ _PH_NAME = re.compile(r'aria-label="Photo (\d+) of (\d+), full size"')
 def photo_rows(t, here, d):
     """The day's photos as the shared justified rows (core.photo_rows, up to three portraits a row; row heights set for
     the chapter column in multiday.css). An unnamed photo link says which day it belongs to."""
-    rows = core.photo_rows(t, here, d['photos'], per_row=3, ns='d%s' % d['id'])
+    rows = core.photo_rows(t, here, d['photos'], per_row=3, ns='d%s' % d['id'], col=930, jmax=540, jmin=260)
     if not rows:
         return ''
     rows = _PH_NAME.sub(lambda m: 'aria-label="Photo %s of %s from Day %d, full size"' % (m.group(1), m.group(2), d['n']), rows)

@@ -26,7 +26,7 @@ import geo  # noqa: E402
 import mapkit  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
 
-VERSION = 6  # bump after renderer changes to force a full re-render
+VERSION = 7  # bump after renderer changes to force a full re-render
 MI, FT = geo.MI, geo.FT
 OUT = os.path.join(ROOT, 'rendered')
 MIN_REGION_TRIPS = 3
@@ -38,8 +38,8 @@ SMALL = dict(road_levels=('motorway', 'trunk', 'primary', 'secondary', 'tertiary
              png_scale=2.0, contour_density=0.9, peaks_max=0, graticule=False, contour_labels=False, trails=False,
              track_eps=1.2, prio_avoid_track=True, trim=False)
 OVERVIEW = dict(north=False, png_scale=1.5, graticule=False, contour_density=1.2, contour_labels=False, peaks_max=0, trails=False,
-                poly_eps=0.8, min_water_px=40, road_levels=('motorway', 'trunk', 'primary', 'secondary'), places_max=3,
-                places_by_rank=True, places_near_pins=60, overview_labels=True, cluster_px=26, miles=False, chevrons=False,
+                poly_eps=0.8, min_water_px=40, road_levels=('motorway', 'trunk', 'primary'), places_max=3,
+                places_by_rank=True, places_near_pins=140, overview_labels=True, cluster_px=26, miles=False, chevrons=False,
                 startend=False, gpsmax=False, trim=False)
 
 
@@ -191,13 +191,23 @@ def water_labels(opt, w, h):
 
 # ---------------------------------------------------------------- per trip
 
+def is_flat(t):
+    """Flat water — the same rule as core.is_flat: a paddling sub-type (SUP, Kayaking), or an 'other' trip with under
+    30 m of relief (high minus low). Flat water gets speed charts instead of a profile and the flat map framing; rafting
+    (moving water, real relief) keeps its profile."""
+    if t['activity'] != 'other':
+        return False
+    st = t['stats']
+    return t.get('subtype') in ('SUP', 'Kayaking') or ((st.get('high_m') or 0) - (st.get('low_m') or 0)) < 30
+
+
 def render_single(t, meta):
     act, cat = t['activity'], t['cat']
     tr = load_track(t['track'], t['slug'], cat, t['stats'])
     mo = t['map']
     peaks = mo.get('peaks') or []
     small = extent_m([tr]) < 3000
-    flat = (t['stats'].get('high_m') or 0) - (t['stats'].get('low_m') or 0) < 30 and act == 'other'
+    flat = is_flat(t)
     planned = t['kind'] == 'planned'
     style = 'planned' if planned else 'route'
     base = {}
@@ -234,19 +244,15 @@ def render_single(t, meta):
 
 
 def axis_step(total_mi, w):
-    """Mile-tick spacing that keeps labels >= 36 px apart (the first label reads "0 mi"; on phone charts, which have no
-    y-axis gutter, the last one carries the unit)."""
-    plot_w = w - (0 if w < 500 else 72)
-    for step in (1, 2, 5, 10, 20, 50, 100):
-        if plot_w / max(total_mi / step, 1) >= 36:
-            return step
-    return 100
+    """Mile-tick spacing (mapkit.axis_step): labels >= 56 px apart for sub-mile steps ('0 mi · 0.25 · 0.5'), >= 36 px
+    otherwise (the first label reads "0 mi"; on phone charts, which have no y-axis gutter, the last one carries the unit)."""
+    return mapkit.axis_step(total_mi, w)
 
 
 def single_charts(t, meta, tr=None):
     act = t['activity']
     tr = tr or load_track(t['track'], t['slug'], t['cat'], t['stats'])
-    flat = (t['stats'].get('high_m') or 0) - (t['stats'].get('low_m') or 0) < 30 and act == 'other'
+    flat = is_flat(t)
     if t['kind'] == 'planned':
         return
     if flat and any(p[3] for p in tr.raw):
@@ -263,19 +269,28 @@ def single_charts(t, meta, tr=None):
         meta['charts'][nm] = dict({'w': w, 'kind': 'profile'}, **{k: (round(v, 2) if isinstance(v, float) else v) for k, v in info.items()})
 
 
+def day_gaps(days, trs):
+    """Days that start somewhere else (> 500 m from the previous day's end) with no content transfer before them: separate
+    crags, lesson sites, trailheads. The stitched profile breaks there (a plain divider, no TRANSFER)."""
+    return [i for i in range(1, len(trs)) if not days[i]['transfer_before'] and trs[i - 1].raw and trs[i].raw
+            and geo.hav(trs[i - 1].raw[-1][:2], trs[i].raw[0][:2]) > 500]
+
+
 def multi_charts(t, meta, trs=None):
     days = t['days']
     trs = trs or [load_track(d['track'], '%s-%s' % (t['slug'], d['id']), t['cat'], d['stats']) for d in days]
     transfers = [(i - 1, i) for i, d in enumerate(days) if d['transfer_before'] and i > 0]
+    gaps = day_gaps(days, trs)
+    ski = t['activity'] == 'ski'
     tot = sum(tr.total for tr in trs) / MI
     for nm, w, phh in (('profile-wide', 1248, 140), ('profile-col', 718, 120), ('profile-phone', 358, 110)):
         info = render_profile(nm, trs, w, phh, dict(skin=False, day_tints=True, day_band=True, grade=False, transfers=transfers,
-                                                     label_every_ft=4000, axis_every_mi=axis_step(tot, w),
+                                                     gaps=gaps, label_every_ft=4000, axis_every_mi=axis_step(tot, w),
                                                      aria='Stitched elevation profile of all %d days' % len(trs)))
         meta['charts'][nm] = dict({'w': w, 'kind': 'profile'}, **{k: (round(v, 2) if isinstance(v, float) else v) for k, v in info.items()})
     for d, tr in zip(days, trs):
         for nm, w, phh in (('day-%s-profile-col' % d['id'], 718, 96), ('day-%s-profile-phone' % d['id'], 358, 88)):
-            info = render_profile(nm, [tr], w, phh, dict(skin=True, grade=False, label_every_ft=2000, axis_every_mi=axis_step(tr.total / MI, w),
+            info = render_profile(nm, [tr], w, phh, dict(skin=ski, grade=False, label_every_ft=2000, axis_every_mi=axis_step(tr.total / MI, w),
                                                           aria='Elevation profile of day %s' % d['label']))
             meta['charts'][nm] = dict({'w': w, 'kind': 'profile'}, **{k: (round(v, 2) if isinstance(v, float) else v) for k, v in info.items()})
 
@@ -288,11 +303,14 @@ def render_multi(t, meta):
     transfers = [(i - 1, i) for i, d in enumerate(days) if d['transfer_before'] and i > 0]
     hi_day = max(range(len(days)), key=lambda i: days[i]['stats'].get('high_m') or 0)
 
+    no_huts = not any(d['hut'] for d in days)
+
     def ov_tracks(huts=True):
         out = []
         for i, tr in enumerate(trs):
             e = {'track': tr, 'style': 'route', 'trim': False, 'day_label': i + 1, 'i0': 0, 'i1': len(tr.raw) - 1}
-            if huts and i < len(trs) - 1:
+            # every day ends on its numbered square; with huts the last day ends at the trip's end instead
+            if huts and (i < len(trs) - 1 or no_huts):
                 e['hut_end'] = {'n': i + 1, 'label': days[i]['hut']}
             if huts and i == hi_day:
                 e['gpsmax'] = True
@@ -301,7 +319,7 @@ def render_multi(t, meta):
     ov = dict(REPORT, pad=0.10, poly_eps=0.6, min_water_px=30, road_levels=('motorway', 'trunk', 'primary', 'secondary', 'tertiary'),
               miles=False, chevrons=False, startend=False, gpsmax=False, graticule=False, contour_density=1.0, peaks_max=3,
               trails=False, priority_peaks=mo.get('peaks'), places_allow=mo.get('places'), transfers=transfers,
-              water_near_track=40, bands_off=True, aria=aria_for(t))
+              water_near_track=40, bands_off=True, overall_startend=True, aria=aria_for(t))
     specs = [dict(ov, name='overview-wide', w=1440, h=560, png_scale=1.25),
              dict(ov, name='overview-col', w=718, h=440, png_scale=2.0, peaks_max=1)]
     osm_ov = fetch_osm(union([frame_bbox(s, ov_tracks()) for s in specs]), 'overview')
@@ -319,14 +337,17 @@ def render_multi(t, meta):
     meta['maps']['overview-phone'] = {'w': 390, 'h': 260, 'png': m.get('png'), 'base': m.get('base')}
     # day maps: one OSM download covering every day's frame
     day_specs = []
+    ski = t['activity'] == 'ski'
     for i, tr in enumerate(trs):
         bb = geo.bbox_of([[(p[0], p[1]) for p in tr.raw]])
         others = [{'track': o, 'style': 'ghost', 'trim': False, 'i0': 0, 'i1': len(o.raw) - 1} for j, o in enumerate(trs) if j != i]
         me = {'track': tr, 'style': 'route', 'width': 3.5, 'trim': False, 'i0': 0, 'i1': len(tr.raw) - 1}
         aria = 'Map of day %s of %s' % (days[i]['label'], t['title'])
-        day_specs.append((dict(REPORT, name='day-%s-col' % days[i]['id'], w=718, h=400, bbox=bb, png_scale=2.0, peaks_max=2, trails=False,
-                               priority_peaks=mo.get('peaks'), skin=True, bands_off=True, aria=aria), [me] + others))
-        day_specs.append((dict(SMALL, name='day-%s-phone' % days[i]['id'], w=390, h=240, bbox=bb, scale_corner='bl', chevrons=False,
+        # a day on one crag or slope gets render_single's framing: at least 1.4 km across, with a z15 hillshade (~2 m/px)
+        tiny = dict(min_extent_m=1400, hs_zoom=15) if extent_m([tr]) < 3000 else {}
+        day_specs.append((dict(REPORT, **tiny, name='day-%s-col' % days[i]['id'], w=718, h=400, bbox=bb, png_scale=2.0, peaks_max=2, trails=False,
+                               priority_peaks=mo.get('peaks'), skin=ski, bands_off=True, aria=aria), [me] + others))
+        day_specs.append((dict(SMALL, **tiny, name='day-%s-phone' % days[i]['id'], w=390, h=240, bbox=bb, scale_corner='bl', chevrons=False,
                                startend=True, gpsmax=True, bands_off=True, reserve=[(390 - 208, 240 - 36, 390, 240)], pad_bottom_px=40, aria=aria),
                           [dict(me, width=3)]))
     osm_days = fetch_osm(union([frame_bbox(s, tk) for s, tk in day_specs]), 'report')
@@ -342,8 +363,9 @@ def render_multi(t, meta):
         render_sparkline('spark-%s-cur' % d['id'], tr, 96, 24, color='{{route}}', stroke=2, domain=dom)
     render_tile('tile', None, 200, 152, cat, transfers=transfers, osm_data=osm_ov,
                 tracks=[{'track': tr, 'style': 'cat', 'cat': cat, 'width': 2.5, 'trim': False, 'i0': 0, 'i1': len(tr.raw) - 1} for tr in trs])
-    render_glyph('g112', trs, 112, 64, cat, transfer_dash='2 2')
-    render_glyph('g64', trs, 64, 48, cat, pad=5, transfer_dash='1.5 1.5')
+    # connectors only for content transfers (CZ D2 -> D3); separate crags stay separate, tiny days read as spots
+    render_glyph('g112', trs, 112, 64, cat, transfer_dash='2 2', transfers=transfers)
+    render_glyph('g64', trs, 64, 48, cat, pad=5, transfer_dash='1.5 1.5', transfers=transfers)
     meta['start'] = trs[0].raw[0][:2]
     meta['end'] = trs[-1].raw[-1][:2]
     meta['bbox'] = geo.bbox_of([[(p[0], p[1]) for p in tr.raw] for tr in trs])
@@ -380,9 +402,9 @@ def render_series(t, meta):
                             aria='Every recorded day of %s' % t['title'], **extra))
         meta['maps'][nm] = {'w': w, 'h': h, 'png': m.get('png'), 'base': m.get('base')}
     allt = [tr for _, tr in trs]
-    render_glyph('g112', allt, 112, 64, cat, stroke=1.6)
-    render_glyph('g64', allt, 64, 48, cat, pad=5, stroke=1.4)
-    render_tile('tile', None, 200, 152, cat, tracks=[dict(x, width=2) for x in tracks])
+    render_glyph('g112', allt, 112, 64, cat, stroke=1.6, tiny_r=None)  # a thru-hike's days are short but joined: never spots
+    render_glyph('g64', allt, 64, 48, cat, pad=5, stroke=1.4, tiny_r=None)
+    render_tile('tile', None, 200, 152, cat, tracks=[dict(x, width=2) for x in tracks], tiny_disc=None)
     meta['start'] = allt[0].raw[0][:2]
     meta['end'] = allt[-1].raw[-1][:2]
     meta['bbox'] = geo.bbox_of([[(p[0], p[1]) for p in tr.raw] for tr in allt])

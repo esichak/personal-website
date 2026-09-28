@@ -88,8 +88,6 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-st thead th { height: 32px; font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .mul-st .c-day { width: 64px; padding-left: 0; }
 .mul-st .c-date { width: 132px; }
-.mul-st--noroute .c-date { width: 200px; }
-.mul-st.mul-st--noroute .num { width: auto; }
 .mul-st .num { width: 112px; padding: 0 0 0 16px; text-align: right; font: 400 15px/20px var(--mono); font-variant-numeric: tabular-nums; }
 .mul-st thead .num { font: 600 12px/16px var(--sans); }
 .mul-st .c-time { width: 128px; }  /* 'MOVING H:MM' + 24 */
@@ -97,7 +95,7 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-st tbody .c-day a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; font: 500 15px/20px var(--mono); }
 .mul-st tbody .c-date { color: var(--ink-2); }
 .mul-st .mul-st-r { display: flex; align-items: center; flex-wrap: wrap; column-gap: 10px; }
-.mul-st .mul-st-r a { display: inline-flex; align-items: center; min-height: 44px; }
+.mul-st .mul-st-r a { display: inline-flex; align-items: center; min-height: 44px; text-wrap: balance; }
 .mul-st .c-date--link a { color: var(--ink); }
 .mul-st-sub { display: none; text-transform: uppercase; }
 .mul-tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 2px; background: var(--sunk);
@@ -108,7 +106,6 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-st tfoot th { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
 .mul-st tfoot .num { font-weight: 600; color: var(--ink); }
 @media (min-width: 760px) { .mul-st { display: table; } .mul-di { display: none; } }
-@media (min-width: 760px) and (max-width: 999.98px) { .mul-st .c-loss { display: none; } }
 .mul-st tbody tr:hover { background: var(--surface); }
 @media (min-width: 760px) and (max-width: 1199.98px) {
   .mul-st:not(.mul-st--noroute) .c-date, .mul-st:not(.mul-st--noroute) .c-loss { display: none; }
@@ -123,19 +120,25 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-st .c-day { width: 52px; }
   .mul-st tfoot .c-day { width: auto; }
 }
-/* no From → To column, 760–999: the date column takes the slack so the four number columns keep their caps headers on one line */
+/* 760–999: no Loss and no GPX column (each chapter has 'Day N GPX', the title block 'Download all GPX'), a 44px day
+   column, so the From → To column grows to ~256px at 768 and most stages sit on one line (the rest break evenly) */
 @media (min-width: 760px) and (max-width: 999.98px) {
-  .mul-st.mul-st--noroute .c-date { width: auto; }
-  .mul-st.mul-st--noroute .num { width: 96px; }
-  .mul-st.mul-st--noroute .c-high { width: 112px; }
-  .mul-st.mul-st--noroute .c-time { width: 120px; }
+  .mul-st .c-loss, .mul-st .c-gpx { display: none; }
+  .mul-st .c-day { width: 44px; }
 }
-/* no From → To column, ≥1000: the same number-column widths as a table with one, so the date column takes the slack
-   and the numbers sit where they do on Chamonix–Zermatt (not spread across the full width) */
-@media (min-width: 1000px) {
-  .mul-st.mul-st--noroute .c-date { width: auto; }
-  .mul-st.mul-st--noroute .num, .mul-st.mul-st--noroute .c-high { width: 112px; }
+/* no route column (course days titled 'Day N', e.g. AIARE 2): the list width (824), a 160 date column and the numbers
+   right beside it. Dist / Gain / Loss share what is left; GPS max and Moving keep their caps header + 24 */
+@media (min-width: 760px) {
+  .mul-st--noroute { max-width: 824px; }
+  .mul-st.mul-st--noroute .c-date { width: 160px; }
+  .mul-st.mul-st--noroute .num { width: auto; }
+  .mul-st.mul-st--noroute .c-high { width: 112px; }
   .mul-st.mul-st--noroute .c-time { width: 128px; }
+}
+/* …and 760–999 it has room for Loss again (no route column to make space for), so the numbers fill the row evenly */
+@media (min-width: 760px) and (max-width: 999.98px) {
+  .mul-st.mul-st--noroute .c-loss { display: table-cell; }
+  .mul-st.mul-st--noroute .c-time { width: 120px; }
 }
 /* phone day index */
 .mul-di { margin-top: 0; border-top: 0; }                      /* the Overview head's ink rule is its top edge */
