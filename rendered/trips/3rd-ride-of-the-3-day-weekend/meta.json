@@ -1,0 +1,92 @@
+{
+ "hash": "a8d82b57b287971e55287905fb8d6133a5af39d8",
+ "slug": "3rd-ride-of-the-3-day-weekend",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 800.85,
+   "total_mi": 19.44,
+   "gx": 336.71,
+   "gy": 19.38,
+   "gps_max_mi": 4.38,
+   "y_lo": 717.4,
+   "y_hi": 2330.8,
+   "pad_l": 72,
+   "vx": 7.14,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 800.85,
+   "total_mi": 19.44,
+   "gx": 217.41,
+   "gy": 16.79,
+   "gps_max_mi": 4.38,
+   "y_lo": 717.4,
+   "y_hi": 2330.8,
+   "pad_l": 72,
+   "vx": 10.05,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 800.85,
+   "total_mi": 19.44,
+   "gx": 80.58,
+   "gy": 21.41,
+   "gps_max_mi": 4.38,
+   "y_lo": 717.4,
+   "y_hi": 2330.8,
+   "pad_l": 0,
+   "vx": 15.28,
+   "h": 122
+  }
+ },
+ "start": [
+  37.082632,
+  -121.851488
+ ],
+ "end": [
+  37.082696,
+  -121.851394
+ ],
+ "bbox": [
+  37.073428,
+  -121.905997,
+  37.090808,
+  -121.847494
+ ]
+}

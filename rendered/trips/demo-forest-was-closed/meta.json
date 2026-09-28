@@ -1,0 +1,92 @@
+{
+ "hash": "d5ce54c6712a6e8a228fbba80cfa4987e420d915",
+ "slug": "demo-forest-was-closed",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 646.33,
+   "min_ft": 53.81,
+   "total_mi": 15.04,
+   "gx": 373.78,
+   "gy": 19.38,
+   "gps_max_mi": 3.86,
+   "y_lo": 18.33,
+   "y_hi": 704.13,
+   "pad_l": 72,
+   "vx": 13.0,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 646.33,
+   "min_ft": 53.81,
+   "total_mi": 15.04,
+   "gx": 237.77,
+   "gy": 16.79,
+   "gps_max_mi": 3.86,
+   "y_lo": 18.33,
+   "y_hi": 704.13,
+   "pad_l": 72,
+   "vx": 18.29,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 646.33,
+   "min_ft": 53.81,
+   "total_mi": 15.04,
+   "gx": 91.87,
+   "gy": 21.41,
+   "gps_max_mi": 3.86,
+   "y_lo": 18.33,
+   "y_hi": 704.13,
+   "pad_l": 0,
+   "vx": 27.82,
+   "h": 122
+  }
+ },
+ "start": [
+  36.962275,
+  -122.084806
+ ],
+ "end": [
+  36.962032,
+  -122.085856
+ ],
+ "bbox": [
+  36.961974,
+  -122.111313,
+  36.992404,
+  -122.079681
+ ]
+}

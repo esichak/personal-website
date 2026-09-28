@@ -1,0 +1,92 @@
+{
+ "hash": "c9af2960a201d857aa0ec0c80644beabbe670f06",
+ "slug": "teton-canyon",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 6781.5,
+   "min_ft": 6680.12,
+   "total_mi": 2.17,
+   "gx": 689.6,
+   "gy": 19.38,
+   "gps_max_mi": 1.14,
+   "y_lo": 6674.04,
+   "y_hi": 6791.63,
+   "pad_l": 72,
+   "vx": 10.93,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 6781.5,
+   "min_ft": 6680.12,
+   "total_mi": 2.17,
+   "gx": 411.26,
+   "gy": 16.79,
+   "gps_max_mi": 1.14,
+   "y_lo": 6674.04,
+   "y_hi": 6791.63,
+   "pad_l": 72,
+   "vx": 15.37,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 6781.5,
+   "min_ft": 6680.12,
+   "total_mi": 2.17,
+   "gx": 188.01,
+   "gy": 21.41,
+   "gps_max_mi": 1.14,
+   "y_lo": 6674.04,
+   "y_hi": 6791.63,
+   "pad_l": 0,
+   "vx": 23.39,
+   "h": 122
+  }
+ },
+ "start": [
+  43.760444,
+  -110.987409
+ ],
+ "end": [
+  43.760449,
+  -110.987489
+ ],
+ "bbox": [
+  43.755883,
+  -110.990429,
+  43.760449,
+  -110.978412
+ ]
+}

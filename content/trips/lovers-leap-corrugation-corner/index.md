@@ -8,6 +8,7 @@ place: "Lover's Leap"
 region: Lake Tahoe
 party: Ross
 route_shape: point-to-point
+strava_id: "17743729260"
 featured: true
 stats:
   distance_km: 2.81

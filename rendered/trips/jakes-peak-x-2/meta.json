@@ -1,0 +1,92 @@
+{
+ "hash": "14bd410a9e5a0de3fbdb0934061805311d486f9a",
+ "slug": "jakes-peak-x-2",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 100,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9199.48,
+   "min_ft": 6852.36,
+   "total_mi": 6.26,
+   "gx": 519.82,
+   "gy": 19.38,
+   "gps_max_mi": 2.38,
+   "y_lo": 6712.36,
+   "y_hi": 9419.03,
+   "pad_l": 72,
+   "vx": 1.37,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9199.48,
+   "min_ft": 6852.36,
+   "total_mi": 6.26,
+   "gx": 318.0,
+   "gy": 16.79,
+   "gps_max_mi": 2.38,
+   "y_lo": 6712.36,
+   "y_hi": 9419.03,
+   "pad_l": 72,
+   "vx": 1.93,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9199.48,
+   "min_ft": 6852.36,
+   "total_mi": 6.26,
+   "gx": 136.33,
+   "gy": 21.41,
+   "gps_max_mi": 2.38,
+   "y_lo": 6712.36,
+   "y_hi": 9419.03,
+   "pad_l": 0,
+   "vx": 2.93,
+   "h": 122
+  }
+ },
+ "start": [
+  38.97567,
+  -120.100427
+ ],
+ "end": [
+  38.975799,
+  -120.100697
+ ],
+ "bbox": [
+  38.966832,
+  -120.117941,
+  38.976773,
+  -120.100427
+ ]
+}

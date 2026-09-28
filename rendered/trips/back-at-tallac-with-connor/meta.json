@@ -1,0 +1,92 @@
+{
+ "hash": "f208b170e0e26cdbceaae89d692bb0bfa36f673a",
+ "slug": "back-at-tallac-with-connor",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9773.62,
+   "min_ft": 6333.33,
+   "total_mi": 8.35,
+   "gx": 633.16,
+   "gy": 19.38,
+   "gps_max_mi": 3.98,
+   "y_lo": 6128.36,
+   "y_hi": 10091.19,
+   "pad_l": 72,
+   "vx": 1.25,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9773.62,
+   "min_ft": 6333.33,
+   "total_mi": 8.35,
+   "gx": 380.25,
+   "gy": 16.79,
+   "gps_max_mi": 3.98,
+   "y_lo": 6128.36,
+   "y_hi": 10091.19,
+   "pad_l": 72,
+   "vx": 1.76,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9773.62,
+   "min_ft": 6333.33,
+   "total_mi": 8.35,
+   "gx": 170.83,
+   "gy": 21.41,
+   "gps_max_mi": 3.98,
+   "y_lo": 6128.36,
+   "y_hi": 10091.19,
+   "pad_l": 0,
+   "vx": 2.67,
+   "h": 122
+  }
+ },
+ "start": [
+  38.933169,
+  -120.076888
+ ],
+ "end": [
+  38.93302,
+  -120.07719
+ ],
+ "bbox": [
+  38.899625,
+  -120.101919,
+  38.933169,
+  -120.076888
+ ]
+}

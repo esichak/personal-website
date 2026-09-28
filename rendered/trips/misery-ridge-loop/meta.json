@@ -1,0 +1,92 @@
+{
+ "hash": "545fdb0b4ca0302ffc47326d5818ab1bcd27b814",
+ "slug": "misery-ridge-loop",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 3326.77,
+   "min_ft": 2630.58,
+   "total_mi": 4.6,
+   "gx": 343.39,
+   "gy": 19.38,
+   "gps_max_mi": 1.06,
+   "y_lo": 2589.73,
+   "y_hi": 3379.43,
+   "pad_l": 72,
+   "vx": 3.46,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 3326.77,
+   "min_ft": 2630.58,
+   "total_mi": 4.6,
+   "gx": 221.08,
+   "gy": 16.79,
+   "gps_max_mi": 1.06,
+   "y_lo": 2589.73,
+   "y_hi": 3379.43,
+   "pad_l": 72,
+   "vx": 4.86,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 3326.77,
+   "min_ft": 2630.58,
+   "total_mi": 4.6,
+   "gx": 82.62,
+   "gy": 21.41,
+   "gps_max_mi": 1.06,
+   "y_lo": 2589.73,
+   "y_hi": 3379.43,
+   "pad_l": 0,
+   "vx": 7.4,
+   "h": 122
+  }
+ },
+ "start": [
+  44.364016,
+  -121.139215
+ ],
+ "end": [
+  44.363927,
+  -121.139347
+ ],
+ "bbox": [
+  44.359298,
+  -121.151385,
+  44.373248,
+  -121.137175
+ ]
+}

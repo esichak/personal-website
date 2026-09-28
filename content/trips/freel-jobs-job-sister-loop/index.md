@@ -7,6 +7,7 @@ timezone: America/Los_Angeles
 place: Carson Range
 region: Lake Tahoe
 route_shape: loop
+strava_id: "16043402596"
 featured: true
 stats:
   distance_km: 19.23

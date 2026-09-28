@@ -1,0 +1,170 @@
+{
+ "hash": "831f5028c19f3a179baf8020ab86bfc91308a99f",
+ "slug": "ltcc-intermediate-rafting",
+ "kind": "multi-day",
+ "maps": {
+  "overview-wide": {
+   "w": 1440,
+   "h": 560,
+   "png": "overview-wide.webp",
+   "base": "overview-wide.base.svg"
+  },
+  "overview-col": {
+   "w": 718,
+   "h": 440,
+   "png": "overview-col.webp",
+   "base": "overview-col.base.svg"
+  },
+  "overview-phone": {
+   "w": 390,
+   "h": 260,
+   "png": "overview-phone.webp",
+   "base": "overview-phone.base.svg"
+  },
+  "day-01-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-01-col.webp",
+   "base": "day-01-col.base.svg"
+  },
+  "day-01-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-01-phone.webp",
+   "base": "day-01-phone.base.svg"
+  },
+  "day-02-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-02-col.webp",
+   "base": "day-02-col.base.svg"
+  },
+  "day-02-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-02-phone.webp",
+   "base": "day-02-phone.base.svg"
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 5528.22,
+   "min_ft": 4955.87,
+   "total_mi": 21.17,
+   "gx": 90,
+   "gy": 34.0,
+   "gps_max_mi": 0.0,
+   "y_lo": 4921.45,
+   "y_hi": 5586.89,
+   "pad_l": 72,
+   "vx": 16.57,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 5528.22,
+   "min_ft": 4955.87,
+   "total_mi": 21.17,
+   "gx": 90,
+   "gy": 32.28,
+   "gps_max_mi": 0.0,
+   "y_lo": 4921.45,
+   "y_hi": 5586.89,
+   "pad_l": 72,
+   "vx": 24.96,
+   "h": 142
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 5528.22,
+   "min_ft": 4955.87,
+   "total_mi": 21.17,
+   "gx": 18,
+   "gy": 31.41,
+   "gps_max_mi": 0.0,
+   "y_lo": 4921.45,
+   "y_hi": 5586.89,
+   "pad_l": 0,
+   "vx": 40.35,
+   "h": 132
+  },
+  "day-01-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 5528.22,
+   "min_ft": 5209.97,
+   "total_mi": 9.68,
+   "gx": 90,
+   "gy": 15.59,
+   "gps_max_mi": 0.0,
+   "y_lo": 5190.8,
+   "y_hi": 5561.48,
+   "pad_l": 72,
+   "vx": 18.78,
+   "h": 118
+  },
+  "day-01-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 5528.22,
+   "min_ft": 5209.97,
+   "total_mi": 9.68,
+   "gx": 18,
+   "gy": 20.38,
+   "gps_max_mi": 0.0,
+   "y_lo": 5190.8,
+   "y_hi": 5561.48,
+   "pad_l": 0,
+   "vx": 28.5,
+   "h": 110
+  },
+  "day-02-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 5193.57,
+   "min_ft": 4955.87,
+   "total_mi": 11.49,
+   "gx": 90,
+   "gy": 15.59,
+   "gps_max_mi": 0.0,
+   "y_lo": 4942.0,
+   "y_hi": 5210.12,
+   "pad_l": 72,
+   "vx": 30.82,
+   "h": 118
+  },
+  "day-02-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 5193.57,
+   "min_ft": 4955.87,
+   "total_mi": 11.49,
+   "gx": 18,
+   "gy": 20.38,
+   "gps_max_mi": 0.0,
+   "y_lo": 4942.0,
+   "y_hi": 5210.12,
+   "pad_l": 0,
+   "vx": 46.77,
+   "h": 110
+  }
+ },
+ "start": [
+  38.687566,
+  -119.755183
+ ],
+ "end": [
+  38.868718,
+  -119.692883
+ ],
+ "bbox": [
+  38.687566,
+  -119.768686,
+  38.86886,
+  -119.691033
+ ]
+}

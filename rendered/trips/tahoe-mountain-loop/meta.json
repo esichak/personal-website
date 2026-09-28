@@ -1,0 +1,92 @@
+{
+ "hash": "d0aec9d27030afa586668a2ab1e60eb09cff488d",
+ "slug": "tahoe-mountain-loop",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 7290.03,
+   "min_ft": 6302.49,
+   "total_mi": 14.71,
+   "gx": 765.58,
+   "gy": 19.38,
+   "gps_max_mi": 8.67,
+   "y_lo": 6243.56,
+   "y_hi": 7383.01,
+   "pad_l": 72,
+   "vx": 7.65,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 7290.03,
+   "min_ft": 6302.49,
+   "total_mi": 14.71,
+   "gx": 453.0,
+   "gy": 16.79,
+   "gps_max_mi": 8.67,
+   "y_lo": 6243.56,
+   "y_hi": 7383.01,
+   "pad_l": 72,
+   "vx": 10.76,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 7290.03,
+   "min_ft": 6302.49,
+   "total_mi": 14.71,
+   "gx": 211.14,
+   "gy": 21.41,
+   "gps_max_mi": 8.67,
+   "y_lo": 6243.56,
+   "y_hi": 7383.01,
+   "pad_l": 0,
+   "vx": 16.37,
+   "h": 122
+  }
+ },
+ "start": [
+  38.910123,
+  -120.011217
+ ],
+ "end": [
+  38.910085,
+  -120.011284
+ ],
+ "bbox": [
+  38.88325,
+  -120.054415,
+  38.924976,
+  -120.010408
+ ]
+}

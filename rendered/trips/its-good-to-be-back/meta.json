@@ -1,0 +1,92 @@
+{
+ "hash": "28d89a276b9d28dd4b2507e769c2b45b7d8453eb",
+ "slug": "its-good-to-be-back",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 100,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 1125.33,
+   "min_ft": 503.61,
+   "total_mi": 7.52,
+   "gx": 244.47,
+   "gy": 19.38,
+   "gps_max_mi": 1.1,
+   "y_lo": 466.27,
+   "y_hi": 1188.22,
+   "pad_l": 72,
+   "vx": 6.18,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 1125.33,
+   "min_ft": 503.61,
+   "total_mi": 7.52,
+   "gx": 166.74,
+   "gy": 16.79,
+   "gps_max_mi": 1.1,
+   "y_lo": 466.27,
+   "y_hi": 1188.22,
+   "pad_l": 72,
+   "vx": 8.69,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 1125.33,
+   "min_ft": 503.61,
+   "total_mi": 7.52,
+   "gx": 52.5,
+   "gy": 21.41,
+   "gps_max_mi": 1.1,
+   "y_lo": 466.27,
+   "y_hi": 1188.22,
+   "pad_l": 0,
+   "vx": 13.22,
+   "h": 122
+  }
+ },
+ "start": [
+  37.213919,
+  -121.785889
+ ],
+ "end": [
+  37.213901,
+  -121.78587
+ ],
+ "bbox": [
+  37.203641,
+  -121.793738,
+  37.214054,
+  -121.775578
+ ]
+}

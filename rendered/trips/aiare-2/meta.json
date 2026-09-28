@@ -1,0 +1,212 @@
+{
+ "hash": "9c98f2ca1e4a91e80f4b2d91c571dca8e0cd27f1",
+ "slug": "aiare-2",
+ "kind": "multi-day",
+ "maps": {
+  "overview-wide": {
+   "w": 1440,
+   "h": 560,
+   "png": "overview-wide.webp",
+   "base": "overview-wide.base.svg"
+  },
+  "overview-col": {
+   "w": 718,
+   "h": 440,
+   "png": "overview-col.webp",
+   "base": "overview-col.base.svg"
+  },
+  "overview-phone": {
+   "w": 390,
+   "h": 260,
+   "png": "overview-phone.webp",
+   "base": "overview-phone.base.svg"
+  },
+  "day-01-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-01-col.webp",
+   "base": "day-01-col.base.svg"
+  },
+  "day-01-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-01-phone.webp",
+   "base": "day-01-phone.base.svg"
+  },
+  "day-02-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-02-col.webp",
+   "base": "day-02-col.base.svg"
+  },
+  "day-02-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-02-phone.webp",
+   "base": "day-02-phone.base.svg"
+  },
+  "day-03-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-03-col.webp",
+   "base": "day-03-col.base.svg"
+  },
+  "day-03-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-03-phone.webp",
+   "base": "day-03-phone.base.svg"
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9379.92,
+   "min_ft": 7702.1,
+   "total_mi": 13.88,
+   "gx": 737.49,
+   "gy": 34.0,
+   "gps_max_mi": 7.85,
+   "y_lo": 7602.29,
+   "y_hi": 9531.93,
+   "pad_l": 72,
+   "vx": 3.74,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9379.92,
+   "min_ft": 7702.1,
+   "total_mi": 13.88,
+   "gx": 437.57,
+   "gy": 32.28,
+   "gps_max_mi": 7.85,
+   "y_lo": 7602.29,
+   "y_hi": 9531.93,
+   "pad_l": 72,
+   "vx": 5.64,
+   "h": 142
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9379.92,
+   "min_ft": 7702.1,
+   "total_mi": 13.88,
+   "gx": 202.59,
+   "gy": 31.41,
+   "gps_max_mi": 7.85,
+   "y_lo": 7602.29,
+   "y_hi": 9531.93,
+   "pad_l": 0,
+   "vx": 9.12,
+   "h": 132
+  },
+  "day-01-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9094.49,
+   "min_ft": 8504.59,
+   "total_mi": 4.85,
+   "gx": 338.57,
+   "gy": 15.59,
+   "gps_max_mi": 2.0,
+   "y_lo": 8469.24,
+   "y_hi": 9152.76,
+   "pad_l": 72,
+   "vx": 5.1,
+   "h": 118
+  },
+  "day-01-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9094.49,
+   "min_ft": 8504.59,
+   "total_mi": 4.85,
+   "gx": 147.73,
+   "gy": 20.38,
+   "gps_max_mi": 2.0,
+   "y_lo": 8469.24,
+   "y_hi": 9152.76,
+   "pad_l": 0,
+   "vx": 7.74,
+   "h": 110
+  },
+  "day-02-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9379.92,
+   "min_ft": 7702.1,
+   "total_mi": 5.46,
+   "gx": 427.44,
+   "gy": 15.59,
+   "gps_max_mi": 3.01,
+   "y_lo": 7602.29,
+   "y_hi": 9531.93,
+   "pad_l": 72,
+   "vx": 2.04,
+   "h": 118
+  },
+  "day-02-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9379.92,
+   "min_ft": 7702.1,
+   "total_mi": 5.46,
+   "gx": 196.98,
+   "gy": 20.38,
+   "gps_max_mi": 3.01,
+   "y_lo": 7602.29,
+   "y_hi": 9531.93,
+   "pad_l": 0,
+   "vx": 3.09,
+   "h": 110
+  },
+  "day-03-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9229.0,
+   "min_ft": 7730.97,
+   "total_mi": 3.57,
+   "gx": 444.81,
+   "gy": 15.59,
+   "gps_max_mi": 2.06,
+   "y_lo": 7641.38,
+   "y_hi": 9373.51,
+   "pad_l": 72,
+   "vx": 1.48,
+   "h": 118
+  },
+  "day-03-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9229.0,
+   "min_ft": 7730.97,
+   "total_mi": 3.57,
+   "gx": 206.6,
+   "gy": 20.38,
+   "gps_max_mi": 2.06,
+   "y_lo": 7641.38,
+   "y_hi": 9373.51,
+   "pad_l": 0,
+   "vx": 2.25,
+   "h": 110
+  }
+ },
+ "start": [
+  38.696886,
+  -119.991486
+ ],
+ "end": [
+  38.796334,
+  -119.976812
+ ],
+ "bbox": [
+  38.6949,
+  -120.011974,
+  38.796388,
+  -119.961886
+ ]
+}

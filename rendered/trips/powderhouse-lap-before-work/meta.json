@@ -1,0 +1,92 @@
+{
+ "hash": "2720f8a46941f27227b883b9bcf0e0e5ad295fc1",
+ "slug": "powderhouse-lap-before-work",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9422.57,
+   "min_ft": 7713.91,
+   "total_mi": 3.01,
+   "gx": 670.08,
+   "gy": 19.38,
+   "gps_max_mi": 1.53,
+   "y_lo": 7612.41,
+   "y_hi": 9574.67,
+   "pad_l": 72,
+   "vx": 0.91,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9422.57,
+   "min_ft": 7713.91,
+   "total_mi": 3.01,
+   "gx": 400.54,
+   "gy": 16.79,
+   "gps_max_mi": 1.53,
+   "y_lo": 7612.41,
+   "y_hi": 9574.67,
+   "pad_l": 72,
+   "vx": 1.28,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9422.57,
+   "min_ft": 7713.91,
+   "total_mi": 3.01,
+   "gx": 182.07,
+   "gy": 21.41,
+   "gps_max_mi": 1.53,
+   "y_lo": 7612.41,
+   "y_hi": 9574.67,
+   "pad_l": 0,
+   "vx": 1.94,
+   "h": 122
+  }
+ },
+ "start": [
+  38.796341,
+  -119.976826
+ ],
+ "end": [
+  38.795954,
+  -119.97648
+ ],
+ "bbox": [
+  38.782745,
+  -119.981535,
+  38.796341,
+  -119.970882
+ ]
+}

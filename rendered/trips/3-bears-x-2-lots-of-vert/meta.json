@@ -1,0 +1,92 @@
+{
+ "hash": "798f6f2f85349d8a3258e2675f6fd1b27ce84ac7",
+ "slug": "3-bears-x-2-lots-of-vert",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 100,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 4215.88,
+   "min_ft": 2717.03,
+   "total_mi": 28.38,
+   "gx": 834.22,
+   "gy": 19.38,
+   "gps_max_mi": 18.39,
+   "y_lo": 2627.12,
+   "y_hi": 4365.4,
+   "pad_l": 72,
+   "vx": 9.68,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 4215.88,
+   "min_ft": 2717.03,
+   "total_mi": 28.38,
+   "gx": 490.7,
+   "gy": 16.79,
+   "gps_max_mi": 18.39,
+   "y_lo": 2627.12,
+   "y_hi": 4365.4,
+   "pad_l": 72,
+   "vx": 13.61,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 4215.88,
+   "min_ft": 2717.03,
+   "total_mi": 28.38,
+   "gx": 232.04,
+   "gy": 21.41,
+   "gps_max_mi": 18.39,
+   "y_lo": 2627.12,
+   "y_hi": 4365.4,
+   "pad_l": 0,
+   "vx": 20.71,
+   "h": 122
+  }
+ },
+ "start": [
+  43.627605,
+  -116.194011
+ ],
+ "end": [
+  43.627743,
+  -116.194623
+ ],
+ "bbox": [
+  43.613638,
+  -116.195323,
+  43.635927,
+  -116.108356
+ ]
+}

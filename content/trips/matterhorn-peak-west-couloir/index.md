@@ -8,6 +8,7 @@ place: Sawtooth Ridge
 region: Eastern Sierra
 party: Adam
 route_shape: out-and-back
+strava_id: "17094418552"
 featured: true
 stats:
   distance_km: 20.57

@@ -1,0 +1,92 @@
+{
+ "hash": "6633fd7414d1a2942108005fa3aa4660d5a09b3c",
+ "slug": "beat-the-rain-storm-didnt-see-anyone-else-out",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 806.27,
+   "total_mi": 16.51,
+   "gx": 406.54,
+   "gy": 19.38,
+   "gps_max_mi": 4.7,
+   "y_lo": 723.41,
+   "y_hi": 2325.26,
+   "pad_l": 72,
+   "vx": 6.11,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 806.27,
+   "total_mi": 16.51,
+   "gx": 255.77,
+   "gy": 16.79,
+   "gps_max_mi": 4.7,
+   "y_lo": 723.41,
+   "y_hi": 2325.26,
+   "pad_l": 72,
+   "vx": 8.59,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 806.27,
+   "total_mi": 16.51,
+   "gx": 101.84,
+   "gy": 21.41,
+   "gps_max_mi": 4.7,
+   "y_lo": 723.41,
+   "y_hi": 2325.26,
+   "pad_l": 0,
+   "vx": 13.07,
+   "h": 122
+  }
+ },
+ "start": [
+  37.080969,
+  -121.84948
+ ],
+ "end": [
+  37.081205,
+  -121.849395
+ ],
+ "bbox": [
+  37.07337,
+  -121.906051,
+  37.091016,
+  -121.849326
+ ]
+}

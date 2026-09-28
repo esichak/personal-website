@@ -1,0 +1,92 @@
+{
+ "hash": "e6ff9c4bc2e529d24eb36bd6331e0767e26a58c1",
+ "slug": "discovered-my-fork-was-locked-out-at-the-end-of-the-descent",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 1128.61,
+   "min_ft": 216.86,
+   "total_mi": 6.93,
+   "gx": 534.27,
+   "gy": 19.38,
+   "gps_max_mi": 2.73,
+   "y_lo": 162.28,
+   "y_hi": 1217.62,
+   "pad_l": 72,
+   "vx": 3.89,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 1128.61,
+   "min_ft": 216.86,
+   "total_mi": 6.93,
+   "gx": 325.94,
+   "gy": 16.79,
+   "gps_max_mi": 2.73,
+   "y_lo": 162.28,
+   "y_hi": 1217.62,
+   "pad_l": 72,
+   "vx": 5.48,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 1128.61,
+   "min_ft": 216.86,
+   "total_mi": 6.93,
+   "gx": 140.73,
+   "gy": 21.41,
+   "gps_max_mi": 2.73,
+   "y_lo": 162.28,
+   "y_hi": 1217.62,
+   "pad_l": 0,
+   "vx": 8.33,
+   "h": 122
+  }
+ },
+ "start": [
+  37.220046,
+  -121.769089
+ ],
+ "end": [
+  37.220068,
+  -121.769004
+ ],
+ "bbox": [
+  37.203637,
+  -121.793752,
+  37.220113,
+  -121.767632
+ ]
+}

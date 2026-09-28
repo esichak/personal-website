@@ -175,16 +175,24 @@ def get_tile(z, x, y):
     if key in _tile_cache:
         return _tile_cache[key]
     p = os.path.join(TILE_DIR, '%d_%d_%d.png' % (z, x, y))
-    if not os.path.exists(p):
+
+    def fetch():
         url = TILE_URL.format(z=z, x=x, y=y)
+        tmp = '%s.%d.part' % (p, os.getpid())  # write-then-rename: parallel renders never read a half-written tile
         for attempt in range(3):
-            r = subprocess.run(['curl', '-s', '-f', '--max-time', '30', '-o', p, url])
+            r = subprocess.run(['curl', '-s', '-f', '--max-time', '30', '-o', tmp, url])
             if r.returncode == 0:
-                break
+                os.replace(tmp, p)
+                return
             time.sleep(1.5)
-        else:
-            raise RuntimeError('tile fetch failed ' + url)
-    w, h, bpp, px = png_read(p)
+        raise RuntimeError('tile fetch failed ' + url)
+    if not os.path.exists(p):
+        fetch()
+    try:
+        w, h, bpp, px = png_read(p)
+    except Exception:  # noqa: BLE001 — a truncated cache file: fetch it again
+        fetch()
+        w, h, bpp, px = png_read(p)
     elev = [0.0] * (w * h)
     for k in range(w * h):
         r, g, b = px[k * bpp], px[k * bpp + 1], px[k * bpp + 2]
@@ -405,7 +413,10 @@ def overpass(query):
                             '--data-urlencode', 'data=' + query, ep], capture_output=True)
         try:
             d = json.loads(r.stdout.decode('utf-8'))
-            json.dump(d, open(p, 'w'))
+            tmp = '%s.%d.part' % (p, os.getpid())
+            with open(tmp, 'w') as fh:
+                json.dump(d, fh)
+            os.replace(tmp, p)
             return d
         except Exception as ex:  # noqa
             last = r.stdout[:300]

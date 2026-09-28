@@ -1,0 +1,92 @@
+{
+ "hash": "3fdc05d74f514229b25552420d5adc1d1211fbfd",
+ "slug": "we-got-lost",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 603.67,
+   "min_ft": 25.92,
+   "total_mi": 11.55,
+   "gx": 252.44,
+   "gy": 19.38,
+   "gps_max_mi": 1.77,
+   "y_lo": -8.73,
+   "y_hi": 661.09,
+   "pad_l": 72,
+   "vx": 10.22,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 603.67,
+   "min_ft": 25.92,
+   "total_mi": 11.55,
+   "gx": 171.12,
+   "gy": 16.79,
+   "gps_max_mi": 1.77,
+   "y_lo": -8.73,
+   "y_hi": 661.09,
+   "pad_l": 72,
+   "vx": 14.37,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 603.67,
+   "min_ft": 25.92,
+   "total_mi": 11.55,
+   "gx": 54.93,
+   "gy": 21.41,
+   "gps_max_mi": 1.77,
+   "y_lo": -8.73,
+   "y_hi": 661.09,
+   "pad_l": 0,
+   "vx": 21.86,
+   "h": 122
+  }
+ },
+ "start": [
+  36.97054,
+  -122.121353
+ ],
+ "end": [
+  36.970506,
+  -122.121143
+ ],
+ "bbox": [
+  36.962256,
+  -122.122812,
+  36.992429,
+  -122.08791
+ ]
+}

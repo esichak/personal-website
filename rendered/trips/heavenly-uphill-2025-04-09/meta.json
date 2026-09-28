@@ -1,0 +1,92 @@
+{
+ "hash": "1d865acda37560a39512005ae69a15372d62d8b9",
+ "slug": "heavenly-uphill-2025-04-09",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 10019.69,
+   "min_ft": 7254.59,
+   "total_mi": 7.98,
+   "gx": 668.26,
+   "gy": 19.38,
+   "gps_max_mi": 4.05,
+   "y_lo": 7089.36,
+   "y_hi": 10283.92,
+   "pad_l": 72,
+   "vx": 1.48,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 10019.69,
+   "min_ft": 7254.59,
+   "total_mi": 7.98,
+   "gx": 399.54,
+   "gy": 16.79,
+   "gps_max_mi": 4.05,
+   "y_lo": 7089.36,
+   "y_hi": 10283.92,
+   "pad_l": 72,
+   "vx": 2.08,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 10019.69,
+   "min_ft": 7254.59,
+   "total_mi": 7.98,
+   "gx": 181.52,
+   "gy": 21.41,
+   "gps_max_mi": 4.05,
+   "y_lo": 7089.36,
+   "y_hi": 10283.92,
+   "pad_l": 0,
+   "vx": 3.17,
+   "h": 122
+  }
+ },
+ "start": [
+  38.966513,
+  -119.890376
+ ],
+ "end": [
+  38.965789,
+  -119.89082
+ ],
+ "bbox": [
+  38.917476,
+  -119.904792,
+  38.966513,
+  -119.890348
+ ]
+}

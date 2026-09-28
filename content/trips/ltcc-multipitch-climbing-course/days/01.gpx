@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Eric Sichak trip reports" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>LTCC Multipitch Climbing Course – Day 1</name><time>2026-05-29T15:55:51Z</time></metadata>
+<trk><name>LTCC Multipitch Climbing Course – Day 1</name><type>climb</type><trkseg>
+<trkpt lat="38.952069" lon="-120.112149"><ele>2004.2</ele><time>2026-05-29T15:55:51Z</time></trkpt>
+<trkpt lat="38.952038" lon="-120.112194"><ele>2003.8</ele><time>2026-05-29T15:56:10Z</time></trkpt>
+<trkpt lat="38.951903" lon="-120.112065"><ele>2003.4</ele><time>2026-05-29T15:56:40Z</time></trkpt>
+<trkpt lat="38.951822" lon="-120.112062"><ele>2003.2</ele><time>2026-05-29T15:56:48Z</time></trkpt>
+<trkpt lat="38.951770" lon="-120.112161"><ele>2003.6</ele><time>2026-05-29T15:56:56Z</time></trkpt>
+<trkpt lat="38.951931" lon="-120.112800"><ele>2003.0</ele><time>2026-05-29T15:57:44Z</time></trkpt>
+<trkpt lat="38.951963" lon="-120.113073"><ele>2003.2</ele><time>2026-05-29T15:58:04Z</time></trkpt>
+<trkpt lat="38.952047" lon="-120.113163"><ele>2003.4</ele><time>2026-05-29T15:58:13Z</time></trkpt>
+<trkpt lat="38.952133" lon="-120.113199"><ele>2004.2</ele><time>2026-05-29T15:58:22Z</time></trkpt>
+<trkpt lat="38.952195" lon="-120.113354"><ele>2005.0</ele><time>2026-05-29T15:58:38Z</time></trkpt>
+<trkpt lat="38.952275" lon="-120.113434"><ele>2005.0</ele><time>2026-05-29T15:58:47Z</time></trkpt>
+<trkpt lat="38.952641" lon="-120.113416"><ele>2004.0</ele><time>2026-05-29T15:59:25Z</time></trkpt>
+<trkpt lat="38.952728" lon="-120.113342"><ele>2003.6</ele><time>2026-05-29T15:59:36Z</time></trkpt>
+</trkseg></trk>
+</gpx>

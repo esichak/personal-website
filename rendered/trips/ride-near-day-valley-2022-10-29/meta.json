@@ -1,0 +1,92 @@
+{
+ "hash": "5f2bee0ce531626d25c2694aca6441cc35275ab2",
+ "slug": "ride-near-day-valley-2022-10-29",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 819.29,
+   "total_mi": 18.8,
+   "gx": 373.64,
+   "gy": 19.38,
+   "gps_max_mi": 4.82,
+   "y_lo": 737.08,
+   "y_hi": 2326.43,
+   "pad_l": 72,
+   "vx": 7.01,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 819.29,
+   "total_mi": 18.8,
+   "gx": 237.69,
+   "gy": 16.79,
+   "gps_max_mi": 4.82,
+   "y_lo": 737.08,
+   "y_hi": 2326.43,
+   "pad_l": 72,
+   "vx": 9.86,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 819.29,
+   "total_mi": 18.8,
+   "gx": 91.82,
+   "gy": 21.41,
+   "gps_max_mi": 4.82,
+   "y_lo": 737.08,
+   "y_hi": 2326.43,
+   "pad_l": 0,
+   "vx": 15.01,
+   "h": 122
+  }
+ },
+ "start": [
+  37.082712,
+  -121.851592
+ ],
+ "end": [
+  37.081929,
+  -121.851406
+ ],
+ "bbox": [
+  37.073171,
+  -121.905995,
+  37.09079,
+  -121.850708
+ ]
+}

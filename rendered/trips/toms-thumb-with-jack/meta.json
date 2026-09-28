@@ -1,0 +1,92 @@
+{
+ "hash": "ad1e2fc6ae682b2e4b48a396edacbe384a5aa550",
+ "slug": "toms-thumb-with-jack",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 3841.86,
+   "min_ft": 1702.51,
+   "total_mi": 13.08,
+   "gx": 690.94,
+   "gy": 19.38,
+   "gps_max_mi": 6.88,
+   "y_lo": 1575.07,
+   "y_hi": 4038.97,
+   "pad_l": 72,
+   "vx": 3.15,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 3841.86,
+   "min_ft": 1702.51,
+   "total_mi": 13.08,
+   "gx": 412.0,
+   "gy": 16.79,
+   "gps_max_mi": 6.88,
+   "y_lo": 1575.07,
+   "y_hi": 4038.97,
+   "pad_l": 72,
+   "vx": 4.43,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 3841.86,
+   "min_ft": 1702.51,
+   "total_mi": 13.08,
+   "gx": 188.42,
+   "gy": 21.41,
+   "gps_max_mi": 6.88,
+   "y_lo": 1575.07,
+   "y_hi": 4038.97,
+   "pad_l": 0,
+   "vx": 6.73,
+   "h": 122
+  }
+ },
+ "start": [
+  33.649299,
+  -111.858046
+ ],
+ "end": [
+  33.649012,
+  -111.860249
+ ],
+ "bbox": [
+  33.648909,
+  -111.860398,
+  33.682118,
+  -111.808735
+ ]
+}

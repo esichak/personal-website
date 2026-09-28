@@ -1,0 +1,92 @@
+{
+ "hash": "9daa19719cc7e4b03a30b0c132fb690c67f86a93",
+ "slug": "emerald-bay-post-ski-hike",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 6689.63,
+   "min_ft": 6571.24,
+   "total_mi": 1.24,
+   "gx": 565.08,
+   "gy": 19.38,
+   "gps_max_mi": 0.52,
+   "y_lo": 6564.27,
+   "y_hi": 6698.95,
+   "pad_l": 72,
+   "vx": 5.47,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 6689.63,
+   "min_ft": 6571.24,
+   "total_mi": 1.24,
+   "gx": 342.86,
+   "gy": 16.79,
+   "gps_max_mi": 0.52,
+   "y_lo": 6564.27,
+   "y_hi": 6698.95,
+   "pad_l": 72,
+   "vx": 7.69,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 6689.63,
+   "min_ft": 6571.24,
+   "total_mi": 1.24,
+   "gx": 150.1,
+   "gy": 21.41,
+   "gps_max_mi": 0.52,
+   "y_lo": 6564.27,
+   "y_hi": 6698.95,
+   "pad_l": 0,
+   "vx": 11.7,
+   "h": 122
+  }
+ },
+ "start": [
+  38.950505,
+  -120.111052
+ ],
+ "end": [
+  38.950399,
+  -120.11094
+ ],
+ "bbox": [
+  38.950399,
+  -120.115538,
+  38.952022,
+  -120.110857
+ ]
+}

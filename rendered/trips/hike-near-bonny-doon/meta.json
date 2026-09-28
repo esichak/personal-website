@@ -1,0 +1,92 @@
+{
+ "hash": "32e61628cf9e7c020215479a11b957e3d66bb7c2",
+ "slug": "hike-near-bonny-doon",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 636.48,
+   "min_ft": 37.4,
+   "total_mi": 5.85,
+   "gx": 788.13,
+   "gy": 19.38,
+   "gps_max_mi": 3.56,
+   "y_lo": 1.46,
+   "y_hi": 696.39,
+   "pad_l": 72,
+   "vx": 4.99,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 636.48,
+   "min_ft": 37.4,
+   "total_mi": 5.85,
+   "gx": 465.39,
+   "gy": 16.79,
+   "gps_max_mi": 3.56,
+   "y_lo": 1.46,
+   "y_hi": 696.39,
+   "pad_l": 72,
+   "vx": 7.02,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 636.48,
+   "min_ft": 37.4,
+   "total_mi": 5.85,
+   "gx": 218.01,
+   "gy": 21.41,
+   "gps_max_mi": 3.56,
+   "y_lo": 1.46,
+   "y_hi": 696.39,
+   "pad_l": 0,
+   "vx": 10.68,
+   "h": 122
+  }
+ },
+ "start": [
+  36.970583,
+  -122.121743
+ ],
+ "end": [
+  36.970521,
+  -122.121582
+ ],
+ "bbox": [
+  36.970521,
+  -122.123982,
+  36.992425,
+  -122.100262
+ ]
+}

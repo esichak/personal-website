@@ -1,0 +1,92 @@
+{
+ "hash": "1650ea1dac6db694d64ae0a8e578286c9d7f3f5f",
+ "slug": "ride-near-santa-cruz-2021-10-09",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 1236.88,
+   "min_ft": 27.89,
+   "total_mi": 21.07,
+   "gx": 592.05,
+   "gy": 19.38,
+   "gps_max_mi": 9.32,
+   "y_lo": -44.67,
+   "y_hi": 1358.14,
+   "pad_l": 72,
+   "vx": 8.9,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 1236.88,
+   "min_ft": 27.89,
+   "total_mi": 21.07,
+   "gx": 357.68,
+   "gy": 16.79,
+   "gps_max_mi": 9.32,
+   "y_lo": -44.67,
+   "y_hi": 1358.14,
+   "pad_l": 72,
+   "vx": 12.52,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 1236.88,
+   "min_ft": 27.89,
+   "total_mi": 21.07,
+   "gx": 158.32,
+   "gy": 21.41,
+   "gps_max_mi": 9.32,
+   "y_lo": -44.67,
+   "y_hi": 1358.14,
+   "pad_l": 0,
+   "vx": 19.05,
+   "h": 122
+  }
+ },
+ "start": [
+  36.986488,
+  -122.034613
+ ],
+ "end": [
+  36.98506,
+  -122.034866
+ ],
+ "bbox": [
+  36.985054,
+  -122.094322,
+  37.026248,
+  -122.030242
+ ]
+}

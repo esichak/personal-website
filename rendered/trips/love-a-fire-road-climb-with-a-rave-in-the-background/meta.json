@@ -1,0 +1,92 @@
+{
+ "hash": "bbea19f13a1c9f6ef60642a8c6c1b0a43392c532",
+ "slug": "love-a-fire-road-climb-with-a-rave-in-the-background",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2582.02,
+   "min_ft": 806.43,
+   "total_mi": 24.32,
+   "gx": 288.86,
+   "gy": 19.38,
+   "gps_max_mi": 4.48,
+   "y_lo": 699.97,
+   "y_hi": 2758.14,
+   "pad_l": 72,
+   "vx": 7.0,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2582.02,
+   "min_ft": 806.43,
+   "total_mi": 24.32,
+   "gx": 191.13,
+   "gy": 16.79,
+   "gps_max_mi": 4.48,
+   "y_lo": 699.97,
+   "y_hi": 2758.14,
+   "pad_l": 72,
+   "vx": 9.85,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2582.02,
+   "min_ft": 806.43,
+   "total_mi": 24.32,
+   "gx": 66.02,
+   "gy": 21.41,
+   "gps_max_mi": 4.48,
+   "y_lo": 699.97,
+   "y_hi": 2758.14,
+   "pad_l": 0,
+   "vx": 14.99,
+   "h": 122
+  }
+ },
+ "start": [
+  37.081278,
+  -121.849102
+ ],
+ "end": [
+  37.081227,
+  -121.849372
+ ],
+ "bbox": [
+  37.065042,
+  -121.90611,
+  37.090851,
+  -121.830275
+ ]
+}

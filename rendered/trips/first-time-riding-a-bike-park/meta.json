@@ -1,0 +1,92 @@
+{
+ "hash": "db5249b2bb6191ce9f6bcea54ebe59d0d86ceea8",
+ "slug": "first-time-riding-a-bike-park",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 100,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2959.32,
+   "min_ft": 2712.93,
+   "total_mi": 6.11,
+   "gx": 982.17,
+   "gy": 19.38,
+   "gps_max_mi": 4.73,
+   "y_lo": 2698.06,
+   "y_hi": 2985.4,
+   "pad_l": 72,
+   "vx": 12.6,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2959.32,
+   "min_ft": 2712.93,
+   "total_mi": 6.11,
+   "gx": 571.98,
+   "gy": 16.79,
+   "gps_max_mi": 4.73,
+   "y_lo": 2698.06,
+   "y_hi": 2985.4,
+   "pad_l": 72,
+   "vx": 17.72,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2959.32,
+   "min_ft": 2712.93,
+   "total_mi": 6.11,
+   "gx": 277.08,
+   "gy": 21.41,
+   "gps_max_mi": 4.73,
+   "y_lo": 2698.06,
+   "y_hi": 2985.4,
+   "pad_l": 0,
+   "vx": 26.96,
+   "h": 122
+  }
+ },
+ "start": [
+  43.711957,
+  -116.314068
+ ],
+ "end": [
+  43.712001,
+  -116.314102
+ ],
+ "bbox": [
+  43.70643,
+  -116.315751,
+  43.715812,
+  -116.304471
+ ]
+}

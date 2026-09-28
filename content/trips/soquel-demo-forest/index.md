@@ -7,6 +7,7 @@ timezone: America/Los_Angeles
 place: Soquel Demonstration Forest
 region: Santa Cruz
 route_shape: loop
+strava_id: "6126423325"
 featured: true
 stats:
   distance_km: 25.85

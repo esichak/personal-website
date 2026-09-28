@@ -1,0 +1,92 @@
+{
+ "hash": "45ebe406dd1bc09a0a2997d1000b13b6fac4a38c",
+ "slug": "napsack-surrealistic-direct",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 6236.88,
+   "min_ft": 5750.66,
+   "total_mi": 4.31,
+   "gx": 473.84,
+   "gy": 19.38,
+   "gps_max_mi": 1.47,
+   "y_lo": 5722.16,
+   "y_hi": 6273.13,
+   "pad_l": 72,
+   "vx": 4.63,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 6236.88,
+   "min_ft": 5750.66,
+   "total_mi": 4.31,
+   "gx": 292.74,
+   "gy": 16.79,
+   "gps_max_mi": 1.47,
+   "y_lo": 5722.16,
+   "y_hi": 6273.13,
+   "pad_l": 72,
+   "vx": 6.52,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 6236.88,
+   "min_ft": 5750.66,
+   "total_mi": 4.31,
+   "gx": 122.33,
+   "gy": 21.41,
+   "gps_max_mi": 1.47,
+   "y_lo": 5722.16,
+   "y_hi": 6273.13,
+   "pad_l": 0,
+   "vx": 9.91,
+   "h": 122
+  }
+ },
+ "start": [
+  38.797062,
+  -120.142758
+ ],
+ "end": [
+  38.797024,
+  -120.142865
+ ],
+ "bbox": [
+  38.797015,
+  -120.142865,
+  38.806011,
+  -120.131632
+ ]
+}

@@ -1,0 +1,92 @@
+{
+ "hash": "3ac833259dc06fdf9c772cf3f482518739986306",
+ "slug": "powderhouse-for-first-tour-of-the-season",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9445.54,
+   "min_ft": 7673.23,
+   "total_mi": 2.95,
+   "gx": 741.51,
+   "gy": 19.38,
+   "gps_max_mi": 1.68,
+   "y_lo": 7567.52,
+   "y_hi": 9611.22,
+   "pad_l": 72,
+   "vx": 0.86,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9445.54,
+   "min_ft": 7673.23,
+   "total_mi": 2.95,
+   "gx": 439.78,
+   "gy": 16.79,
+   "gps_max_mi": 1.68,
+   "y_lo": 7567.52,
+   "y_hi": 9611.22,
+   "pad_l": 72,
+   "vx": 1.2,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9445.54,
+   "min_ft": 7673.23,
+   "total_mi": 2.95,
+   "gx": 203.81,
+   "gy": 21.41,
+   "gps_max_mi": 1.68,
+   "y_lo": 7567.52,
+   "y_hi": 9611.22,
+   "pad_l": 0,
+   "vx": 1.83,
+   "h": 122
+  }
+ },
+ "start": [
+  38.796287,
+  -119.976474
+ ],
+ "end": [
+  38.796337,
+  -119.976427
+ ],
+ "bbox": [
+  38.782747,
+  -119.978651,
+  38.796337,
+  -119.973615
+ ]
+}

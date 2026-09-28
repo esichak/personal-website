@@ -1,0 +1,92 @@
+{
+ "hash": "8f9cc587f1ec94f652807cee7bf83f049becbca6",
+ "slug": "morning-stroll",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 734.91,
+   "min_ft": 390.09,
+   "total_mi": 3.7,
+   "gx": 511.42,
+   "gy": 19.38,
+   "gps_max_mi": 1.38,
+   "y_lo": 369.42,
+   "y_hi": 769.03,
+   "pad_l": 72,
+   "vx": 5.48,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 734.91,
+   "min_ft": 390.09,
+   "total_mi": 3.7,
+   "gx": 313.38,
+   "gy": 16.79,
+   "gps_max_mi": 1.38,
+   "y_lo": 369.42,
+   "y_hi": 769.03,
+   "pad_l": 72,
+   "vx": 7.71,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 734.91,
+   "min_ft": 390.09,
+   "total_mi": 3.7,
+   "gx": 133.77,
+   "gy": 21.41,
+   "gps_max_mi": 1.38,
+   "y_lo": 369.42,
+   "y_hi": 769.03,
+   "pad_l": 0,
+   "vx": 11.74,
+   "h": 122
+  }
+ },
+ "start": [
+  37.280448,
+  -121.759942
+ ],
+ "end": [
+  37.280643,
+  -121.759547
+ ],
+ "bbox": [
+  37.270738,
+  -121.775638,
+  37.285704,
+  -121.757719
+ ]
+}

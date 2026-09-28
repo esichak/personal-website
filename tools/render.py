@@ -29,6 +29,7 @@ from mapkit import Track, render_map, render_profile, render_glyph, render_tile,
 VERSION = 6  # bump after renderer changes to force a full re-render
 MI, FT = geo.MI, geo.FT
 OUT = os.path.join(ROOT, 'rendered')
+MIN_REGION_TRIPS = 3
 
 REPORT = dict(legend=False, north=False, graticule=False, miles=True, chevrons=False, startend=True, gpsmax=True,
               png_scale=1.25, contour_density=0.75, peaks_max=3, trim=False)
@@ -109,9 +110,49 @@ def union(bbs):
 
 
 OSM_FAILED = []
+OSM_POOL = []  # (bbox, detail, data): larger areas fetched once and shared by every map inside them
 
 
-def fetch_osm(bbox, detail):
+def _contains(outer, inner):
+    return outer[0] <= inner[0] and outer[1] <= inner[1] and outer[2] >= inner[2] and outer[3] >= inner[3]
+
+
+def prefetch_osm(trips):
+    """Group pending trips into ~15 km cells and fetch each cell's OpenStreetMap data once (report detail)."""
+    cells = {}
+    for t in trips:
+        paths = [t['track']] if t['track'] else [d['track'] for d in t['days'] if d['track']]
+        pts = []
+        for p in paths:
+            pts += [(q[0], q[1]) for q in fit_reader.read_gpx(p)][::5]
+        if not pts:
+            continue
+        s_, w_, n_, e_ = geo.bbox_of([pts])
+        lat_c, lon_c = (s_ + n_) / 2, (w_ + e_) / 2
+        kx = math.cos(math.radians(lat_c))
+        half_h = max(n_ - s_, (e_ - w_) * kx / 1.16, 0.012) * 0.75   # covers the phone (tall) frame
+        half_w = max(e_ - w_, (n_ - s_) / kx * 2.25, 0.02) * 0.75    # covers the wide (1440×640) frame
+        bb = (lat_c - half_h, lon_c - half_w, lat_c + half_h, lon_c + half_w)
+        key = (round(lat_c / 0.12), round(lon_c / 0.16))
+        cells.setdefault(key, []).append(bb)
+    for key, bbs in sorted(cells.items(), key=lambda kv: -len(kv[1])):
+        if len(bbs) < 2:
+            continue
+        u = union(bbs)
+        if (u[2] - u[0]) > 0.4 or (u[3] - u[1]) > 0.5:
+            continue  # too big to be worth sharing; those trips fetch their own
+        t0 = time.time()
+        data = fetch_osm(u, 'report', pooled=False)
+        if data:
+            OSM_POOL.append((u, 'report', data))
+            print('  prefetched OSM for %d trips around %.3f,%.3f in %.0fs' % (len(bbs), (u[0] + u[2]) / 2, (u[1] + u[3]) / 2, time.time() - t0), flush=True)
+
+
+def fetch_osm(bbox, detail, pooled=True):
+    if pooled:
+        for pb, pd, data in OSM_POOL:
+            if pd == detail and _contains(pb, bbox):
+                return data
     for attempt in range(3):
         try:
             return geo.osm_layers(bbox, detail)
@@ -412,10 +453,14 @@ def render_site(trips, force=False):
             continue
         groups.setdefault(t['region'], []).append(t)
     jobs = []
+    mapped = []
     for region, ts in groups.items():
-        jobs.append(('region-' + content.slugify(region), region, ts, [(718, 620, 'desktop'), (390, 480, 'phone')]))
+        # overview maps only where there is something to overview; one-off trips elsewhere are listed without a map
+        if len(ts) >= MIN_REGION_TRIPS:
+            mapped.append(region)
+            jobs.append(('region-' + content.slugify(region), region, ts, [(718, 620, 'desktop'), (390, 480, 'phone')]))
         ski = [t for t in ts if t['activity'] == 'ski']
-        if ski:
+        if len(ski) >= 2:
             jobs.append(('ski-' + content.slugify(region), region, ski, [(506, 680, 'desktop'), (390, 480, 'phone')]))
     h = hashlib.sha1((str(VERSION) + json.dumps([(j[0], [(t['slug'], t['title'], t['activity'], t['kind'], trip_inputs(t)) for t in j[2]])
                                                   for j in jobs], sort_keys=True)).encode()).hexdigest()
@@ -449,7 +494,8 @@ def render_site(trips, force=False):
     for f in os.listdir(folder):
         if f.endswith('.meta.json'):
             os.remove(os.path.join(folder, f))
-    meta['regions'] = sorted(groups)
+    meta['regions'] = sorted(mapped)          # regions that have an overview map
+    meta['all_regions'] = sorted(groups)      # every region, mapped or not
     if OSM_FAILED:
         meta['hash'] = None
     optimize_images(folder, meta)
@@ -464,6 +510,8 @@ def main():
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--no-site', action='store_true', help='skip region/section maps')
     ap.add_argument('--charts', action='store_true', help='only re-render elevation profiles / speed charts (fast, offline)')
+    ap.add_argument('--budget', type=float, help='stop starting new trips after this many seconds (run again to continue)')
+    ap.add_argument('--jobs', type=int, default=1, help='render this many trips in parallel (uses fork; shares prefetched OSM)')
     a = ap.parse_args()
     trips = content.load_all()
     if a.charts:
@@ -483,9 +531,36 @@ def main():
             print('charts', t['slug'])
         return
     if not a.site:
-        for t in trips:
+        t_start = time.time()
+        pending = [t for t in trips if (not a.slugs or t['slug'] in a.slugs) and t['kind'] != 'series'
+                   and (a.force or not os.path.exists(os.path.join(t['rendered'], 'meta.json'))
+                        or json.load(open(os.path.join(t['rendered'], 'meta.json'))).get('hash') != trip_inputs(t))]
+        if len(pending) > 3:
+            prefetch_osm(pending)
+        if a.jobs > 1 and pending:
+            import multiprocessing as mp
+            from concurrent.futures import ProcessPoolExecutor, FIRST_COMPLETED, wait
+            with ProcessPoolExecutor(max_workers=a.jobs, mp_context=mp.get_context('fork')) as ex:
+                todo = list(pending)
+                running = set()
+                while todo or running:
+                    while todo and len(running) < a.jobs and not (a.budget and time.time() - t_start > a.budget):
+                        running.add(ex.submit(render_trip, todo.pop(0), a.force))
+                    if not running:
+                        break
+                    done, running = wait(running, return_when=FIRST_COMPLETED)
+                    for f in done:
+                        f.result()
+            if todo:
+                print('budget used up; %d trips left — run again to continue' % len(todo))
+                return
+            todo_all = []
+        for t in ([] if a.jobs > 1 else trips):
             if a.slugs and t['slug'] not in a.slugs:
                 continue
+            if a.budget and time.time() - t_start > a.budget:
+                print('budget used up; run again to continue')
+                return
             render_trip(t, force=a.force)
     if not a.no_site:
         render_site(trips, force=a.force and (a.site or not a.slugs))

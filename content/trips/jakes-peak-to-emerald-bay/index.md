@@ -7,6 +7,7 @@ timezone: America/Los_Angeles
 place: Emerald Bay
 region: Lake Tahoe
 route_shape: point-to-point
+strava_id: "13764274464"
 stats:
   distance_km: 8.03
   moving: "2:47"

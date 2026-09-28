@@ -1,0 +1,92 @@
+{
+ "hash": "ef3561ca05d53494efd55ed0bbd5053b4fe8d9ac",
+ "slug": "lovers-leap-pop-bottle-surrealistic-pillar",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 6240.16,
+   "min_ft": 5759.84,
+   "total_mi": 4.41,
+   "gx": 358.59,
+   "gy": 19.38,
+   "gps_max_mi": 1.07,
+   "y_lo": 5732.15,
+   "y_hi": 6267.5,
+   "pad_l": 72,
+   "vx": 4.88,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 6240.16,
+   "min_ft": 5759.84,
+   "total_mi": 4.41,
+   "gx": 229.43,
+   "gy": 16.79,
+   "gps_max_mi": 1.07,
+   "y_lo": 5732.15,
+   "y_hi": 6267.5,
+   "pad_l": 72,
+   "vx": 6.86,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 6240.16,
+   "min_ft": 5759.84,
+   "total_mi": 4.41,
+   "gx": 87.25,
+   "gy": 21.41,
+   "gps_max_mi": 1.07,
+   "y_lo": 5732.15,
+   "y_hi": 6267.5,
+   "pad_l": 0,
+   "vx": 10.44,
+   "h": 122
+  }
+ },
+ "start": [
+  38.805276,
+  -120.125365
+ ],
+ "end": [
+  38.805301,
+  -120.125394
+ ],
+ "bbox": [
+  38.799564,
+  -120.138474,
+  38.805301,
+  -120.125365
+ ]
+}

@@ -1,0 +1,92 @@
+{
+ "hash": "da253cfb0353c4fe612be27e879c129b1ce8baa9",
+ "slug": "ride-near-kingsbury",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 7962.6,
+   "min_ft": 6362.2,
+   "total_mi": 5.23,
+   "gx": 100.31,
+   "gy": 19.38,
+   "gps_max_mi": 0.13,
+   "y_lo": 6266.14,
+   "y_hi": 8123.36,
+   "pad_l": 72,
+   "vx": 1.67,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 7962.6,
+   "min_ft": 6362.2,
+   "total_mi": 5.23,
+   "gx": 87.55,
+   "gy": 16.79,
+   "gps_max_mi": 0.13,
+   "y_lo": 6266.14,
+   "y_hi": 8123.36,
+   "pad_l": 72,
+   "vx": 2.35,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 7962.6,
+   "min_ft": 6362.2,
+   "total_mi": 5.23,
+   "gx": 18.62,
+   "gy": 21.41,
+   "gps_max_mi": 0.13,
+   "y_lo": 6266.14,
+   "y_hi": 8123.36,
+   "pad_l": 0,
+   "vx": 3.57,
+   "h": 122
+  }
+ },
+ "start": [
+  38.999067,
+  -119.896442
+ ],
+ "end": [
+  38.981987,
+  -119.939826
+ ],
+ "bbox": [
+  38.981987,
+  -119.939826,
+  39.002392,
+  -119.896442
+ ]
+}

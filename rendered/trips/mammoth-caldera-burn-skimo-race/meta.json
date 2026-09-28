@@ -1,0 +1,92 @@
+{
+ "hash": "581ed5600a4e784ace766a2470b939a329fe1a62",
+ "slug": "mammoth-caldera-burn-skimo-race",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 11056.43,
+   "min_ft": 8367.45,
+   "total_mi": 8.31,
+   "gx": 732.45,
+   "gy": 19.38,
+   "gps_max_mi": 4.67,
+   "y_lo": 8206.77,
+   "y_hi": 11313.3,
+   "pad_l": 72,
+   "vx": 1.59,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 11056.43,
+   "min_ft": 8367.45,
+   "total_mi": 8.31,
+   "gx": 434.8,
+   "gy": 16.79,
+   "gps_max_mi": 4.67,
+   "y_lo": 8206.77,
+   "y_hi": 11313.3,
+   "pad_l": 72,
+   "vx": 2.23,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 11056.43,
+   "min_ft": 8367.45,
+   "total_mi": 8.31,
+   "gx": 201.06,
+   "gy": 21.41,
+   "gps_max_mi": 4.67,
+   "y_lo": 8206.77,
+   "y_hi": 11313.3,
+   "pad_l": 0,
+   "vx": 3.39,
+   "h": 122
+  }
+ },
+ "start": [
+  37.646154,
+  -119.002281
+ ],
+ "end": [
+  37.646188,
+  -119.002131
+ ],
+ "bbox": [
+  37.625308,
+  -119.030299,
+  37.647843,
+  -119.001703
+ ]
+}

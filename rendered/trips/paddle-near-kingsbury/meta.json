@@ -1,0 +1,80 @@
+{
+ "hash": "27b2d587b67b08d85a95bafd31d47eeb1a1bf8fc",
+ "slug": "paddle-near-kingsbury",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": null
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 40,
+   "outbound_only": null
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "speed-wide": {
+   "w": 1248,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 63.53333333333333,
+    "vmax_mph": 2.465228861799197,
+    "stopped_s": 0,
+    "top_mph": 4
+   }
+  },
+  "speed-col": {
+   "w": 718,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 63.53333333333333,
+    "vmax_mph": 2.465228861799197,
+    "stopped_s": 0,
+    "top_mph": 4
+   }
+  },
+  "speed-phone": {
+   "w": 358,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 63.53333333333333,
+    "vmax_mph": 2.465228861799197,
+    "stopped_s": 0,
+    "top_mph": 4
+   }
+  }
+ },
+ "start": [
+  39.012115,
+  -119.949569
+ ],
+ "end": [
+  39.012079,
+  -119.949588
+ ],
+ "bbox": [
+  39.011936,
+  -119.95421,
+  39.018446,
+  -119.949541
+ ]
+}

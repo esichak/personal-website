@@ -1,0 +1,92 @@
+{
+ "hash": "fa26a8588e1ca0cab44575da138d53a8413d5e96",
+ "slug": "table-rock",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 3648.29,
+   "min_ft": 2762.14,
+   "total_mi": 4.2,
+   "gx": 770.18,
+   "gy": 19.38,
+   "gps_max_mi": 2.49,
+   "y_lo": 2709.03,
+   "y_hi": 3735.83,
+   "pad_l": 72,
+   "vx": 2.42,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 3648.29,
+   "min_ft": 2762.14,
+   "total_mi": 4.2,
+   "gx": 455.53,
+   "gy": 16.79,
+   "gps_max_mi": 2.49,
+   "y_lo": 2709.03,
+   "y_hi": 3735.83,
+   "pad_l": 72,
+   "vx": 3.41,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 3648.29,
+   "min_ft": 2762.14,
+   "total_mi": 4.2,
+   "gx": 212.54,
+   "gy": 21.41,
+   "gps_max_mi": 2.49,
+   "y_lo": 2709.03,
+   "y_hi": 3735.83,
+   "pad_l": 0,
+   "vx": 5.19,
+   "h": 122
+  }
+ },
+ "start": [
+  43.603917,
+  -116.16363
+ ],
+ "end": [
+  43.603612,
+  -116.162581
+ ],
+ "bbox": [
+  43.592855,
+  -116.163746,
+  43.603962,
+  -116.140147
+ ]
+}

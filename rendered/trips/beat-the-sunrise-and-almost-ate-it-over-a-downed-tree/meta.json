@@ -1,0 +1,92 @@
+{
+ "hash": "8de7ca3392875c2847ea4fb9239037a23dfab11d",
+ "slug": "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 806.43,
+   "total_mi": 16.99,
+   "gx": 389.36,
+   "gy": 19.38,
+   "gps_max_mi": 4.59,
+   "y_lo": 723.64,
+   "y_hi": 2324.34,
+   "pad_l": 72,
+   "vx": 6.29,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 806.43,
+   "total_mi": 16.99,
+   "gx": 246.33,
+   "gy": 16.79,
+   "gps_max_mi": 4.59,
+   "y_lo": 723.64,
+   "y_hi": 2324.34,
+   "pad_l": 72,
+   "vx": 8.85,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 806.43,
+   "total_mi": 16.99,
+   "gx": 96.61,
+   "gy": 21.41,
+   "gps_max_mi": 4.59,
+   "y_lo": 723.64,
+   "y_hi": 2324.34,
+   "pad_l": 0,
+   "vx": 13.47,
+   "h": 122
+  }
+ },
+ "start": [
+  37.081166,
+  -121.849352
+ ],
+ "end": [
+  37.081196,
+  -121.849416
+ ],
+ "bbox": [
+  37.073363,
+  -121.906173,
+  37.090935,
+  -121.849343
+ ]
+}

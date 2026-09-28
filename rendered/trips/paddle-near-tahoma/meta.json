@@ -1,0 +1,46 @@
+{
+ "hash": "efc81f18efdf2621f5924b331072f21a9a1ed574",
+ "slug": "paddle-near-tahoma",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {},
+ "start": [
+  39.000859,
+  -120.101503
+ ],
+ "end": [
+  39.000546,
+  -120.10172
+ ],
+ "bbox": [
+  38.978985,
+  -120.116402,
+  39.016919,
+  -120.093052
+ ]
+}

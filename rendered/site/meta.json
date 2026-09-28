@@ -1,5 +1,5 @@
 {
- "hash": "a62542e8d302c4dafd1954308d1b73b2cce5ca5a",
+ "hash": "eeddbe0e8fb37908d4ea68ea16abe5064b485fd5",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
@@ -8,28 +8,186 @@
    "base": "region-lake-tahoe-desktop.base.svg",
    "region": "Lake Tahoe",
    "trips": [
+    "tallac-2026-09-24",
+    "tahoe-mountain-loop-2026-09-23",
+    "peak-bagging-szn",
+    "tallac-2026-09-17",
+    "tahoe-mountain-loop",
+    "slow-tallac-lap-after-work",
+    "tallac-2026-08-23",
+    "tallac-with-some-extras",
+    "cowboy-hat-peak",
+    "back-at-tallac-2026-08-16",
+    "tallac",
+    "hike-near-south-lake-tahoe-2026-08-02",
+    "paddle-near-incline-village-2026-08-01",
+    "paddle-near-tahoma",
+    "paddle-near-incline-village",
+    "maggies-peak-with-the-family",
+    "napsack-surrealistic-direct",
+    "paddle-near-south-lake-tahoe",
+    "cal-trans-wall-climbing-with-adam",
+    "divided-sky",
+    "ltcc-multipitch-climbing-course",
+    "lovers-leap-pop-bottle-surrealistic-pillar",
+    "ltcc-trad-climbing",
+    "ltcc-sport-climbing",
+    "ltcc-beginner-rock-climbing",
+    "ltcc-intermediate-rafting",
+    "pie-shop-climbing-approach",
+    "pow-laps-in-april-after-work",
+    "ltcc-multiday-backcountry-ski-class",
     "lovers-leap-napsack-haystack",
+    "kirkwood-sidecountry-cali-chute-far-corner",
     "lovers-leap-knapsack-crack",
     "castle-rock-village-idiot",
     "lovers-leap-corrugation-corner",
+    "mount-tallac-2026-02-15",
+    "echo-peak-with-ross",
+    "powderhouse-lap-before-work-2026-02-13",
+    "powderhouse-lap-before-work",
     "return-to-emerald-chute",
+    "back-at-tallac-with-connor",
+    "bee-positive-5k-warm-up-tallac-tour",
     "tallac-cathedral-bowl-solo",
+    "back-at-tallac",
+    "first-tallac-lap",
+    "powderhouse-for-first-tour-of-the-season",
+    "ride-near-kingsbury",
     "freel-jobs-job-sister-loop",
     "mount-tallac-sunrise",
+    "mount-tallac",
+    "hike-near-south-lake-tahoe",
+    "daggett-loop-with-kevin",
+    "showing-kevin-the-go-to-mtb-loop",
     "kingsbury-stinger-loop",
+    "showing-holt-and-aliya-around-tahoe",
     "kingsbury-stinger-shuttle",
+    "ride-near-south-lake-tahoe-2025-05-10",
+    "ride-near-south-lake-tahoe",
+    "checking-out-corral",
     "emerald-chute-y-chute-combo",
+    "heavenly-uphill-2025-04-09",
+    "red-lake-peak-x2",
+    "jakes-peak-x-2",
     "y-chute-solo",
+    "talking-mountain",
     "jakes-peak-to-emerald-bay",
+    "winds-were-ripping-at-the-top",
+    "heavenly-uphill",
+    "scoping-out-the-emerald-bay-chutes",
+    "finally-back-to-double-digit-temps",
+    "checking-out-the-mount-rose-area",
+    "sketchy-snowpack",
+    "full-moon-tour",
+    "missed-the-4am-target",
+    "dawn-patrol",
+    "3k-in-3-hours",
+    "first-uphill-of-the-season",
+    "ski-mountaineering-course",
+    "aiare-2",
+    "hike-near-tahoma",
+    "paddle-near-kingsbury",
+    "paddle-lake-tahoe",
     "post-ski-sup-lake-tahoe",
+    "emerald-bay-post-ski-hike",
+    "jakes-peak",
+    "avy-1-field-day",
+    "one-hell-of-a-first-ski-tour",
     "crystal-range-to-bayview"
    ],
    "clusters": [
     {
-     "x": 223.3645850761328,
-     "y": 549.1367382186011,
-     "n": 4,
+     "x": 337.83931701177886,
+     "y": 372.0196844034257,
+     "n": 22,
      "keys": [
+      "tallac-2026-09-24",
+      "tallac-2026-09-17",
+      "slow-tallac-lap-after-work",
+      "tallac-2026-08-23",
+      "tallac-with-some-extras",
+      "back-at-tallac-2026-08-16",
+      "tallac",
+      "hike-near-south-lake-tahoe-2026-08-02",
+      "maggies-peak-with-the-family",
+      "paddle-near-south-lake-tahoe",
+      "mount-tallac-2026-02-15",
+      "back-at-tallac-with-connor",
+      "bee-positive-5k-warm-up-tallac-tour",
+      "tallac-cathedral-bowl-solo",
+      "back-at-tallac",
+      "first-tallac-lap",
+      "mount-tallac-sunrise",
+      "mount-tallac",
+      "showing-kevin-the-go-to-mtb-loop",
+      "showing-holt-and-aliya-around-tahoe",
+      "ride-near-south-lake-tahoe-2025-05-10",
+      "ride-near-south-lake-tahoe"
+     ]
+    },
+    {
+     "x": 368.6015957457916,
+     "y": 379.8236870101895,
+     "n": 3,
+     "keys": [
+      "tahoe-mountain-loop-2026-09-23",
+      "tahoe-mountain-loop",
+      "pie-shop-climbing-approach"
+     ]
+    },
+    {
+     "x": 331.4260064776299,
+     "y": 402.6928197044559,
+     "n": 3,
+     "keys": [
+      "peak-bagging-szn",
+      "echo-peak-with-ross",
+      "hike-near-south-lake-tahoe"
+     ]
+    },
+    {
+     "x": 371.7693497189834,
+     "y": 420.81628447137984,
+     "n": 6,
+     "keys": [
+      "cowboy-hat-peak",
+      "cal-trans-wall-climbing-with-adam",
+      "divided-sky",
+      "ltcc-sport-climbing",
+      "checking-out-corral",
+      "talking-mountain"
+     ]
+    },
+    {
+     "x": 413.52988870853306,
+     "y": 183.12331437674504,
+     "n": 2,
+     "keys": [
+      "paddle-near-incline-village-2026-08-01",
+      "paddle-near-incline-village"
+     ]
+    },
+    {
+     "x": 319.84854917974553,
+     "y": 317.12644472047276,
+     "n": 6,
+     "keys": [
+      "paddle-near-tahoma",
+      "jakes-peak-x-2",
+      "jakes-peak-to-emerald-bay",
+      "scoping-out-the-emerald-bay-chutes",
+      "hike-near-tahoma",
+      "jakes-peak"
+     ]
+    },
+    {
+     "x": 297.55864807724913,
+     "y": 457.8851241833015,
+     "n": 6,
+     "keys": [
+      "napsack-surrealistic-direct",
+      "lovers-leap-pop-bottle-surrealistic-pillar",
       "lovers-leap-napsack-haystack",
       "lovers-leap-knapsack-crack",
       "lovers-leap-corrugation-corner",
@@ -37,56 +195,140 @@
      ]
     },
     {
-     "x": 505.03242956576037,
-     "y": 253.83592400690756,
-     "n": 2,
+     "x": 314.09656064169377,
+     "y": 350.8247620214679,
+     "n": 6,
      "keys": [
-      "castle-rock-village-idiot",
-      "kingsbury-stinger-shuttle"
-     ]
-    },
-    {
-     "x": 258.1721901879748,
-     "y": 306.92065136935906,
-     "n": 4,
-     "keys": [
+      "ltcc-multipitch-climbing-course",
+      "ltcc-trad-climbing",
       "return-to-emerald-chute",
       "emerald-chute-y-chute-combo",
       "y-chute-solo",
-      "jakes-peak-to-emerald-bay"
+      "emerald-bay-post-ski-hike"
      ]
     },
     {
-     "x": 288.5201681947219,
-     "y": 349.98411053539934,
-     "n": 2,
+     "x": 430.5886463744859,
+     "y": 321.2594787587818,
+     "n": 7,
      "keys": [
-      "tallac-cathedral-bowl-solo",
-      "mount-tallac-sunrise"
+      "ltcc-beginner-rock-climbing",
+      "castle-rock-village-idiot",
+      "ride-near-kingsbury",
+      "daggett-loop-with-kevin",
+      "kingsbury-stinger-loop",
+      "kingsbury-stinger-shuttle",
+      "heavenly-uphill-2025-04-09"
      ]
     },
     {
-     "x": 499.9907995677947,
-     "y": 506.7188255613095,
+     "x": 506.9637727845236,
+     "y": 533.511911459178,
+     "n": 1,
+     "keys": [
+      "ltcc-intermediate-rafting"
+     ]
+    },
+    {
+     "x": 391.6635794728228,
+     "y": 525.8923206318649,
+     "n": 4,
+     "keys": [
+      "pow-laps-in-april-after-work",
+      "ltcc-multiday-backcountry-ski-class",
+      "red-lake-peak-x2",
+      "aiare-2"
+     ]
+    },
+    {
+     "x": 343.5983293945581,
+     "y": 551.8439618343173,
+     "n": 1,
+     "keys": [
+      "kirkwood-sidecountry-cali-chute-far-corner"
+     ]
+    },
+    {
+     "x": 387.2639511931628,
+     "y": 458.37619824767654,
+     "n": 3,
+     "keys": [
+      "powderhouse-lap-before-work-2026-02-13",
+      "powderhouse-lap-before-work",
+      "powderhouse-for-first-tour-of-the-season"
+     ]
+    },
+    {
+     "x": 428.3999082974943,
+     "y": 434.8053338383494,
      "n": 1,
      "keys": [
       "freel-jobs-job-sister-loop"
      ]
     },
     {
-     "x": 456.1609520795556,
-     "y": 273.52203306193144,
-     "n": 1,
+     "x": 407.04688002282523,
+     "y": 362.2444787309308,
+     "n": 9,
      "keys": [
-      "kingsbury-stinger-loop"
+      "winds-were-ripping-at-the-top",
+      "heavenly-uphill",
+      "finally-back-to-double-digit-temps",
+      "sketchy-snowpack",
+      "full-moon-tour",
+      "missed-the-4am-target",
+      "dawn-patrol",
+      "3k-in-3-hours",
+      "first-uphill-of-the-season"
      ]
     },
     {
-     "x": 177.52066092258272,
-     "y": 47.77876506051397,
+     "x": 422.80361998219803,
+     "y": 92.73578302123526,
      "n": 1,
      "keys": [
+      "checking-out-the-mount-rose-area"
+     ]
+    },
+    {
+     "x": 197.2176231530098,
+     "y": 100.68227011190609,
+     "n": 1,
+     "keys": [
+      "ski-mountaineering-course"
+     ]
+    },
+    {
+     "x": 419.9357948668949,
+     "y": 309.08058308777964,
+     "n": 1,
+     "keys": [
+      "paddle-near-kingsbury"
+     ]
+    },
+    {
+     "x": 289.44610741420104,
+     "y": 239.43521246790715,
+     "n": 2,
+     "keys": [
+      "paddle-lake-tahoe",
       "post-ski-sup-lake-tahoe"
+     ]
+    },
+    {
+     "x": 255.29186061997194,
+     "y": 174.14497365867805,
+     "n": 1,
+     "keys": [
+      "avy-1-field-day"
+     ]
+    },
+    {
+     "x": 262.76576305976823,
+     "y": 154.95804114007458,
+     "n": 1,
+     "keys": [
+      "one-hell-of-a-first-ski-tour"
      ]
     }
    ]
@@ -98,28 +340,178 @@
    "base": "region-lake-tahoe-phone.base.svg",
    "region": "Lake Tahoe",
    "trips": [
+    "tallac-2026-09-24",
+    "tahoe-mountain-loop-2026-09-23",
+    "peak-bagging-szn",
+    "tallac-2026-09-17",
+    "tahoe-mountain-loop",
+    "slow-tallac-lap-after-work",
+    "tallac-2026-08-23",
+    "tallac-with-some-extras",
+    "cowboy-hat-peak",
+    "back-at-tallac-2026-08-16",
+    "tallac",
+    "hike-near-south-lake-tahoe-2026-08-02",
+    "paddle-near-incline-village-2026-08-01",
+    "paddle-near-tahoma",
+    "paddle-near-incline-village",
+    "maggies-peak-with-the-family",
+    "napsack-surrealistic-direct",
+    "paddle-near-south-lake-tahoe",
+    "cal-trans-wall-climbing-with-adam",
+    "divided-sky",
+    "ltcc-multipitch-climbing-course",
+    "lovers-leap-pop-bottle-surrealistic-pillar",
+    "ltcc-trad-climbing",
+    "ltcc-sport-climbing",
+    "ltcc-beginner-rock-climbing",
+    "ltcc-intermediate-rafting",
+    "pie-shop-climbing-approach",
+    "pow-laps-in-april-after-work",
+    "ltcc-multiday-backcountry-ski-class",
     "lovers-leap-napsack-haystack",
+    "kirkwood-sidecountry-cali-chute-far-corner",
     "lovers-leap-knapsack-crack",
     "castle-rock-village-idiot",
     "lovers-leap-corrugation-corner",
+    "mount-tallac-2026-02-15",
+    "echo-peak-with-ross",
+    "powderhouse-lap-before-work-2026-02-13",
+    "powderhouse-lap-before-work",
     "return-to-emerald-chute",
+    "back-at-tallac-with-connor",
+    "bee-positive-5k-warm-up-tallac-tour",
     "tallac-cathedral-bowl-solo",
+    "back-at-tallac",
+    "first-tallac-lap",
+    "powderhouse-for-first-tour-of-the-season",
+    "ride-near-kingsbury",
     "freel-jobs-job-sister-loop",
     "mount-tallac-sunrise",
+    "mount-tallac",
+    "hike-near-south-lake-tahoe",
+    "daggett-loop-with-kevin",
+    "showing-kevin-the-go-to-mtb-loop",
     "kingsbury-stinger-loop",
+    "showing-holt-and-aliya-around-tahoe",
     "kingsbury-stinger-shuttle",
+    "ride-near-south-lake-tahoe-2025-05-10",
+    "ride-near-south-lake-tahoe",
+    "checking-out-corral",
     "emerald-chute-y-chute-combo",
+    "heavenly-uphill-2025-04-09",
+    "red-lake-peak-x2",
+    "jakes-peak-x-2",
     "y-chute-solo",
+    "talking-mountain",
     "jakes-peak-to-emerald-bay",
+    "winds-were-ripping-at-the-top",
+    "heavenly-uphill",
+    "scoping-out-the-emerald-bay-chutes",
+    "finally-back-to-double-digit-temps",
+    "checking-out-the-mount-rose-area",
+    "sketchy-snowpack",
+    "full-moon-tour",
+    "missed-the-4am-target",
+    "dawn-patrol",
+    "3k-in-3-hours",
+    "first-uphill-of-the-season",
+    "ski-mountaineering-course",
+    "aiare-2",
+    "hike-near-tahoma",
+    "paddle-near-kingsbury",
+    "paddle-lake-tahoe",
     "post-ski-sup-lake-tahoe",
+    "emerald-bay-post-ski-hike",
+    "jakes-peak",
+    "avy-1-field-day",
+    "one-hell-of-a-first-ski-tour",
     "crystal-range-to-bayview"
    ],
    "clusters": [
     {
-     "x": 98.72259074381154,
-     "y": 393.7099432519117,
-     "n": 4,
+     "x": 179.9758126038692,
+     "y": 268.0139695766217,
+     "n": 32,
      "keys": [
+      "tallac-2026-09-24",
+      "tahoe-mountain-loop-2026-09-23",
+      "peak-bagging-szn",
+      "tallac-2026-09-17",
+      "tahoe-mountain-loop",
+      "slow-tallac-lap-after-work",
+      "tallac-2026-08-23",
+      "tallac-with-some-extras",
+      "back-at-tallac-2026-08-16",
+      "tallac",
+      "hike-near-south-lake-tahoe-2026-08-02",
+      "maggies-peak-with-the-family",
+      "paddle-near-south-lake-tahoe",
+      "ltcc-multipitch-climbing-course",
+      "ltcc-trad-climbing",
+      "mount-tallac-2026-02-15",
+      "return-to-emerald-chute",
+      "back-at-tallac-with-connor",
+      "bee-positive-5k-warm-up-tallac-tour",
+      "tallac-cathedral-bowl-solo",
+      "back-at-tallac",
+      "first-tallac-lap",
+      "mount-tallac-sunrise",
+      "mount-tallac",
+      "hike-near-south-lake-tahoe",
+      "showing-kevin-the-go-to-mtb-loop",
+      "showing-holt-and-aliya-around-tahoe",
+      "ride-near-south-lake-tahoe-2025-05-10",
+      "ride-near-south-lake-tahoe",
+      "emerald-chute-y-chute-combo",
+      "y-chute-solo",
+      "emerald-bay-post-ski-hike"
+     ]
+    },
+    {
+     "x": 204.06630013839947,
+     "y": 302.6438147861377,
+     "n": 8,
+     "keys": [
+      "cowboy-hat-peak",
+      "cal-trans-wall-climbing-with-adam",
+      "divided-sky",
+      "ltcc-sport-climbing",
+      "pie-shop-climbing-approach",
+      "echo-peak-with-ross",
+      "checking-out-corral",
+      "talking-mountain"
+     ]
+    },
+    {
+     "x": 233.7164850540596,
+     "y": 133.95848117059,
+     "n": 2,
+     "keys": [
+      "paddle-near-incline-village-2026-08-01",
+      "paddle-near-incline-village"
+     ]
+    },
+    {
+     "x": 167.2022803195281,
+     "y": 229.05747689839697,
+     "n": 6,
+     "keys": [
+      "paddle-near-tahoma",
+      "jakes-peak-x-2",
+      "jakes-peak-to-emerald-bay",
+      "scoping-out-the-emerald-bay-chutes",
+      "hike-near-tahoma",
+      "jakes-peak"
+     ]
+    },
+    {
+     "x": 151.37634259381576,
+     "y": 328.9507332913725,
+     "n": 6,
+     "keys": [
+      "napsack-surrealistic-direct",
+      "lovers-leap-pop-bottle-surrealistic-pillar",
       "lovers-leap-napsack-haystack",
       "lovers-leap-knapsack-crack",
       "lovers-leap-corrugation-corner",
@@ -127,56 +519,113 @@
      ]
     },
     {
-     "x": 298.65747024012836,
-     "y": 184.14162348877363,
-     "n": 2,
+     "x": 245.82828560705315,
+     "y": 231.99059782880988,
+     "n": 8,
      "keys": [
+      "ltcc-beginner-rock-climbing",
       "castle-rock-village-idiot",
-      "kingsbury-stinger-shuttle"
+      "ride-near-kingsbury",
+      "daggett-loop-with-kevin",
+      "kingsbury-stinger-loop",
+      "kingsbury-stinger-shuttle",
+      "heavenly-uphill-2025-04-09",
+      "paddle-near-kingsbury"
      ]
     },
     {
-     "x": 123.42989926247272,
-     "y": 221.8146558105135,
+     "x": 300.05499521875674,
+     "y": 382.621356519414,
+     "n": 1,
+     "keys": [
+      "ltcc-intermediate-rafting"
+     ]
+    },
+    {
+     "x": 218.19129960508684,
+     "y": 377.2139049645466,
      "n": 4,
      "keys": [
-      "return-to-emerald-chute",
-      "emerald-chute-y-chute-combo",
-      "y-chute-solo",
-      "jakes-peak-to-emerald-bay"
+      "pow-laps-in-april-after-work",
+      "ltcc-multiday-backcountry-ski-class",
+      "red-lake-peak-x2",
+      "aiare-2"
      ]
     },
     {
-     "x": 144.97165294305412,
-     "y": 252.37582037996157,
-     "n": 2,
+     "x": 182.80309895963268,
+     "y": 413.58692938546017,
+     "n": 1,
      "keys": [
-      "tallac-cathedral-bowl-solo",
-      "mount-tallac-sunrise"
+      "kirkwood-sidecountry-cali-chute-far-corner"
      ]
     },
     {
-     "x": 295.07879519493554,
-     "y": 363.60690846286593,
+     "x": 215.06754222052027,
+     "y": 329.2992374660903,
+     "n": 3,
+     "keys": [
+      "powderhouse-lap-before-work-2026-02-13",
+      "powderhouse-lap-before-work",
+      "powderhouse-for-first-tour-of-the-season"
+     ]
+    },
+    {
+     "x": 244.27427097302296,
+     "y": 312.5715272401161,
      "n": 1,
      "keys": [
       "freel-jobs-job-sister-loop"
      ]
     },
     {
-     "x": 263.9672734243852,
-     "y": 198.11241056008092,
-     "n": 1,
+     "x": 229.11351749204678,
+     "y": 261.07672684130273,
+     "n": 9,
      "keys": [
-      "kingsbury-stinger-loop"
+      "winds-were-ripping-at-the-top",
+      "heavenly-uphill",
+      "finally-back-to-double-digit-temps",
+      "sketchy-snowpack",
+      "full-moon-tour",
+      "missed-the-4am-target",
+      "dawn-patrol",
+      "3k-in-3-hours",
+      "first-uphill-of-the-season"
      ]
     },
     {
-     "x": 63.809841215192705,
-     "y": 33.21216948997931,
+     "x": 241.29505141331785,
+     "y": 64.66553766718559,
      "n": 1,
      "keys": [
+      "checking-out-the-mount-rose-area"
+     ]
+    },
+    {
+     "x": 69.83052132023093,
+     "y": 60.69239732188148,
+     "n": 1,
+     "keys": [
+      "ski-mountaineering-course"
+     ]
+    },
+    {
+     "x": 145.6163994365835,
+     "y": 173.9217636868987,
+     "n": 2,
+     "keys": [
+      "paddle-lake-tahoe",
       "post-ski-sup-lake-tahoe"
+     ]
+    },
+    {
+     "x": 129.12144134016586,
+     "y": 137.74056023126508,
+     "n": 2,
+     "keys": [
+      "avy-1-field-day",
+      "one-hell-of-a-first-ski-tour"
      ]
     }
    ]
@@ -188,44 +637,171 @@
    "base": "ski-lake-tahoe-desktop.base.svg",
    "region": "Lake Tahoe",
    "trips": [
+    "pow-laps-in-april-after-work",
+    "ltcc-multiday-backcountry-ski-class",
+    "kirkwood-sidecountry-cali-chute-far-corner",
+    "mount-tallac-2026-02-15",
+    "echo-peak-with-ross",
+    "powderhouse-lap-before-work-2026-02-13",
+    "powderhouse-lap-before-work",
     "return-to-emerald-chute",
+    "back-at-tallac-with-connor",
+    "bee-positive-5k-warm-up-tallac-tour",
     "tallac-cathedral-bowl-solo",
+    "back-at-tallac",
+    "first-tallac-lap",
+    "powderhouse-for-first-tour-of-the-season",
     "emerald-chute-y-chute-combo",
+    "heavenly-uphill-2025-04-09",
+    "red-lake-peak-x2",
+    "jakes-peak-x-2",
     "y-chute-solo",
-    "jakes-peak-to-emerald-bay"
+    "talking-mountain",
+    "jakes-peak-to-emerald-bay",
+    "winds-were-ripping-at-the-top",
+    "heavenly-uphill",
+    "scoping-out-the-emerald-bay-chutes",
+    "finally-back-to-double-digit-temps",
+    "checking-out-the-mount-rose-area",
+    "sketchy-snowpack",
+    "full-moon-tour",
+    "missed-the-4am-target",
+    "dawn-patrol",
+    "3k-in-3-hours",
+    "first-uphill-of-the-season",
+    "ski-mountaineering-course",
+    "aiare-2",
+    "jakes-peak",
+    "avy-1-field-day",
+    "one-hell-of-a-first-ski-tour"
    ],
    "clusters": [
     {
-     "x": 244.2655825265002,
-     "y": 173.33552520878047,
-     "n": 2,
+     "x": 347.8798549300186,
+     "y": 576.7851258543034,
+     "n": 4,
+     "keys": [
+      "pow-laps-in-april-after-work",
+      "ltcc-multiday-backcountry-ski-class",
+      "red-lake-peak-x2",
+      "aiare-2"
+     ]
+    },
+    {
+     "x": 295.1631290377283,
+     "y": 605.2482162053802,
+     "n": 1,
+     "keys": [
+      "kirkwood-sidecountry-cali-chute-far-corner"
+     ]
+    },
+    {
+     "x": 283.65221526138055,
+     "y": 399.11238602374084,
+     "n": 6,
+     "keys": [
+      "mount-tallac-2026-02-15",
+      "back-at-tallac-with-connor",
+      "bee-positive-5k-warm-up-tallac-tour",
+      "tallac-cathedral-bowl-solo",
+      "back-at-tallac",
+      "first-tallac-lap"
+     ]
+    },
+    {
+     "x": 311.60427061388356,
+     "y": 469.47042488214123,
+     "n": 1,
+     "keys": [
+      "echo-peak-with-ross"
+     ]
+    },
+    {
+     "x": 343.05445617168186,
+     "y": 502.73518517487105,
+     "n": 3,
+     "keys": [
+      "powderhouse-lap-before-work-2026-02-13",
+      "powderhouse-lap-before-work",
+      "powderhouse-for-first-tour-of-the-season"
+     ]
+    },
+    {
+     "x": 268.51114149564523,
+     "y": 377.9434644327277,
+     "n": 7,
      "keys": [
       "return-to-emerald-chute",
-      "y-chute-solo"
+      "emerald-chute-y-chute-combo",
+      "jakes-peak-x-2",
+      "y-chute-solo",
+      "jakes-peak-to-emerald-bay",
+      "scoping-out-the-emerald-bay-chutes",
+      "jakes-peak"
      ]
     },
     {
-     "x": 384.0052337981043,
-     "y": 371.56404116239605,
+     "x": 394.225134494213,
+     "y": 373.83391354236034,
      "n": 1,
      "keys": [
-      "tallac-cathedral-bowl-solo"
+      "heavenly-uphill-2025-04-09"
      ]
     },
     {
-     "x": 181.18919270337665,
-     "y": 187.02442560353884,
+     "x": 315.9016165211536,
+     "y": 498.18635374740495,
      "n": 1,
      "keys": [
-      "emerald-chute-y-chute-combo"
+      "talking-mountain"
      ]
     },
     {
-     "x": 256.5676566321856,
-     "y": 71.96442948678708,
+     "x": 364.75186198485994,
+     "y": 397.30039602747246,
+     "n": 9,
+     "keys": [
+      "winds-were-ripping-at-the-top",
+      "heavenly-uphill",
+      "finally-back-to-double-digit-temps",
+      "sketchy-snowpack",
+      "full-moon-tour",
+      "missed-the-4am-target",
+      "dawn-patrol",
+      "3k-in-3-hours",
+      "first-uphill-of-the-season"
+     ]
+    },
+    {
+     "x": 385.3002361032745,
+     "y": 104.9665674561979,
      "n": 1,
      "keys": [
-      "jakes-peak-to-emerald-bay"
+      "checking-out-the-mount-rose-area"
+     ]
+    },
+    {
+     "x": 134.6165479986108,
+     "y": 110.42571560660667,
+     "n": 1,
+     "keys": [
+      "ski-mountaineering-course"
+     ]
+    },
+    {
+     "x": 204.79802121177556,
+     "y": 189.54822178777647,
+     "n": 1,
+     "keys": [
+      "avy-1-field-day"
+     ]
+    },
+    {
+     "x": 206.5080562834426,
+     "y": 169.9539806052431,
+     "n": 1,
+     "keys": [
+      "one-hell-of-a-first-ski-tour"
      ]
     }
    ]
@@ -237,44 +813,219 @@
    "base": "ski-lake-tahoe-phone.base.svg",
    "region": "Lake Tahoe",
    "trips": [
+    "pow-laps-in-april-after-work",
+    "ltcc-multiday-backcountry-ski-class",
+    "kirkwood-sidecountry-cali-chute-far-corner",
+    "mount-tallac-2026-02-15",
+    "echo-peak-with-ross",
+    "powderhouse-lap-before-work-2026-02-13",
+    "powderhouse-lap-before-work",
     "return-to-emerald-chute",
+    "back-at-tallac-with-connor",
+    "bee-positive-5k-warm-up-tallac-tour",
     "tallac-cathedral-bowl-solo",
+    "back-at-tallac",
+    "first-tallac-lap",
+    "powderhouse-for-first-tour-of-the-season",
     "emerald-chute-y-chute-combo",
+    "heavenly-uphill-2025-04-09",
+    "red-lake-peak-x2",
+    "jakes-peak-x-2",
     "y-chute-solo",
-    "jakes-peak-to-emerald-bay"
+    "talking-mountain",
+    "jakes-peak-to-emerald-bay",
+    "winds-were-ripping-at-the-top",
+    "heavenly-uphill",
+    "scoping-out-the-emerald-bay-chutes",
+    "finally-back-to-double-digit-temps",
+    "checking-out-the-mount-rose-area",
+    "sketchy-snowpack",
+    "full-moon-tour",
+    "missed-the-4am-target",
+    "dawn-patrol",
+    "3k-in-3-hours",
+    "first-uphill-of-the-season",
+    "ski-mountaineering-course",
+    "aiare-2",
+    "jakes-peak",
+    "avy-1-field-day",
+    "one-hell-of-a-first-ski-tour"
    ],
    "clusters": [
     {
-     "x": 189.34803824488256,
-     "y": 116.15828101741228,
+     "x": 256.4211720787215,
+     "y": 377.2139049645466,
+     "n": 4,
+     "keys": [
+      "pow-laps-in-april-after-work",
+      "ltcc-multiday-backcountry-ski-class",
+      "red-lake-peak-x2",
+      "aiare-2"
+     ]
+    },
+    {
+     "x": 225.40399583751525,
+     "y": 413.3606017186395,
+     "n": 1,
+     "keys": [
+      "kirkwood-sidecountry-cali-chute-far-corner"
+     ]
+    },
+    {
+     "x": 214.84293704445378,
+     "y": 262.24919095653524,
+     "n": 13,
+     "keys": [
+      "mount-tallac-2026-02-15",
+      "return-to-emerald-chute",
+      "back-at-tallac-with-connor",
+      "bee-positive-5k-warm-up-tallac-tour",
+      "tallac-cathedral-bowl-solo",
+      "back-at-tallac",
+      "first-tallac-lap",
+      "emerald-chute-y-chute-combo",
+      "jakes-peak-x-2",
+      "y-chute-solo",
+      "jakes-peak-to-emerald-bay",
+      "scoping-out-the-emerald-bay-chutes",
+      "jakes-peak"
+     ]
+    },
+    {
+     "x": 228.13281188555163,
+     "y": 297.16430962552727,
      "n": 2,
      "keys": [
-      "return-to-emerald-chute",
-      "y-chute-solo"
+      "echo-peak-with-ross",
+      "talking-mountain"
      ]
     },
     {
-     "x": 279.7722900117366,
-     "y": 244.423791340337,
-     "n": 1,
+     "x": 253.29741469415495,
+     "y": 329.2992374660903,
+     "n": 3,
      "keys": [
-      "tallac-cathedral-bowl-solo"
+      "powderhouse-lap-before-work-2026-02-13",
+      "powderhouse-lap-before-work",
+      "powderhouse-for-first-tour-of-the-season"
      ]
     },
     {
-     "x": 148.5318826154076,
-     "y": 125.01580480225573,
-     "n": 1,
+     "x": 286.42312974664185,
+     "y": 245.8925322921125,
+     "n": 10,
      "keys": [
-      "emerald-chute-y-chute-combo"
+      "heavenly-uphill-2025-04-09",
+      "winds-were-ripping-at-the-top",
+      "heavenly-uphill",
+      "finally-back-to-double-digit-temps",
+      "sketchy-snowpack",
+      "full-moon-tour",
+      "missed-the-4am-target",
+      "dawn-patrol",
+      "3k-in-3-hours",
+      "first-uphill-of-the-season"
      ]
     },
     {
-     "x": 197.30859801488566,
-     "y": 50.56521907965333,
+     "x": 283.05790800088937,
+     "y": 66.00882625010857,
      "n": 1,
      "keys": [
-      "jakes-peak-to-emerald-bay"
+      "checking-out-the-mount-rose-area"
+     ]
+    },
+    {
+     "x": 110.76409950442431,
+     "y": 59.134839212497255,
+     "n": 1,
+     "keys": [
+      "ski-mountaineering-course"
+     ]
+    },
+    {
+     "x": 167.35131381380052,
+     "y": 137.74056023126508,
+     "n": 2,
+     "keys": [
+      "avy-1-field-day",
+      "one-hell-of-a-first-ski-tour"
+     ]
+    }
+   ]
+  },
+  "region-oregon-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-oregon-desktop.webp",
+   "base": "region-oregon-desktop.base.svg",
+   "region": "Oregon",
+   "trips": [
+    "tamolich-blue-pool",
+    "tumalo-falls-north-fork-to-bridge-creek-loop",
+    "misery-ridge-loop"
+   ],
+   "clusters": [
+    {
+     "x": 54.52558498130336,
+     "y": 226.3942514591974,
+     "n": 1,
+     "keys": [
+      "tamolich-blue-pool"
+     ]
+    },
+    {
+     "x": 371.8125137436615,
+     "y": 459.5959863706439,
+     "n": 1,
+     "keys": [
+      "tumalo-falls-north-fork-to-bridge-creek-loop"
+     ]
+    },
+    {
+     "x": 660.9673005890018,
+     "y": 157.68786282634196,
+     "n": 1,
+     "keys": [
+      "misery-ridge-loop"
+     ]
+    }
+   ]
+  },
+  "region-oregon-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-oregon-phone.webp",
+   "base": "region-oregon-phone.base.svg",
+   "region": "Oregon",
+   "trips": [
+    "tamolich-blue-pool",
+    "tumalo-falls-north-fork-to-bridge-creek-loop",
+    "misery-ridge-loop"
+   ],
+   "clusters": [
+    {
+     "x": 21.915245503033688,
+     "y": 184.13635190452698,
+     "n": 1,
+     "keys": [
+      "tamolich-blue-pool"
+     ]
+    },
+    {
+     "x": 203.65135426600278,
+     "y": 331.6330379691885,
+     "n": 1,
+     "keys": [
+      "tumalo-falls-north-fork-to-bridge-creek-loop"
+     ]
+    },
+    {
+     "x": 366.04553836720464,
+     "y": 145.46190065766595,
+     "n": 1,
+     "keys": [
+      "misery-ridge-loop"
      ]
     }
    ]
@@ -286,42 +1037,62 @@
    "base": "region-eastern-sierra-desktop.base.svg",
    "region": "Eastern Sierra",
    "trips": [
+    "false-white-mountain",
     "dunderberg-peak-and-black-mountain",
     "mount-wood",
     "matterhorn-peak-west-couloir",
-    "green-creek-virginia-pass"
+    "green-creek-virginia-pass",
+    "post-skimo-shakeout",
+    "mammoth-caldera-burn-skimo-race"
    ],
    "clusters": [
     {
-     "x": 348.3463788108363,
-     "y": 192.14894023996118,
+     "x": 310.8608250540087,
+     "y": 254.4184343666634,
+     "n": 1,
+     "keys": [
+      "false-white-mountain"
+     ]
+    },
+    {
+     "x": 300.77999822778384,
+     "y": 153.38153251770663,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 492.57208392648283,
-     "y": 557.9324185167858,
+     "x": 402.1567723331899,
+     "y": 410.2092466194489,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 230.35084435032044,
-     "y": 62.448377148271874,
+     "x": 217.8405067352049,
+     "y": 62.31481924385599,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
      ]
     },
     {
-     "x": 335.4221446423625,
-     "y": 109.95166163141869,
+     "x": 291.6955068971147,
+     "y": 95.66832122159781,
      "n": 1,
      "keys": [
       "green-creek-virginia-pass"
+     ]
+    },
+    {
+     "x": 496.85070224132744,
+     "y": 542.9288271548194,
+     "n": 2,
+     "keys": [
+      "post-skimo-shakeout",
+      "mammoth-caldera-burn-skimo-race"
      ]
     }
    ]
@@ -333,42 +1104,62 @@
    "base": "region-eastern-sierra-phone.base.svg",
    "region": "Eastern Sierra",
    "trips": [
+    "false-white-mountain",
     "dunderberg-peak-and-black-mountain",
     "mount-wood",
     "matterhorn-peak-west-couloir",
-    "green-creek-virginia-pass"
+    "green-creek-virginia-pass",
+    "post-skimo-shakeout",
+    "mammoth-caldera-burn-skimo-race"
    ],
    "clusters": [
     {
-     "x": 187.4375801681026,
-     "y": 140.36376404126247,
+     "x": 160.82525871501772,
+     "y": 184.55501793763148,
+     "n": 1,
+     "keys": [
+      "false-white-mountain"
+     ]
+    },
+    {
+     "x": 148.10420310677387,
+     "y": 95.73311292289557,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 289.81547715446675,
-     "y": 399.9520389473953,
+     "x": 225.63765697763506,
+     "y": 295.116239536382,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 103.67903891387006,
-     "y": 48.318203137483266,
+     "x": 94.78870290868399,
+     "y": 48.22342010854297,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
      ]
     },
     {
-     "x": 178.2633770448335,
-     "y": 82.03021148036152,
+     "x": 147.21950434986596,
+     "y": 71.89364731855318,
      "n": 1,
      "keys": [
       "green-creek-virginia-pass"
+     ]
+    },
+    {
+     "x": 292.8623354126013,
+     "y": 389.30432894857995,
+     "n": 2,
+     "keys": [
+      "post-skimo-shakeout",
+      "mammoth-caldera-burn-skimo-race"
      ]
     }
    ]
@@ -380,33 +1171,53 @@
    "base": "ski-eastern-sierra-desktop.base.svg",
    "region": "Eastern Sierra",
    "trips": [
+    "false-white-mountain",
     "dunderberg-peak-and-black-mountain",
     "mount-wood",
-    "matterhorn-peak-west-couloir"
+    "matterhorn-peak-west-couloir",
+    "post-skimo-shakeout",
+    "mammoth-caldera-burn-skimo-race"
    ],
    "clusters": [
     {
-     "x": 241.31538321188495,
-     "y": 210.74399897286065,
+     "x": 200.20219522052568,
+     "y": 279.03957317634047,
+     "n": 1,
+     "keys": [
+      "false-white-mountain"
+     ]
+    },
+    {
+     "x": 189.14580450789197,
+     "y": 168.2249066323234,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 399.49841462904567,
-     "y": 611.9258783732489,
+     "x": 300.3332341718857,
+     "y": 449.90691564713745,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 111.90092606164177,
-     "y": 68.49176848520142,
+     "x": 98.1799106128054,
+     "y": 68.34528562229372,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
+     ]
+    },
+    {
+     "x": 404.19109278081066,
+     "y": 595.4703265568986,
+     "n": 2,
+     "keys": [
+      "post-skimo-shakeout",
+      "mammoth-caldera-burn-skimo-race"
      ]
     }
    ]
@@ -418,33 +1229,185 @@
    "base": "ski-eastern-sierra-phone.base.svg",
    "region": "Eastern Sierra",
    "trips": [
+    "false-white-mountain",
     "dunderberg-peak-and-black-mountain",
     "mount-wood",
-    "matterhorn-peak-west-couloir"
+    "matterhorn-peak-west-couloir",
+    "post-skimo-shakeout",
+    "mammoth-caldera-burn-skimo-race"
    ],
    "clusters": [
     {
-     "x": 187.4375801681026,
-     "y": 140.36376404126247,
+     "x": 160.82525871501772,
+     "y": 184.55501793763148,
+     "n": 1,
+     "keys": [
+      "false-white-mountain"
+     ]
+    },
+    {
+     "x": 148.10420310677387,
+     "y": 95.73311292289557,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 289.81547715446675,
-     "y": 399.9520389473953,
+     "x": 225.63765697763506,
+     "y": 295.116239536382,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 103.67903891387006,
-     "y": 48.318203137483266,
+     "x": 94.78870290868399,
+     "y": 48.22342010854297,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
+     ]
+    },
+    {
+     "x": 292.8623354126013,
+     "y": 389.30432894857995,
+     "n": 2,
+     "keys": [
+      "post-skimo-shakeout",
+      "mammoth-caldera-burn-skimo-race"
+     ]
+    }
+   ]
+  },
+  "region-tetons-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-tetons-desktop.webp",
+   "base": "region-tetons-desktop.base.svg",
+   "region": "Tetons",
+   "trips": [
+    "mount-glory-2026-03-03",
+    "mount-glory-2026-03-02",
+    "mount-glory",
+    "teton-canyon"
+   ],
+   "clusters": [
+    {
+     "x": 379.16456635224665,
+     "y": 557.8284774025407,
+     "n": 3,
+     "keys": [
+      "mount-glory-2026-03-03",
+      "mount-glory-2026-03-02",
+      "mount-glory"
+     ]
+    },
+    {
+     "x": 333.0945195815858,
+     "y": 44.094243127477796,
+     "n": 1,
+     "keys": [
+      "teton-canyon"
+     ]
+    }
+   ]
+  },
+  "region-tetons-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-tetons-phone.webp",
+   "base": "region-tetons-phone.base.svg",
+   "region": "Tetons",
+   "trips": [
+    "mount-glory-2026-03-03",
+    "mount-glory-2026-03-02",
+    "mount-glory",
+    "teton-canyon"
+   ],
+   "clusters": [
+    {
+     "x": 209.3131849187952,
+     "y": 399.878274285674,
+     "n": 3,
+     "keys": [
+      "mount-glory-2026-03-03",
+      "mount-glory-2026-03-02",
+      "mount-glory"
+     ]
+    },
+    {
+     "x": 176.24926923110993,
+     "y": 30.078067802996124,
+     "n": 1,
+     "keys": [
+      "teton-canyon"
+     ]
+    }
+   ]
+  },
+  "ski-tetons-desktop": {
+   "w": 506,
+   "h": 680,
+   "png": "ski-tetons-desktop.webp",
+   "base": "ski-tetons-desktop.base.svg",
+   "region": "Tetons",
+   "trips": [
+    "mount-glory-2026-03-03",
+    "mount-glory-2026-03-02",
+    "mount-glory",
+    "teton-canyon"
+   ],
+   "clusters": [
+    {
+     "x": 275.11597599923823,
+     "y": 611.8118784414962,
+     "n": 3,
+     "keys": [
+      "mount-glory-2026-03-03",
+      "mount-glory-2026-03-02",
+      "mount-glory"
+     ]
+    },
+    {
+     "x": 224.75644344981083,
+     "y": 50.09515515830478,
+     "n": 1,
+     "keys": [
+      "teton-canyon"
+     ]
+    }
+   ]
+  },
+  "ski-tetons-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "ski-tetons-phone.webp",
+   "base": "ski-tetons-phone.base.svg",
+   "region": "Tetons",
+   "trips": [
+    "mount-glory-2026-03-03",
+    "mount-glory-2026-03-02",
+    "mount-glory",
+    "teton-canyon"
+   ],
+   "clusters": [
+    {
+     "x": 209.3131849187952,
+     "y": 399.878274285674,
+     "n": 3,
+     "keys": [
+      "mount-glory-2026-03-03",
+      "mount-glory-2026-03-02",
+      "mount-glory"
+     ]
+    },
+    {
+     "x": 176.24926923110993,
+     "y": 30.078067802996124,
+     "n": 1,
+     "keys": [
+      "teton-canyon"
      ]
     }
    ]
@@ -457,11 +1420,13 @@
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
-    "chamonix-zermatt-haute-route"
+    "chamonix-zermatt-haute-route",
+    "chamonix-day-6-glacier-de-argentiere",
+    "chamonix-day-5-best-long-tour-yet"
    ],
    "clusters": [
     {
-     "x": 239.6570632551395,
+     "x": 254.24979069145797,
      "y": 480.64526296873214,
      "n": 1,
      "keys": [
@@ -469,11 +1434,20 @@
      ]
     },
     {
-     "x": 133.69351609175436,
+     "x": 148.28624352807287,
      "y": 154.17870836719317,
+     "n": 2,
+     "keys": [
+      "chamonix-zermatt-haute-route",
+      "chamonix-day-6-glacier-de-argentiere"
+     ]
+    },
+    {
+     "x": 118.39139304062357,
+     "y": 165.30003928110847,
      "n": 1,
      "keys": [
-      "chamonix-zermatt-haute-route"
+      "chamonix-day-5-best-long-tour-yet"
      ]
     }
    ]
@@ -486,23 +1460,27 @@
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
-    "chamonix-zermatt-haute-route"
+    "chamonix-zermatt-haute-route",
+    "chamonix-day-6-glacier-de-argentiere",
+    "chamonix-day-5-best-long-tour-yet"
    ],
    "clusters": [
     {
-     "x": 112.62747745209249,
-     "y": 342.16863360746385,
+     "x": 127.08458808420133,
+     "y": 335.9721843548129,
      "n": 1,
      "keys": [
       "gran-paradiso-haute-route"
      ]
     },
     {
-     "x": 39.489636905797255,
-     "y": 116.95131457592313,
-     "n": 1,
+     "x": 58.38250146151037,
+     "y": 124.41412295373821,
+     "n": 3,
      "keys": [
-      "chamonix-zermatt-haute-route"
+      "chamonix-zermatt-haute-route",
+      "chamonix-day-6-glacier-de-argentiere",
+      "chamonix-day-5-best-long-tour-yet"
      ]
     }
    ]
@@ -515,23 +1493,34 @@
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
-    "chamonix-zermatt-haute-route"
+    "chamonix-zermatt-haute-route",
+    "chamonix-day-6-glacier-de-argentiere",
+    "chamonix-day-5-best-long-tour-yet"
    ],
    "clusters": [
     {
-     "x": 146.1269322839969,
-     "y": 492.81493184352917,
+     "x": 164.8841065912971,
+     "y": 483.5468234546688,
      "n": 1,
      "keys": [
       "gran-paradiso-haute-route"
      ]
     },
     {
-     "x": 51.23527249829081,
-     "y": 200.4601168155417,
+     "x": 75.74755317826728,
+     "y": 208.9231036867899,
+     "n": 2,
+     "keys": [
+      "chamonix-zermatt-haute-route",
+      "chamonix-day-6-glacier-de-argentiere"
+     ]
+    },
+    {
+     "x": 50.599999999999994,
+     "y": 218.27836909238906,
      "n": 1,
      "keys": [
-      "chamonix-zermatt-haute-route"
+      "chamonix-day-5-best-long-tour-yet"
      ]
     }
    ]
@@ -544,23 +1533,27 @@
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
-    "chamonix-zermatt-haute-route"
+    "chamonix-zermatt-haute-route",
+    "chamonix-day-6-glacier-de-argentiere",
+    "chamonix-day-5-best-long-tour-yet"
    ],
    "clusters": [
     {
-     "x": 112.62747745209249,
-     "y": 342.16863360746385,
+     "x": 127.08458808420133,
+     "y": 335.9721843548129,
      "n": 1,
      "keys": [
       "gran-paradiso-haute-route"
      ]
     },
     {
-     "x": 39.489636905797255,
-     "y": 116.95131457592313,
-     "n": 1,
+     "x": 58.38250146151037,
+     "y": 124.41412295373821,
+     "n": 3,
      "keys": [
-      "chamonix-zermatt-haute-route"
+      "chamonix-zermatt-haute-route",
+      "chamonix-day-6-glacier-de-argentiere",
+      "chamonix-day-5-best-long-tour-yet"
      ]
     }
    ]
@@ -572,24 +1565,124 @@
    "base": "region-santa-cruz-desktop.base.svg",
    "region": "Santa Cruz",
    "trips": [
+    "hike-near-bonny-doon",
     "enchanted-loop-x3",
-    "soquel-demo-forest"
+    "we-got-lost",
+    "ride-near-day-valley-2022-10-29",
+    "otb-crash-on-segment-3-had-to-call-it-early",
+    "enjoying-the-cool-overcast-weather",
+    "3rd-ride-of-the-3-day-weekend",
+    "fatigued-ride-for-the-enduro-training",
+    "first-ride-back-in-awhile",
+    "took-some-souls-on-the-climbs-today",
+    "sunrise-ride-before-a-half-day-of-work",
+    "back-in-action",
+    "derailleur-down",
+    "spontaneous-ride",
+    "the-price-of-progression",
+    "finally-made-it-back-to-the-flow-trail",
+    "demo-forest-was-closed",
+    "beat-the-rain-storm-didnt-see-anyone-else-out",
+    "back-to-clipless",
+    "ride-near-day-valley-2021-12-05",
+    "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+    "thankful-for-the-demo-forest",
+    "finding-faster-lines",
+    "ran-into-some-goats-and-one-wheels",
+    "new-tires-good-conditions-so-much-grip",
+    "the-nomad-has-arrived",
+    "can-i-call-myself-a-local-now",
+    "brought-holt-to-the-demo-forest",
+    "getting-a-wet-ride-in-between-storms",
+    "soquel-demo-forest",
+    "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+    "ride-near-santa-cruz-2021-10-09",
+    "stretching-out-the-legs",
+    "converted-to-clipless",
+    "last-ride-on-flats-on-to-clipless",
+    "love-a-fire-road-climb-with-a-rave-in-the-background",
+    "exploring-new-trails-in-santa-cruz",
+    "hit-the-three-piece",
+    "ride-near-day-valley-2021-08-07",
+    "ride-near-santa-cruz",
+    "ride-near-day-valley-2021-07-03",
+    "lower-tire-psi-more-fun",
+    "ride-near-day-valley-2021-06-20",
+    "ride-near-day-valley-2021-06-19",
+    "ride-near-day-valley"
    ],
    "clusters": [
     {
-     "x": 129.60992217679373,
-     "y": 485.22985822020917,
-     "n": 1,
+     "x": 76.17679425266601,
+     "y": 445.9054828453023,
+     "n": 2,
      "keys": [
-      "enchanted-loop-x3"
+      "hike-near-bonny-doon",
+      "we-got-lost"
      ]
     },
     {
-     "x": 645.6458832994751,
-     "y": 161.7092970299906,
-     "n": 1,
+     "x": 147.91790594231372,
+     "y": 466.30364826595485,
+     "n": 4,
      "keys": [
-      "soquel-demo-forest"
+      "enchanted-loop-x3",
+      "demo-forest-was-closed",
+      "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+      "ride-near-santa-cruz"
+     ]
+    },
+    {
+     "x": 604.2676134371872,
+     "y": 173.19463385845663,
+     "n": 36,
+     "keys": [
+      "ride-near-day-valley-2022-10-29",
+      "otb-crash-on-segment-3-had-to-call-it-early",
+      "enjoying-the-cool-overcast-weather",
+      "3rd-ride-of-the-3-day-weekend",
+      "fatigued-ride-for-the-enduro-training",
+      "first-ride-back-in-awhile",
+      "took-some-souls-on-the-climbs-today",
+      "sunrise-ride-before-a-half-day-of-work",
+      "back-in-action",
+      "derailleur-down",
+      "spontaneous-ride",
+      "the-price-of-progression",
+      "finally-made-it-back-to-the-flow-trail",
+      "beat-the-rain-storm-didnt-see-anyone-else-out",
+      "back-to-clipless",
+      "ride-near-day-valley-2021-12-05",
+      "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+      "thankful-for-the-demo-forest",
+      "finding-faster-lines",
+      "new-tires-good-conditions-so-much-grip",
+      "the-nomad-has-arrived",
+      "can-i-call-myself-a-local-now",
+      "brought-holt-to-the-demo-forest",
+      "getting-a-wet-ride-in-between-storms",
+      "soquel-demo-forest",
+      "stretching-out-the-legs",
+      "converted-to-clipless",
+      "last-ride-on-flats-on-to-clipless",
+      "love-a-fire-road-climb-with-a-rave-in-the-background",
+      "hit-the-three-piece",
+      "ride-near-day-valley-2021-08-07",
+      "ride-near-day-valley-2021-07-03",
+      "lower-tire-psi-more-fun",
+      "ride-near-day-valley-2021-06-20",
+      "ride-near-day-valley-2021-06-19",
+      "ride-near-day-valley"
+     ]
+    },
+    {
+     "x": 245.4037162955289,
+     "y": 411.1408022058803,
+     "n": 3,
+     "keys": [
+      "ran-into-some-goats-and-one-wheels",
+      "ride-near-santa-cruz-2021-10-09",
+      "exploring-new-trails-in-santa-cruz"
      ]
     }
    ]
@@ -601,24 +1694,299 @@
    "base": "region-santa-cruz-phone.base.svg",
    "region": "Santa Cruz",
    "trips": [
+    "hike-near-bonny-doon",
     "enchanted-loop-x3",
-    "soquel-demo-forest"
+    "we-got-lost",
+    "ride-near-day-valley-2022-10-29",
+    "otb-crash-on-segment-3-had-to-call-it-early",
+    "enjoying-the-cool-overcast-weather",
+    "3rd-ride-of-the-3-day-weekend",
+    "fatigued-ride-for-the-enduro-training",
+    "first-ride-back-in-awhile",
+    "took-some-souls-on-the-climbs-today",
+    "sunrise-ride-before-a-half-day-of-work",
+    "back-in-action",
+    "derailleur-down",
+    "spontaneous-ride",
+    "the-price-of-progression",
+    "finally-made-it-back-to-the-flow-trail",
+    "demo-forest-was-closed",
+    "beat-the-rain-storm-didnt-see-anyone-else-out",
+    "back-to-clipless",
+    "ride-near-day-valley-2021-12-05",
+    "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+    "thankful-for-the-demo-forest",
+    "finding-faster-lines",
+    "ran-into-some-goats-and-one-wheels",
+    "new-tires-good-conditions-so-much-grip",
+    "the-nomad-has-arrived",
+    "can-i-call-myself-a-local-now",
+    "brought-holt-to-the-demo-forest",
+    "getting-a-wet-ride-in-between-storms",
+    "soquel-demo-forest",
+    "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+    "ride-near-santa-cruz-2021-10-09",
+    "stretching-out-the-legs",
+    "converted-to-clipless",
+    "last-ride-on-flats-on-to-clipless",
+    "love-a-fire-road-climb-with-a-rave-in-the-background",
+    "exploring-new-trails-in-santa-cruz",
+    "hit-the-three-piece",
+    "ride-near-day-valley-2021-08-07",
+    "ride-near-santa-cruz",
+    "ride-near-day-valley-2021-07-03",
+    "lower-tire-psi-more-fun",
+    "ride-near-day-valley-2021-06-20",
+    "ride-near-day-valley-2021-06-19",
+    "ride-near-day-valley"
    ],
    "clusters": [
     {
-     "x": 70.40093265870412,
-     "y": 326.5044301850745,
-     "n": 1,
+     "x": 41.37736735172666,
+     "y": 306.0616640972433,
+     "n": 2,
      "keys": [
-      "enchanted-loop-x3"
+      "hike-near-bonny-doon",
+      "we-got-lost"
      ]
     },
     {
-     "x": 350.6990173910799,
-     "y": 150.78953972766507,
+     "x": 80.34538066504504,
+     "y": 317.14059156041077,
+     "n": 4,
+     "keys": [
+      "enchanted-loop-x3",
+      "demo-forest-was-closed",
+      "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+      "ride-near-santa-cruz"
+     ]
+    },
+    {
+     "x": 328.22335548816574,
+     "y": 157.9432597193154,
+     "n": 36,
+     "keys": [
+      "ride-near-day-valley-2022-10-29",
+      "otb-crash-on-segment-3-had-to-call-it-early",
+      "enjoying-the-cool-overcast-weather",
+      "3rd-ride-of-the-3-day-weekend",
+      "fatigued-ride-for-the-enduro-training",
+      "first-ride-back-in-awhile",
+      "took-some-souls-on-the-climbs-today",
+      "sunrise-ride-before-a-half-day-of-work",
+      "back-in-action",
+      "derailleur-down",
+      "spontaneous-ride",
+      "the-price-of-progression",
+      "finally-made-it-back-to-the-flow-trail",
+      "beat-the-rain-storm-didnt-see-anyone-else-out",
+      "back-to-clipless",
+      "ride-near-day-valley-2021-12-05",
+      "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+      "thankful-for-the-demo-forest",
+      "finding-faster-lines",
+      "new-tires-good-conditions-so-much-grip",
+      "the-nomad-has-arrived",
+      "can-i-call-myself-a-local-now",
+      "brought-holt-to-the-demo-forest",
+      "getting-a-wet-ride-in-between-storms",
+      "soquel-demo-forest",
+      "stretching-out-the-legs",
+      "converted-to-clipless",
+      "last-ride-on-flats-on-to-clipless",
+      "love-a-fire-road-climb-with-a-rave-in-the-background",
+      "hit-the-three-piece",
+      "ride-near-day-valley-2021-08-07",
+      "ride-near-day-valley-2021-07-03",
+      "lower-tire-psi-more-fun",
+      "ride-near-day-valley-2021-06-20",
+      "ride-near-day-valley-2021-06-19",
+      "ride-near-day-valley"
+     ]
+    },
+    {
+     "x": 133.2972832245909,
+     "y": 287.1798005991475,
+     "n": 3,
+     "keys": [
+      "ran-into-some-goats-and-one-wheels",
+      "ride-near-santa-cruz-2021-10-09",
+      "exploring-new-trails-in-santa-cruz"
+     ]
+    }
+   ]
+  },
+  "region-bay-area-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-bay-area-desktop.webp",
+   "base": "region-bay-area-desktop.base.svg",
+   "region": "Bay Area",
+   "trips": [
+    "its-good-to-be-back",
+    "exploring-saratoga",
+    "morning-stroll",
+    "ride-near-seven-trees",
+    "discovered-my-fork-was-locked-out-at-the-end-of-the-descent"
+   ],
+   "clusters": [
+    {
+     "x": 606.5299745516993,
+     "y": 373.4378719490109,
+     "n": 2,
+     "keys": [
+      "its-good-to-be-back",
+      "discovered-my-fork-was-locked-out-at-the-end-of-the-descent"
+     ]
+    },
+    {
+     "x": 134.428506984779,
+     "y": 295.79237687790123,
      "n": 1,
      "keys": [
-      "soquel-demo-forest"
+      "exploring-saratoga"
+     ]
+    },
+    {
+     "x": 643.0694900045492,
+     "y": 256.52767297683994,
+     "n": 1,
+     "keys": [
+      "morning-stroll"
+     ]
+    },
+    {
+     "x": 630.3855028120337,
+     "y": 362.5585405020206,
+     "n": 1,
+     "keys": [
+      "ride-near-seven-trees"
+     ]
+    }
+   ]
+  },
+  "region-bay-area-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-bay-area-phone.webp",
+   "base": "region-bay-area-phone.base.svg",
+   "region": "Bay Area",
+   "trips": [
+    "its-good-to-be-back",
+    "exploring-saratoga",
+    "morning-stroll",
+    "ride-near-seven-trees",
+    "discovered-my-fork-was-locked-out-at-the-end-of-the-descent"
+   ],
+   "clusters": [
+    {
+     "x": 329.45221458936317,
+     "y": 270.4314492740096,
+     "n": 3,
+     "keys": [
+      "its-good-to-be-back",
+      "ride-near-seven-trees",
+      "discovered-my-fork-was-locked-out-at-the-end-of-the-descent"
+     ]
+    },
+    {
+     "x": 73.01826981067383,
+     "y": 228.25867956189413,
+     "n": 1,
+     "keys": [
+      "exploring-saratoga"
+     ]
+    },
+    {
+     "x": 366.8999440721441,
+     "y": 203.16033695175184,
+     "n": 1,
+     "keys": [
+      "morning-stroll"
+     ]
+    }
+   ]
+  },
+  "region-boise-desktop": {
+   "w": 718,
+   "h": 620,
+   "png": "region-boise-desktop.webp",
+   "base": "region-boise-desktop.base.svg",
+   "region": "Boise",
+   "trips": [
+    "good-fun",
+    "3-bears-x-2-lots-of-vert",
+    "table-rock",
+    "first-time-riding-a-bike-park",
+    "first-ride-of-the-season"
+   ],
+   "clusters": [
+    {
+     "x": 409.4793550377956,
+     "y": 411.939356121943,
+     "n": 3,
+     "keys": [
+      "good-fun",
+      "3-bears-x-2-lots-of-vert",
+      "first-ride-of-the-season"
+     ]
+    },
+    {
+     "x": 493.11954173736297,
+     "y": 501.70165605184286,
+     "n": 1,
+     "keys": [
+      "table-rock"
+     ]
+    },
+    {
+     "x": 76.4612945532894,
+     "y": 90.89473927179301,
+     "n": 1,
+     "keys": [
+      "first-time-riding-a-bike-park"
+     ]
+    }
+   ]
+  },
+  "region-boise-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "region-boise-phone.webp",
+   "base": "region-boise-phone.base.svg",
+   "region": "Boise",
+   "trips": [
+    "good-fun",
+    "3-bears-x-2-lots-of-vert",
+    "table-rock",
+    "first-time-riding-a-bike-park",
+    "first-ride-of-the-season"
+   ],
+   "clusters": [
+    {
+     "x": 222.41914827958254,
+     "y": 283.82374242710466,
+     "n": 3,
+     "keys": [
+      "good-fun",
+      "3-bears-x-2-lots-of-vert",
+      "first-ride-of-the-season"
+     ]
+    },
+    {
+     "x": 267.8504474617988,
+     "y": 332.5758864138145,
+     "n": 1,
+     "keys": [
+      "table-rock"
+     ]
+    },
+    {
+     "x": 41.53190094120174,
+     "y": 109.45640336538537,
+     "n": 1,
+     "keys": [
+      "first-time-riding-a-bike-park"
      ]
     }
    ]
@@ -626,8 +1994,28 @@
  },
  "regions": [
   "Alps",
+  "Bay Area",
+  "Boise",
   "Eastern Sierra",
   "Lake Tahoe",
-  "Santa Cruz"
+  "Oregon",
+  "Santa Cruz",
+  "Tetons"
+ ],
+ "all_regions": [
+  "Alps",
+  "Arizona",
+  "Bay Area",
+  "Boise",
+  "Eastern Sierra",
+  "Idaho",
+  "Lake Tahoe",
+  "Minnesota",
+  "Oregon",
+  "Santa Cruz",
+  "Tetons",
+  "Utah",
+  "Washington",
+  "Yosemite"
  ]
 }

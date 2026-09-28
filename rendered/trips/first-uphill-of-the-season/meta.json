@@ -1,0 +1,92 @@
+{
+ "hash": "7d77f43154fc6dd1353704181e17f73f86f00d6e",
+ "slug": "first-uphill-of-the-season",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 8700.79,
+   "min_ft": 6657.48,
+   "total_mi": 6.77,
+   "gx": 722.78,
+   "gy": 19.38,
+   "gps_max_mi": 3.74,
+   "y_lo": 6535.14,
+   "y_hi": 8900.43,
+   "pad_l": 72,
+   "vx": 1.7,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 8700.79,
+   "min_ft": 6657.48,
+   "total_mi": 6.77,
+   "gx": 429.49,
+   "gy": 16.79,
+   "gps_max_mi": 3.74,
+   "y_lo": 6535.14,
+   "y_hi": 8900.43,
+   "pad_l": 72,
+   "vx": 2.39,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 8700.79,
+   "min_ft": 6657.48,
+   "total_mi": 6.77,
+   "gx": 198.11,
+   "gy": 21.41,
+   "gps_max_mi": 3.74,
+   "y_lo": 6535.14,
+   "y_hi": 8900.43,
+   "pad_l": 0,
+   "vx": 3.63,
+   "h": 122
+  }
+ },
+ "start": [
+  38.935099,
+  -119.939901
+ ],
+ "end": [
+  38.935151,
+  -119.939827
+ ],
+ "bbox": [
+  38.922282,
+  -119.943058,
+  38.936442,
+  -119.91814
+ ]
+}

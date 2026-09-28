@@ -7,6 +7,7 @@ timezone: America/Los_Angeles
 place: Hoover Wilderness
 region: Eastern Sierra
 route_shape: loop
+strava_id: "16327487859"
 stats:
   distance_km: 32.2
   moving: "9:12"

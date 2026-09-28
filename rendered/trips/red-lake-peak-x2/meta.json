@@ -1,0 +1,92 @@
+{
+ "hash": "77db6509a71d723169241e93adf8945518aaa007",
+ "slug": "red-lake-peak-x2",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9704.72,
+   "min_ft": 7383.2,
+   "total_mi": 6.78,
+   "gx": 817.79,
+   "gy": 19.38,
+   "gps_max_mi": 4.3,
+   "y_lo": 7244.41,
+   "y_hi": 9927.67,
+   "pad_l": 72,
+   "vx": 1.5,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9704.72,
+   "min_ft": 7383.2,
+   "total_mi": 6.78,
+   "gx": 481.68,
+   "gy": 16.79,
+   "gps_max_mi": 4.3,
+   "y_lo": 7244.41,
+   "y_hi": 9927.67,
+   "pad_l": 72,
+   "vx": 2.11,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9704.72,
+   "min_ft": 7383.2,
+   "total_mi": 6.78,
+   "gx": 227.04,
+   "gy": 21.41,
+   "gps_max_mi": 4.3,
+   "y_lo": 7244.41,
+   "y_hi": 9927.67,
+   "pad_l": 0,
+   "vx": 3.2,
+   "h": 122
+  }
+ },
+ "start": [
+  38.728794,
+  -119.954484
+ ],
+ "end": [
+  38.728774,
+  -119.954467
+ ],
+ "bbox": [
+  38.716237,
+  -119.979908,
+  38.728794,
+  -119.954157
+ ]
+}

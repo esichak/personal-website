@@ -8,6 +8,7 @@ place: June Lake Loop
 region: Eastern Sierra
 party: Adam
 route_shape: loop
+strava_id: "17743729617"
 stats:
   distance_km: 18.93
   moving: "5:52"

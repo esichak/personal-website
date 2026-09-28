@@ -1,0 +1,92 @@
+{
+ "hash": "1f9771bc3bbf7dfaf048763a7803b38b78ea98b5",
+ "slug": "daggett-loop-with-kevin",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 8057.74,
+   "min_ft": 7152.67,
+   "total_mi": 9.49,
+   "gx": 1139.01,
+   "gy": 19.38,
+   "gps_max_mi": 8.61,
+   "y_lo": 7098.4,
+   "y_hi": 8147.53,
+   "pad_l": 72,
+   "vx": 5.36,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 8057.74,
+   "min_ft": 7152.67,
+   "total_mi": 9.49,
+   "gx": 658.13,
+   "gy": 16.79,
+   "gps_max_mi": 8.61,
+   "y_lo": 7098.4,
+   "y_hi": 8147.53,
+   "pad_l": 72,
+   "vx": 7.54,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 8057.74,
+   "min_ft": 7152.67,
+   "total_mi": 9.49,
+   "gx": 324.82,
+   "gy": 21.41,
+   "gps_max_mi": 8.61,
+   "y_lo": 7098.4,
+   "y_hi": 8147.53,
+   "pad_l": 0,
+   "vx": 11.47,
+   "h": 122
+  }
+ },
+ "start": [
+  38.996157,
+  -119.896402
+ ],
+ "end": [
+  38.996183,
+  -119.896566
+ ],
+ "bbox": [
+  38.976523,
+  -119.908603,
+  38.997983,
+  -119.881442
+ ]
+}

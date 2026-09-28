@@ -1,0 +1,92 @@
+{
+ "hash": "c4acf3b9f68befdb22cbab9cce33378fc99283d2",
+ "slug": "tumalo-falls-north-fork-to-bridge-creek-loop",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 6148.29,
+   "min_ft": 4982.94,
+   "total_mi": 7.86,
+   "gx": 675.51,
+   "gy": 19.38,
+   "gps_max_mi": 4.03,
+   "y_lo": 4913.02,
+   "y_hi": 6264.83,
+   "pad_l": 72,
+   "vx": 3.45,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 6148.29,
+   "min_ft": 4982.94,
+   "total_mi": 7.86,
+   "gx": 403.52,
+   "gy": 16.79,
+   "gps_max_mi": 4.03,
+   "y_lo": 4913.02,
+   "y_hi": 6264.83,
+   "pad_l": 72,
+   "vx": 4.85,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 6148.29,
+   "min_ft": 4982.94,
+   "total_mi": 7.86,
+   "gx": 183.72,
+   "gy": 21.41,
+   "gps_max_mi": 4.03,
+   "y_lo": 4913.02,
+   "y_hi": 6264.83,
+   "pad_l": 0,
+   "vx": 7.38,
+   "h": 122
+  }
+ },
+ "start": [
+  44.032289,
+  -121.566429
+ ],
+ "end": [
+  44.031601,
+  -121.566012
+ ],
+ "bbox": [
+  44.029143,
+  -121.612689,
+  44.049595,
+  -121.566012
+ ]
+}

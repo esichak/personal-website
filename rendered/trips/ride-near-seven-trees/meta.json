@@ -1,0 +1,92 @@
+{
+ "hash": "34b30fb10ce2f1ce7108c94ae6102a45afd130a6",
+ "slug": "ride-near-seven-trees",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 1122.05,
+   "min_ft": 216.54,
+   "total_mi": 6.83,
+   "gx": 449.27,
+   "gy": 19.38,
+   "gps_max_mi": 2.19,
+   "y_lo": 162.23,
+   "y_hi": 1212.06,
+   "pad_l": 72,
+   "vx": 3.86,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 1122.05,
+   "min_ft": 216.54,
+   "total_mi": 6.83,
+   "gx": 279.24,
+   "gy": 16.79,
+   "gps_max_mi": 2.19,
+   "y_lo": 162.23,
+   "y_hi": 1212.06,
+   "pad_l": 72,
+   "vx": 5.42,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 1122.05,
+   "min_ft": 216.54,
+   "total_mi": 6.83,
+   "gx": 114.85,
+   "gy": 21.41,
+   "gps_max_mi": 2.19,
+   "y_lo": 162.23,
+   "y_hi": 1212.06,
+   "pad_l": 0,
+   "vx": 8.25,
+   "h": 122
+  }
+ },
+ "start": [
+  37.22011,
+  -121.768949
+ ],
+ "end": [
+  37.220091,
+  -121.769
+ ],
+ "bbox": [
+  37.203657,
+  -121.793739,
+  37.22011,
+  -121.767611
+ ]
+}

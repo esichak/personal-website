@@ -7,6 +7,7 @@ timezone: America/Los_Angeles
 place: Kingsbury Grade
 region: Lake Tahoe
 route_shape: point-to-point
+strava_id: "14488400746"
 stats:
   distance_km: 8.6
   moving: "0:31"

@@ -1,0 +1,92 @@
+{
+ "hash": "f3ea281ce2b64cc24258f98358da3c3e7c10769c",
+ "slug": "peak-bagging-szn",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9931.1,
+   "min_ft": 6545.28,
+   "total_mi": 19.91,
+   "gx": 789.73,
+   "gy": 19.38,
+   "gps_max_mi": 12.15,
+   "y_lo": 6342.53,
+   "y_hi": 10262.36,
+   "pad_l": 72,
+   "vx": 3.01,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9931.1,
+   "min_ft": 6545.28,
+   "total_mi": 19.91,
+   "gx": 466.26,
+   "gy": 16.79,
+   "gps_max_mi": 12.15,
+   "y_lo": 6342.53,
+   "y_hi": 10262.36,
+   "pad_l": 72,
+   "vx": 4.23,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9931.1,
+   "min_ft": 6545.28,
+   "total_mi": 19.91,
+   "gx": 218.49,
+   "gy": 21.41,
+   "gps_max_mi": 12.15,
+   "y_lo": 6342.53,
+   "y_hi": 10262.36,
+   "pad_l": 0,
+   "vx": 6.44,
+   "h": 122
+  }
+ },
+ "start": [
+  38.876972,
+  -120.080075
+ ],
+ "end": [
+  38.876994,
+  -120.080211
+ ],
+ "bbox": [
+  38.852698,
+  -120.154134,
+  38.906905,
+  -120.072932
+ ]
+}

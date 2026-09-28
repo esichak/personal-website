@@ -1,0 +1,92 @@
+{
+ "hash": "245333db4f3218b2fa3674df2a641cd08b4844da",
+ "slug": "tallac-2026-09-17",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 100,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9734.25,
+   "min_ft": 6458.01,
+   "total_mi": 9.81,
+   "gx": 661.55,
+   "gy": 19.38,
+   "gps_max_mi": 4.92,
+   "y_lo": 6262.26,
+   "y_hi": 10046.72,
+   "pad_l": 72,
+   "vx": 1.54,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9734.25,
+   "min_ft": 6458.01,
+   "total_mi": 9.81,
+   "gx": 395.85,
+   "gy": 16.79,
+   "gps_max_mi": 4.92,
+   "y_lo": 6262.26,
+   "y_hi": 10046.72,
+   "pad_l": 72,
+   "vx": 2.16,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9734.25,
+   "min_ft": 6458.01,
+   "total_mi": 9.81,
+   "gx": 179.47,
+   "gy": 21.41,
+   "gps_max_mi": 4.92,
+   "y_lo": 6262.26,
+   "y_hi": 10046.72,
+   "pad_l": 0,
+   "vx": 3.29,
+   "h": 122
+  }
+ },
+ "start": [
+  38.921381,
+  -120.068165
+ ],
+ "end": [
+  38.921126,
+  -120.06818
+ ],
+ "bbox": [
+  38.893518,
+  -120.101221,
+  38.921381,
+  -120.068165
+ ]
+}

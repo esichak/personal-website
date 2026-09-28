@@ -1,0 +1,92 @@
+{
+ "hash": "b4c2fbbff7faf52db82dfd86d169b273b4d9f4bb",
+ "slug": "checking-out-the-mount-rose-area",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 10180.45,
+   "min_ft": 8408.79,
+   "total_mi": 4.64,
+   "gx": 682.14,
+   "gy": 19.38,
+   "gps_max_mi": 2.4,
+   "y_lo": 8303.41,
+   "y_hi": 10340.72,
+   "pad_l": 72,
+   "vx": 1.35,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 10180.45,
+   "min_ft": 8408.79,
+   "total_mi": 4.64,
+   "gx": 407.16,
+   "gy": 16.79,
+   "gps_max_mi": 2.4,
+   "y_lo": 8303.41,
+   "y_hi": 10340.72,
+   "pad_l": 72,
+   "vx": 1.9,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 10180.45,
+   "min_ft": 8408.79,
+   "total_mi": 4.64,
+   "gx": 185.74,
+   "gy": 21.41,
+   "gps_max_mi": 2.4,
+   "y_lo": 8303.41,
+   "y_hi": 10340.72,
+   "pad_l": 0,
+   "vx": 2.89,
+   "h": 122
+  }
+ },
+ "start": [
+  39.300737,
+  -119.920337
+ ],
+ "end": [
+  39.300741,
+  -119.920299
+ ],
+ "bbox": [
+  39.299748,
+  -119.944682,
+  39.314577,
+  -119.920299
+ ]
+}

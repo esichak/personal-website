@@ -1,0 +1,92 @@
+{
+ "hash": "ff6dbab7d30f21f9bcab632103d33a6281c31d94",
+ "slug": "winds-were-ripping-at-the-top",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 10006.56,
+   "min_ft": 6637.14,
+   "total_mi": 9.54,
+   "gx": 654.88,
+   "gy": 19.38,
+   "gps_max_mi": 4.73,
+   "y_lo": 6435.84,
+   "y_hi": 10327.63,
+   "pad_l": 72,
+   "vx": 1.45,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 10006.56,
+   "min_ft": 6637.14,
+   "total_mi": 9.54,
+   "gx": 392.19,
+   "gy": 16.79,
+   "gps_max_mi": 4.73,
+   "y_lo": 6435.84,
+   "y_hi": 10327.63,
+   "pad_l": 72,
+   "vx": 2.04,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 10006.56,
+   "min_ft": 6637.14,
+   "total_mi": 9.54,
+   "gx": 177.44,
+   "gy": 21.41,
+   "gps_max_mi": 4.73,
+   "y_lo": 6435.84,
+   "y_hi": 10327.63,
+   "pad_l": 0,
+   "vx": 3.11,
+   "h": 122
+  }
+ },
+ "start": [
+  38.935535,
+  -119.940113
+ ],
+ "end": [
+  38.935567,
+  -119.940109
+ ],
+ "bbox": [
+  38.913669,
+  -119.942995,
+  38.936564,
+  -119.901572
+ ]
+}

@@ -8,6 +8,7 @@ place: Virginia Lakes
 region: Eastern Sierra
 party: Adam
 route_shape: loop
+strava_id: "17902236092"
 featured: true
 stats:
   distance_km: 11.87

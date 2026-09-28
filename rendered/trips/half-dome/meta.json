@@ -1,0 +1,92 @@
+{
+ "hash": "86c1d5557c200aab4a0e71cc3e68e77678d21682",
+ "slug": "half-dome",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 8845.14,
+   "min_ft": 3987.2,
+   "total_mi": 27.73,
+   "gx": 745.09,
+   "gy": 19.38,
+   "gps_max_mi": 15.87,
+   "y_lo": 3696.82,
+   "y_hi": 9310.95,
+   "pad_l": 72,
+   "vx": 2.93,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 8845.14,
+   "min_ft": 3987.2,
+   "total_mi": 27.73,
+   "gx": 441.74,
+   "gy": 16.79,
+   "gps_max_mi": 15.87,
+   "y_lo": 3696.82,
+   "y_hi": 9310.95,
+   "pad_l": 72,
+   "vx": 4.12,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 8845.14,
+   "min_ft": 3987.2,
+   "total_mi": 27.73,
+   "gx": 204.9,
+   "gy": 21.41,
+   "gps_max_mi": 15.87,
+   "y_lo": 3696.82,
+   "y_hi": 9310.95,
+   "pad_l": 0,
+   "vx": 6.27,
+   "h": 122
+  }
+ },
+ "start": [
+  37.738209,
+  -119.574511
+ ],
+ "end": [
+  37.738009,
+  -119.574561
+ ],
+ "bbox": [
+  37.725611,
+  -119.574645,
+  37.752313,
+  -119.511121
+ ]
+}

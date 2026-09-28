@@ -1,0 +1,92 @@
+{
+ "hash": "75909442a96f0be925184e86fa3dbca4a3d05a4b",
+ "slug": "ride-near-south-lake-tahoe-2025-05-10",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 7322.83,
+   "min_ft": 6351.71,
+   "total_mi": 14.32,
+   "gx": 899.19,
+   "gy": 19.38,
+   "gps_max_mi": 10.07,
+   "y_lo": 6293.79,
+   "y_hi": 7413.45,
+   "pad_l": 72,
+   "vx": 7.58,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 7322.83,
+   "min_ft": 6351.71,
+   "total_mi": 14.32,
+   "gx": 526.39,
+   "gy": 16.79,
+   "gps_max_mi": 10.07,
+   "y_lo": 6293.79,
+   "y_hi": 7413.45,
+   "pad_l": 72,
+   "vx": 10.66,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 7322.83,
+   "min_ft": 6351.71,
+   "total_mi": 14.32,
+   "gx": 251.81,
+   "gy": 21.41,
+   "gps_max_mi": 10.07,
+   "y_lo": 6293.79,
+   "y_hi": 7413.45,
+   "pad_l": 0,
+   "vx": 16.23,
+   "h": 122
+  }
+ },
+ "start": [
+  38.922309,
+  -120.045974
+ ],
+ "end": [
+  38.922289,
+  -120.045965
+ ],
+ "bbox": [
+  38.871666,
+  -120.064971,
+  38.924975,
+  -120.020937
+ ]
+}

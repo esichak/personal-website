@@ -1,0 +1,92 @@
+{
+ "hash": "47577c0a5129778c0a1a2aa4520ee160d2e8fd83",
+ "slug": "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 646.33,
+   "min_ft": 54.46,
+   "total_mi": 12.94,
+   "gx": 428.23,
+   "gy": 19.38,
+   "gps_max_mi": 3.92,
+   "y_lo": 19.08,
+   "y_hi": 703.11,
+   "pad_l": 72,
+   "vx": 11.21,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 646.33,
+   "min_ft": 54.46,
+   "total_mi": 12.94,
+   "gx": 267.68,
+   "gy": 16.79,
+   "gps_max_mi": 3.92,
+   "y_lo": 19.08,
+   "y_hi": 703.11,
+   "pad_l": 72,
+   "vx": 15.78,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 646.33,
+   "min_ft": 54.46,
+   "total_mi": 12.94,
+   "gx": 108.44,
+   "gy": 21.41,
+   "gps_max_mi": 3.92,
+   "y_lo": 19.08,
+   "y_hi": 703.11,
+   "pad_l": 0,
+   "vx": 24.0,
+   "h": 122
+  }
+ },
+ "start": [
+  36.9619,
+  -122.085875
+ ],
+ "end": [
+  36.961994,
+  -122.085798
+ ],
+ "bbox": [
+  36.9619,
+  -122.111375,
+  36.992382,
+  -122.07969
+ ]
+}

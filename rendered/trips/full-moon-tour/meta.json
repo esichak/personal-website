@@ -1,0 +1,92 @@
+{
+ "hash": "6f2482345800f95364e86fd328df1fe31d74357b",
+ "slug": "full-moon-tour",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9990.16,
+   "min_ft": 6629.27,
+   "total_mi": 9.69,
+   "gx": 672.05,
+   "gy": 19.38,
+   "gps_max_mi": 4.95,
+   "y_lo": 6428.23,
+   "y_hi": 10314.97,
+   "pad_l": 72,
+   "vx": 1.48,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9990.16,
+   "min_ft": 6629.27,
+   "total_mi": 9.69,
+   "gx": 401.62,
+   "gy": 16.79,
+   "gps_max_mi": 4.95,
+   "y_lo": 6428.23,
+   "y_hi": 10314.97,
+   "pad_l": 72,
+   "vx": 2.08,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9990.16,
+   "min_ft": 6629.27,
+   "total_mi": 9.69,
+   "gx": 182.67,
+   "gy": 21.41,
+   "gps_max_mi": 4.95,
+   "y_lo": 6428.23,
+   "y_hi": 10314.97,
+   "pad_l": 0,
+   "vx": 3.16,
+   "h": 122
+  }
+ },
+ "start": [
+  38.935592,
+  -119.94005
+ ],
+ "end": [
+  38.935619,
+  -119.940074
+ ],
+ "bbox": [
+  38.913652,
+  -119.942957,
+  38.936523,
+  -119.902006
+ ]
+}

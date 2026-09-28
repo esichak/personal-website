@@ -1,0 +1,92 @@
+{
+ "hash": "5a06ac2327736b7f583ad757d9dd783ce9ceec9a",
+ "slug": "chamonix-day-6-glacier-de-argentiere",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 10328.08,
+   "min_ft": 6261.39,
+   "total_mi": 6.95,
+   "gx": 410.94,
+   "gy": 19.38,
+   "gps_max_mi": 2.0,
+   "y_lo": 6018.38,
+   "y_hi": 10716.5,
+   "pad_l": 72,
+   "vx": 0.88,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 10328.08,
+   "min_ft": 6261.39,
+   "total_mi": 6.95,
+   "gx": 258.19,
+   "gy": 16.79,
+   "gps_max_mi": 2.0,
+   "y_lo": 6018.38,
+   "y_hi": 10716.5,
+   "pad_l": 72,
+   "vx": 1.23,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 10328.08,
+   "min_ft": 6261.39,
+   "total_mi": 6.95,
+   "gx": 103.18,
+   "gy": 21.41,
+   "gps_max_mi": 2.0,
+   "y_lo": 6018.38,
+   "y_hi": 10716.5,
+   "pad_l": 0,
+   "vx": 1.88,
+   "h": 122
+  }
+ },
+ "start": [
+  45.957717,
+  6.954531
+ ],
+ "end": [
+  45.966415,
+  6.934181
+ ],
+ "bbox": [
+  45.945477,
+  6.934109,
+  45.968379,
+  6.979675
+ ]
+}

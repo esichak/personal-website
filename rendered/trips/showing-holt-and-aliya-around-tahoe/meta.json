@@ -1,0 +1,92 @@
+{
+ "hash": "0ab40dbae9594a808eacc4aa801a47328d96d29c",
+ "slug": "showing-holt-and-aliya-around-tahoe",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 7286.75,
+   "min_ft": 6353.67,
+   "total_mi": 12.13,
+   "gx": 920.39,
+   "gy": 19.38,
+   "gps_max_mi": 8.75,
+   "y_lo": 6297.93,
+   "y_hi": 7375.72,
+   "pad_l": 72,
+   "vx": 6.67,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 7286.75,
+   "min_ft": 6353.67,
+   "total_mi": 12.13,
+   "gx": 538.04,
+   "gy": 16.79,
+   "gps_max_mi": 8.75,
+   "y_lo": 6297.93,
+   "y_hi": 7375.72,
+   "pad_l": 72,
+   "vx": 9.38,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 7286.75,
+   "min_ft": 6353.67,
+   "total_mi": 12.13,
+   "gx": 258.27,
+   "gy": 21.41,
+   "gps_max_mi": 8.75,
+   "y_lo": 6297.93,
+   "y_hi": 7375.72,
+   "pad_l": 0,
+   "vx": 14.27,
+   "h": 122
+  }
+ },
+ "start": [
+  38.921882,
+  -120.045901
+ ],
+ "end": [
+  38.922407,
+  -120.045957
+ ],
+ "bbox": [
+  38.883276,
+  -120.05441,
+  38.924975,
+  -120.020926
+ ]
+}

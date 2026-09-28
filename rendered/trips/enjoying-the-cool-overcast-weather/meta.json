@@ -1,0 +1,92 @@
+{
+ "hash": "b7b997a77ac6980800b5442227f3d1933588be30",
+ "slug": "enjoying-the-cool-overcast-weather",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 811.46,
+   "total_mi": 17.41,
+   "gx": 361.53,
+   "gy": 19.38,
+   "gps_max_mi": 4.29,
+   "y_lo": 728.89,
+   "y_hi": 2325.28,
+   "pad_l": 72,
+   "vx": 6.46,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 811.46,
+   "total_mi": 17.41,
+   "gx": 231.04,
+   "gy": 16.79,
+   "gps_max_mi": 4.29,
+   "y_lo": 728.89,
+   "y_hi": 2325.28,
+   "pad_l": 72,
+   "vx": 9.09,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 811.46,
+   "total_mi": 17.41,
+   "gx": 88.14,
+   "gy": 21.41,
+   "gps_max_mi": 4.29,
+   "y_lo": 728.89,
+   "y_hi": 2325.28,
+   "pad_l": 0,
+   "vx": 13.83,
+   "h": 122
+  }
+ },
+ "start": [
+  37.080944,
+  -121.849479
+ ],
+ "end": [
+  37.081089,
+  -121.849254
+ ],
+ "bbox": [
+  37.073388,
+  -121.906096,
+  37.090836,
+  -121.849244
+ ]
+}

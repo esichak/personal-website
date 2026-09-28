@@ -9,6 +9,7 @@ place: West Shore
 region: Lake Tahoe
 party: Kevin
 route_shape: out-and-back
+strava_id: "9285165012"
 featured: true
 stats:
   distance_km: 2.19

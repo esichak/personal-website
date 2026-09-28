@@ -1,0 +1,92 @@
+{
+ "hash": "b9646fda4178d1375d49d20da0596b4f588c3419",
+ "slug": "dawn-patrol",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9990.16,
+   "min_ft": 6639.76,
+   "total_mi": 9.89,
+   "gx": 659.19,
+   "gy": 19.38,
+   "gps_max_mi": 4.94,
+   "y_lo": 6439.27,
+   "y_hi": 10315.45,
+   "pad_l": 72,
+   "vx": 1.51,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9990.16,
+   "min_ft": 6639.76,
+   "total_mi": 9.89,
+   "gx": 394.55,
+   "gy": 16.79,
+   "gps_max_mi": 4.94,
+   "y_lo": 6439.27,
+   "y_hi": 10315.45,
+   "pad_l": 72,
+   "vx": 2.13,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9990.16,
+   "min_ft": 6639.76,
+   "total_mi": 9.89,
+   "gx": 178.75,
+   "gy": 21.41,
+   "gps_max_mi": 4.94,
+   "y_lo": 6439.27,
+   "y_hi": 10315.45,
+   "pad_l": 0,
+   "vx": 3.23,
+   "h": 122
+  }
+ },
+ "start": [
+  38.935653,
+  -119.940031
+ ],
+ "end": [
+  38.935099,
+  -119.939922
+ ],
+ "bbox": [
+  38.913665,
+  -119.942767,
+  38.936589,
+  -119.901762
+ ]
+}

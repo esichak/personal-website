@@ -1,0 +1,92 @@
+{
+ "hash": "55a30c6599e348342af816f3d502cac59eb00b18",
+ "slug": "finally-made-it-back-to-the-flow-trail",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2582.02,
+   "min_ft": 822.18,
+   "total_mi": 24.71,
+   "gx": 310.92,
+   "gy": 19.38,
+   "gps_max_mi": 5.02,
+   "y_lo": 716.53,
+   "y_hi": 2759.09,
+   "pad_l": 72,
+   "vx": 7.17,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2582.02,
+   "min_ft": 822.18,
+   "total_mi": 24.71,
+   "gx": 203.24,
+   "gy": 16.79,
+   "gps_max_mi": 5.02,
+   "y_lo": 716.53,
+   "y_hi": 2759.09,
+   "pad_l": 72,
+   "vx": 10.08,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2582.02,
+   "min_ft": 822.18,
+   "total_mi": 24.71,
+   "gx": 72.73,
+   "gy": 21.41,
+   "gps_max_mi": 5.02,
+   "y_lo": 716.53,
+   "y_hi": 2759.09,
+   "pad_l": 0,
+   "vx": 15.34,
+   "h": 122
+  }
+ },
+ "start": [
+  37.082271,
+  -121.851219
+ ],
+ "end": [
+  37.08234,
+  -121.851121
+ ],
+ "bbox": [
+  37.065097,
+  -121.905726,
+  37.090931,
+  -121.830295
+ ]
+}

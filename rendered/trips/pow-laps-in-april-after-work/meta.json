@@ -1,0 +1,92 @@
+{
+ "hash": "5df07578f5fd6633c01e1ad3f34bed65f63a33f4",
+ "slug": "pow-laps-in-april-after-work",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 100,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9015.75,
+   "min_ft": 7853.67,
+   "total_mi": 4.27,
+   "gx": 477.79,
+   "gy": 19.38,
+   "gps_max_mi": 1.47,
+   "y_lo": 7784.25,
+   "y_hi": 9126.54,
+   "pad_l": 72,
+   "vx": 1.88,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9015.75,
+   "min_ft": 7853.67,
+   "total_mi": 4.27,
+   "gx": 294.91,
+   "gy": 16.79,
+   "gps_max_mi": 1.47,
+   "y_lo": 7784.25,
+   "y_hi": 9126.54,
+   "pad_l": 72,
+   "vx": 2.65,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9015.75,
+   "min_ft": 7853.67,
+   "total_mi": 4.27,
+   "gx": 123.53,
+   "gy": 21.41,
+   "gps_max_mi": 1.47,
+   "y_lo": 7784.25,
+   "y_hi": 9126.54,
+   "pad_l": 0,
+   "vx": 4.03,
+   "h": 122
+  }
+ },
+ "start": [
+  38.698598,
+  -119.968585
+ ],
+ "end": [
+  38.698603,
+  -119.968571
+ ],
+ "bbox": [
+  38.688416,
+  -119.979199,
+  38.698636,
+  -119.968529
+ ]
+}

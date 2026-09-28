@@ -1,0 +1,92 @@
+{
+ "hash": "2f7d20e8644330bf88a45020cefc9f6849f973d9",
+ "slug": "zion-canyon-overlook-and-angel-landing",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 1000,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 5324.8,
+   "min_ft": 4240.16,
+   "total_mi": 10.44,
+   "gx": 142.46,
+   "gy": 19.38,
+   "gps_max_mi": 0.63,
+   "y_lo": 4175.24,
+   "y_hi": 5430.38,
+   "pad_l": 72,
+   "vx": 4.93,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 5324.8,
+   "min_ft": 4240.16,
+   "total_mi": 10.44,
+   "gx": 110.7,
+   "gy": 16.79,
+   "gps_max_mi": 0.63,
+   "y_lo": 4175.24,
+   "y_hi": 5430.38,
+   "pad_l": 72,
+   "vx": 6.93,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 5324.8,
+   "min_ft": 4240.16,
+   "total_mi": 10.44,
+   "gx": 21.45,
+   "gy": 21.41,
+   "gps_max_mi": 0.63,
+   "y_lo": 4175.24,
+   "y_hi": 5430.38,
+   "pad_l": 0,
+   "vx": 10.55,
+   "h": 122
+  }
+ },
+ "start": [
+  37.214745,
+  -112.938197
+ ],
+ "end": [
+  37.255445,
+  -112.955067
+ ],
+ "bbox": [
+  37.212557,
+  -112.970779,
+  37.275378,
+  -112.938161
+ ]
+}

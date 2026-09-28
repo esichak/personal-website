@@ -1,0 +1,80 @@
+{
+ "hash": "ac7cde78b18eb544916da6ceaafdfe506e5a1c4c",
+ "slug": "paddle-near-south-lake-tahoe",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": null
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 100,
+   "outbound_only": null
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "speed-wide": {
+   "w": 1248,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 88.45,
+    "vmax_mph": 3.8982066930971833,
+    "stopped_s": 0,
+    "top_mph": 6
+   }
+  },
+  "speed-col": {
+   "w": 718,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 88.45,
+    "vmax_mph": 3.8982066930971833,
+    "stopped_s": 0,
+    "top_mph": 6
+   }
+  },
+  "speed-phone": {
+   "w": 358,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 88.45,
+    "vmax_mph": 3.8982066930971833,
+    "stopped_s": 0,
+    "top_mph": 6
+   }
+  }
+ },
+ "start": [
+  38.939148,
+  -120.052887
+ ],
+ "end": [
+  38.939088,
+  -120.052849
+ ],
+ "bbox": [
+  38.939088,
+  -120.071692,
+  38.957658,
+  -120.052849
+ ]
+}

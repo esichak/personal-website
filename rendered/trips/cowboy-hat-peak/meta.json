@@ -1,0 +1,92 @@
+{
+ "hash": "e1b0c1e239a67ce275a92afbf5225d30c1dade74",
+ "slug": "cowboy-hat-peak",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 100,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 7703.41,
+   "min_ft": 6608.27,
+   "total_mi": 2.9,
+   "gx": 653.37,
+   "gy": 19.38,
+   "gps_max_mi": 1.43,
+   "y_lo": 6543.21,
+   "y_hi": 7800.95,
+   "pad_l": 72,
+   "vx": 1.36,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 7703.41,
+   "min_ft": 6608.27,
+   "total_mi": 2.9,
+   "gx": 391.36,
+   "gy": 16.79,
+   "gps_max_mi": 1.43,
+   "y_lo": 6543.21,
+   "y_hi": 7800.95,
+   "pad_l": 72,
+   "vx": 1.92,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 7703.41,
+   "min_ft": 6608.27,
+   "total_mi": 2.9,
+   "gx": 176.98,
+   "gy": 21.41,
+   "gps_max_mi": 1.43,
+   "y_lo": 6543.21,
+   "y_hi": 7800.95,
+   "pad_l": 0,
+   "vx": 2.92,
+   "h": 122
+  }
+ },
+ "start": [
+  38.850732,
+  -120.005406
+ ],
+ "end": [
+  38.850987,
+  -120.00527
+ ],
+ "bbox": [
+  38.841049,
+  -120.009002,
+  38.850988,
+  -120.001936
+ ]
+}

@@ -1,0 +1,92 @@
+{
+ "hash": "0e2c28c8d7c052b45e0ee4c065602d3347270ae0",
+ "slug": "bee-positive-5k-warm-up-tallac-tour",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9760.5,
+   "min_ft": 6318.46,
+   "total_mi": 8.58,
+   "gx": 597.82,
+   "gy": 19.38,
+   "gps_max_mi": 3.84,
+   "y_lo": 6112.76,
+   "y_hi": 10089.67,
+   "pad_l": 72,
+   "vx": 1.28,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9760.5,
+   "min_ft": 6318.46,
+   "total_mi": 8.58,
+   "gx": 360.84,
+   "gy": 16.79,
+   "gps_max_mi": 3.84,
+   "y_lo": 6112.76,
+   "y_hi": 10089.67,
+   "pad_l": 72,
+   "vx": 1.8,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9760.5,
+   "min_ft": 6318.46,
+   "total_mi": 8.58,
+   "gx": 160.07,
+   "gy": 21.41,
+   "gps_max_mi": 3.84,
+   "y_lo": 6112.76,
+   "y_hi": 10089.67,
+   "pad_l": 0,
+   "vx": 2.74,
+   "h": 122
+  }
+ },
+ "start": [
+  38.933125,
+  -120.076974
+ ],
+ "end": [
+  38.932997,
+  -120.077207
+ ],
+ "bbox": [
+  38.899187,
+  -120.101559,
+  38.933125,
+  -120.076973
+ ]
+}

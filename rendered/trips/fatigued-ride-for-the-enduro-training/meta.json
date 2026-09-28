@@ -1,0 +1,92 @@
+{
+ "hash": "f896570223fb088f21fd559fc15781fc021b74f6",
+ "slug": "fatigued-ride-for-the-enduro-training",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 810.37,
+   "total_mi": 17.47,
+   "gx": 368.85,
+   "gy": 19.38,
+   "gps_max_mi": 4.41,
+   "y_lo": 727.4,
+   "y_hi": 2331.53,
+   "pad_l": 72,
+   "vx": 6.45,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 810.37,
+   "total_mi": 17.47,
+   "gx": 235.07,
+   "gy": 16.79,
+   "gps_max_mi": 4.41,
+   "y_lo": 727.4,
+   "y_hi": 2331.53,
+   "pad_l": 72,
+   "vx": 9.08,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 810.37,
+   "total_mi": 17.47,
+   "gx": 90.37,
+   "gy": 21.41,
+   "gps_max_mi": 4.41,
+   "y_lo": 727.4,
+   "y_hi": 2331.53,
+   "pad_l": 0,
+   "vx": 13.81,
+   "h": 122
+  }
+ },
+ "start": [
+  37.082486,
+  -121.851519
+ ],
+ "end": [
+  37.082657,
+  -121.851511
+ ],
+ "bbox": [
+  37.073391,
+  -121.906048,
+  37.090717,
+  -121.850797
+ ]
+}

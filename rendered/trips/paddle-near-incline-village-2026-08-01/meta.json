@@ -1,0 +1,80 @@
+{
+ "hash": "c0470efb4aa39506a8c62feac0fe36052619e68e",
+ "slug": "paddle-near-incline-village-2026-08-01",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "speed-wide": {
+   "w": 1248,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 341.53333333333336,
+    "vmax_mph": 4.078168111746973,
+    "stopped_s": 777.0,
+    "top_mph": 6
+   }
+  },
+  "speed-col": {
+   "w": 718,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 341.53333333333336,
+    "vmax_mph": 4.078168111746973,
+    "stopped_s": 777.0,
+    "top_mph": 6
+   }
+  },
+  "speed-phone": {
+   "w": 358,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 341.53333333333336,
+    "vmax_mph": 4.078168111746973,
+    "stopped_s": 777.0,
+    "top_mph": 6
+   }
+  }
+ },
+ "start": [
+  39.194875,
+  -119.928114
+ ],
+ "end": [
+  39.194729,
+  -119.9283
+ ],
+ "bbox": [
+  39.175217,
+  -119.934816,
+  39.208479,
+  -119.926498
+ ]
+}

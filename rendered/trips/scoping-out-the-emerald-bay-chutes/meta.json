@@ -1,0 +1,92 @@
+{
+ "hash": "cd90e6d957790679d58a1ff0fece9943390f0ccc",
+ "slug": "scoping-out-the-emerald-bay-chutes",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9255.25,
+   "min_ft": 6835.47,
+   "total_mi": 4.42,
+   "gx": 649.8,
+   "gy": 19.38,
+   "gps_max_mi": 2.17,
+   "y_lo": 6690.78,
+   "y_hi": 9488.03,
+   "pad_l": 72,
+   "vx": 0.94,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9255.25,
+   "min_ft": 6835.47,
+   "total_mi": 4.42,
+   "gx": 389.4,
+   "gy": 16.79,
+   "gps_max_mi": 2.17,
+   "y_lo": 6690.78,
+   "y_hi": 9488.03,
+   "pad_l": 72,
+   "vx": 1.32,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9255.25,
+   "min_ft": 6835.47,
+   "total_mi": 4.42,
+   "gx": 175.9,
+   "gy": 21.41,
+   "gps_max_mi": 2.17,
+   "y_lo": 6690.78,
+   "y_hi": 9488.03,
+   "pad_l": 0,
+   "vx": 2.0,
+   "h": 122
+  }
+ },
+ "start": [
+  38.975395,
+  -120.100309
+ ],
+ "end": [
+  38.975403,
+  -120.100303
+ ],
+ "bbox": [
+  38.965596,
+  -120.118164,
+  38.976007,
+  -120.098288
+ ]
+}

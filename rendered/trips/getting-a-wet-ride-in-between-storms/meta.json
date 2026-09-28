@@ -1,0 +1,92 @@
+{
+ "hash": "158fa8e79f36ea23889a8c1648fce6f8de73357b",
+ "slug": "getting-a-wet-ride-in-between-storms",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 805.77,
+   "total_mi": 15.66,
+   "gx": 412.76,
+   "gy": 19.38,
+   "gps_max_mi": 4.54,
+   "y_lo": 722.83,
+   "y_hi": 2326.33,
+   "pad_l": 72,
+   "vx": 5.79,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 805.77,
+   "total_mi": 15.66,
+   "gx": 259.19,
+   "gy": 16.79,
+   "gps_max_mi": 4.54,
+   "y_lo": 722.83,
+   "y_hi": 2326.33,
+   "pad_l": 72,
+   "vx": 8.14,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2191.6,
+   "min_ft": 805.77,
+   "total_mi": 15.66,
+   "gx": 103.73,
+   "gy": 21.41,
+   "gps_max_mi": 4.54,
+   "y_lo": 722.83,
+   "y_hi": 2326.33,
+   "pad_l": 0,
+   "vx": 12.39,
+   "h": 122
+  }
+ },
+ "start": [
+  37.08076,
+  -121.849273
+ ],
+ "end": [
+  37.080638,
+  -121.848926
+ ],
+ "bbox": [
+  37.073389,
+  -121.906059,
+  37.09094,
+  -121.848926
+ ]
+}

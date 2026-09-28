@@ -1,0 +1,170 @@
+{
+ "hash": "e49dc63cfcc79fcefe723650ab48d0cabd5b067a",
+ "slug": "ski-mountaineering-course",
+ "kind": "multi-day",
+ "maps": {
+  "overview-wide": {
+   "w": 1440,
+   "h": 560,
+   "png": "overview-wide.webp",
+   "base": "overview-wide.base.svg"
+  },
+  "overview-col": {
+   "w": 718,
+   "h": 440,
+   "png": "overview-col.webp",
+   "base": "overview-col.base.svg"
+  },
+  "overview-phone": {
+   "w": 390,
+   "h": 260,
+   "png": "overview-phone.webp",
+   "base": "overview-phone.base.svg"
+  },
+  "day-01-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-01-col.webp",
+   "base": "day-01-col.base.svg"
+  },
+  "day-01-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-01-phone.webp",
+   "base": "day-01-phone.base.svg"
+  },
+  "day-02-col": {
+   "w": 718,
+   "h": 400,
+   "png": "day-02-col.webp",
+   "base": "day-02-col.base.svg"
+  },
+  "day-02-phone": {
+   "w": 390,
+   "h": 240,
+   "png": "day-02-phone.webp",
+   "base": "day-02-phone.base.svg"
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9110.89,
+   "min_ft": 7060.37,
+   "total_mi": 14.85,
+   "gx": 824.75,
+   "gy": 34.0,
+   "gps_max_mi": 9.51,
+   "y_lo": 6937.59,
+   "y_hi": 9311.37,
+   "pad_l": 72,
+   "vx": 3.26,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9110.89,
+   "min_ft": 7060.37,
+   "total_mi": 14.85,
+   "gx": 485.5,
+   "gy": 32.28,
+   "gps_max_mi": 9.51,
+   "y_lo": 6937.59,
+   "y_hi": 9311.37,
+   "pad_l": 72,
+   "vx": 4.91,
+   "h": 142
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9110.89,
+   "min_ft": 7060.37,
+   "total_mi": 14.85,
+   "gx": 229.15,
+   "gy": 31.41,
+   "gps_max_mi": 9.51,
+   "y_lo": 6937.59,
+   "y_hi": 9311.37,
+   "pad_l": 0,
+   "vx": 7.94,
+   "h": 132
+  },
+  "day-01-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 8267.72,
+   "min_ft": 7060.37,
+   "total_mi": 5.54,
+   "gx": 348.75,
+   "gy": 15.59,
+   "gps_max_mi": 2.37,
+   "y_lo": 6988.68,
+   "y_hi": 8374.63,
+   "pad_l": 72,
+   "vx": 2.87,
+   "h": 118
+  },
+  "day-01-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 8267.72,
+   "min_ft": 7060.37,
+   "total_mi": 5.54,
+   "gx": 153.37,
+   "gy": 20.38,
+   "gps_max_mi": 2.37,
+   "y_lo": 6988.68,
+   "y_hi": 8374.63,
+   "pad_l": 0,
+   "vx": 4.36,
+   "h": 110
+  },
+  "day-02-profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9110.89,
+   "min_ft": 7225.07,
+   "total_mi": 9.31,
+   "gx": 347.3,
+   "gy": 15.59,
+   "gps_max_mi": 3.97,
+   "y_lo": 7112.17,
+   "y_hi": 9294.9,
+   "pad_l": 72,
+   "vx": 3.07,
+   "h": 118
+  },
+  "day-02-profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9110.89,
+   "min_ft": 7225.07,
+   "total_mi": 9.31,
+   "gx": 152.57,
+   "gy": 20.38,
+   "gps_max_mi": 3.97,
+   "y_lo": 7112.17,
+   "y_hi": 9294.9,
+   "pad_l": 0,
+   "vx": 4.66,
+   "h": 110
+  }
+ },
+ "start": [
+  39.314237,
+  -120.328473
+ ],
+ "end": [
+  39.339611,
+  -120.342688
+ ],
+ "bbox": [
+  39.298428,
+  -120.367047,
+  39.370257,
+  -120.310495
+ ]
+}

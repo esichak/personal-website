@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Eric Sichak trip reports" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>Pie Shop Climbing Approach</name><time>2026-04-23T21:36:17Z</time></metadata>
+<trk><name>Pie Shop Climbing Approach</name><type>climb</type><trkseg>
+<trkpt lat="38.875353" lon="-120.011032"><ele>1925.4</ele><time>2026-04-23T21:36:17Z</time></trkpt>
+<trkpt lat="38.875362" lon="-120.011071"><ele>1926.0</ele><time>2026-04-23T21:36:22Z</time></trkpt>
+<trkpt lat="38.875503" lon="-120.011040"><ele>1927.4</ele><time>2026-04-23T21:36:36Z</time></trkpt>
+<trkpt lat="38.875592" lon="-120.011139"><ele>1929.6</ele><time>2026-04-23T21:36:50Z</time></trkpt>
+<trkpt lat="38.875661" lon="-120.011045"><ele>1931.8</ele><time>2026-04-23T21:37:03Z</time></trkpt>
+<trkpt lat="38.875728" lon="-120.011049"><ele>1932.8</ele><time>2026-04-23T21:37:10Z</time></trkpt>
+<trkpt lat="38.875894" lon="-120.011135"><ele>1938.0</ele><time>2026-04-23T21:37:31Z</time></trkpt>
+<trkpt lat="38.876002" lon="-120.011260"><ele>1944.0</ele><time>2026-04-23T21:37:52Z</time></trkpt>
+<trkpt lat="38.876118" lon="-120.011291"><ele>1945.6</ele><time>2026-04-23T21:38:02Z</time></trkpt>
+<trkpt lat="38.876196" lon="-120.011251"><ele>1946.0</ele><time>2026-04-23T21:38:10Z</time></trkpt>
+<trkpt lat="38.876235" lon="-120.011271"><ele>1947.2</ele><time>2026-04-23T21:38:16Z</time></trkpt>
+<trkpt lat="38.876345" lon="-120.011446"><ele>1951.8</ele><time>2026-04-23T21:38:36Z</time></trkpt>
+<trkpt lat="38.876662" lon="-120.011641"><ele>1957.4</ele><time>2026-04-23T21:39:13Z</time></trkpt>
+<trkpt lat="38.876879" lon="-120.011874"><ele>1963.8</ele><time>2026-04-23T21:39:43Z</time></trkpt>
+<trkpt lat="38.876967" lon="-120.011819"><ele>1966.4</ele><time>2026-04-23T21:39:54Z</time></trkpt>
+<trkpt lat="38.877032" lon="-120.011834"><ele>1968.8</ele><time>2026-04-23T21:40:02Z</time></trkpt>
+<trkpt lat="38.877107" lon="-120.011768"><ele>1971.6</ele><time>2026-04-23T21:40:13Z</time></trkpt>
+<trkpt lat="38.877313" lon="-120.011722"><ele>1972.8</ele><time>2026-04-23T21:40:45Z</time></trkpt>
+<trkpt lat="38.877091" lon="-120.011756"><ele>1971.0</ele><time>2026-04-23T21:41:04Z</time></trkpt>
+<trkpt lat="38.876922" lon="-120.011826"><ele>1965.8</ele><time>2026-04-23T21:41:20Z</time></trkpt>
+<trkpt lat="38.876869" lon="-120.011919"><ele>1964.0</ele><time>2026-04-23T21:41:27Z</time></trkpt>
+<trkpt lat="38.876870" lon="-120.012026"><ele>1964.4</ele><time>2026-04-23T21:41:34Z</time></trkpt>
+<trkpt lat="38.876942" lon="-120.012092"><ele>1966.0</ele><time>2026-04-23T21:41:40Z</time></trkpt>
+<trkpt lat="38.877229" lon="-120.012109"><ele>1971.6</ele><time>2026-04-23T21:42:12Z</time></trkpt>
+<trkpt lat="38.877432" lon="-120.012050"><ele>1974.6</ele><time>2026-04-23T21:42:30Z</time></trkpt>
+<trkpt lat="38.877531" lon="-120.012078"><ele>1976.2</ele><time>2026-04-23T21:42:38Z</time></trkpt>
+<trkpt lat="38.877676" lon="-120.012032"><ele>1977.8</ele><time>2026-04-23T21:42:50Z</time></trkpt>
+<trkpt lat="38.877726" lon="-120.012058"><ele>1978.4</ele><time>2026-04-23T21:42:55Z</time></trkpt>
+<trkpt lat="38.877706" lon="-120.012296"><ele>1980.6</ele><time>2026-04-23T21:43:10Z</time></trkpt>
+<trkpt lat="38.877783" lon="-120.012352"><ele>1981.6</ele><time>2026-04-23T21:43:17Z</time></trkpt>
+<trkpt lat="38.878050" lon="-120.012371"><ele>1987.0</ele><time>2026-04-23T21:43:44Z</time></trkpt>
+<trkpt lat="38.878099" lon="-120.012511"><ele>1989.4</ele><time>2026-04-23T21:43:58Z</time></trkpt>
+<trkpt lat="38.878363" lon="-120.012511"><ele>1996.2</ele><time>2026-04-23T21:44:25Z</time></trkpt>
+<trkpt lat="38.878615" lon="-120.012633"><ele>2005.2</ele><time>2026-04-23T21:45:02Z</time></trkpt>
+<trkpt lat="38.878747" lon="-120.012579"><ele>2008.8</ele><time>2026-04-23T21:45:21Z</time></trkpt>
+<trkpt lat="38.878774" lon="-120.012675"><ele>2012.8</ele><time>2026-04-23T21:45:35Z</time></trkpt>
+<trkpt lat="38.878841" lon="-120.012701"><ele>2016.2</ele><time>2026-04-23T21:45:48Z</time></trkpt>
+<trkpt lat="38.878819" lon="-120.012783"><ele>2020.8</ele><time>2026-04-23T21:46:18Z</time></trkpt>
+<trkpt lat="38.878861" lon="-120.012786"><ele>2022.2</ele><time>2026-04-23T21:46:23Z</time></trkpt>
+<trkpt lat="38.878915" lon="-120.012897"><ele>2027.8</ele><time>2026-04-23T21:46:43Z</time></trkpt>
+<trkpt lat="38.878965" lon="-120.012881"><ele>2030.8</ele><time>2026-04-23T21:46:54Z</time></trkpt>
+<trkpt lat="38.878983" lon="-120.012836"><ele>2031.4</ele><time>2026-04-23T21:47:03Z</time></trkpt>
+<trkpt lat="38.879045" lon="-120.012904"><ele>2034.2</ele><time>2026-04-23T21:47:23Z</time></trkpt>
+<trkpt lat="38.879035" lon="-120.013005"><ele>2038.8</ele><time>2026-04-23T21:47:53Z</time></trkpt>
+<trkpt lat="38.879062" lon="-120.012988"><ele>2036.8</ele><time>2026-04-23T21:48:53Z</time></trkpt>
+<trkpt lat="38.879043" lon="-120.013003"><ele>2033.4</ele><time>2026-04-23T21:50:47Z</time></trkpt>
+<trkpt lat="38.879041" lon="-120.013012"><ele>2036.6</ele><time>2026-04-23T21:51:28Z</time></trkpt>
+<trkpt lat="38.879064" lon="-120.012994"><ele>2036.6</ele><time>2026-04-23T21:52:31Z</time></trkpt>
+<trkpt lat="38.879065" lon="-120.013019"><ele>2035.4</ele><time>2026-04-23T21:52:55Z</time></trkpt>
+<trkpt lat="38.879057" lon="-120.012989"><ele>2036.8</ele><time>2026-04-23T21:53:43Z</time></trkpt>
+<trkpt lat="38.879066" lon="-120.013032"><ele>2038.8</ele><time>2026-04-23T21:54:40Z</time></trkpt>
+</trkseg></trk>
+</gpx>

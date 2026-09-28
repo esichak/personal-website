@@ -1,0 +1,80 @@
+{
+ "hash": "6589c68032eaa73e6400e616bdd928de285fab25",
+ "slug": "paddle-lake-tahoe",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 40,
+   "outbound_only": null
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 40,
+   "outbound_only": null
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 80,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "speed-wide": {
+   "w": 1248,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 71.48333333333333,
+    "vmax_mph": 2.420966770094422,
+    "stopped_s": 1213.0,
+    "top_mph": 3
+   }
+  },
+  "speed-col": {
+   "w": 718,
+   "h": 112,
+   "kind": "speed",
+   "info": {
+    "span_min": 71.48333333333333,
+    "vmax_mph": 2.420966770094422,
+    "stopped_s": 1213.0,
+    "top_mph": 3
+   }
+  },
+  "speed-phone": {
+   "w": 358,
+   "h": 96,
+   "kind": "speed",
+   "info": {
+    "span_min": 71.48333333333333,
+    "vmax_mph": 2.420966770094422,
+    "stopped_s": 1213.0,
+    "top_mph": 3
+   }
+  }
+ },
+ "start": [
+  39.113344,
+  -120.157773
+ ],
+ "end": [
+  39.113253,
+  -120.157649
+ ],
+ "bbox": [
+  39.106932,
+  -120.157818,
+  39.113387,
+  -120.154236
+ ]
+}

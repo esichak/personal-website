@@ -1,0 +1,92 @@
+{
+ "hash": "71170e8ec12eb86e45db719720d1a370ec229ac9",
+ "slug": "white-salmon-rafting",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 1000,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 823.49,
+   "min_ft": 404.86,
+   "total_mi": 6.0,
+   "gx": 90,
+   "gy": 19.38,
+   "gps_max_mi": 0.0,
+   "y_lo": 379.87,
+   "y_hi": 863.01,
+   "pad_l": 72,
+   "vx": 7.36,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 823.49,
+   "min_ft": 404.86,
+   "total_mi": 6.0,
+   "gx": 90,
+   "gy": 16.79,
+   "gps_max_mi": 0.0,
+   "y_lo": 379.87,
+   "y_hi": 863.01,
+   "pad_l": 72,
+   "vx": 10.35,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 823.49,
+   "min_ft": 404.86,
+   "total_mi": 6.0,
+   "gx": 18,
+   "gy": 21.41,
+   "gps_max_mi": 0.0,
+   "y_lo": 379.87,
+   "y_hi": 863.01,
+   "pad_l": 0,
+   "vx": 15.74,
+   "h": 122
+  }
+ },
+ "start": [
+  45.86412,
+  -121.505291
+ ],
+ "end": [
+  45.797535,
+  -121.485623
+ ],
+ "bbox": [
+  45.797535,
+  -121.510531,
+  45.864418,
+  -121.480613
+ ]
+}

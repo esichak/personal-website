@@ -1,0 +1,92 @@
+{
+ "hash": "71ccdd47cf189fd135e27e8363cee5fb33dbfa00",
+ "slug": "one-hell-of-a-first-ski-tour",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 100,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 8425.2,
+   "min_ft": 6035.71,
+   "total_mi": 8.44,
+   "gx": 654.84,
+   "gy": 19.38,
+   "gps_max_mi": 4.18,
+   "y_lo": 5892.57,
+   "y_hi": 8659.82,
+   "pad_l": 72,
+   "vx": 1.81,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 8425.2,
+   "min_ft": 6035.71,
+   "total_mi": 8.44,
+   "gx": 392.16,
+   "gy": 16.79,
+   "gps_max_mi": 4.18,
+   "y_lo": 5892.57,
+   "y_hi": 8659.82,
+   "pad_l": 72,
+   "vx": 2.54,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 8425.2,
+   "min_ft": 6035.71,
+   "total_mi": 8.44,
+   "gx": 177.43,
+   "gy": 21.41,
+   "gps_max_mi": 4.18,
+   "y_lo": 5892.57,
+   "y_hi": 8659.82,
+   "pad_l": 0,
+   "vx": 3.87,
+   "h": 122
+  }
+ },
+ "start": [
+  39.235654,
+  -120.207154
+ ],
+ "end": [
+  39.236098,
+  -120.207026
+ ],
+ "bbox": [
+  39.220362,
+  -120.246567,
+  39.236165,
+  -120.206189
+ ]
+}

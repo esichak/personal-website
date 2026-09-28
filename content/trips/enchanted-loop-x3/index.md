@@ -7,6 +7,7 @@ timezone: America/Los_Angeles
 place: Wilder Ranch
 region: Santa Cruz
 route_shape: loop
+strava_id: "9296989340"
 stats:
   distance_km: 27.56
   moving: "2:09"

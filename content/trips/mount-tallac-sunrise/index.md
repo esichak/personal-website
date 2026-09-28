@@ -7,6 +7,7 @@ timezone: America/Los_Angeles
 place: Mount Tallac
 region: Lake Tahoe
 route_shape: out-and-back
+strava_id: "15956518778"
 stats:
   distance_km: 17.44
   moving: "3:41"

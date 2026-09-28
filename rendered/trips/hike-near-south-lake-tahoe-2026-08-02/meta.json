@@ -1,0 +1,92 @@
+{
+ "hash": "2d8bf248dee57c77273a3076d5066436e16ac19a",
+ "slug": "hike-near-south-lake-tahoe-2026-08-02",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 100,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 9744.09,
+   "min_ft": 6451.44,
+   "total_mi": 10.21,
+   "gx": 658.28,
+   "gy": 19.38,
+   "gps_max_mi": 5.09,
+   "y_lo": 6255.64,
+   "y_hi": 10041.12,
+   "pad_l": 72,
+   "vx": 1.6,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 9744.09,
+   "min_ft": 6451.44,
+   "total_mi": 10.21,
+   "gx": 394.05,
+   "gy": 16.79,
+   "gps_max_mi": 5.09,
+   "y_lo": 6255.64,
+   "y_hi": 10041.12,
+   "pad_l": 72,
+   "vx": 2.25,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 9744.09,
+   "min_ft": 6451.44,
+   "total_mi": 10.21,
+   "gx": 178.48,
+   "gy": 21.41,
+   "gps_max_mi": 5.09,
+   "y_lo": 6255.64,
+   "y_hi": 10041.12,
+   "pad_l": 0,
+   "vx": 3.42,
+   "h": 122
+  }
+ },
+ "start": [
+  38.921411,
+  -120.068183
+ ],
+ "end": [
+  38.921393,
+  -120.068185
+ ],
+ "bbox": [
+  38.89345,
+  -120.101247,
+  38.921411,
+  -120.06817
+ ]
+}

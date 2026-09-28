@@ -1,0 +1,92 @@
+{
+ "hash": "44e391481aefcdc20b2dff842d0cbf7d092d8ad4",
+ "slug": "chamonix-day-5-best-long-tour-yet",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 8579.4,
+   "min_ft": 4401.25,
+   "total_mi": 10.49,
+   "gx": 719.44,
+   "gy": 19.38,
+   "gps_max_mi": 5.78,
+   "y_lo": 4151.99,
+   "y_hi": 8970.87,
+   "pad_l": 72,
+   "vx": 1.29,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 8579.4,
+   "min_ft": 4401.25,
+   "total_mi": 10.49,
+   "gx": 427.65,
+   "gy": 16.79,
+   "gps_max_mi": 5.78,
+   "y_lo": 4151.99,
+   "y_hi": 8970.87,
+   "pad_l": 72,
+   "vx": 1.82,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 8579.4,
+   "min_ft": 4401.25,
+   "total_mi": 10.49,
+   "gx": 197.09,
+   "gy": 21.41,
+   "gps_max_mi": 5.78,
+   "y_lo": 4151.99,
+   "y_hi": 8970.87,
+   "pad_l": 0,
+   "vx": 2.76,
+   "h": 122
+  }
+ },
+ "start": [
+  45.968672,
+  6.872567
+ ],
+ "end": [
+  46.018922,
+  6.920405
+ ],
+ "bbox": [
+  45.968672,
+  6.872567,
+  46.019911,
+  6.92046
+ ]
+}

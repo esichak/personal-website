@@ -1,0 +1,92 @@
+{
+ "hash": "c07f8f43fc2da55b433d8cbe337bcb1312a8fcc4",
+ "slug": "took-some-souls-on-the-climbs-today",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": false
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": false
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 811.02,
+   "total_mi": 12.63,
+   "gx": 488.65,
+   "gy": 19.38,
+   "gps_max_mi": 4.48,
+   "y_lo": 728.23,
+   "y_hi": 2328.94,
+   "pad_l": 72,
+   "vx": 4.68,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 811.02,
+   "total_mi": 12.63,
+   "gx": 300.87,
+   "gy": 16.79,
+   "gps_max_mi": 4.48,
+   "y_lo": 728.23,
+   "y_hi": 2328.94,
+   "pad_l": 72,
+   "vx": 6.58,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2194.88,
+   "min_ft": 811.02,
+   "total_mi": 12.63,
+   "gx": 126.84,
+   "gy": 21.41,
+   "gps_max_mi": 4.48,
+   "y_lo": 728.23,
+   "y_hi": 2328.94,
+   "pad_l": 0,
+   "vx": 10.01,
+   "h": 122
+  }
+ },
+ "start": [
+  37.082728,
+  -121.851831
+ ],
+ "end": [
+  37.082359,
+  -121.851165
+ ],
+ "bbox": [
+  37.073421,
+  -121.90591,
+  37.090971,
+  -121.850685
+ ]
+}

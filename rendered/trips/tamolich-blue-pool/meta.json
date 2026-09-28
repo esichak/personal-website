@@ -1,0 +1,92 @@
+{
+ "hash": "9ca72517a9cd567d98111a0d8ea2b935c18ad5fe",
+ "slug": "tamolich-blue-pool",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 80,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 200,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2480.32,
+   "min_ft": 2247.05,
+   "total_mi": 4.48,
+   "gx": 679.81,
+   "gy": 19.38,
+   "gps_max_mi": 2.32,
+   "y_lo": 2233.13,
+   "y_hi": 2502.2,
+   "pad_l": 72,
+   "vx": 9.87,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2480.32,
+   "min_ft": 2247.05,
+   "total_mi": 4.48,
+   "gx": 405.88,
+   "gy": 16.79,
+   "gps_max_mi": 2.32,
+   "y_lo": 2233.13,
+   "y_hi": 2502.2,
+   "pad_l": 72,
+   "vx": 13.88,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2480.32,
+   "min_ft": 2247.05,
+   "total_mi": 4.48,
+   "gx": 185.03,
+   "gy": 21.41,
+   "gps_max_mi": 2.32,
+   "y_lo": 2233.13,
+   "y_hi": 2502.2,
+   "pad_l": 0,
+   "vx": 21.12,
+   "h": 122
+  }
+ },
+ "start": [
+  44.290212,
+  -122.035641
+ ],
+ "end": [
+  44.290176,
+  -122.035596
+ ],
+ "bbox": [
+  44.290176,
+  -122.035771,
+  44.312871,
+  -122.024968
+ ]
+}

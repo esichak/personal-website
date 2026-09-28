@@ -1,0 +1,92 @@
+{
+ "hash": "1c6cc15210199cd50aa30eb55dc7299ff3730c5b",
+ "slug": "exploring-saratoga",
+ "kind": "trip",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 640,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 200,
+   "outbound_only": true
+  },
+  "map-col": {
+   "w": 718,
+   "h": 400,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 400,
+   "outbound_only": true
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 400,
+   "outbound_only": null
+  }
+ },
+ "charts": {
+  "profile-wide": {
+   "w": 1248,
+   "kind": "profile",
+   "gps_max_ft": 2696.85,
+   "min_ft": 2151.9,
+   "total_mi": 13.92,
+   "gx": 101.99,
+   "gy": 19.38,
+   "gps_max_mi": 0.35,
+   "y_lo": 2119.32,
+   "y_hi": 2749.18,
+   "pad_l": 72,
+   "vx": 13.1,
+   "h": 162
+  },
+  "profile-col": {
+   "w": 718,
+   "kind": "profile",
+   "gps_max_ft": 2696.85,
+   "min_ft": 2151.9,
+   "total_mi": 13.92,
+   "gx": 88.47,
+   "gy": 16.79,
+   "gps_max_mi": 0.35,
+   "y_lo": 2119.32,
+   "y_hi": 2749.18,
+   "pad_l": 72,
+   "vx": 18.42,
+   "h": 132
+  },
+  "profile-phone": {
+   "w": 358,
+   "kind": "profile",
+   "gps_max_ft": 2696.85,
+   "min_ft": 2151.9,
+   "total_mi": 13.92,
+   "gx": 19.13,
+   "gy": 21.41,
+   "gps_max_mi": 0.35,
+   "y_lo": 2119.32,
+   "y_hi": 2749.18,
+   "pad_l": 0,
+   "vx": 28.03,
+   "h": 122
+  }
+ },
+ "start": [
+  37.258104,
+  -122.121132
+ ],
+ "end": [
+  37.258036,
+  -122.121257
+ ],
+ "bbox": [
+  37.258036,
+  -122.165605,
+  37.296413,
+  -122.121021
+ ]
+}
