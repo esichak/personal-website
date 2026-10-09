@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests
       - name: Build
         run: python3 tools/build.py --check
       - uses: actions/configure-pages@v5

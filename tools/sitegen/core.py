@@ -336,11 +336,17 @@ def trip_date(t, caps=True, short=False):
 _ID = re.compile(r'\bid="([^"]+)"')
 
 
+def _read(path):
+    """The text of a rendered fragment (closed after reading)."""
+    with open(path, encoding='utf-8') as fh:
+        return fh.read()
+
+
 def frag(path, here, ns=None):
     """Inline a rendered .svg.html fragment: route colour -> CSS var, ids namespaced, @@ROOT@@ -> relative root."""
     if not os.path.exists(path):
         return '<!-- missing %s -->' % os.path.relpath(path, ROOT)
-    s = open(path, encoding='utf-8').read()
+    s = _read(path)
     s = s.replace('{{route}}', 'var(--route)')
     s = s.replace('@@ROOT@@', prefix(here) if prefix(here) != './' else '')
     if ns:
@@ -463,7 +469,7 @@ def drawn_ends(t, name):
     """(start, end): whether the rendered map `name` draws mapkit's start disc / end square, so key rows only
     decode markers that are actually on the map."""
     p = rendered(t, name + '.svg.html')
-    s = open(p, encoding='utf-8').read() if os.path.exists(p) else ''
+    s = _read(p) if os.path.exists(p) else ''
     return bool(_START_MK.search(s)), bool(_END_MK.search(s))
 
 
@@ -471,7 +477,7 @@ def speed_meta(t):
     """Mono-S meta for the flat-water speed chart. Names the smoothing the rendered chart actually uses (its aria-label
     says 'median' for the old rolling-median render, 'average' for the distance/time window), so the label never lies."""
     p = rendered(t, 'speed-col.svg.html')
-    s = open(p, encoding='utf-8').read() if os.path.exists(p) else ''
+    s = _read(p) if os.path.exists(p) else ''
     how = 'MEDIAN' if '3-minute median' in s else 'AVERAGE'
     return meta_items([nb('MPH, 3\u2011MIN %s' % how), nb('FLAT WATER, NO ELEVATION PROFILE')])
 
@@ -563,7 +569,7 @@ def key_rows(desk, phone, cls=''):
 def _draws(t, name, pattern):
     """True when the rendered fragment `name` contains `pattern` (a regex)."""
     try:
-        return re.search(pattern, open(rendered(t, name + '.svg.html'), encoding='utf-8').read()) is not None
+        return re.search(pattern, _read(rendered(t, name + '.svg.html'))) is not None
     except OSError:
         return False
 
@@ -619,6 +625,48 @@ def photo(t, p, here, sizes='(min-width: 1200px) 1248px, 100vw', cls='', eager=F
     img = '<img src="%s"%s%s alt="%s" decoding="async"%s>' % (src, srcset, wh, esc(p.get('alt') or ''), '' if eager else ' loading="lazy"')
     cap = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if (caption and p.get('caption')) else ''
     return '<figure class="photo%s">%s%s</figure>' % ((' ' + cls) if cls else '', img, cap)
+
+
+def _pct(v):
+    return ('%g' % v) if v == int(v) else ('%.1f' % v).rstrip('0').rstrip('.')
+
+
+def _cover_srcset(t, p, here):
+    """(src, srcset or '') for a cover image: the 800px .sm copy and the full file, as core.photo builds them."""
+    base = link(here, t['url'])
+    src = base + p['file']
+    if p.get('sm') and p.get('w') and p.get('h'):
+        small_w = int(round(p['w'] * 800.0 / max(p['w'], p['h'])))
+        return src, '%s %dw, %s %dw' % (base + p['sm'], small_w, src, p['w'])
+    return src, ''
+
+
+def cover_img(t, here, sizes, eager=False, cls=''):
+    """The trip's cover (content.resolve_cover) as one <img class="cover-img">, cropped by CSS (object-fit: cover) around
+    its focal point. eager=True marks the page's lead image (no lazy loading, fetchpriority high; pair with
+    cover_preload()). '' when the trip has no photo."""
+    c = t.get('cover')
+    if not c:
+        return ''
+    p = c['photo']
+    src, srcset = _cover_srcset(t, p, here)
+    x, y = c['focal']
+    pos = (' style="object-position:%s%% %s%%"' % (_pct(x), _pct(y))) if (x, y) != (50.0, 50.0) else ''
+    wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if (p.get('w') and p.get('h')) else ''
+    return ('<img class="cover-img%s" src="%s"%s%s alt="%s" decoding="async"%s%s>'
+            % ((' ' + cls) if cls else '', src, (' srcset="%s" sizes="%s"' % (srcset, sizes)) if srcset else '', wh,
+               esc(p.get('alt') or ''), ' fetchpriority="high"' if eager else ' loading="lazy"', pos))
+
+
+def cover_preload(t, here, sizes):
+    """<link rel="preload"> for the lead cover (the page's LCP image), so it is requested before the stylesheet lands."""
+    c = t.get('cover')
+    if not c:
+        return ''
+    src, srcset = _cover_srcset(t, c['photo'], here)
+    if srcset:
+        return '<link rel="preload" as="image" href="%s" imagesrcset="%s" imagesizes="%s" fetchpriority="high">' % (src, srcset, sizes)
+    return '<link rel="preload" as="image" href="%s" fetchpriority="high">' % src
 
 
 def photo_ar(p):
@@ -865,6 +913,37 @@ def excerpt_parts(t, limit=180):
 
 def excerpt(t, limit=180):
     return excerpt_parts(t, limit)[1]
+
+
+def card_summary(t, limit=180, series_day=False):
+    """The short text a card shows for a trip, with its provenance: {'text', 'source_kind', 'source_label'}.
+
+    1. an explicit card_summary from the front matter (verbatim)            -> 'explicit'
+    2. the start of the trip's own write-up                                   -> 'report'
+    3. multi-day trips (and a series only when series_day=True): the first
+       written day's excerpt, always with its 'DAY N · TITLE' label           -> 'day'
+    4. a series (by default), or a multi-day trip with no writing: a neutral
+       line from the fields only ('Journal of 150 recorded days, ...')        -> 'facts'
+    5. nothing (a track-only single-day trip)                                 -> None
+    A series never passes one day's anecdote off as the whole journal, and nothing here is ever written about Eric."""
+    if t.get('card_summary'):
+        return {'text': t['card_summary'], 'source_kind': 'explicit', 'source_label': ''}
+    if t['body_md']:
+        return {'text': markdown.plain(t['body_md'], limit), 'source_kind': 'report', 'source_label': ''}
+    if t['days'] and (t['kind'] == 'multi-day' or (t['kind'] == 'series' and series_day)):
+        lab, ex = excerpt_parts(t, limit)
+        if ex:
+            return {'text': ex, 'source_kind': 'day', 'source_label': lab}
+    if t['kind'] == 'series':
+        k = sum(1 for d in t['days'] if d.get('track'))
+        bits = [('Journal of %s recorded day%s' % (n(k), '' if k == 1 else 's')) if k else 'Journal', frange(t['date'], t.get('end_date'))]
+        if t.get('place'):
+            bits.append(t['place'])
+        return {'text': ', '.join(b for b in bits if b) + '.', 'source_kind': 'facts', 'source_label': ''}
+    if t['kind'] == 'multi-day' and t['days']:
+        bits = ['%d-day %s trip' % (len(t['days']), act_word(t).lower()), frange(t['date'], t.get('end_date'))]
+        return {'text': ', '.join(b for b in bits if b) + '.', 'source_kind': 'facts', 'source_label': ''}
+    return {'text': '', 'source_kind': None, 'source_label': ''}
 
 
 def day_ruler(t):

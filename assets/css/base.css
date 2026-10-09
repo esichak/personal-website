@@ -90,7 +90,7 @@ html.km .u-mi { display: none; }
 }
 
 /* headings balance their lines; prose avoids one-word last lines */
-.t-h2, .t-h3, .shead-t, .trow-t, .pager-n, .rtab-tt, .sec-feat-t, .hom-ft, .mul-dtitle { text-wrap: balance; }
+.t-h2, .t-h3, .shead-t, .trow-t, .pager-n, .rtab-tt, .sec-feat-t, .hom-card-t, .mul-dtitle { text-wrap: balance; }
 .prose p, .t-excerpt, .t-dek, .sec-intro, .ser-lede, .strip-note, .mapcap-t { text-wrap: pretty; }
 
 /* ---------------------------------------------------------------- meta lines (core.meta_items)
@@ -304,6 +304,8 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 @media (min-width: 760px) { .keyrow { font-size: 12px; line-height: 16px; } }
 @media (min-width: 560px) and (max-width: 799.98px) { .keyrow { column-gap: 16px; } }
 /* a map whose phone render draws fewer symbols gets its own key row (core.key_rows) */
+/* a compact key row under a featured map (core.feature_key; the home region maps): no rule line, 8px above */
+.keyrow--compact { padding-top: 8px; min-height: 0; border: 0; }
 .keyrow--p { display: none; }
 @media (max-width: 559.98px) { .keyrow--d { display: none; } .keyrow--p { display: flex; } }
 /* VERTICAL ×N differs per chart width: show the value of the chart that is visible (core.vx_line) */
@@ -533,7 +535,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
   .rtab-tt { font-size: 15px; line-height: 20px; }
 }
 
-/* compact report rows (Phone-Home-B; home Latest reports, map/ All reports: <ol class="rtab rtab--compact">) below 900:
+/* compact report rows (Phone-Home-B; <ol class="rtab rtab--compact">, kept for dense lists such as map/ All reports) below 900:
    track glyph, the title (verbatim, up to 3 lines), then activity icon · date · distance, chevron */
 @media (max-width: 899.98px) {
   .rtab--compact .rtab-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

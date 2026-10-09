@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 import mapkit  # noqa: E402
 from sitegen import core  # noqa: E402
+from sitegen import curation  # noqa: E402
 
 OUT = os.path.join(ROOT, '_site')
 PAGE_MODULES = ['home', 'section', 'report', 'multiday', 'series', 'archive', 'about', 'notfound']
@@ -141,6 +142,8 @@ def build(verbose=True, only=None):
     trips = content.load_all()
     site = {'trips': trips, 'by_slug': {t['slug']: t for t in trips},
             'published': [t for t in trips if t['kind'] != 'planned'], 'planned': [t for t in trips if t['kind'] == 'planned']}
+    # content/home.json picks the home page's featured trips; an invalid manifest stops the build here, before any page
+    site['featured'] = curation.featured_for(site)
     core.register_site(site)
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
@@ -252,7 +255,12 @@ def main():
     if a.out:
         OUT = os.path.abspath(a.out)
     LINK = a.link
-    build(only=set(a.only.split(',')) if a.only else None)
+    try:
+        build(only=set(a.only.split(',')) if a.only else None)
+    except (curation.CurationError, content.ContentError) as ex:
+        # a content or curation mistake: the message names the file and field, so no traceback
+        print('ERROR %s' % ex, file=sys.stderr)
+        sys.exit(1)
     if a.check and check():
         sys.exit(1)
     if a.serve:

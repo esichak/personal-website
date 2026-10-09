@@ -7,6 +7,8 @@ timezone: America/Los_Angeles
 region: Lake Tahoe
 route_shape: loop
 strava_id: "20262323139"
+cover_photo: photos/04.webp
+cover_focal_y: 45
 stats:
   distance_km: 32.04
   moving: "9:55"

@@ -10,6 +10,8 @@ party: Adam
 route_shape: out-and-back
 strava_id: "17094418552"
 featured: true
+cover_photo: photos/01.webp
+cover_focal_y: 40
 stats:
   distance_km: 20.57
   moving: "6:34"

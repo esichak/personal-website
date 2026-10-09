@@ -10,6 +10,8 @@ except the tools macOS already has (plus `cwebp` from Homebrew for photos: `brew
 
 ## Add a trip
 
+Step-by-step guide: **[ADDING-TRIPS.md](ADDING-TRIPS.md)**. The short version:
+
 ```bash
 # from a Garmin (or any) FIT/GPX file, with photos
 python3 tools/add_trip.py ~/Downloads/Morning_Ski.fit --title "Rose Knob Peak" --activity ski \
@@ -28,7 +30,9 @@ with `other`). The script creates `content/trips/<slug>/` and renders its maps. 
 1. Edit `content/trips/<slug>/index.md`: write the report under the front matter (Markdown), check `place`,
    `region`, `party`, add `beta:` rows, and give every photo an `alt:` description.
 2. Preview: `python3 tools/build.py --serve` and open http://localhost:8000.
-3. Publish: `git add -A && git commit -m "Add <trip>" && git push`. The site updates in about a minute.
+3. Publish: `git add "content/trips/<slug>" "rendered/trips/<slug>" && git commit -m "Add <trip>" && git push`. The site
+   updates in about a minute. (Stage by path: `rendered/` holds untracked iCloud conflict copies such as `meta 3.json`,
+   and `git add -A` would commit them all.)
 
 Useful front-matter fields (see any existing trip for the format):
 
@@ -38,11 +42,25 @@ Useful front-matter fields (see any existing trip for the format):
 | `place`, `region`, `party` | "Sawtooth Ridge", "Eastern Sierra", "Adam" — `region` groups trips on the map page |
 | `route_shape` | `loop`, `out-and-back` or `point-to-point` (detected from the track) |
 | `stats` | `distance_km`, `moving`, `elapsed`, `gain_m`, `loss_m`, `high_m`, `low_m` (Strava's numbers, or computed) |
-| `featured: true` | Eligible for the home page and section "Featured" blocks |
+| `featured: true` | Eligible for the section pages' "Featured" block (single-day trips only; the home page is picked in `content/home.json`, see below) |
+| `cover_photo`, `cover_focal_x`, `cover_focal_y` | The photo the home page's cards use for this trip (a path declared under `photos`) and where to keep in the crop, 0–100 (default 50/50) |
+| `card_summary` | Optional one- or two-sentence factual summary for the home page's featured card (the report's opening is used when it is absent) |
 | `draft: true` | Keep it off the site |
 | `beta` | List of `label` / `value` rows shown beside the report |
 | `map` | `peaks: [Mount Tallac]` to label summits, `places: [...]`, `water_labels: [{text, x, y}]` |
 | `photos` | `file`, `w`, `h`, `alt`, optional `caption` |
+
+## Feature a trip on the home page
+
+`content/home.json` lists the featured trips, in order (the first is the lead card; up to six):
+
+```json
+{"featured_slugs": ["pacific-crest-trail-2024", "matterhorn-peak-west-couloir", "peak-bagging-szn"]}
+```
+
+Edit the list to feature, reorder or remove trips; nothing else decides it. Covers and summaries are front-matter
+fields on the trip (`cover_photo`, `cover_focal_x`/`cover_focal_y`, `card_summary`). The build stops with a clear
+message when a slug is unknown, a draft, a planned route or listed twice. Details: **[docs/CONTENT_GUIDE.md](docs/CONTENT_GUIDE.md)**.
 
 ## Re-render or rebuild
 
@@ -50,6 +68,7 @@ Useful front-matter fields (see any existing trip for the format):
 python3 tools/render.py              # render anything whose track or map settings changed (needs internet)
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)
 python3 tools/build.py --check       # build _site/ and check every link and image
+python3 -m unittest discover -s tests   # the generator's unit tests (curation, covers, summaries)
 ```
 
 ## Privacy

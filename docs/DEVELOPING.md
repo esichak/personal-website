@@ -7,16 +7,20 @@ content/trips/<slug>/index.md     one trip: YAML-ish front matter + Markdown wri
 content/trips/<slug>/track.gpx    full recorded track (single-day trips and planned routes)
 content/trips/<slug>/days/NN.md   multi-day / series days (front matter + write-up) with NN.gpx beside them
 content/trips/<slug>/photos/      web copies: NN.webp (1600 px) + NN.sm.webp (800 px); no EXIF/GPS
+content/home.json                 the home page's featured trips, in order (tools/sitegen/curation.py validates it)
 rendered/trips/<slug>/            maps (.svg.html overlay + .png hillshade), profiles, tiles, glyphs, meta.json
 rendered/site/                    region + ski-panel overview maps, meta.json
 tools/add_trip.py                 new trip from a FIT/GPX file or a Strava export (runs render.py)
 tools/render.py                   renders rendered/ (needs internet; caches in .cache/, which is not committed)
 tools/build.py                    builds _site/ from content/ + rendered/ + assets/ (what the GitHub Action runs)
 tools/sitegen/core.py             shared layout + components (header, footer, units, chips, maps, rows, …)
+tools/sitegen/curation.py         content/home.json -> site['featured'] (strict: unknown, draft, planned, duplicate slugs fail the build)
 tools/sitegen/pages/*.py          one module per page type; each has build(site) -> [core.Page]
 assets/css/base.css               tokens, type scale, layout, shared components
 assets/css/pages/<module>.css     page CSS (bundled after base.css into assets/site.css)
 assets/js/base.js (+ pages/*.js)  bundled into assets/site.js
+tests/                            stdlib unit tests: python3 -m unittest discover -s tests (CI runs them before the build)
+docs/CONTENT_GUIDE.md             how to feature trips, choose covers and write card summaries
 ```
 
 ## Design: "Datum"
@@ -55,6 +59,13 @@ menu button below 1140px.
   read `Track: <Mon D, YYYY> · full track, not trimmed · North up` (`core.map_caption`). The menu's Other row names only
   the sub-types that have reports (`core.other_subtypes()`); flat water is `core.is_flat()` (SUP / Kayaking, or under
   30 m of relief — render.py uses the same rule).
+- Cards: a trip's photo comes from `t['cover']` (`content.resolve_cover`: the explicit `cover_photo`, else the first landscape
+  trip photo, else a day photo; `core.cover_img` / `core.cover_preload` draw it with its focal point) and its text from
+  `core.card_summary` (explicit `card_summary` → the write-up's opening → a labelled day excerpt for multi-day trips → a
+  neutral facts line for a series). A series never shows one day's excerpt as if it were the whole journal. The home
+  card leaves a 'facts' result off (its DATE · PLACE and data lines already say it) and the recent cards show no summary.
+- Home features come only from `site['featured']` (content/home.json), never from dates or the `featured` flag, once
+  the file exists; a missing file falls back to the legacy flag/date pick with a warning.
 - Lists: `core.trip_row` is the one index row; a single-day row with no excerpt is `.trow--brief` (120px tile in the same
   column, tighter row), and phones show a Mono-S stats line (`.trow-ps`) instead of the stat grid.
 
@@ -62,9 +73,10 @@ menu button below 1140px.
 `slug, title, activity (ski|climb|hike|mtb|other), activity_label, cat, subtype, kind (trip|multi-day|series|planned),
 date, end_date, start_time, timezone, place, region, party, route_shape, featured, beta[{label,value}],
 conditions{}, map{}, body_md, photos[{file, sm, w, h, alt, caption}], days[…], url ('trips/<slug>/'), track,
-rendered, stats{distance_km, gain_m, loss_m, high_m, low_m, moving_s, elapsed_s}, season, has_writeup`.
+rendered, stats{distance_km, gain_m, loss_m, high_m, low_m, moving_s, elapsed_s}, season, has_writeup,
+cover_photo, cover_focal (x, y), card_summary, cover{photo, source ('explicit'|'parent'|'day'), day, focal}`.
 Day: `n, id, label, title, date, start_time, hut, transfer_before, stats, photos, body_md, track`.
-`site = {'trips': all (newest first), 'by_slug', 'published' (not planned), 'planned'}`.
+`site = {'trips': all (newest first), 'by_slug', 'published' (not planned), 'planned', 'featured' (home.json's picks, in order)}`.
 
 Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
 - single: `map-wide` 1440×640, `map-col` 718×400, `map-phone` 390×336, `profile-wide|col|phone` (1248/718/358)
@@ -83,3 +95,5 @@ Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
 ## Checking your work
 `python3 tools/build.py --check` builds everything and verifies every internal link, image and anchor, including
 anchors on other pages (`map/#region-utah` must land on an element with that id).
+`python3 -m unittest discover -s tests` runs the unit tests (home.json curation, cover resolution, card summaries,
+home cards); they build synthetic trips in temp folders, so they never touch content/ and take a few seconds.
