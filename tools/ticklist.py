@@ -111,16 +111,32 @@ def load_goal_trip(slug):
 
 
 def published_sha256s():
-    """{sha256: slug} for every goal that records a published route."""
+    """{sha256: slug} for every goal's published route: the checksum its goal.json records, or, for a planned route with
+    a track.gpx and no route block (saved before the tick list), the checksum of that file as it is."""
     out = {}
-    for p in glob.glob(os.path.join(TRIPS, '*', 'goal.json')):
-        try:
-            with open(p, encoding='utf-8') as fh:
-                r = (json.load(fh) or {}).get('route') or {}
-        except ValueError:
-            continue
-        if r.get('source_sha256'):
-            out[r['source_sha256']] = os.path.basename(os.path.dirname(p))
+    for idx in sorted(glob.glob(os.path.join(TRIPS, '*', 'index.md'))):
+        folder = os.path.dirname(idx)
+        sha = None
+        gp = os.path.join(folder, 'goal.json')
+        if os.path.exists(gp):
+            try:
+                with open(gp, encoding='utf-8') as fh:
+                    r = (json.load(fh) or {}).get('route') or {}
+                sha = r.get('source_sha256') if isinstance(r, dict) else None
+            except (ValueError, AttributeError):
+                sha = None
+        tp = os.path.join(folder, 'track.gpx')
+        if not sha and os.path.exists(tp):
+            try:
+                with open(idx, encoding='utf-8') as fh:
+                    planned = frontmatter.split(fh.read())[0].get('kind') == 'planned'
+            except ValueError:
+                planned = False
+            if planned:
+                with open(tp, 'rb') as fh:
+                    sha = hashlib.sha256(fh.read()).hexdigest()
+        if sha:
+            out[sha] = os.path.basename(folder)
     return out
 
 
@@ -172,6 +188,8 @@ def apply_intent(g, a):
     if getattr(a, 'archived', None) is not None:
         g['archived'] = a.archived == 'true'
     src = g.setdefault('route_source', goals.defaults()['route_source'])
+    if not isinstance(src, dict):
+        raise Fail('goal.json: route_source must be an object (it is %s); fix the file by hand, then run this again' % json.dumps(src))
     for k, opt in (('kind', 'source_kind'), ('url', 'source_url'), ('label', 'source_label'), ('checked_at', 'checked_at'), ('approximation_note', 'approximation_note')):
         v = getattr(a, opt, None)
         if v is not None:
@@ -194,6 +212,8 @@ def cmd_add(a):
     if not title:
         raise Fail('--title is required')
     slug = a.slug if a.slug is not None else content.slugify(title)[:60].strip('-')   # an explicit --slug is checked as given
+    if a.slug is None and not slug:
+        raise Fail('the title %r gives no usable folder name (letters and digits only survive); pass one with --slug' % title)
     folder = folder_of(slug)
     if os.path.exists(folder):
         raise Fail('content/trips/%s/ already exists; pick another name with --slug' % slug)
@@ -257,7 +277,11 @@ def cmd_add(a):
                               'alternatives': len(gpxroute.candidates(info)), 'segments': m['segments'], 'points': m['points'],
                               'elevation': m['elevation'], 'times': m['times'], 'waypoints': info['waypoints']}
                 g['route_source']['public_copy_approved'] = True
-                say('  publishing the %s (%d bytes, sha256 %s…) as track.gpx' % ('whole file' if track_bytes == open(path, 'rb').read() else 'chosen element', len(track_bytes), sha[:12]))
+                whole = track_bytes == open(path, 'rb').read()
+                say('  publishing the %s (%d bytes, sha256 %s…) as track.gpx' % ('whole file' if whole else 'chosen element', len(track_bytes), sha[:12]))
+                if not whole:
+                    say('  the published copy holds only that %s: the file\'s other tracks and routes, its %d waypoint%s and its metadata are not copied'
+                        % ('track' if cand['type'] == 'trk' else 'route', info['waypoints'], '' if info['waypoints'] == 1 else 's'))
             else:
                 say('  not published: pass --publish-track to copy this geometry into the public checkout (nothing from it is written now)')
     g = validated(g, slug)
@@ -290,15 +314,40 @@ def cmd_add(a):
 
 # ---------------------------------------------------------------- update / log-outing
 
+def is_done(g):
+    """True when the goal's history ends completed: a completed outing with no 'reopened' entry after it."""
+    done = False
+    for o in g.get('outings') or []:
+        if isinstance(o, dict) and o.get('outcome') == 'completed':
+            done = True
+        elif isinstance(o, dict) and o.get('outcome') == 'reopened':
+            done = False
+    return done
+
+
 def cmd_update(a):
     folder, meta, body = load_goal_trip(a.slug)
     g, existed = read_goal(folder, a.slug)
+    if a.reopen:
+        # reopening is an explicit, dated entry in the history; the completed outing stays where it is
+        if not is_done(g):
+            raise Fail('--reopen is for a completed goal; %s is not completed' % a.slug)
+        if a.status is None or a.status == 'completed':
+            raise Fail('--reopen needs the status the goal goes back to, e.g. --reopen --status shortlisted')
+        g.setdefault('outings', []).append({'outcome': 'reopened', 'date': today(), 'report_slug': None,
+                                            'note': (a.reopen_note or '').strip()})
+    elif a.reopen_note:
+        raise Fail('--reopen-note goes with --reopen')
     apply_intent(g, a)
+    if a.reference_checked_at and not a.add_reference:
+        raise Fail('--reference-checked-at goes with --add-reference')
     for ref in a.add_reference or []:
         parts = ref.split('|', 2)
         if len(parts) != 3:
             raise Fail('--add-reference wants ID|LABEL|URL')
-        g.setdefault('references', []).append({'id': parts[0].strip(), 'label': parts[1].strip(), 'url': parts[2].strip(), 'checked_at': a.checked_at or today()})
+        # a reference carries its own date (--reference-checked-at, else today); --checked-at is the route source's alone
+        g.setdefault('references', []).append({'id': parts[0].strip(), 'label': parts[1].strip(), 'url': parts[2].strip(),
+                                               'checked_at': a.reference_checked_at or today()})
     for text in a.add_check or []:
         ids = {c.get('id') for c in g.get('checklist', [])}
         i = len(g.get('checklist', [])) + 1
@@ -316,6 +365,8 @@ def cmd_update(a):
     g = validated(g, a.slug, track_path=os.path.join(folder, 'track.gpx'))
     say('Goal:', meta.get('title'), '(%s)%s' % (a.slug, '' if existed else ' — no goal.json yet; creating it'))
     say('  status %s · priority %s · archived %s' % (g['status'], g['priority'], g['archived']))
+    if a.reopen:
+        say('  reopened on %s: the earlier outings stay in the history' % today())
     write_goal(folder, g, a.dry_run)
     return 0
 
@@ -389,7 +440,10 @@ def cmd_review_packet(a):
     g, _existed = read_goal(folder, a.slug)
     g = validated(g, a.slug)
     out = os.path.abspath(os.path.expanduser(a.out))
-    if out.startswith(ROOT + os.sep) or out == ROOT:
+    # compared after resolving symbolic links, on both sides, so a link that leads into the checkout does not get past
+    real_out = os.path.realpath(out)
+    real_root = os.path.realpath(ROOT)
+    if real_out == real_root or real_out.startswith(real_root + os.sep) or out == ROOT or out.startswith(ROOT + os.sep):
         raise Fail('the review packet must be written outside the checkout (it holds unreviewed research): %s is inside it' % out)
     track = os.path.exists(os.path.join(folder, 'track.gpx'))
     rec = public_record(a.slug, meta, g, track)
@@ -443,10 +497,17 @@ def cmd_export(a):
             meta, _body = frontmatter.split(fh.read())
         if meta.get('kind') != 'planned' or meta.get('draft'):
             continue
-        g, _e = read_goal(folder, slug)
+        g, existed = read_goal(folder, slug)
         g = validated(g, slug)
-        recs.append(public_record(slug, meta, g, os.path.exists(os.path.join(folder, 'track.gpx'))))
+        rec = public_record(slug, meta, g, os.path.exists(os.path.join(folder, 'track.gpx')))
+        rec['legacy'] = not existed   # a planned route saved before the tick list: no goal.json, default metadata
+        recs.append(rec)
     text = json.dumps(recs, indent=2, ensure_ascii=False) + '\n'
+    legacy = [r['slug'] for r in recs if r['legacy']]
+    if legacy:
+        # to stderr, so `export > file.json` still writes clean JSON
+        sys.stderr.write('%d planned route%s without a goal.json (default metadata; review and run update on each): %s\n'
+                         % (len(legacy), '' if len(legacy) == 1 else 's', ', '.join(legacy)))
     if a.out:
         out = os.path.abspath(os.path.expanduser(a.out))
         if a.dry_run:
@@ -501,9 +562,12 @@ def build_parser():
     p.add_argument('slug')
     p.add_argument('--archived', choices=('true', 'false'))
     p.add_argument('--add-reference', action='append', help='ID|LABEL|URL (repeatable)')
+    p.add_argument('--reference-checked-at', help='YYYY-MM-DD the added reference(s) were read (default: today)')
     p.add_argument('--add-check', action='append', help='a checklist question (repeatable)')
     p.add_argument('--check', help='checklist id to mark done')
     p.add_argument('--uncheck', help='checklist id to reopen')
+    p.add_argument('--reopen', action='store_true', help='open a completed goal again, keeping its outings (needs --status)')
+    p.add_argument('--reopen-note', help='why it is open again (optional, shown with the outings)')
     intent(p)
     p.set_defaults(fn=cmd_update)
     p = sub.add_parser('log-outing', help='record an explicit attempt or completion')

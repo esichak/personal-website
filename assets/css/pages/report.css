@@ -156,7 +156,14 @@ body.p-report .site-f { padding-bottom: 72px; }
 .goal-src { display: inline-block; margin-left: 6px; }
 .goal-src a, .goal-refs a, .goal-rep { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; color: var(--ink); }
 .goal-refs { display: flex; flex-direction: column; gap: 12px; font: 400 16px/24px var(--sans); }
-.goal-refs .t-mono-s { margin-left: 8px; }
+.goal-refs .t-mono-s { margin-left: 8px; white-space: nowrap; }   /* 'CHECKED OCT 1, 2026' wraps as one unit */
+/* phones hide a report's strip note (its map caption carries a copy); a goal's note is the only place that says its
+   numbers are approximate, where they come from and that the high point is not a surveyed summit, so it stays */
+@media (max-width: 759.98px) { body.p-goal .rep-strip .strip-note { display: block; } }
+/* a goal without a rendered map: the note sits where the map would, on the same rhythm */
+.rep-map--empty .empty { max-width: 720px; }
+/* a goal page without a bottom bar (an idea with nothing to jump to) needs no room for one */
+body.p-goal:not(:has(.bbar)) .site-f { padding-bottom: 0; }
 .goal-check { display: flex; flex-direction: column; gap: 8px; font: 400 16px/24px var(--sans); }
 .goal-check li { display: flex; gap: 12px; align-items: baseline; }
 .goal-check .goal-mark { flex-shrink: 0; width: 20px; font: 500 16px/24px var(--mono); color: var(--ink-3); }

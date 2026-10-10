@@ -269,14 +269,81 @@ in `content/`.
 | Importer, in a temporary content folder | Dry run writes nothing; a published track's bytes equal the source (SHA-256 recorded); no local path in any written file; a duplicate checksum, an existing slug, a traversal slug, `--status completed` without an outing, an unknown report slug, a review packet inside the checkout and reopening a completed goal are each refused; attempted then completed outings set the status and keep both events; the packet carries the research prompt; export lists non-draft goals only. |
 | Synthetic demo site (a scratch copy of the content with five synthetic goals created through the importer: a two-segment track, a route-only file, an idea without a route, a completed goal with an attempt and a linked real report, an archived idea) | The tick list shows the six goals by region with honest counts (4 active · 1 shortlisted · 1 completed); scope, filters, search, sort and view work with shareable URLs; goal pages show ≈ stats with the provenance note, the map fallback, Why, Planning notes, Season and commitment, Route source, Still to check (read-only), Outings; the completed goal links to its report and the report shows "On the tick list"; the search index and the feed contain no goal; the Hiking page and the home tile count only active goals; no horizontal overflow at 390 px; no duplicate ids; the phone bottom bar reads Map · Notes · GPX. |
 | Rendering | Not run (no new goals exist and render.py needs the internet); the segment-aware planned path is unit-tested at the geometry level and the existing planned render is untouched. |
-| Not run | Lighthouse, screen readers, real devices. The multi-lens review of this phase ran after the commit; see Review. |
+| Not run | Lighthouse, screen readers, real devices, keyboard-only traversal, the pages with JavaScript disabled. The multi-lens review of this phase ran after the commit; see Review, which also records the 320 to 1440 px checks. |
 
 ### Review
 
-(filled in after the multi-lens review)
+Seven independent lenses read commit `a0eb1cd` (plan compliance, Python correctness, JavaScript behaviour, HTML and
+accessibility, CSS and responsive layout, documentation accuracy, test quality) and returned 32 high or medium findings
+and 30 low ones. Each high or medium finding went to skeptics told to refute it. The first verification run stopped
+on a usage limit after 9 findings had their votes; the other 23 were handled on 2026-10-10: 7 were already fixed by
+the follow-up commits, fixed directly, or duplicated a confirmed finding, and 16 went to a second run with two
+skeptics each (one reproducing against the current code, one checking the plan and intent), with the fix itself as
+the third look.
+
+| Outcome | Count | What |
+| --- | --- | --- |
+| Confirmed and fixed | 19 | Listed below. |
+| Fixed without a verification vote | 4 | The regex element extractor, the UTF-16 bypass and namespace-prefixed tracks (the follow-up commits); a byte order mark with `--select` (this round). |
+| Rejected by the skeptics | 5 | No way to attach a GPX to a saved idea (the plan asks only that an idea can be saved without one); the planned map's accessible name (the named "Planned route map" region carries it); two test findings that judged the tests against the earlier commit; a test for the rendered-map branch of a goal page (not in the required list; the branch is unchanged code). |
+| Split one to one, fixed anyway | 1 | Site wiring re-implemented by a test helper. |
+| Duplicates of confirmed findings | 3 | The backlink (reported by three lenses) and the phone note (two). |
+
+Confirmed and fixed:
+
+- **Renderer.** `render.py` crashed on a published goal without a GPX (every later run failed, and a per-slug run
+  deleted `rendered/site/` before failing); region maps crashed on a route-only goal and joined a multi-segment goal
+  across gaps under 2 km. A goal without a route is now skipped (a render left from an earlier route is removed), and
+  region maps read a goal like its own map does: routes and tracks, one line per segment, active goals only.
+  `tests/test_render_goals.py` covers this with the drawing and OpenStreetMap functions stubbed. `render.py` itself was
+  not run.
+- **Counters and lists.** The About page counted completed and archived goals; the map page's region lists and the
+  home region counts listed them. All use the active goals now.
+- **Backlinks.** Multi-day and series reports named by an outing get the "On the tick list" line.
+- **Provenance.** A planned route saved before the tick list no longer claims its GPX was "kept byte for byte"; a goal
+  page keeps its approximate-values note on phones; a goal's numbers carry ≈ on every row that shows them (activity
+  page, map page rows and table), with "High point" in place of "GPS max".
+- **History.** A completed goal can be opened again without losing its outings: `update --reopen --status <status>`
+  appends a dated "Reopened" entry, the goal page lists it, and a plain status flip is still refused.
+- **Importer.** `--checked-at` no longer rewrites the route source's date when a reference is added (references have
+  `--reference-checked-at`); timestamps with a negative UTC offset are recognised; the duplicate check also covers
+  planned routes without a `goal.json`.
+- **Tick list page.** Cards return in page order after switching sort away and back; an empty scope tab says what the
+  tab holds instead of offering a dead "Clear filters"; a query of punctuation is not shown as a filter.
+- **Documentation.** `--approximation-note`, the repeatable flags, the reference date, the exact duplicate rule, the
+  export field list, what stops a multi-route import, what a chosen-element publish leaves out.
+- **Tests.** The report recording's checksum is compared after `log-outing`; the build's own `site_of()` assembles the
+  site in the tests; home tiles, the map head and the map's Planned group are covered for the active-only rule.
+
+Low findings: 27 of 30 fixed (symlinked packet path, region sections sharing a slug, stricter numbers and empty
+checklist text in `goal.json`, a traceback on a hand-edited `route_source`, an empty-slug message, the zero-goal page
+state, the token-less search chip, the fallback wording that said "above", the one-item bottom bar (reported twice),
+the fallback's spacing, a dead flex rule, tag sizes, a wrapping date, the placeholder contrast, four guide corrections,
+five test gaps, the legacy list in `export`, what a chosen-element publish leaves out, the checks the log had not
+listed as not run). The other three:
+
+- Discovery (plan 20.2): planning notes are now searched; a tags filter and a time-commitment filter were not added
+  (tags are searched). Recorded as a narrower scope.
+- A copy-link action on goal pages (plan 20.9): added with the copy-link control in Phase 3.
+- The checkbox finding described the earlier commit; the switch button was already in place.
+
+Checks run for this round (2026-10-10): 480 tests OK; the ticklist.js harness 60 checks and the trips.js harness 50;
+`build.py --out <scratch> --link --check` 348 pages, link check OK. On the synthetic demo site (now seven goals,
+including one completed then reopened and one whose attempt names a multi-day report) in the built-in browser: no
+horizontal overflow at 320, 390, 768, 1024 and 1440 px on the tick list, a goal page and the map page; one, two and
+three card columns; the list view; the two failing sort sequences from the review restore the page order; empty scope
+tabs on the real content read "Nothing shortlisted yet." and so on with no dead button; a filtered-empty state keeps
+"Clear filters" and it works; planning notes are searched; the goal note shows on phones; an idea without a route has
+no bottom bar. Not run: `render.py` (internet), keyboard-only traversal, the page with JavaScript disabled, Lighthouse,
+screen readers, real devices.
 
 ### Remaining issues and author inputs
 
 - No real goals exist yet: add the first with `python3 tools/ticklist.py add … --dry-run`, then publish by path.
 - The header now has Tick list; the optional "On my list" home shelf (plan 20.9) was not added.
 - Daily PCT search, collections and the local upload desk stay out of scope (Phases 3, 5 and the optional desk).
+- The one existing planned route now shows "≈ 17.4 MI" on the map and Hiking pages and a plain statement that its
+  GPX's source was not recorded. Running `tools/ticklist.py update crystal-range-to-bayview --source-kind …` gives it
+  a `goal.json`; `export` names it until then.
+- After logging a completion or archiving a goal, run `python3 tools/render.py --site` (internet) so the region maps
+  drop its dashed line. The lists and counts change on the next build without it.

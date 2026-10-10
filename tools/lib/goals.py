@@ -18,7 +18,8 @@ PRIORITIES = ('high', 'normal', 'someday')
 COMMITMENTS = ('half-day', 'full-day', 'overnight', 'multi-day')
 SCOPES = ('full-intended-route', 'approach-only', 'ascent-only', 'partial', 'unknown')
 SOURCE_KINDS = ('author-drawn', 'planner-export', 'third-party-recording', 'own-prior-recording', 'unknown')
-OUTCOMES = ('attempted', 'completed')
+OUTCOMES = ('attempted', 'completed')      # what an outing can be (tools/ticklist.py log-outing)
+EVENTS = OUTCOMES + ('reopened',)          # what an entry of `outings` can record: an outing, or the decision to reopen
 EVIDENCE_STATES = ('proposed', 'approved')
 STATUS_LABELS = {'idea': 'Idea', 'researching': 'Researching', 'shortlisted': 'Shortlisted', 'attempted': 'Attempted', 'completed': 'Completed'}
 PRIORITY_LABELS = {'high': 'High priority', 'normal': 'Normal priority', 'someday': 'Someday'}
@@ -109,7 +110,7 @@ def validate(goal, slug, track_path=None):
     if unknown:
         raise _err(slug, 'unknown field%s %s' % ('' if len(unknown) == 1 else 's', ', '.join(unknown)))
     g = defaults()
-    if 'schema_version' in goal and goal['schema_version'] != 1:
+    if 'schema_version' in goal and (type(goal['schema_version']) is not int or goal['schema_version'] != 1):   # not true, not 1.0
         raise _err(slug, 'schema_version must be 1, got %r' % goal['schema_version'])
     if 'status' in goal:
         g['status'] = _enum(goal['status'], 'status', STATUSES, slug)
@@ -209,7 +210,10 @@ def validate(goal, slug, track_path=None):
             if not cid or cid in seen:
                 raise _err(slug, "checklist[%d].id must be unique and non-empty (got '%s')" % (i, cid))
             seen.add(cid)
-            g['checklist'].append({'id': cid, 'text': _str(c['text'], 'checklist[%d].text' % i, slug), 'done': _bool(c['done'], 'checklist[%d].done' % i, slug)})
+            ctext = _str(c['text'], 'checklist[%d].text' % i, slug)
+            if not ctext.strip():
+                raise _err(slug, 'checklist[%d].text must not be empty' % i)
+            g['checklist'].append({'id': cid, 'text': ctext, 'done': _bool(c['done'], 'checklist[%d].done' % i, slug)})
     if 'outings' in goal:
         os_ = goal['outings']
         if not isinstance(os_, list):
@@ -220,15 +224,31 @@ def validate(goal, slug, track_path=None):
             rs_ = o.get('report_slug')
             if rs_ is not None and (not isinstance(rs_, str) or not _ID.match(rs_)):
                 raise _err(slug, 'outings[%d].report_slug must be a trip slug or null, got %r' % (i, rs_))
-            g['outings'].append({'outcome': _enum(o.get('outcome'), 'outings[%d].outcome' % i, OUTCOMES, slug),
+            oc = _enum(o.get('outcome'), 'outings[%d].outcome' % i, EVENTS, slug)
+            if oc == 'reopened' and rs_ is not None:
+                raise _err(slug, "outings[%d] records a reopening, which has no report (report_slug must be null)" % i)
+            g['outings'].append({'outcome': oc,
                                  'date': _date(o.get('date'), 'outings[%d].date' % i, slug), 'report_slug': rs_,
                                  'note': _str(o.get('note', ''), 'outings[%d].note' % i, slug)})
+    # the list is a history, read in order: a completed outing makes the goal done until a later 'reopened' entry says the
+    # goal is open again (the earlier outings stay). The status has to agree with where that history ends.
     completed = [o for o in g['outings'] if o['outcome'] == 'completed']
     attempted = [o for o in g['outings'] if o['outcome'] == 'attempted']
-    if g['status'] == 'completed' and not completed:
+    done = False
+    for i, o in enumerate(g['outings']):
+        if o['outcome'] == 'completed':
+            done = True
+        elif o['outcome'] == 'reopened':
+            if not done:
+                raise _err(slug, "outings[%d] reopens the goal, but no completed outing comes before it" % i)
+            done = False
+    if g['status'] == 'completed' and not done:
+        if completed:
+            raise _err(slug, "status is 'completed' but the goal was reopened after its last completed outing (log the new completion with tools/ticklist.py log-outing)")
         raise _err(slug, "status is 'completed' but no outing with outcome 'completed' is logged (log one with tools/ticklist.py log-outing)")
-    if completed and g['status'] != 'completed':
-        raise _err(slug, "an outing with outcome 'completed' is logged, so status must be 'completed' (it is '%s')" % g['status'])
+    if done and g['status'] != 'completed':
+        raise _err(slug, "an outing with outcome 'completed' is logged, so status must be 'completed' (it is '%s'); to open the goal again and "
+                         "keep that outing, use tools/ticklist.py update %s --reopen --status %s" % (g['status'], slug, g['status']))
     if g['status'] == 'attempted' and not attempted:
         raise _err(slug, "status is 'attempted' but no outing with outcome 'attempted' is logged")
     if 'route' in goal and goal['route'] is not None:
@@ -239,7 +259,7 @@ def validate(goal, slug, track_path=None):
         if not isinstance(r['source_sha256'], str) or not _HEX64.match(r['source_sha256']):
             raise _err(slug, 'route.source_sha256 must be a 64-character hex SHA-256')
         sel = r['selected']
-        if not isinstance(sel, dict) or sel.get('type') not in ('trk', 'rte') or not isinstance(sel.get('index'), int) \
+        if not isinstance(sel, dict) or sel.get('type') not in ('trk', 'rte') or type(sel.get('index')) is not int or sel['index'] < 0 \
                 or not (sel.get('name') is None or isinstance(sel.get('name'), str)) or set(sel) - {'type', 'index', 'name'}:
             raise _err(slug, 'route.selected must be {"type": "trk" | "rte", "index": n, "name": text | null}')
         for k in ('alternatives', 'segments', 'points', 'waypoints'):

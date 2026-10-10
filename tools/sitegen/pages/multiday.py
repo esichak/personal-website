@@ -775,7 +775,7 @@ def page(t, site):
     meta = core.render_meta(t)
     actions = ('<a class="btn" href="#day-1">%sDay by day</a><a class="btn btn--ink" href="%s" download>%sDownload all GPX</a>'
                % (icon('list', 18), gpx_all(t), icon('download', 18)))
-    body = [report.title_block(t, here, actions),
+    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site),
             '<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note()),
             overview_map(t, here, meta)]
     chapters = ''.join(chapter(t, here, meta, d) for d in t['days'])

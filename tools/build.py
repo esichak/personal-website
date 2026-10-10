@@ -138,9 +138,10 @@ def sitemap(pages):
     return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">%s</urlset>\n' % urls
 
 
-def build(verbose=True, only=None):
-    t0 = time.time()
-    trips = content.load_all()
+def site_of(trips):
+    """The site dict the page modules read, from the loaded trips (newest first, drafts already left out by
+    content.load_all). Raises content.ContentError when a goal's outing names something that is not a published report.
+    build() adds 'featured' from content/home.json; the tests call this, so they exercise the same wiring."""
     site = {'trips': trips, 'by_slug': {t['slug']: t for t in trips},
             'published': [t for t in trips if t['kind'] != 'planned'], 'planned': [t for t in trips if t['kind'] == 'planned']}
     # tick-list goals: every non-draft planned trip (pages and assets for all of them); the active subset drives the
@@ -149,6 +150,13 @@ def build(verbose=True, only=None):
     site['active_goals'] = [t for t in site['planned'] if goals.is_active(t['goal'])]
     goals.validate_site(site)
     site['goal_backlinks'] = goals.backlinks(site)
+    return site
+
+
+def build(verbose=True, only=None):
+    t0 = time.time()
+    trips = content.load_all()
+    site = site_of(trips)
     # content/home.json picks the home page's featured trips; an invalid manifest stops the build here, before any page
     site['featured'] = curation.featured_for(site)
     core.register_site(site)

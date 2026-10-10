@@ -57,12 +57,24 @@ def _local(tag):
     return tag.rsplit('}', 1)[-1]
 
 
+_ZONE = re.compile(r'(Z|[+-]\d\d:?\d\d)$', re.I)
+
+
 def _time(el):
-    if el is None or not el.text:
+    """A point's <time> as a unix timestamp, or None when it is absent or not an ISO date-time. Every xsd:dateTime form a
+    GPX may carry is read: a trailing Z, +hh:mm or -hh:mm (also without the colon), fractions of a second, or no zone
+    (taken as UTC). Only whether a file has times is ever used: a recorder's clock is not a trip date."""
+    s = (el.text or '').strip() if el is not None else ''
+    if not s:
         return None
-    s = el.text.strip().replace('Z', '+00:00')
+    zone = '+00:00'
+    m = _ZONE.search(s)
+    if m and m.start() >= 10:   # after the date: '2026-07-04' alone ends in digits but carries no zone
+        z, s = m.group(1), s[:m.start()]
+        if z.upper() != 'Z':
+            zone = z if ':' in z else z[:3] + ':' + z[3:]
     try:
-        return datetime.fromisoformat(s.split('.')[0] + ('+00:00' if '+' not in s[10:] else '')).timestamp()
+        return datetime.fromisoformat(s.split('.')[0] + zone).timestamp()
     except ValueError:
         return None
 
@@ -172,7 +184,10 @@ def inspect_bytes(data, where):
             info['waypoints'] += 1
             if name_of(el):
                 c['waypoint_names'].append(name_of(el))
-    c['times'] = any(p[3] is not None for t in info['tracks'] for s_ in t['segments'] for p in s_) or \
+    # the privacy note is about what the bytes hold, so any non-empty <time> on a point counts, readable or not
+    c['times'] = any(_local(el.tag) == 'time' and (el.text or '').strip() for pt in root.iter()
+                     if _local(pt.tag) in ('trkpt', 'rtept', 'wpt') for el in pt) or \
+        any(p[3] is not None for t in info['tracks'] for s_ in t['segments'] for p in s_) or \
         any(p[3] is not None for r in info['routes'] for p in r['points'])
     return info
 
@@ -358,8 +373,10 @@ def extract_bytes(path, cand):
     _nm, a, b = spans[cand['index']]
     head = data[:after_root]   # the declaration, anything before the root, and the whole root start tag
     root_name = re.match(rb'<([^\s/>]+)', data[root_at:]).group(1)
+    if head.startswith(b'\xef\xbb\xbf'):
+        head = head[3:]   # a UTF-8 byte order mark: dropped, so a declaration added below is not pushed behind it
     if not head.lstrip().startswith(b'<?xml'):
-        head = b'<?xml version="1.0" encoding="UTF-8"?>\n' + head
+        head = b'<?xml version="1.0" encoding="UTF-8"?>\n' + head.lstrip()
     out = head + b'\n' + data[a:b] + b'\n</' + root_name + b'>\n'
     # the assembled document is checked as a whole, and must hold exactly the chosen geometry and nothing else
     where = os.path.basename(str(path))

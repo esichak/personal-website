@@ -130,7 +130,9 @@
     var sort = state.sort;
     if (sort === 'relevance' && !useQ) sort = 'newest';
     if (sort === 'newest') {
-      cards.forEach(function (c, i) { if (c.parentNode !== origin[i]) origin[i].appendChild(c); });
+      // back from another sort: every card returns in page order (re-appending only the moved ones would leave them after
+      // the cards a filter had kept in place). Nothing moves when nothing is out of place.
+      if (cards.some(function (c, i) { return c.parentNode !== origin[i]; })) cards.forEach(function (c, i) { origin[i].appendChild(c); });
       if (sortedSec) sortedSec.hidden = true; else sortedUl.hidden = true;
       groups.forEach(function (g) {
         var vis = Array.prototype.filter.call(g.querySelectorAll('.tcard'), function (c) { return !c.hidden; }).length;
@@ -154,6 +156,7 @@
     ['q'].concat(FACETS).forEach(function (key) {
       var v = state[key];
       if (key === 'writeup' ? !v : (v === DEFAULTS[key] || !v)) return;
+      if (key === 'q' && !tokens(v).length) return;   // '!!!' or spaces search nothing, so they are not a filter
       chipsEl.appendChild(chip(key, chipLabel(key, v, names)));
     });
     clearBtn.hidden = !(searching() || anyFilter());

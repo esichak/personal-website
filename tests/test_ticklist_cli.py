@@ -33,6 +33,7 @@ import helpers  # noqa: E402
 
 TITLE = 'Synthetic Ridge Traverse'
 SLUG = 'synthetic-ridge-traverse'
+TODAY = '2026-10-09'   # what ticklist.today() answers in these tests (patched in CliFixture.setUp)
 
 
 def load_cli(tc):
@@ -75,6 +76,10 @@ class CliFixture(unittest.TestCase):
         os.makedirs(self.src)
         self.patch_content_root()
         self.patch_subprocess()
+        # a fixed day, so nothing here depends on the clock (or on midnight passing between the command and the assertion)
+        p = mock.patch.object(self.cli, 'today', return_value=TODAY)
+        p.start()
+        self.addCleanup(p.stop)
         self.modules_before = set(sys.modules)
 
     def tearDown(self):
@@ -190,6 +195,63 @@ class CliFixture(unittest.TestCase):
 
 # ---------------------------------------------------------------- add
 
+class AddReportTests(CliFixture):
+    """What the import report tells the author before anything is approved."""
+
+    def test_a_sparse_file_is_called_a_rough_line(self):
+        out = self.add('--gpx', self.gpx('sparse.gpx', gf.SPARSE), '--dry-run')
+        self.assertIn('sparse', out.lower())
+        out = self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--dry-run')
+        self.assertNotIn('sparse', out.lower())
+
+    def test_publishing_one_element_says_what_is_left_behind(self):
+        out = self.add('--gpx', self.gpx('alts.gpx', gf.ALTERNATIVES), '--select', 'trk:1', '--publish-track')
+        self.assertIn('chosen element', out)
+        self.assertIn('not copied', out)
+        self.assertIn('waypoint', out)
+        whole = self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--publish-track', '--slug', 'whole-file-goal', title='Whole File Goal')
+        self.assertIn('whole file', whole)
+        self.assertNotIn('not copied', whole)
+
+    def test_duplicate_check_also_covers_a_planned_route_without_a_goal_json(self):
+        # a route saved before the tick list has no recorded checksum: its file is compared as it is
+        legacy = helpers.make_trip(self.trips, 'legacy-route', title='Legacy Route', activity='hike', kind='planned', track=True)
+        with open(os.path.join(legacy, 'track.gpx'), 'w', encoding='utf-8') as fh:
+            fh.write(gf.SINGLE)
+        src = self.gpx('same.gpx', gf.SINGLE)
+        msg = self.fails('add', '--title', TITLE, '--activity', 'hike', '--no-render', '--gpx', src, '--publish-track')
+        self.assertIn('legacy-route', msg)
+        self.assertFalse(os.path.exists(self.folder()))
+        # a report's recording with the same bytes is not a goal route: no duplicate
+        rep = self.report('walked-it')
+        with open(os.path.join(rep, 'track.gpx'), 'w', encoding='utf-8') as fh:
+            fh.write(gf.ROUTE_ONLY)
+        self.add('--gpx', self.gpx('route.gpx', gf.ROUTE_ONLY), '--publish-track')
+        # without --publish-track nothing is published, so there is nothing to compare: the idea is saved
+        self.ok('add', '--title', 'Looked At Only', '--activity', 'hike', '--no-render', '--gpx', src)
+        self.assertEqual(self.files('looked-at-only'), ['goal.json', 'index.md'])
+
+    def test_a_title_that_gives_no_folder_name_asks_for_a_slug(self):
+        msg = self.fails('add', '--title', '!!!', '--activity', 'hike', '--no-render')
+        self.assertIn('--slug', msg)
+        self.assertEqual(os.listdir(self.trips), [])
+        self.ok('add', '--title', '!!!', '--activity', 'hike', '--no-render', '--slug', 'named-by-hand')
+        self.assertEqual(os.listdir(self.trips), ['named-by-hand'])
+
+    def test_a_route_source_that_is_not_an_object_gets_a_message_not_a_traceback(self):
+        self.add()
+        p = os.path.join(self.folder(), 'goal.json')
+        g = self.goal()
+        g['route_source'] = None
+        with open(p, 'w', encoding='utf-8') as fh:
+            json.dump(g, fh)
+        before = read(p, 'rb')
+        msg = self.fails('update', SLUG, '--source-kind', 'planner-export')
+        self.assertIn('route_source', msg)
+        self.assertNotIn('Traceback', msg)
+        self.assertEqual(read(p, 'rb'), before)
+
+
 class AddTests(CliFixture):
 
     def test_metadata_only_creates_a_draft_planned_trip_with_a_sidecar(self):
@@ -206,7 +268,7 @@ class AddTests(CliFixture):
         g = self.goal()
         d = self.goals.defaults()
         self.assertEqual((g['status'], g['priority'], g['archived']), ('idea', 'normal', False))
-        self.assertEqual(g['added_at'], date.today().isoformat())
+        self.assertEqual(g['added_at'], TODAY)
         self.assertIsNone(g['route'])
         self.assertFalse(g['route_source']['public_copy_approved'])
         for k in ('tags', 'why', 'target_months', 'target_year', 'time_commitment', 'season_notes', 'difficulty', 'route_scope',
@@ -491,7 +553,7 @@ class UpdateTests(CliFixture):
         self.ok('update', SLUG, '--status', 'shortlisted', '--priority', 'high')
         g = self.goal()
         self.assertEqual((g['status'], g['priority']), ('shortlisted', 'high'))
-        self.assertEqual(g['added_at'], date.today().isoformat())   # the rest is untouched
+        self.assertEqual(g['added_at'], TODAY)   # the rest is untouched
         self.assertIndexUnchanged()
         self.assertIs(self.load()['goal']['legacy'], False)
 
@@ -531,7 +593,7 @@ class UpdateTests(CliFixture):
         self.fails('update', SLUG, '--check', 'no-such-item')
 
     def test_add_reference(self):
-        self.ok('update', SLUG, '--add-reference', 'guide-1|Synthetic guidebook|https://example.test/guide', '--checked-at', '2026-09-02')
+        self.ok('update', SLUG, '--add-reference', 'guide-1|Synthetic guidebook|https://example.test/guide', '--reference-checked-at', '2026-09-02')
         refs = self.goal()['references']
         self.assertEqual(len(refs), 1)
         self.assertEqual((refs[0]['id'], refs[0]['label'], refs[0]['url']), ('guide-1', 'Synthetic guidebook', 'https://example.test/guide'))
@@ -539,6 +601,28 @@ class UpdateTests(CliFixture):
         self.fails('update', SLUG, '--add-reference', 'guide-1|Again|https://example.test/again')   # duplicate id
         self.fails('update', SLUG, '--add-reference', 'guide-2|Bad scheme|ftp://example.test/x')
         self.assertEqual(len(self.goal()['references']), 1)
+
+    def test_a_reference_date_and_the_route_source_date_never_overwrite_each_other(self):
+        self.ok('update', SLUG, '--source-kind', 'planner-export', '--source-url', 'https://example.test/plan', '--checked-at', '2026-01-01')
+        self.assertEqual(self.goal()['route_source']['checked_at'], '2026-01-01')
+        # adding a reference, dated or not, leaves the route source's date alone
+        self.ok('update', SLUG, '--add-reference', 'guide-1|Synthetic guidebook|https://example.test/guide', '--reference-checked-at', '2026-09-02')
+        self.ok('update', SLUG, '--add-reference', 'guide-2|Second guide|https://example.test/guide2')
+        g = self.goal()
+        self.assertEqual(g['route_source']['checked_at'], '2026-01-01')
+        self.assertEqual([r['checked_at'] for r in g['references']], ['2026-09-02', TODAY])     # undated: the day it was added
+        # and the route source's date, given with a reference in one command, stamps only the route source
+        self.ok('update', SLUG, '--checked-at', '2026-03-03', '--add-reference', 'guide-3|Third guide|https://example.test/guide3')
+        g = self.goal()
+        self.assertEqual(g['route_source']['checked_at'], '2026-03-03')
+        self.assertEqual(g['references'][2]['checked_at'], TODAY)
+        # repeatable in one command, all with the one reference date
+        self.ok('update', SLUG, '--add-reference', 'a-1|A|https://example.test/a', '--add-reference', 'b-1|B|https://example.test/b',
+                '--reference-checked-at', '2026-04-04')
+        self.assertEqual([r['checked_at'] for r in self.goal()['references'][3:]], ['2026-04-04', '2026-04-04'])
+        self.fails('update', SLUG, '--reference-checked-at', '2026-05-05')                        # nothing to date
+        self.fails('update', SLUG, '--add-reference', 'c-1|C|https://example.test/c', '--reference-checked-at', 'last week')
+        self.assertEqual(len(self.goal()['references']), 5)
 
     def test_status_completed_without_an_outing_is_rejected(self):
         before = read(os.path.join(self.folder(), 'goal.json'), 'rb')
@@ -591,13 +675,31 @@ class LogOutingTests(CliFixture):
         super().setUp()
         self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--publish-track')
         self.report()
+        # the report's recording holds real bytes (a different route than the goal's), so a command that copied the planned
+        # track over it, or rewrote it, changes its checksum
+        with open(os.path.join(self.folder('real-report'), 'track.gpx'), 'w', encoding='utf-8') as fh:
+            fh.write(gf.ROUTE_ONLY)
         self.track_before = self.track()
         self.report_before = read(os.path.join(self.folder('real-report'), 'index.md'), 'rb')
+        self.hashes_before = self.folder_hashes(skip=(os.path.join(SLUG, 'goal.json'),))
+
+    def folder_hashes(self, skip=()):
+        """{relative path: sha256} of every file under the stand-in content/trips/, but the paths in skip."""
+        out = {}
+        for base, _dirs, names in os.walk(self.trips):
+            for n in names:
+                rel = os.path.relpath(os.path.join(base, n), self.trips)
+                if rel not in skip:
+                    out[rel] = hashlib.sha256(read(os.path.join(base, n), 'rb')).hexdigest()
+        return out
 
     def assertUntouched(self):
         self.assertEqual(self.track(), self.track_before)
         self.assertEqual(read(os.path.join(self.folder('real-report'), 'index.md'), 'rb'), self.report_before)
         self.assertEqual(sorted(os.listdir(self.folder('real-report'))), ['index.md', 'track.gpx'])
+        # nothing but the goal's own goal.json changed anywhere: the report's recording keeps its checksum
+        self.assertEqual(self.folder_hashes(skip=(os.path.join(SLUG, 'goal.json'),)), self.hashes_before)
+        self.assertNotEqual(read(os.path.join(self.folder('real-report'), 'track.gpx'), 'rb'), self.track_before)
 
     def test_attempted_then_completed(self):
         self.ok('log-outing', SLUG, '--outcome', 'attempted', '--date', '2026-07-12', '--note', 'Turned around at the notch.')
@@ -642,6 +744,42 @@ class LogOutingTests(CliFixture):
         self.assertEqual([o['outcome'] for o in g['outings']], ['completed', 'attempted'])
         self.assertUntouched()
 
+    def test_reopening_a_completed_goal_keeps_its_outings(self):
+        self.ok('log-outing', SLUG, '--outcome', 'attempted', '--date', '2026-07-12')
+        self.ok('log-outing', SLUG, '--outcome', 'completed', '--date', '2026-08-30', '--report-slug', 'real-report')
+        refused = self.fails('update', SLUG, '--status', 'researching')            # a plain flip is still refused...
+        self.assertIn('--reopen', refused)                                          # ...and says how to reopen
+        self.assertEqual(self.goal()['status'], 'completed')
+        self.fails('update', SLUG, '--reopen')                                      # needs the status to go back to
+        self.fails('update', SLUG, '--reopen', '--status', 'completed')
+        self.assertEqual(len(self.goal()['outings']), 2)
+        out = self.ok('update', SLUG, '--reopen', '--status', 'shortlisted', '--reopen-note', 'Back for the north side.')
+        g = self.goal()
+        self.assertEqual(g['status'], 'shortlisted')
+        self.assertEqual([o['outcome'] for o in g['outings']], ['attempted', 'completed', 'reopened'])
+        self.assertEqual(g['outings'][1], {'outcome': 'completed', 'date': '2026-08-30', 'report_slug': 'real-report', 'note': ''})
+        self.assertEqual(g['outings'][2]['note'], 'Back for the north side.')
+        self.assertIsNone(g['outings'][2]['report_slug'])
+        self.assertEqual(g['outings'][2]['date'], TODAY)
+        self.assertIn('reopened', out.lower())
+        self.assertIs(self.goals.is_active(self.load()['goal']), True)
+        self.assertUntouched()
+        # a second completion closes it again, with the whole history kept
+        self.ok('log-outing', SLUG, '--outcome', 'completed')
+        g = self.goal()
+        self.assertEqual(g['status'], 'completed')
+        self.assertEqual([o['outcome'] for o in g['outings']], ['attempted', 'completed', 'reopened', 'completed'])
+
+    def test_reopen_is_only_for_a_completed_goal_and_dry_run_writes_nothing(self):
+        before = read(os.path.join(self.folder(), 'goal.json'), 'rb')
+        self.fails('update', SLUG, '--reopen', '--status', 'researching')           # not completed yet
+        self.fails('update', SLUG, '--reopen-note', 'no reopen given')
+        self.assertEqual(read(os.path.join(self.folder(), 'goal.json'), 'rb'), before)
+        self.ok('log-outing', SLUG, '--outcome', 'completed')
+        done = read(os.path.join(self.folder(), 'goal.json'), 'rb')
+        self.ok('update', SLUG, '--reopen', '--status', 'idea', '--dry-run')
+        self.assertEqual(read(os.path.join(self.folder(), 'goal.json'), 'rb'), done)
+
     def test_bad_date_or_outcome_is_refused(self):
         before = read(os.path.join(self.folder(), 'goal.json'), 'rb')
         self.fails('log-outing', SLUG, '--outcome', 'completed', '--date', 'last summer')
@@ -666,14 +804,27 @@ class ReviewPacketTests(CliFixture):
         self.ok('update', SLUG, '--add-reference', 'guide-1|Synthetic guidebook|https://example.test/guide')
 
     def test_refuses_a_path_inside_the_repository(self):
-        inside = os.path.join(ROOT, 'docs', '_tkl_test_packet_should_not_exist.md')
-        self.addCleanup(lambda: os.path.exists(inside) and os.remove(inside))
-        msg = self.fails('review-packet', SLUG, '--out', inside)
-        self.assertFalse(os.path.exists(inside))
-        self.assertIn('outside', msg.lower())
-        nested = os.path.join(ROOT, '_site', 'x', 'packet.md')
-        self.fails('review-packet', SLUG, '--out', nested)
-        self.assertFalse(os.path.exists(nested))
+        # a stand-in checkout, so a regression of the guard writes into the temp folder and never into the real repository
+        fake_root = os.path.join(self.src, 'checkout')
+        os.makedirs(os.path.join(fake_root, 'docs'))
+        with mock.patch.object(self.cli, 'ROOT', fake_root):
+            inside = os.path.join(fake_root, 'docs', 'packet.md')
+            msg = self.fails('review-packet', SLUG, '--out', inside)
+            self.assertFalse(os.path.exists(inside))
+            self.assertIn('outside', msg.lower())
+            nested = os.path.join(fake_root, '_site', 'x', 'packet.md')
+            self.fails('review-packet', SLUG, '--out', nested)
+            self.assertFalse(os.path.exists(os.path.dirname(nested)))
+            self.fails('review-packet', SLUG, '--out', fake_root)
+            # through a symbolic link that leads into the checkout
+            link = os.path.join(self.src, 'looks-outside')
+            try:
+                os.symlink(os.path.join(fake_root, 'docs'), link)
+            except (OSError, NotImplementedError):
+                return
+            msg = self.fails('review-packet', SLUG, '--out', os.path.join(link, 'packet.md'))
+            self.assertIn('outside', msg.lower())
+            self.assertEqual(os.listdir(os.path.join(fake_root, 'docs')), [])
 
     def test_writes_a_packet_outside(self):
         out = os.path.join(self.src, 'packets', 'goal-review.md')

@@ -6,7 +6,7 @@ A synthetic site in a temp dir: seven non-draft goals (kind: planned) across fou
 statuses and priorities, one archived, one completed with an outing linked to a synthetic published report, one legacy
 planned route without goal.json, one with a track but no render, one with a rendered tile (a temp rendered folder), several
 without a track; two published reports; one draft goal that must never appear. site['goals'], site['active_goals'] and
-site['goal_backlinks'] are built here exactly as the contract describes build.py doing it. Page modules are imported in
+site['goal_backlinks'] come from tools/build.py's own site_of(), so the build's wiring is what runs. Page modules are imported in
 setUp, so a missing module fails each test clearly instead of breaking discovery. core.region_map_href reads
 rendered/site/meta.json; the fixture regions are patched into core's in-memory copy. Fixture slugs match no real trip.
 """
@@ -53,20 +53,12 @@ def write_json(folder, name, data):
         json.dump(data, fh)
 
 
-def goal_site(trips, goals_mod):
-    """The site dict as build.py makes it for Phase 2T: make_site plus goals, active_goals (goals.is_active) and
-    goal_backlinks {report slug: [goal trips whose outings name it]}."""
-    site = helpers.make_site(trips)
-    site['goals'] = list(site['planned'])
-    site['active_goals'] = [t for t in site['goals'] if goals_mod.is_active(t['goal'])]
-    links = {}
-    for t in site['goals']:
-        for o in t['goal']['outings']:
-            if o.get('report_slug'):
-                links.setdefault(o['report_slug'], [])
-                if t not in links[o['report_slug']]:
-                    links[o['report_slug']].append(t)
-    site['goal_backlinks'] = links
+def goal_site(trips, goals_mod=None):
+    """The site dict from tools/build.py's own site_of() (goals, active_goals, the outing check and goal_backlinks are the
+    build's wiring, not a copy of it), registered with core as build() does next."""
+    build = importlib.import_module('build')
+    site = build.site_of(helpers.newest_first(trips))
+    core.register_site(site)
     return site
 
 
@@ -696,6 +688,57 @@ class GoalPageTests(TickListFixture):
         self.assertIn('Trip report', self.report.page(self.by['real-report'], self.site).html)   # reports keep their heading
 
 
+    def test_backlink_on_multi_day_and_series_reports(self):
+        # an outing may name any published report, so the multi-day and series page builders carry the line too
+        helpers.make_trip(self.tmp, 'hut-report', title='Hut Report', activity='ski', kind='multi-day', date='2026-03-01', end_date='2026-03-02',
+                          region='Alps', days=[{'title': 'Up', 'date': '2026-03-01'}, {'title': 'Down', 'date': '2026-03-02'}])
+        helpers.make_series(self.tmp, slug='long-walk', title='Long Walk')
+        trips = helpers.load_dir(self.tmp)
+        by = {t['slug']: t for t in trips}
+        for slug in ('hut-report', 'long-walk'):
+            by['done-traverse']['goal']['outings'].append({'outcome': 'attempted', 'date': None, 'report_slug': slug, 'note': ''})
+        site = goal_site(trips, self.goals_mod)
+        self.assertEqual(sorted(site['goal_backlinks']), ['hut-report', 'long-walk', 'real-report'])
+        for slug, name in (('hut-report', 'sitegen.pages.multiday'), ('long-walk', 'sitegen.pages.series')):
+            with self.subTest(slug):
+                mod = load_module(self, name)
+                doc = Doc(mod.page(by[slug], site).html)
+                line = next((p for p in doc.by_id('main').find_all('p') if 'On the tick list' in p.text()), None)
+                self.assertIsNotNone(line, '%s has no "On the tick list" line' % slug)
+                self.assertEqual(line.find('a')['href'], '../../trips/done-traverse/')
+                self.assertEqual(line.find('a').text(), 'Done Traverse')
+        # a multi-day report no goal names has no line
+        helpers.make_trip(self.tmp, 'plain-tour', title='Plain Tour', activity='ski', kind='multi-day', date='2026-01-10', end_date='2026-01-11',
+                          days=[{'title': 'One', 'date': '2026-01-10'}, {'title': 'Two', 'date': '2026-01-11'}])
+        plain = content.load_trip(os.path.join(self.tmp, 'plain-tour'))
+        html_ = load_module(self, 'sitegen.pages.multiday').page(plain, site).html
+        self.assertNotIn('On the tick list', html_)
+
+    def test_legacy_goal_claims_no_provenance_it_cannot_back(self):
+        # a planned route without goal.json has a GPX but no recorded source or checksum
+        legacy = self.doc('legacy-ridge').by_id('main').text()
+        self.assertNotIn('byte for byte', legacy)
+        self.assertNotIn('measured from it', legacy)
+        self.assertIn('not recorded', legacy)
+        self.assertIn('not a recording of a trip', legacy)
+        # a goal imported through the tick list (a route block with its checksum) keeps the statement
+        self.assertIn('byte for byte', self.doc('couloir-short').by_id('main').text())
+
+    def test_a_reopened_goal_lists_the_reopening_with_its_outings(self):
+        t = dict(self.by['done-traverse'])
+        g = dict(t['goal'])
+        g['status'] = 'shortlisted'
+        g['outings'] = list(g['outings']) + [{'outcome': 'reopened', 'date': '2026-09-15', 'report_slug': None, 'note': 'Back for the north side.'}]
+        t['goal'] = self.goals_mod.validate({k: v for k, v in g.items() if k != 'legacy'}, 'done-traverse')
+        t['goal']['legacy'] = False
+        doc = Doc(self.report.page(t, self.site).html)
+        outs = doc.by_id('outings')
+        self.assertIsNotNone(outs)
+        self.assertEqual([x.text() for x in outs.find_all(cls='tag')], ['Attempted', 'Completed', 'Reopened'])
+        self.assertIn('Back for the north side.', outs.text())
+        self.assertIn('A Real Synthetic Report', outs.text())   # the completed outing still links its report
+
+
 # ---------------------------------------------------------------- publication boundary and counts
 
 class BoundaryTests(TickListFixture):
@@ -740,6 +783,111 @@ class BoundaryTests(TickListFixture):
         self.assertEqual(items[-1], '+ 5 PLANNED ROUTES')
         self.assertNotIn('7 PLANNED', ' '.join(items))
 
+    def test_about_page_counts_active_goals_only(self):
+        about = load_module(self, 'sitegen.pages.about')
+        text = Doc(about.numbers(self.site, 'about/')).text().replace('\xa0', ' ')
+        self.assertIn('+ 5 PLANNED ROUTES', text)     # the same figure as count_items: completed and archived goals are out
+        self.assertNotIn('7 PLANNED', text)
+
+    def test_map_page_region_groups_list_and_count_active_goals_only(self):
+        archive = load_module(self, 'sitegen.pages.archive')
+        meta = core._SITE_META[0]     # the fixture's: no region has a rendered map, so every region is a plain list
+        doc = Doc(archive.other_places(self.site, 'map/', meta))
+        alps = doc.by_id('region-alps')
+        self.assertIsNotNone(alps)
+        hrefs = [a['href'] for a in alps.find_all('a')]
+        self.assertIn('../trips/alps-someday/', hrefs)        # an active goal is a future route in its region
+        self.assertIn('../trips/real-report/', hrefs)
+        self.assertNotIn('../trips/done-traverse/', hrefs)    # completed: it has its page, not a Planned row
+        text = alps.text().replace('\xa0', ' ')
+        self.assertIn('+ 1 PLANNED ROUTE', text)
+        self.assertNotIn('2 PLANNED', text)
+        self.assertEqual(sorted(helpers.slugs(archive.listed(self.site))),
+                         sorted(REPORTS + ACTIVE))
+
+    def test_home_region_counts_count_active_goals_only(self):
+        home = load_module(self, 'sitegen.pages.home')
+        items = [x.replace('\xa0', ' ') for x in home.region_counts(self.site, ['real-report', 'alps-someday', 'done-traverse'])]
+        self.assertEqual(items[0], '1 REPORT')
+        self.assertEqual(items[-1], '+ 1 PLANNED ROUTE')
+        only_done = home.region_counts(self.site, ['done-traverse', 'old-archived'])
+        self.assertEqual(only_done, [])                        # nothing future to count
+
+    def test_a_goals_numbers_are_marked_approximate_in_every_row(self):
+        goal, report = self.by['couloir-short'], self.by['other-report']
+        self.assertEqual(core.approx(goal), '≈ ')
+        self.assertEqual(core.approx(report), '')
+        for item in core.plain_stats(goal, items=True):
+            self.assertIn('≈', item)
+        self.assertIn('≈', core.row_stats_line(goal))
+        cells = Doc(core.stats_cells(goal))
+        labels = [d.text() for d in cells.find_all('dt')]
+        self.assertIn('High point', labels)                    # a plan was never recorded: no 'GPS max'
+        self.assertNotIn('GPS max', labels)
+        for dd in cells.find_all('dd'):
+            self.assertTrue(dd.text().startswith('≈'), dd.text())
+        row = Doc(core.table_row(goal, 'map/'))
+        nums = row.find_all('span', cls='num')
+        self.assertEqual(len(nums), 3)
+        for num in nums:
+            self.assertIn('about', num.text())                 # spoken; the sign itself is aria-hidden
+            self.assertIn('≈', num.text())
+        self.assertIn('High point', nums[2].text())
+        archive = load_module(self, 'sitegen.pages.archive')
+        self.assertIn('≈', archive.dist_line(goal))
+        # a report's numbers are recordings: never marked
+        report['stats'].update(distance_km=12.0, gain_m=900, high_m=3000)
+        self.assertNotIn('≈', ''.join(core.plain_stats(report, items=True)) + core.stats_cells(report) + core.table_row(report, 'map/')
+                         + archive.dist_line(report))
+        self.assertIn('GPS max', core.stats_cells(report))
+
+    def test_home_activity_tile_and_map_head_count_active_goals_only(self):
+        home = load_module(self, 'sitegen.pages.home')
+        archive = load_module(self, 'sitegen.pages.archive')
+        # Hiking: ridge-idea and tile-goal are active, done-traverse is completed
+        tile = Doc(home.activity_tile(self.site, 'hike', 'Hiking')).text().replace('\xa0', ' ')
+        self.assertIn('+ 2 PLANNED ROUTES', tile)
+        self.assertNotIn('3 PLANNED', tile)
+        # Mountain biking: its only goal is archived, so the tile counts no planned route at all
+        mtb = Doc(home.activity_tile(self.site, 'mtb', 'Mountain Biking')).text().replace('\xa0', ' ')
+        self.assertNotIn('PLANNED', mtb)
+        head = Doc(archive.head_block(self.site, [], core._SITE_META[0])).text().replace('\xa0', ' ')
+        self.assertIn('2 REPORTS', head)
+        self.assertIn('+ 5 PLANNED ROUTES', head)
+        self.assertNotIn('7 PLANNED', head)
+        # the map page's 'All reports' table: its Planned group lists the five active goals only
+        hrefs = [a['href'] for a in Doc(archive.archive_section(self.site, 'map/')).find_all('a')]
+        for slug in ACTIVE:
+            self.assertIn('../trips/%s/' % slug, hrefs, slug)
+        for slug in ('done-traverse', 'old-archived'):
+            self.assertNotIn('../trips/%s/' % slug, hrefs, slug)
+
+    def test_the_builds_own_site_wiring_checks_outings_and_derives_the_subsets(self):
+        build = load_module(self, 'build')
+        site = build.site_of(helpers.newest_first(self.trips))
+        self.assertEqual(sorted(helpers.slugs(site['goals'])), sorted(GOALS))
+        self.assertEqual(sorted(helpers.slugs(site['active_goals'])), sorted(ACTIVE))
+        self.assertEqual({k: helpers.slugs(v) for k, v in site['goal_backlinks'].items()}, {'real-report': ['done-traverse']})
+        self.assertNotIn('draft-goal', site['by_slug'])            # content.load_all leaves drafts out before site_of sees them
+        # an outing that names another goal, or nothing that exists, stops the build with the goal's file in the message
+        for bad in ('alps-someday', 'no-such-report'):
+            with self.subTest(report=bad):
+                trips = helpers.load_dir(self.tmp)
+                by = {t['slug']: t for t in trips}
+                by['done-traverse']['goal']['outings'][1]['report_slug'] = bad
+                with self.assertRaises(content.ContentError) as cm:
+                    build.site_of(trips)
+                self.assertIn('done-traverse', str(cm.exception))
+                self.assertIn(bad, str(cm.exception))
+
+    def test_drafts_never_reach_the_site_through_the_real_loader(self):
+        build = load_module(self, 'build')
+        with mock.patch.object(content, 'TRIPS_DIR', self.tmp):
+            site = build.site_of(content.load_all())
+        self.assertNotIn('draft-goal', site['by_slug'])
+        self.assertEqual(sorted(helpers.slugs(site['goals'])), sorted(GOALS))
+        self.assertEqual(sorted(helpers.slugs(site['published'])), sorted(REPORTS))
+
     def test_hiking_page_planned_block_lists_active_goals_only(self):
         section = load_module(self, 'sitegen.pages.section')
         doc = Doc(section.page('hike', self.site).html)
@@ -757,8 +905,7 @@ class BoundaryTests(TickListFixture):
         links = self.site['goal_backlinks']
         self.assertEqual(list(links), ['real-report'])
         self.assertEqual(helpers.slugs(links['real-report']), ['done-traverse'])
-        if hasattr(self.goals_mod, 'backlinks'):
-            self.assertEqual({k: helpers.slugs(v) for k, v in self.goals_mod.backlinks(self.site).items()}, {'real-report': ['done-traverse']})
+        self.assertEqual({k: helpers.slugs(v) for k, v in self.goals_mod.backlinks(self.site).items()}, {'real-report': ['done-traverse']})
 
 
 # ---------------------------------------------------------------- header, menu, footer (the test_nav pattern)

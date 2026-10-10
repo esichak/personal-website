@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 import fit_reader  # noqa: E402
 import geo  # noqa: E402
+import goals  # noqa: E402
 import gpxroute  # noqa: E402
 import mapkit  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
@@ -433,7 +434,18 @@ def trip_inputs(t):
     return hashlib.sha1((json.dumps(keys, sort_keys=True, default=str) + file_hash(files) + str(VERSION)).encode()).hexdigest()
 
 
+def no_route(t):
+    """A tick-list goal saved without a GPX (an idea): there is nothing to draw."""
+    return t['kind'] == 'planned' and not t['track']
+
+
 def render_trip(t, force=False):
+    if no_route(t):
+        # a render left over from when the goal had a route would show a line that no longer exists
+        if os.path.exists(t['rendered']):
+            shutil.rmtree(t['rendered'])
+            print('removed render of %s (the goal has no route now)' % t['slug'])
+        return False
     mf = os.path.join(t['rendered'], 'meta.json')
     h = trip_inputs(t)
     if not force and os.path.exists(mf) and json.load(open(mf)).get('hash') == h:
@@ -465,7 +477,16 @@ def render_trip(t, force=False):
 
 # ---------------------------------------------------------------- site maps
 
+def goal_lines(t):
+    """A tick-list goal's line for the region maps: the point list of every segment of its published file, in order
+    (planned_tracks: a route-only file counts, and separate segments stay separate). [] for an idea without a route."""
+    return [x.raw for x in planned_tracks(t)] if t['track'] else []
+
+
 def start_of(t):
+    if t['kind'] == 'planned':
+        lines = goal_lines(t)
+        return (lines[0][0][0], lines[0][0][1]) if lines else None
     tp = t['track'] or next((d['track'] for d in t['days'] if d['track']), None)
     p = fit_reader.read_gpx(tp)
     return p[0][0], p[0][1]
@@ -473,9 +494,13 @@ def start_of(t):
 
 def site_tracks(t, width=2.5, opacity=0.9):
     out = []
-    paths = [t['track']] if t['track'] else [d['track'] for d in t['days'] if d['track']]
-    for p in paths:
-        tr = Track(mapkit.decimate(fit_reader.read_gpx(p), 500), t['slug'], t['cat'])
+    if t['kind'] == 'planned':
+        lines = goal_lines(t)
+    else:
+        paths = [t['track']] if t['track'] else [d['track'] for d in t['days'] if d['track']]
+        lines = [fit_reader.read_gpx(p) for p in paths]
+    for pts in lines:
+        tr = Track(mapkit.decimate(pts, 500), t['slug'], t['cat'])
         style = 'planned' if t['kind'] == 'planned' else 'cat'
         # planned routes on region maps: thin ink-3 dash (KEY_SYMBOLS['planned_site']); the 2.5px dash stays on the route's own map
         out.append({'track': tr, 'style': style, 'cat': t['cat'], 'width': width, 'opacity': opacity, 'trim': False,
@@ -488,6 +513,10 @@ def render_site(trips, force=False):
     groups = {}
     for t in trips:
         if t['kind'] == 'series' or not t['region']:
+            continue
+        if t['kind'] == 'planned' and not (goals.is_active(t.get('goal')) and goal_lines(t)):
+            # region maps show future routes: a completed or archived goal leaves them (the report it led to has its own
+            # line), and an idea without a route, or a file with no line, has no place on a map yet
             continue
         groups.setdefault(t['region'], []).append(t)
     jobs = []
@@ -570,7 +599,10 @@ def main():
         return
     if not a.site:
         t_start = time.time()
-        pending = [t for t in trips if (not a.slugs or t['slug'] in a.slugs) and t['kind'] != 'series'
+        for t in trips:
+            if no_route(t) and (not a.slugs or t['slug'] in a.slugs):
+                render_trip(t)   # nothing to draw: only clears a render left from when the goal had a route
+        pending = [t for t in trips if (not a.slugs or t['slug'] in a.slugs) and t['kind'] != 'series' and not no_route(t)
                    and (a.force or not os.path.exists(os.path.join(t['rendered'], 'meta.json'))
                         or json.load(open(os.path.join(t['rendered'], 'meta.json'))).get('hash') != trip_inputs(t))]
         if len(pending) > 3:

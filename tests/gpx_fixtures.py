@@ -103,6 +103,15 @@ NO_ELE = gpx(trk([SEG_NO_ELE], 'No elevation'))
 PARTIAL_ELE = gpx(trk([SEG_PARTIAL], 'Partial elevation'))
 NO_TIME = gpx(trk([SEG_NO_TIME], 'No timestamps'))
 SPARSE = gpx(trk([SEG_SPARSE], 'Five points'))
+# the sparse boundary: fewer than 10 points is a rough line, 10 is not
+NINE = gpx(trk([line(38.900, -120.100, 9, eles=[2000 + 5 * i for i in range(9)])], 'Nine points'))
+TEN = gpx(trk([line(38.900, -120.100, 10, eles=[2000 + 5 * i for i in range(10)])], 'Ten points'))
+# two segments with a 15 m step across the gap (the first ends at 2020, the second starts at 2035): measured per segment
+# the gain is 20 + 20 = 40; a measure that ran the hysteresis over the joined points would count the step too (55)
+SEG_J1 = line(38.900, -120.100, 5, eles=[2000, 2005, 2010, 2015, 2020], t0=0)
+SEG_J2 = line(38.920, -120.100, 5, eles=[2035, 2040, 2045, 2050, 2055], t0=30)
+SEGS_J = [SEG_J1, SEG_J2]
+JUMP = gpx(trk(SEGS_J, 'A step across the gap'))
 EMPTY_SEG = gpx(trk([[], SEG_A, []], 'Empty segments around one'))
 EMPTY_TRACK_AND_ROUTE = gpx(trk([[]], 'Nothing in here'), rte(RTE_PTS, 'Ridge route'))
 
@@ -138,6 +147,7 @@ for _tag in ('trkseg', 'trkpt', 'trk', 'name', 'ele', 'time'):
     _PFX = _PFX.replace('<%s' % _tag, '<g:%s' % _tag).replace('</%s' % _tag, '</g:%s' % _tag)
 ROOT_PREFIXED = '<?xml version="1.0" encoding="UTF-8"?>\n<g:gpx version="1.1" xmlns:g="http://www.topografix.com/GPX/1/1">\n%s\n</g:gpx>\n' % _PFX
 ROOT_NO_DECL = '<gpx version="1.1" %s>\n%s\n</gpx>\n' % (NS, _TWO)
+BOM = b'\xef\xbb\xbf'   # some Windows tools write a UTF-8 byte order mark first; tests write BOM + text.encode('utf-8')
 # legitimate files other tools write, which the parsed scan must keep accepting
 GARMIN_EXTENSIONS = gpx('<trk><trkseg><trkpt lat="38.9" lon="-120.1"><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr>'
                         '</gpxtpx:TrackPointExtension></extensions></trkpt><trkpt lat="38.901" lon="-120.1"/></trkseg></trk>',

@@ -255,6 +255,14 @@ check('chipLabel names each filter for the chips', () => {
   eq(TKL.chipLabel('month', '6', NAMES), 'Month: June');
   assert.ok(String(TKL.chipLabel('gpx', true, NAMES)).indexOf('Has a route') === 0, 'gpx chip');
 });
+check('matches: every token has to appear somewhere in the text', () => {
+  const m = TKL.matches;
+  eq(m('short couloir synthetic bowl eastern sierra', ['coul']), true);
+  eq(m('short couloir synthetic bowl', ['couloir', 'bowl']), true);
+  eq(m('short couloir synthetic bowl', ['couloir', 'ridge']), false);   // all of them, not any of them
+  eq(m('anything', []), true);
+  eq(m('', ['x']), false);
+});
 check('Explore.chipLabel keeps the trips page labels', () => {
   const names = { activity: { ski: 'Backcountry Ski' }, region: { 'lake-tahoe': 'Lake Tahoe' } };
   eq(X.chipLabel('q', 'dana', names), 'Search: dana');

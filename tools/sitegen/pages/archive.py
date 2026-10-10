@@ -19,14 +19,23 @@ def site_meta():
     return json.load(open(p)) if os.path.exists(p) else {'maps': {}, 'regions': []}
 
 
+def listed(site):
+    """The trips a region group lists and counts: every report, and the tick-list goals that are still future routes
+    (site['active_goals']: a completed or archived goal keeps its page and leaves these lists, as on Home and the
+    section pages)."""
+    active = {t['slug'] for t in site.get('active_goals', site['planned'])}
+    return [t for t in site['trips'] if t['kind'] != 'planned' or t['slug'] in active]
+
+
 def regions(site, meta):
     """[(name, slug, trips newest-first with planned last)] ordered by number of published trips."""
     out = []
+    trips = listed(site)
     for name in meta.get('regions') or []:
         slug = content.slugify(name)
         m = meta['maps'].get('region-%s-desktop' % slug) or {}
-        keys = set(m.get('trips') or [t['slug'] for t in site['trips'] if t['region'] == name and t['kind'] != 'series'])
-        ts = [t for t in site['trips'] if t['slug'] in keys]
+        keys = set(m.get('trips') or [t['slug'] for t in trips if t['region'] == name and t['kind'] != 'series'])
+        ts = [t for t in trips if t['slug'] in keys]
         ts.sort(key=lambda t: t['kind'] == 'planned')  # stable: keeps newest-first, planned last
         if ts:
             out.append((name, slug, ts))
@@ -88,7 +97,8 @@ def series_tag(t):
 
 def dist_line(t):
     mi, km = core.dist_vals(t['stats'].get('distance_km'))
-    return U(core.nb(mi + ' MI'), core.nb(km + ' KM')) if mi else ''
+    p = core.approx(t)   # '≈ ' for a tick-list goal: its number is measured from a plan, not recorded
+    return U(core.nb(p + mi + ' MI'), core.nb(p + km + ' KM')) if mi else ''
 
 
 # ---------------------------------------------------------------- page parts
@@ -193,7 +203,7 @@ def other_places(site, here, meta):
     for name in meta.get('all_regions') or []:
         if name in mapped:
             continue
-        ts = [t for t in site['trips'] if t['region'] == name and t['kind'] != 'series']
+        ts = [t for t in listed(site) if t['region'] == name and t['kind'] != 'series']
         ts.sort(key=lambda t: t['kind'] == 'planned')  # stable: newest first, planned last
         if ts:
             groups.append((name, content.slugify(name), ts))

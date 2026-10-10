@@ -196,16 +196,24 @@ def meta_items(items, br_after=None, cls=''):
     return '<span class="ml%s">%s</span>' % ((' ' + cls.strip()) if cls.strip() else '', ''.join(out))
 
 
+def approx(t):
+    """'≈ ' before a tick-list goal's numbers, '' before a report's. A goal's distance, gain and high point are measured
+    from a planned line, so every place that shows them (cards, list rows, the map page's table) marks them approximate."""
+    return '≈ ' if t.get('kind') == 'planned' else ''
+
+
 def plain_stats(t, items=False):
-    """Short Mono-S caps stats: '12.8 MI · 5,302 FT GAIN' (switches with units). No gain for climbing (the GPX gain of a
-    climb is the walk, not the route) or flat water. items=True: the list for meta_items(); default: the legacy string."""
+    """Short Mono-S caps stats: '12.8 MI · 5,302 FT GAIN' (switches with units; '≈ 12.8 MI' for a tick-list goal). No gain
+    for climbing (the GPX gain of a climb is the walk, not the route) or flat water. items=True: the list for
+    meta_items(); default: the legacy string."""
     st = t['stats']
     parts = []
+    p = approx(t)
     mi, km = dist_vals(st.get('distance_km'))
     if mi:
-        parts.append(U(nb(mi + ' MI'), nb(km + ' KM')))
+        parts.append(U(nb(p + mi + ' MI'), nb(p + km + ' KM')))
     if t['activity'] != 'climb' and not is_flat(t) and st.get('gain_m') is not None and st.get('gain_m') > 30:
-        parts.append(U(nb(n(st['gain_m'] * FT) + ' FT GAIN'), nb(n(st['gain_m']) + ' M GAIN')))
+        parts.append(U(nb(p + n(st['gain_m'] * FT) + ' FT GAIN'), nb(p + n(st['gain_m']) + ' M GAIN')))
     return parts if items else SEP.join(parts)
 
 
@@ -879,15 +887,17 @@ def stats_cells(t):
     """List-row stats at Data-M, in the data strip's activity order (no sub-lines): climbing Pitches (from the beta, when
     present) · Dist · GPS max · Moving; flat water Dist · Moving · Avg pace; everything else Dist · Gain · GPS max · Moving."""
     st = t['stats']
+    a = approx(t)
+    hi = 'High point' if a else 'GPS max'   # a plan was never recorded by a GPS: its top is the highest point of the file
     mi, km = dist_vals(st.get('distance_km'))
-    dist = ('Dist', U(mi, km, ' mi', ' km')) if mi else None
+    dist = ('Dist', U(a + mi, a + km, ' mi', ' km')) if mi else None
 
     def elev_cell(lab, v):
-        return (lab, U(n(v * FT), n(v), ' ft', ' m')) if v is not None else None
+        return (lab, U(a + n(v * FT), a + n(v), ' ft', ' m')) if v is not None else None
     moving = ('Moving', hm(st['moving_s']) + '<span class="unit u-hm"> h:mm</span>') if st.get('moving_s') else None
     if t['activity'] == 'climb':
         p = beta_value(t, 'Pitches')
-        cells = [('Pitches', esc(p)) if p else None, dist, elev_cell('GPS max', st.get('high_m')), moving]
+        cells = [('Pitches', esc(p)) if p else None, dist, elev_cell(hi, st.get('high_m')), moving]
     elif is_flat(t):
         pace = None
         if st.get('distance_km') and st.get('moving_s'):
@@ -895,7 +905,7 @@ def stats_cells(t):
             pace = ('Avg pace', U(n(per_mi), n(per_km), ' min/mi', ' min/km'))
         cells = [dist, moving, pace]
     else:
-        cells = [dist, elev_cell('Gain', st.get('gain_m')), elev_cell('GPS max', st.get('high_m')), moving]
+        cells = [dist, elev_cell('Gain', st.get('gain_m')), elev_cell(hi, st.get('high_m')), moving]
     return ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % c for c in cells if c)
 
 
@@ -963,14 +973,15 @@ def row_stats_line(t):
     """The phone list row's Mono-S stats line (it replaces the 4-cell stat grid below 560): climbing '3 PITCHES · 1.2 MI',
     flat water '3.1 MI · 1:05 MOVING', everything else plain_stats() ('7.9 MI · 2,930 FT GAIN')."""
     st = t['stats']
+    a = approx(t)
     if t['activity'] == 'climb':
         mi, km = dist_vals(st.get('distance_km'))
         p = beta_value(t, 'Pitches').strip()
         return meta_items([nb(esc('%s PITCH%s' % (p, '' if p == '1' else 'ES'))) if p else '',
-                           U(nb(mi + ' MI'), nb(km + ' KM')) if mi else ''])
+                           U(nb(a + mi + ' MI'), nb(a + km + ' KM')) if mi else ''])
     if is_flat(t):
         mi, km = dist_vals(st.get('distance_km'))
-        return meta_items([U(nb(mi + ' MI'), nb(km + ' KM')) if mi else '',
+        return meta_items([U(nb(a + mi + ' MI'), nb(a + km + ' KM')) if mi else '',
                            nb(hm(st['moving_s']) + ' MOVING') if st.get('moving_s') else ''])
     return meta_items(plain_stats(t, items=True))
 
@@ -1028,12 +1039,14 @@ def table_row(t, here, cls='', tags='', attrs=''):
     loc = ', '.join(x for x in (t.get('place'), t.get('region')) if x)
     none = '<span aria-hidden="true">—</span><span class="sr">none</span>'
     flat = is_flat(t)
+    a = approx(t)   # a tick-list goal's row: '≈' before each number, spoken as 'about'
 
     def num(lab, v, imp, met):
         if not v:
             return '<span class="num"><span class="sr">%s </span>%s</span>' % (lab, none)
+        ap = '<span aria-hidden="true">≈ </span><span class="sr">about </span>' if a else ''
         return ('<span class="num"><span class="sr">%s </span>%s</span>'
-                % (lab, U(v[0] + '<span class="sr"> %s</span>' % imp, v[1] + '<span class="sr"> %s</span>' % met)))
+                % (lab, U(ap + v[0] + '<span class="sr"> %s</span>' % imp, ap + v[1] + '<span class="sr"> %s</span>' % met)))
     g = lambda v: (n(v * FT), n(v)) if (v is not None and not flat) else None  # noqa: E731
     when = trip_date(t, short=True)
     c = ' '.join(x for x in (cls.strip(), '' if mi else 'rtab-nodist') if x)
@@ -1047,7 +1060,7 @@ def table_row(t, here, cls='', tags='', attrs=''):
                title_html(t['title']), esc(act_word(t)), tags, esc(loc).upper(), when,
                num('Distance', (mi, km) if mi else None, 'miles', 'kilometers'),
                num('Gain', g(st.get('gain_m')), 'feet', 'meters'),
-               num('GPS max', g(st.get('high_m')), 'feet', 'meters')))
+               num('High point' if a else 'GPS max', g(st.get('high_m')), 'feet', 'meters')))
 
 
 def phone_row(t, here):
@@ -1129,7 +1142,8 @@ def goal_card(t, here):
     """A tick-list goal as a map-led card: the route tile (else 'Map not rendered yet' with a track, 'Route not added yet'
     without), REGION / PLACE · ACTIVITY, the H3 title link (described by that line), status / priority / archived tags,
     the approximate stats line and a 'View goal' link. data-* carries the facets ticklist.js filters on; data-text is the
-    normalised searchable text (title, place, region, tags, why). No input of any kind: the public list is read-only."""
+    normalised searchable text (title, place, region, tags, why, and the opening of the planning notes, which the goal page
+    publishes). No input of any kind: the public list is read-only."""
     import content as _c
     from sitegen import search as _s
     g = t['goal']
@@ -1143,7 +1157,8 @@ def goal_card(t, here):
     loc = t.get('place') or t.get('region') or ''
     meta = meta_items([(nb(esc(loc).upper()), 'mi-w') if loc else '', nb(esc(act_word(t)).upper())])
     mid = 'gc-%s-m' % t['slug']
-    text = _s.normalize(' '.join(x for x in [t['title'], t.get('place') or '', t.get('region') or ''] + g['tags'] + [g['why']] if x))
+    notes = markdown.plain(t['body_md'], 600) if t.get('body_md') else ''
+    text = _s.normalize(' '.join(x for x in [t['title'], t.get('place') or '', t.get('region') or ''] + g['tags'] + [g['why'], notes] if x))
     data = (' data-slug="%s" data-act="%s" data-region="%s" data-status="%s" data-priority="%s" data-months="%s" data-gpx="%s"'
             ' data-archived="%s" data-added="%s" data-text="%s"'
             % (esc(t['slug']), t['activity'], _c.slugify(t['region']) if t.get('region') else '', g['status'], g['priority'],

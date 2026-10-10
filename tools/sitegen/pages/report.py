@@ -297,20 +297,28 @@ def goal_map_section(t, here, meta):
                                   fullscreen_href=link(here, t['url'] + 'map/')),
                    core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t)))
     if t['track']:
-        text = 'Map not rendered yet. The planned GPX is published and can be downloaded above.'
+        # no direction ('above'): on phones the download is the bottom bar's GPX item
+        text = 'Map not rendered yet. The planned GPX is published: use the Download planned GPX button.'
     else:
         text = 'No route added yet: this is an idea without a GPX.'
-    return '<section class="wrap sec" id="map" aria-label="Planned route map"><div class="empty">%s<p>%s</p></div></section>' % (icon('map', 24), esc(text))
+    # .rep-map: the same distance from the strip as a rendered map, so the page keeps its rhythm either way
+    return ('<section class="rep-map rep-map--empty" id="map" aria-label="Planned route map"><div class="wrap"><div class="empty">%s<p>%s</p></div></div></section>'
+            % (icon('map', 24), esc(text)))
 
 
 def goal_bottom_bar(t, has_notes):
+    """Phone bottom bar of a goal: Map · Notes · GPX, each only when the page has it. '' when it would hold a single item
+    (an idea without notes or a route: one link to the 'no route yet' box is not navigation)."""
     items = [('#map', 'map', 'Map')]
     if has_notes:
         items.append(('#report', 'report', 'Notes'))
+    k = len(items) + (1 if t['track'] else 0)
+    if k < 2:
+        return ''
     out = ''.join('<a href="%s">%s<span>%s</span></a>' % (h, icon(ic, 24), lab) for h, ic, lab in items)
     if t['track']:
         out += '<a href="%s" download>%s<span>GPX</span></a>' % (t['slug'] + '.gpx', icon('download', 24))
-    return '<nav class="bbar" aria-label="Goal sections" style="--n:%d">%s</nav>' % (len(items) + (1 if t['track'] else 0), out)
+    return '<nav class="bbar" aria-label="Goal sections" style="--n:%d">%s</nav>' % (k, out)
 
 
 def goal_pager(t, here):
@@ -357,7 +365,7 @@ def goal_sections(t, here, site):
             return
         items = []
         for o in g['outings']:
-            lab = 'Completed' if o['outcome'] == 'completed' else 'Attempted'
+            lab = {'completed': 'Completed', 'attempted': 'Attempted', 'reopened': 'Reopened'}[o['outcome']]
             when = _fdate(o['date'], 'long') if o['date'] else 'date not recorded'
             rep = by.get(o['report_slug']) if o['report_slug'] else None
             bits = ['<span class="tag">%s</span>' % lab, '<span class="t-mono-s">%s</span>' % esc(when.upper())]
@@ -396,11 +404,18 @@ def goal_sections(t, here, site):
         if src['label'] or src['url']:
             ref = ('<a href="%s" rel="noopener">%s</a>' % (esc(src['url']), esc(src['label'] or src['url']))) if src['url'] else esc(src['label'])
             line += ' From %s%s.' % (ref, (', checked %s' % _fdate(src['checked_at'])) if src['checked_at'] else '')
-        bits.append('<p>%s</p>' % line)
+        # nothing known at all (a route saved before the tick list): the sentence below says so once, in plain words
+        nothing_known = (not g.get('route') and src['kind'] == 'unknown' and g['route_scope'] == 'unknown'
+                         and not (src['label'] or src['url']))
+        if not nothing_known:
+            bits.append('<p>%s</p>' % line)
         if src['approximation_note']:
             bits.append('<p class="t-small">%s</p>' % esc(src['approximation_note']))
-        if t['track']:
+        if t['track'] and g.get('route'):
             bits.append('<p class="t-small">The GPX published here is that source, kept byte for byte; the numbers above are measured from it and are approximate. It is a plan, not a recording of a trip.</p>')
+        elif t['track']:
+            # a planned route saved before the tick list recorded sources: no checksum or method exists, so none is claimed
+            bits.append('<p class="t-small">The GPX published here was saved before the tick list recorded where a route came from, so its source and how it was made are not recorded. It is a plan, not a recording of a trip.</p>')
         else:
             bits.append('<p class="t-small">No GPX is published for this goal.</p>')
         sec('source', 'Route source', ''.join(bits))

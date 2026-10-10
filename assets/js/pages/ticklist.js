@@ -56,6 +56,11 @@
   var cards = Array.prototype.slice.call(results.querySelectorAll('.gcard'));
   var origin = cards.map(function (c) { return c.parentNode; });
   var total = cards.length;
+  if (!total) return;   // no goals yet: the page's own 'No goals yet' note stands; no controls, no second empty state
+  // an empty scope tab is not a failed filter: it says what the tab holds, and offers 'Clear filters' only when one is set
+  var noneP = noneEl.querySelector('p'), noneBtn = noneEl.querySelector('[data-clear]');
+  var NONE = { active: 'No active goals.', shortlisted: 'Nothing shortlisted yet.', completed: 'No completed goals yet.',
+    archived: 'No archived goals.', all: 'No goals yet.' };
   function optionValues(s) { return s ? Array.prototype.map.call(s.options, function (o) { return o.value; }) : []; }
   function optionNames(s) { var m = {}; if (s) Array.prototype.forEach.call(s.options, function (o) { m[o.value] = o.textContent; }); return m; }
   var allowed = { activity: actBtns.map(function (b) { return b.dataset.filter; }), region: optionValues(sel.region), status: optionValues(sel.status),
@@ -108,7 +113,9 @@
       if (on) shown.push({ el: c, i: i, priority: d.priority, added: d.added || '', slug: d.slug, title: (c.querySelector('.gcard-t') || c).textContent.trim() });
     });
     if (state.sort === DEFAULTS.sort) {
-      cards.forEach(function (c, i) { if (c.parentNode !== origin[i]) origin[i].appendChild(c); });
+      // back from another sort: put every card back in page order (re-appending only the moved ones would leave them
+      // after the cards a filter had kept in place). Nothing moves when nothing is out of place.
+      if (cards.some(function (c, i) { return c.parentNode !== origin[i]; })) cards.forEach(function (c, i) { origin[i].appendChild(c); });
       sortedSec.hidden = true;
       groups.forEach(function (g) {
         var vis = Array.prototype.filter.call(g.querySelectorAll('.gcard'), function (c) { return !c.hidden; }).length;
@@ -124,15 +131,20 @@
       sortedSec.hidden = false;
     }
     var k = shown.length;
-    var text = (anyFilter() || state.scope !== 'all') ? k + ' OF ' + total + ' GOALS' : total + ' GOALS';
+    var word = total === 1 ? ' GOAL' : ' GOALS';
+    var text = (anyFilter() || state.scope !== 'all') ? k + ' OF ' + total + word : total + word;
     if (countEl.textContent !== text) countEl.textContent = text;
     while (chipsEl.firstChild) chipsEl.removeChild(chipsEl.firstChild);
     ['q'].concat(FACETS).forEach(function (key) {
       var v = state[key];
       if (key === 'gpx' ? !v : (v === DEFAULTS[key] || !v)) return;
+      if (key === 'q' && !X.tokens(v).length) return;   // '!!!' or spaces search nothing, so they are not a filter
       chipsEl.appendChild(chip(key, chipLabel(key, v, names)));
     });
-    clearBtn.hidden = !anyFilter();
+    var filtered = anyFilter();
+    clearBtn.hidden = !filtered;
+    if (noneP) noneP.textContent = filtered ? 'No goals match these filters.' : (NONE[state.scope] || 'No goals match these filters.');
+    if (noneBtn) noneBtn.hidden = !filtered;
     noneEl.hidden = k > 0;
   }
   function write(push, keepHash) {

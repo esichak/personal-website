@@ -12,7 +12,7 @@ Adding a finished trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); homepage fea
 - **A goal is a planned route, and it stays one.** It is a `kind: planned` folder under `content/trips/`, the same
   model the map's Planned group already uses. Its title, URL and planned GPX never change because you did it. When
   you do go, the outing is a separate report, added with `add_trip.py` from your own recording; the goal gets an
-  `outings` entry pointing at that report, and the report gets an automatic "On the tick list" line pointing back.
+  `outings` entry pointing at that report, and the report (single-day, multi-day or a journal) gets an automatic "On the tick list" line pointing back.
   Nothing is counted twice: goals never enter report counts, completed mileage, the Trips page, search, the home
   page or the RSS feed.
 - **The minimum entry is a name and an activity.** A GPX, a region, notes and research are all optional. Saving an
@@ -25,7 +25,9 @@ Adding a finished trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); homepage fea
 - **Everything committed is public**, including `draft: true` goals, sidecars and GPX files. Section 7.
 - The planned routes that were on the site before the tick list (for example a folder with only `index.md` and
   `track.gpx`) keep working with default goal metadata (`idea`, `normal`, nothing else) until you give them a
-  `goal.json`.
+  `goal.json`. The first `update` on such a route writes one: the defaults plus your change, with `added_at` left
+  `null` (set it by hand if you know the day). `export` lists the routes that still have none (section 4.6). Their
+  goal page says the GPX's source was not recorded, because no checksum or source exists for them.
 
 ## 2. The files
 
@@ -97,16 +99,16 @@ finished trip can never be slipped into the future list.
 | `draft: true` | on creation | Off the site until removed. Not a goal status and not a privacy control. |
 | `place`, `region` | no | "Desolation Wilderness", "Lake Tahoe". Reuse an existing region name so the goal joins that group; without one it sits under "No region yet". Coordinates alone never become a place name. |
 | `route_shape` | no | `loop`, `out-and-back`, `point-to-point`, when you know it. |
-| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM). "Highest point in the file" is not "summit elevation". |
+| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM): on the tick list, the goal page, the activity page's Planned rows and the map page's rows and table, where the top of the line is labelled "High point", not "GPS max". "Highest point in the file" is not "summit elevation". |
 | body | no | Planning notes, shown under the heading "Planning notes" (never "Trip report"). `add --notes` writes the first version. |
 
 **In `goal.json`:**
 
 | Field | Values | Meaning and rule |
 | --- | --- | --- |
-| `status` | `idea` (default), `researching`, `shortlisted`, `attempted`, `completed` | Where the goal is in your head. Any direct change is allowed. `completed` needs an outing with outcome `completed` (and vice versa); `attempted` needs an outing with outcome `attempted`. Set these with `log-outing`, not by hand. |
+| `status` | `idea` (default), `researching`, `shortlisted`, `attempted`, `completed` | Where the goal is in your head. Any direct change is allowed. `completed` needs an outing with outcome `completed` (and vice versa, until the goal is reopened); `attempted` needs an outing with outcome `attempted`. Set these with `log-outing`, not by hand; open a completed goal again with `update --reopen` (section 4.3). |
 | `priority` | `high`, `normal` (default), `someday` | Your ordering; the default sort on the list. Shown as "High priority" or "Someday"; normal shows nothing. |
-| `archived` | `true` / `false` (default) | Takes the goal out of the active list and the "+ N planned route" counts, keeps its page, GPX and outcome. Separate from status, so an attempted or completed goal can be archived without losing its history. |
+| `archived` | `true` / `false` (default) | Takes the goal out of the active list, the "+ N planned route" counts and the Planned rows on Home, the activity page, the About page and the map page's region lists; keeps its page, GPX and outcome. Separate from status, so an attempted or completed goal can be archived without losing its history. The region maps are drawings: its dashed line leaves them the next time `python3 tools/render.py --site` runs (needs internet). The same goes for a completed goal. |
 | `tags` | list of short text | `scramble`, `ridge-traverse`, `couloir`, `backpacking`, and so on. Searchable on the list. |
 | `why` | one sentence | Your reason, in your words. Nobody else writes this. |
 | `added_at` | `YYYY-MM-DD` or `null` | The day the goal was saved; `add` sets it to today. Not a trip date. |
@@ -120,7 +122,7 @@ finished trip can never be slipped into the future list.
 | `references` | list of `{"id", "label", "url", "checked_at", "note"}` | Sources: reports, guidebooks, the managing agency's access and permit pages. `id` is unique, lowercase letters, digits and hyphens; `url` is http or https; `checked_at` is the day you read it, not a guarantee it is still true. |
 | `field_evidence` | `{"<field>": {"source_ids": […], "status": "proposed" or "approved"}}` | Which references back a researched field. Every id must exist in `references`; `source_ids` is never empty. `proposed` is research you have not reviewed and it does not publish the field; `approved` is your sign-off. |
 | `checklist` | list of `{"id", "text", "done"}` | Questions still to answer before going. Public pages show them read-only ("Done" / "To check"). |
-| `outings` | list of `{"outcome", "date", "report_slug", "note"}` | What actually happened. `outcome` is `attempted` or `completed`; `date` and `report_slug` may be `null` when unknown or when there is no write-up; `report_slug` must name a published report, never a planned route. Written by `log-outing`. Earlier attempts are kept when you finally complete. |
+| `outings` | list of `{"outcome", "date", "report_slug", "note"}` | What actually happened, in order. `outcome` is `attempted` or `completed`; `date` and `report_slug` may be `null` when unknown or when there is no write-up; `report_slug` must name a published report (single-day, multi-day or a journal), never a planned route. Written by `log-outing`. Earlier attempts are kept when you finally complete. One more kind of entry, `"outcome": "reopened"` (a date, an optional note, never a report), is written by `update --reopen` after a completed outing: from there on the goal is open again and the history above it stays. |
 | `route` | `null` or the derived block | Written by `--publish-track`, never by hand: `source_sha256` of `track.gpx`, `method` (`ticklist-gpx-1`), `selected` (`trk`/`rte`, index, name), `alternatives`, `segments`, `points`, `elevation` (`full`, `partial`, `none`), `times`, `waypoints`. If `track.gpx` changes after import, the checksum no longer matches and the build stops rather than quietly re-measuring. |
 
 The evidence rule in one line: a difficulty or a season note appears on the site only when `field_evidence` for that
@@ -161,6 +163,8 @@ only (edit the file by hand afterwards):
 | `--commitment` | `--commitment full-day` | `time_commitment` |
 | `--scope` | `--scope approach-only` | `route_scope` |
 | `--source-kind`, `--source-url`, `--source-label` | `--source-kind third-party-recording --source-url https://example.com/route --source-label "Example source"` | `route_source` |
+| `--checked-at YYYY-MM-DD` | `--checked-at 2026-10-09` | `route_source.checked_at`: the day you read the route source's page |
+| `--approximation-note TEXT` | `--source-kind author-drawn --approximation-note "Traced on a planner map, not a travelled line."` | `route_source.approximation_note`; required whenever the kind is `author-drawn` |
 
 ### 4.2 Add a goal with a GPX
 
@@ -170,14 +174,18 @@ python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity ski --gpx /ab
 ```
 
 If the file holds more than one track or route, the report lists them (`trk:0`, `trk:1`, `rte:0`, each with its
-name and point count) and stops the geometry step until you choose. Pick one and run again:
+name and point count) and the command stops there (exit code 2): nothing is created, not even the idea, in a dry run
+or a real one. Pick one and run again:
 
 ```bash
 python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity ski --gpx /absolute/path/route.gpx \
   --select trk:1 --dry-run
 ```
 
-Alternatives are never joined into one line. To publish the chosen geometry as the goal's public route:
+Alternatives are never joined into one line. When you publish one of several, the public copy holds only that track
+or route: the file's other tracks and routes, its waypoints and its `<metadata>` are not copied, and the report says
+so. (A file with a single track or route is copied whole, waypoints included.) To publish the chosen geometry as the
+goal's public route:
 
 ```bash
 python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity ski --gpx /absolute/path/route.gpx \
@@ -202,7 +210,10 @@ Other `add` behaviour with a GPX:
   idea, not a route.
 - A file whose checksum already belongs to another goal's `track.gpx` is reported as a duplicate and the import
   stops. Reference the existing goal, or pass `--allow-duplicate` if two goals really share one file. A same-named
-  route in another region is legitimate; nothing is merged for you.
+  route in another region is legitimate; nothing is merged for you. The check runs with `--publish-track` only
+  (without it nothing is copied, so there is nothing to duplicate), and it compares the bytes that would be published
+  with every goal's published route, including the planned routes saved before the tick list. It does not look at
+  report recordings, and the same line exported twice with different bytes is two different files to it.
 - `update` has no `--gpx`: a route is attached when the goal is created. If a name-only idea later gets a file,
   move the old folder aside, re-create the goal with `add --gpx … --publish-track --slug <same-slug>` so the URL
   stays, and copy your intent fields back into `goal.json`.
@@ -220,19 +231,31 @@ python3 tools/ticklist.py update your-goal-slug --tags scramble,ridge-traverse -
 python3 tools/ticklist.py update your-goal-slug --source-kind planner-export --scope full-intended-route \
   --source-url https://example.com/plan --checked-at 2026-10-09
 python3 tools/ticklist.py update your-goal-slug \
-  --add-reference "access-page|Official access page|https://example.com/access"
+  --add-reference "access-page|Official access page|https://example.com/access" --reference-checked-at 2026-10-09
 python3 tools/ticklist.py update your-goal-slug --add-check "Does the file include the descent?"
 python3 tools/ticklist.py update your-goal-slug --check c1          # id from goal.json's checklist
 python3 tools/ticklist.py update your-goal-slug --uncheck c1
 python3 tools/ticklist.py update your-goal-slug --archived true
+python3 tools/ticklist.py update your-goal-slug --reopen --status shortlisted --reopen-note "Back for the north side."
 ```
 
 `update` edits `goal.json` (and nothing else: not the notes, not the track, not any report), validates the whole
-file with the rules in section 3, and writes only if it passes. `--add-reference` takes `ID|LABEL|URL` in one quoted
-argument. `--checked-at` is the day you last read the route source's page. `--status completed` is refused with a
-pointer to `log-outing`: a completion is an event you record, not a flag you flip. Reopening a goal
-(`--status researching` on a completed one, say) is refused too while a completed outing exists; archive it instead,
-or remove the outing by hand and accept that the history goes with it.
+file with the rules in section 3, and writes only if it passes.
+
+- `--add-reference` takes `ID|LABEL|URL` in one quoted argument and can be given several times in one command, as
+  can `--add-check`. A new reference is dated today unless you pass `--reference-checked-at YYYY-MM-DD` (one date
+  for every reference added by that command).
+- `--checked-at` is the day you last read the route source's page. It only ever sets `route_source.checked_at`; it
+  does not date a reference, and adding a reference does not change it.
+- `--source-kind author-drawn` needs `--approximation-note "..."` in the same command (or a note already in the
+  file): how the line was made and what it is not.
+- `--status completed` is refused with a pointer to `log-outing`: a completion is an event you record, not a flag
+  you flip.
+- A completed goal is opened again with `--reopen --status <the status it goes back to>`. That appends a dated
+  "Reopened" entry after its outings and keeps every earlier attempt and completion; the goal page lists it with
+  them. `--reopen-note` is optional. A plain `--status researching` on a completed goal is still refused (the
+  message names `--reopen`), so a goal never leaves Completed by accident. Logging a new completion later closes it
+  again, and the whole history stays.
 
 ### 4.4 Log an attempt or a completion
 
@@ -276,10 +299,16 @@ python3 tools/ticklist.py export --out ~/Desktop/tick-list.json
 python3 tools/ticklist.py export                     # prints the JSON
 ```
 
-A JSON array of the public fields of every non-draft goal: slug, url, title, activity, place, region, status,
-priority, archived, tags, why, target months and year, time commitment, route scope, route source (kind, label, url,
-checked date), references, the approximate stats, and the outings with their report URLs. Never a local path, never
-`proposed` evidence.
+A JSON array of the public fields of every non-draft goal: `slug`, `url`, `title`, `activity`, `subtype`, `place`,
+`region`, `draft` (always `false`: drafts are left out), `status`, `priority`, `archived`, `tags`, `why`, `added_at`,
+`target_months`, `target_year`, `time_commitment`, `route_scope`, `route_source` (kind, label, url, checked date),
+`references` (id, label, url, checked date), `approx_stats`, `route` (segments, points, elevation; `null` without a
+published route), `has_gpx`, `outings` (outcome, date, report URL, note) and `legacy` (`true` for a planned route
+that has no `goal.json` yet). Not exported: `difficulty`, `season_notes`, `field_evidence`, `checklist`, reference
+notes. Never a local path, never `proposed` evidence.
+
+When some planned routes still have no `goal.json`, `export` also prints one line naming them (to the error stream,
+so `export > file.json` stays clean JSON): that is the list to review and `update`.
 
 ## 5. Review and publish
 
@@ -329,7 +358,8 @@ publication choice, not a privacy measure; the files are still in the repository
   file" or "Partial elevation". High and low points appear when any point has one. No elevation service is queried
   and no points are made up.
 - **Times are not a date.** A recorder's timestamps are kept in the file if they were there, and ignored
-  otherwise: the goal gets no `date` and no moving time, and the recording's day is nobody's trip date.
+  otherwise: the goal gets no `date` and no moving time, and the recording's day is nobody's trip date. The report
+  says whether the file has them, whatever time zone they are written in.
 - **Sparse geometry is flagged.** Under ten points in all is reported as sparse: a straight-line length between a
   few points is not a trail distance.
 - **Source bytes are kept.** With one candidate, `track.gpx` is the original file byte for byte; with several, it
@@ -405,8 +435,9 @@ status, water, an expected duration, a grade without a cited system and source, 
 or a place name from coordinates alone. "Typical season" is never a current-conditions report, and a `checked_at`
 says when a page was read, not that it is still true.
 
-The prompt that `review-packet` includes. Replace the bracketed fields; the text between the markers is what the
-packet copies.
+The prompt that `review-packet` includes. Replace the bracketed fields. The packet copies the `text` block below whose
+first line is "Add or enrich this future goal": keep that first line and keep the block fenced, or the packet says
+the prompt is missing.
 
 <!-- enrichment-prompt:start -->
 ```text
@@ -446,8 +477,11 @@ message starts with `content/trips/<slug>/goal.json: ` and names the field.
 | `references`: duplicate `id`, `id` not `a-z0-9-`, `url` not http/https | | Rename the id (lowercase, digits, hyphens); give every reference an `https://` or `http://` URL. |
 | `field_evidence`: unknown source id, empty `source_ids`, or `status` not `proposed`/`approved` | The evidence names a reference that is not in `references` | Add the reference first, or fix the id. |
 | `difficulty` or a non-empty `season_notes` without approved evidence | Research not yet reviewed | Add `field_evidence` for that field with `"status": "approved"` once you have checked the source, or empty the field. |
-| `route_source.kind` is `author-drawn` with no `approximation_note` | A drawn line needs its caveat | Write the note: how the line was made and what it is not. |
-| `status: completed` without a completed outing, a completed outing without `status: completed`, or `status: attempted` without an attempted outing | Status and events disagree | Use `log-outing`, which keeps them together; do not edit `status` by hand around an outing. |
+| `route_source.kind` is `author-drawn` with no `approximation_note` | A drawn line needs its caveat | Pass `--approximation-note "..."` together with `--source-kind author-drawn` (on `add` or `update`), or write `approximation_note` in `goal.json`: how the line was made and what it is not. A refused `add` has written nothing, even though the message names the `goal.json` it would have created. |
+| `status: completed` without a completed outing, a completed outing without `status: completed`, or `status: attempted` without an attempted outing | Status and events disagree | Use `log-outing`, which keeps them together; do not edit `status` by hand around an outing. To open a completed goal again, `update <slug> --reopen --status <status>`. |
+| `status is 'completed' but the goal was reopened after its last completed outing` | A "reopened" entry follows the last completion | Log the new completion with `log-outing --outcome completed`, or set the status the goal is really in. |
+| `outings[n] reopens the goal, but no completed outing comes before it` | A hand-written "reopened" entry in the wrong place | Remove it, or put it after the completed outing it follows. |
+| `checklist[n].text must not be empty`, `schema_version must be 1`, `unknown field …` | A hand edit left an empty question, a wrong version or a misspelled key | Fix the key or the value; nothing is published from a file that does not validate. |
 | `route.source_sha256` does not match `track.gpx` | The published file changed after import | Restore the original file, or re-import on purpose. The build never re-measures silently. |
 | the outing's `report_slug` is unknown or names a planned route (message names the goal and the slug) | The report does not exist, is a draft, or is itself a goal | Add the report first, publish it, and use its folder name. |
 
@@ -457,12 +491,16 @@ From `tools/ticklist.py`:
 | --- | --- |
 | the folder already exists (suggests `--slug`) | Another goal or trip has that slug. Pass `--slug something-else`, or `update` the existing goal. |
 | several candidates: `trk:0 … trk:1 … rte:0 …` | Pass `--select` with one of the listed ids. |
-| no track or route in the file (waypoint-only) | The goal is created without a route. Find a file with a track or route, or draw one and mark it `--source-kind author-drawn`. |
+| no track or route in the file (waypoint-only) | The goal is created without a route. Find a file with a track or route, or draw one and mark it `--source-kind author-drawn --approximation-note "how the line was made"`. |
+| the title gives no usable folder name | The title has no letters or digits the slug can keep. Pass `--slug a-name-you-choose`. |
+| `--reopen` refused | The goal is not completed, or no `--status` (other than `completed`) says what it goes back to. |
+| `--reference-checked-at goes with --add-reference` | That date belongs to a reference being added; the route source's date is `--checked-at`. |
+| `route_source must be an object` | A hand edit set `route_source` to something else. Restore the object (section 2) and run the command again. |
 | duplicate checksum: already published under `<slug>` | Reference that goal instead, or pass `--allow-duplicate` knowingly. |
 | file too large, too many points, `DOCTYPE`/`ENTITY`, not well-formed, root is not `gpx`, bad coordinate or elevation | Export the file again from its source as plain GPX; do not hand-edit XML into it. |
 | `--status completed` refused, pointing at `log-outing` | Record the completion with `log-outing --outcome completed`. |
 | `--report-slug` is not a published, non-planned trip | Add and publish the report (ADDING-TRIPS.md) first. |
-| `review-packet --out` inside the repository | Choose a path outside the checkout, for example under `~/Desktop/`. |
+| `review-packet --out` inside the repository (directly, or through a symbolic link that leads into it) | Choose a path outside the checkout, for example under `~/Desktop/`. |
 | render failed (warning) | The goal is valid. Run `python3 tools/render.py <slug>` later with internet; until then the page shows "Map not rendered yet". |
 
 A `content/trips/<slug>/index.md: front matter: …` message is a syntax problem in that file's front matter, as in

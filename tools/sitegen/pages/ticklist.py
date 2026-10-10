@@ -39,11 +39,21 @@ def _desc(iso):
     return ''.join(chr(0x7a - (ord(c) - 0x30)) if c.isdigit() else c for c in iso)
 
 
+def region_slug(t):
+    return content.slugify(t['region']) if t.get('region') else ''
+
+
 def regions_of(ts):
-    """[(name, slug)] A–Z, the goals without a region last as ('No region yet', '')."""
-    names = sorted({t['region'] for t in ts if t.get('region')}, key=lambda s: s.lower())
-    out = [(r, content.slugify(r)) for r in names]
-    if any(not t.get('region') for t in ts):
+    """[(name, slug)] A–Z, one per slug (two spellings of a region share a section, named by the first A–Z); goals without
+    a region, or whose region gives no slug, come last as ('No region yet', '')."""
+    names = sorted({t['region'] for t in ts if t.get('region')}, key=lambda s: (s.lower(), s))
+    out, seen = [], set()
+    for r in names:
+        slug = content.slugify(r)
+        if slug and slug not in seen:
+            seen.add(slug)
+            out.append((r, slug))
+    if any(not region_slug(t) for t in ts):
         out.append(('No region yet', ''))
     return out
 
@@ -87,7 +97,7 @@ def controls(site):
                     % (v, 'true' if i == 0 else 'false', '0' if i == 0 else '-1', icon(ic, 16), lab) for i, (v, lab, ic) in enumerate(VIEWS))
     return ('<form class="trx-form tkl-form wrap" role="search" id="search" action="" hidden>'
             '<label class="sr" for="tkl-q">Search goals</label>'
-            '<input class="trx-q" type="search" id="tkl-q" name="q" placeholder="Search by name, place, region or tag" autocomplete="off" maxlength="200">'
+            '<input class="trx-q" type="search" id="tkl-q" name="q" placeholder="Search by name, place, region, tag or note" autocomplete="off" maxlength="200">'
             '<div class="trx-filters">'
             '<div class="trx-acts" role="radiogroup" aria-label="Activity">%s</div>'
             '%s%s%s%s'
@@ -121,7 +131,7 @@ def results(site):
     gs = site['goals']
     out = []
     for name, slug in regions_of(gs):
-        ts = order([t for t in gs if (content.slugify(t['region']) if t.get('region') else '') == slug])
+        ts = order([t for t in gs if region_slug(t) == slug])
         rid = 'region-%s' % slug if slug else 'region-none'
         out.append('<section class="tkl-region trx-yr" data-region="%s"><div class="trx-yr-h"><h2 class="t-label" id="%s">%s</h2>'
                    '<span class="t-mono-s trx-yr-n">%s</span></div><ul class="tkl-grid trx-grid tgrid">%s</ul></section>'

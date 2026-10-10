@@ -434,8 +434,8 @@ def page(t, site):
     here = t['url']
     months = group_months(t)
     actions = '<a class="btn" href="#days">%sDay by day</a>' % icon('list', 18)
-    body = [report.title_block(t, here, actions), strip(t), intro(t, here, months), day_log(t, here, months),
-            report.pager(t, here, site)]
+    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site), strip(t), intro(t, here, months),
+            day_log(t, here, months), report.pager(t, here, site)]
     n_wu = sum(1 for d in t['days'] if written(d))
     desc = '%s: %s recorded days, %s, with a GPX track for every day%s.' % (
         t['title'], n(len(t['days'])), core.frange(t['date'], t['end_date']),

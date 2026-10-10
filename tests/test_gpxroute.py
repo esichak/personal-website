@@ -187,6 +187,24 @@ class InspectTests(GpxFixture):
         pts = info['tracks'][0]['segments'][0]
         self.assertEqual([p[2] is None for p in pts], [e is None for e in gf.ELES_PARTIAL])
 
+    def test_every_iso_zone_form_counts_as_a_timestamp(self):
+        # a recording made west of Greenwich writes -07:00; the file has times whatever the zone looks like
+        for i, stamp in enumerate(('2026-07-04T08:00:00-07:00', '2026-07-04T08:00:00-0700', '2026-07-04T17:00:00+02:00',
+                                   '2026-07-04T15:00:00Z', '2026-07-04T15:00:00.250Z', '2026-07-04T15:00:00')):
+            with self.subTest(stamp):
+                pts = [(38.9 + 0.001 * k, -120.1, 2000 + k, stamp) for k in range(3)]
+                info = self.inspect('zone%d.gpx' % i, gf.gpx(gf.trk([pts])))
+                got = [p[3] for p in info['tracks'][0]['segments'][0]]
+                self.assertEqual(got, [gf.ts(0)] * 3)             # all six are 15:00 UTC on the fixture day
+                self.assertIs(info['contains']['times'], True)
+                self.assertIs(self.gpx.measure(info['tracks'][0]['segments'])['times'], True)
+
+    def test_an_unreadable_time_is_still_reported_as_carried(self):
+        pts = [(38.9 + 0.001 * k, -120.1, 2000 + k, 'yesterday afternoon') for k in range(3)]
+        info = self.inspect('odd.gpx', gf.gpx(gf.trk([pts])))
+        self.assertEqual([p[3] for p in info['tracks'][0]['segments'][0]], [None] * 3)
+        self.assertIs(info['contains']['times'], True)       # the bytes hold <time> text, so the privacy note says so
+
     def test_no_timestamps_give_none_times(self):
         info = self.inspect('notime.gpx', gf.NO_TIME)
         pts = info['tracks'][0]['segments'][0]
@@ -236,6 +254,22 @@ class InspectTests(GpxFixture):
                     self.assertEqual(len(got), 1)
                     self.assertEqual(got[0]['segments'], cand['segments'])
                     self.assertTrue(out.startswith(b'<?xml'))
+
+    def test_a_utf8_byte_order_mark_is_accepted_and_an_extract_stays_well_formed(self):
+        for name, text in (('bom-decl.gpx', gf.ROOT_GT_IN_ATTR), ('bom-nodecl.gpx', gf.ROOT_NO_DECL)):
+            path = os.path.join(self.tmp, name)
+            with open(path, 'wb') as fh:
+                fh.write(gf.BOM + text.encode('utf-8'))
+            info = self.gpx.inspect(path)
+            self.assertEqual(len(info['tracks']), 2)
+            for choice in ('trk:0', 'trk:1'):
+                with self.subTest(name=name, choice=choice):
+                    cand = self.gpx.select(info, choice)
+                    out = self.gpx.extract_bytes(path, cand)
+                    self.assertTrue(out.startswith(b'<?xml'), out[:20])
+                    self.assertEqual(out.count(b'<?xml'), 1)
+                    got = self.gpx.candidates(self.gpx.inspect_bytes(out, name))
+                    self.assertEqual([c['segments'] for c in got], [cand['segments']])
 
     def test_rejects_malformed_xml(self):
         with self.assertRaises(self.gpx.GpxError):
@@ -398,6 +432,21 @@ class MeasureTests(GpxFixture):
         self.assertTrue(m['times'])
         self.assertEqual((m['points'], m['segments']), (12, 1))
         self.assertFalse(m['sparse'])
+
+    def test_sparse_means_fewer_than_ten_points(self):
+        self.assertIs(self.measure('nine.gpx', gf.NINE)['sparse'], True)
+        self.assertIs(self.measure('ten.gpx', gf.TEN)['sparse'], False)
+        self.assertEqual((self.measure('nine.gpx', gf.NINE)['points'], self.measure('ten.gpx', gf.TEN)['points']), (9, 10))
+
+    def test_gain_is_measured_per_segment_never_across_a_gap(self):
+        m = self.measure('jump.gpx', gf.JUMP)
+        per_segment = [gf.ref_gain_loss([p[2] for p in seg]) for seg in gf.SEGS_J]
+        self.assertEqual((m['gain_m'], m['loss_m']), (sum(g for g, _l in per_segment), sum(l for _g, l in per_segment)))
+        self.assertEqual(m['gain_m'], 40)
+        joined = gf.ref_gain_loss([p[2] for seg in gf.SEGS_J for p in seg])
+        self.assertEqual(joined[0], 55)                      # what bridging the gap would have claimed
+        self.assertNotEqual(m['gain_m'], joined[0])
+        self.assertEqual(m['segments'], 2)
 
     def test_distance_has_two_decimals(self):
         m = self.measure('single.gpx', gf.SINGLE)

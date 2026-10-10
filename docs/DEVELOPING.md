@@ -140,8 +140,17 @@ menu button below 1140px.
   season_notes, difficulty, route_scope, route_source, references, field_evidence, checklist, outings, route, legacy); the
   rules are in `tools/lib/goals.py` and docs/TICK_LIST_GUIDE.md. `site['goals']` = `site['planned']` (pages and assets for
   every goal); `site['active_goals']` (not completed, not archived) drives every '+ N PLANNED ROUTE' counter and the Planned
-  blocks; `site['goal_backlinks']` maps a report slug to the goals whose outings name it (`report.tick_backlink`). Goals
-  never enter `site['published']`, the feed, the search index, home features or report counts.
+  blocks (home tiles and region counts, section pages, About, the map page's head, year groups and region lists through
+  `archive.listed(site)`, and `render.py`'s region maps); `site['goal_backlinks']` maps a report slug to the goals whose
+  outings name it (`report.tick_backlink`, called by the single-day, multi-day and series page builders). Goals never enter
+  `site['published']`, the feed, the search index, home features or report counts. `build.site_of(trips)` assembles all of
+  this and runs `goals.validate_site`; the tests call it too.
+  - A goal's numbers are approximate wherever they are shown: `core.approx(t)` is '≈ ' for a planned trip, and
+    `plain_stats`, `row_stats_line`, `stats_cells` (label 'High point', not 'GPS max'), `table_row` and
+    `archive.dist_line` use it.
+  - `outings` is a history read in order: `goals.OUTCOMES` (attempted, completed) are what `log-outing` records;
+    `goals.EVENTS` adds `reopened`, written by `ticklist.py update --reopen`, after which the status may be anything but
+    completed until a new completed outing.
   - `core.goal_card(t, here)` is the one goal card (`data-slug / act / region / status / priority / months / gpx / archived /
     added / text`); the route tile is its image, with 'Map not rendered yet' / 'Route not added yet' fallbacks.
   - ticklist.js state keys: `q, activity, region, status, priority, month, gpx (1), scope (active | shortlisted | completed
@@ -151,8 +160,10 @@ menu button below 1140px.
     (≈, gain only with full elevation, never a moving time, a note naming the source kind and scope), the rendered map or
     an honest fallback, Why · Planning notes · Season and commitment (only approved field_evidence is published) · Route
     source · References · Still to check (read-only) · Outings. The download is the published source bytes.
-  - `render.py` draws a goal from `gpxroute.as_tracks` (one Track per segment, routes included) so gaps stay gaps; goals
-    get no elevation chart.
+  - `render.py` draws a goal from `gpxroute.as_tracks` (one Track per segment, routes included) so gaps stay gaps, on its
+    own map and on the region maps (`goal_lines`, `start_of`, `site_tracks`); goals get no elevation chart. A goal without
+    a GPX (`no_route(t)`) is skipped, and a render left from an earlier route is removed; region maps draw active goals
+    only. tests/test_render_goals.py covers these with the drawing and OpenStreetMap functions stubbed.
 
 ## Trip dict (from tools/lib/content.py)
 `slug, title, activity (ski|climb|hike|mtb|other), activity_label, cat, subtype, kind (trip|multi-day|series|planned),

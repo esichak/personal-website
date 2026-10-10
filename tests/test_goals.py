@@ -373,6 +373,26 @@ class EnumAndTypeRuleTests(GoalsFixture):
         self.assertRejects(variant(status='attempted', outings=[dict(ATTEMPT, report_slug=7)]), 'outings')
         self.assertRejects(variant(status='attempted', outings=[dict(ATTEMPT, note=5)]), 'outings')
 
+    def test_unknown_fields_and_schema_version_stop_the_build(self):
+        # a typo such as `prioritiy` must not publish with the default priority and nobody the wiser
+        self.assertRejects(variant(prioritiy='high'), 'prioritiy')
+        msg = self.assertRejects(variant(prioritiy='high', notez='x'), 'notez')
+        self.assertIn('prioritiy', msg)
+        self.assertRejects(variant(schema_version=2), 'schema_version')
+        self.assertRejects(variant(schema_version='1'), 'schema_version')
+        self.assertRejects(variant(schema_version=True), 'schema_version')    # True == 1 in Python: not a version
+        self.assertRejects(variant(schema_version=1.0), 'schema_version')
+        self.assertEqual(self.validate(variant(schema_version=1))['status'], VALID['status'])
+
+    def test_checklist_text_must_say_something(self):
+        self.assertRejects(variant(checklist=[{'id': 'c1', 'text': '   ', 'done': False}]), 'checklist')
+        self.assertRejects(variant(checklist=[{'id': 'c1', 'text': '', 'done': False}]), 'checklist')
+
+    def test_route_selected_index_is_a_whole_number_from_zero(self):
+        self.assertRejects(with_route(selected={'type': 'trk', 'index': -1, 'name': None}), 'route')
+        self.assertRejects(with_route(selected={'type': 'trk', 'index': True, 'name': None}), 'route')
+        self.assertRejects(with_route(selected={'type': 'trk', 'index': 1.0, 'name': None}), 'route')
+
     def test_route_shape(self):
         self.assertRejects(variant(route='x'), 'route')
         self.assertRejects(with_route(source_sha256='abc'), 'route')
@@ -456,6 +476,39 @@ class SemanticRuleTests(GoalsFixture):
         out = self.validate(variant(status='researching', archived=False, outings=[deep(ATTEMPT)]))
         self.assertEqual(out['status'], 'researching')
         self.assertEqual(len(out['outings']), 1)
+
+    def test_a_reopened_entry_frees_the_status_and_keeps_the_completed_outing(self):
+        reopened = {'outcome': 'reopened', 'date': '2026-09-15', 'report_slug': None, 'note': 'Going back for the other side.'}
+        out = self.validate(variant(status='shortlisted', outings=[deep(ATTEMPT), deep(DONE), reopened]))
+        self.assertEqual(out['status'], 'shortlisted')
+        self.assertEqual([o['outcome'] for o in out['outings']], ['attempted', 'completed', 'reopened'])
+        self.assertEqual(out['outings'][1]['report_slug'], 'synthetic-report')   # the earlier completion is still there
+        self.assertEqual(out['outings'][2]['note'], 'Going back for the other side.')
+        self.assertIs(self.goals.is_active(out), True)
+
+    def test_completed_status_after_a_reopening_needs_a_new_completed_outing(self):
+        reopened = {'outcome': 'reopened', 'date': None, 'report_slug': None}
+        msg = self.assertRejects(variant(status='completed', outings=[deep(DONE), reopened]), 'reopened')
+        self.assertIn('log-outing', msg)
+        out = self.validate(variant(status='completed', outings=[deep(DONE), reopened, {'outcome': 'completed', 'date': None, 'report_slug': None}]))
+        self.assertEqual([o['outcome'] for o in out['outings']], ['completed', 'reopened', 'completed'])
+
+    def test_a_reopening_needs_a_completion_before_it_and_has_no_report(self):
+        reopened = {'outcome': 'reopened', 'date': None, 'report_slug': None}
+        self.assertRejects(variant(status='idea', outings=[reopened]), 'reopens')
+        self.assertRejects(variant(status='attempted', outings=[deep(ATTEMPT), reopened]), 'reopens')
+        self.assertRejects(variant(status='idea', outings=[deep(DONE), reopened, dict(reopened)]), 'reopens')   # twice in a row
+        with_report = dict(reopened, report_slug='synthetic-report')
+        self.assertRejects(variant(status='idea', outings=[deep(DONE), with_report]), 'report')
+
+    def test_a_status_flip_on_a_completed_goal_is_refused_and_points_at_reopen(self):
+        msg = self.assertRejects(variant(status='researching', outings=[deep(DONE)]), 'completed')
+        self.assertIn('--reopen', msg)
+
+    def test_log_outing_outcomes_stay_attempted_and_completed(self):
+        # a reopening is an entry of the history, not something `log-outing --outcome` offers
+        self.assertEqual(self.goals.OUTCOMES, ('attempted', 'completed'))
+        self.assertEqual(self.goals.EVENTS, ('attempted', 'completed', 'reopened'))
 
     def test_archived_does_not_change_status_rules(self):
         out = self.validate(variant(archived=True, status='completed', outings=[deep(DONE)]))

@@ -76,7 +76,7 @@ def numbers(site, here):
     km = sum(t['stats'].get('distance_km') or 0 for t in pub)
     gain = sum(t['stats'].get('gain_m') or 0 for t in pub)
     figs = []
-    planned = len(site['planned'])
+    planned = len(site.get('active_goals', site['planned']))   # completed and archived goals are not future routes
     figs.append(fig('Reports', str(len(pub)), ('+ %d PLANNED ROUTE%s' % (planned, '' if planned == 1 else 'S')) if planned else ''))
     if km:
         mi, k = core.dist_vals(km)

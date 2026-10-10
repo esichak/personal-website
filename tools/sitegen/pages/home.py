@@ -219,7 +219,8 @@ def region_counts(site, slugs):
     by = site['by_slug']
     ts = [by[s] for s in slugs if s in by]
     pub = [t for t in ts if is_report(t)]
-    planned = [t for t in ts if t['kind'] == 'planned']
+    active = {t['slug'] for t in site.get('active_goals', site['planned'])}   # completed / archived goals are not future routes
+    planned = [t for t in ts if t['kind'] == 'planned' and t['slug'] in active]
     if pub:
         return core.count_items(pub, planned)  # '14 REPORTS · + 1 PLANNED ROUTE', as on map/ and the section heads
     return [core.nb(plural(len(planned), 'PLANNED ROUTE'))] if planned else []
