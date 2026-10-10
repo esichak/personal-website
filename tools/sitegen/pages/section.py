@@ -91,7 +91,7 @@ def map_caption(t):
     since the credit moves into the map tag and the footer (.mapcap-2) and the report carries 'full track, not trimmed'."""
     first = []
     if t['date']:
-        first.append('Track: %s' % core.fdate(t['date'], 'short'))
+        first.append(core.recorded(t['date']))
     first.append((FULL_TRACK, 'sec-cap-x'))
     first.append('North up')
     return core.map_caption(first)

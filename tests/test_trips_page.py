@@ -1,5 +1,6 @@
 """Phase 2: the Trips explorer (sitegen.pages.trips.build -> trips/ and trips/search.json) and the shared card it is
-built from (core.trip_card).
+built from (core.trip_card). Phase 3: the journal-day index (trips/journal.json) and the "Journal days" block that
+trips.js fills, after the results.
 
 A synthetic site in a temp dir: five single-day trips across two regions and three years (one title with accents and
 an apostrophe), one multi-day trip written on one day, the PCT-shaped series (search_aliases: [PCT]), one planned route
@@ -11,6 +12,7 @@ rendered/trips/ is ever consulted.
 import importlib
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -33,6 +35,20 @@ SIZES = '(min-width: 1200px) 400px, 100vw'
 BY_YEAR = {'2026': ['west-couloir'],
            '2025': ['basin-loop', 'lovers-leap', 'haute-route'],
            '2024': ['dana-couloir', 'pacific-crest-trail-2024', 'vallee-blanche']}
+
+
+TRIPS_JS = os.path.join(ROOT, 'assets', 'js', 'pages', 'trips.js')
+# the journal-day block's parts: trips.js looks each of the last three up by id and gives up on journal-day search when
+# one is missing; the heading names the section
+DAYS_PARTS = {'trx-days-h': 'h2', 'trx-days-n': 'span', 'trx-days-l': 'ol', 'trx-days-more': 'button'}
+
+
+def make_journal(root, slug, days, **meta):
+    """A journal (kind: series) whose days are exactly `days` (dicts for helpers.make_trip: no 'title' is an untitled
+    day, no 'body' a track-only one). helpers.make_series cannot make these cases: it titles every day."""
+    m = dict(title='Synthetic Traverse 2022', activity='hike', kind='series', date='2022-07-01', end_date='2022-07-03')
+    m.update(meta)
+    return helpers.make_trip(root, slug, days=days, **m)
 
 
 def load_trips_module(tc):
@@ -92,6 +108,13 @@ class ExplorerFixture(unittest.TestCase):
     def build(self, site):
         return pages_by_url(self.trips_mod.build(site))
 
+    def site_with_only_journal(self, days):
+        """The fixture's site with its journal replaced by one whose days are `days`: the only journal there is."""
+        make_journal(self.tmp, 'synthetic-traverse', days)
+        site = helpers.make_site([t for t in helpers.load_dir(self.tmp) if t['slug'] != 'pacific-crest-trail-2024'])
+        self.assertEqual([t['slug'] for t in site['published'] if t['kind'] == 'series'], ['synthetic-traverse'])
+        return site
+
 
 # ---------------------------------------------------------------- the trips/ page and trips/search.json
 
@@ -117,11 +140,136 @@ class ExplorerPageTests(ExplorerFixture):
         return {s['name']: s for s in self.form.find_all('select')}
 
     def test_build_returns_the_page_and_the_search_json(self):
-        self.assertEqual(len(self.pages), 2)
+        # the page, the trip index and, because the fixture has a journal, the journal-day index
+        self.assertEqual(sorted(p.url for p in self.pages), ['trips/', 'trips/journal.json', 'trips/search.json'])
         self.assertEqual(self.page.title, 'Trips')
         self.assertTrue(self.page.index)
         self.assertFalse(self.json_page.index)
         self.assertTrue(self.page.html.lstrip().lower().startswith('<!doctype html>'))
+
+    def test_journal_json_lists_the_days_of_the_journal(self):
+        search = importlib.import_module('sitegen.search')
+        page = pages_by_url(self.pages)['trips/journal.json']
+        self.assertFalse(page.index)                       # a data file: not in the sitemap
+        self.assertNotIn('<', page.html)
+        self.assertEqual(page.html, search.dumps(search.build_day_index(self.site)))
+        data = json.loads(page.html)
+        self.assertTrue(data)
+        self.assertEqual({e['s'] for e in data}, {'pacific-crest-trail-2024'})
+        self.assertEqual(set(data[0]), {'s', 'a', 'n', 'j', 'h', 'w', 't', 'p', 'k', 'x', 'r', 'q'})
+        # the written day and the two that have only a title (make_series titles every day and writes the first)
+        self.assertEqual([(e['n'], e['h'], bool(e['x'])) for e in data],
+                         [('1', 'Campo', True), ('2', 'Hauser Creek', False), ('3', 'Lake Morena', False)])
+
+    def test_the_page_has_a_hidden_empty_journal_days_block_naming_its_index(self):
+        sec = self.doc.by_id('trx-days')
+        self.assertIsNotNone(sec)
+        self.assertEqual(sec.tag, 'section')
+        self.assertTrue({'trx-days', 'wrap'} <= set(sec.classes), sec.classes)
+        self.assertIn('hidden', sec.attrs)
+        self.assertEqual(sec['data-index'], 'journal.json')
+        self.assertEqual(sec['aria-labelledby'], 'trx-days-h')
+        # every part trips.js needs is there, once, inside the block: without #trx-days-l, #trx-days-n or
+        # #trx-days-more the script turns journal-day search off without a word
+        for id_, tag in DAYS_PARTS.items():
+            with self.subTest(id=id_):
+                self.assertEqual(len(self.doc.find_all(attrs={'id': id_})), 1)
+                part = sec.by_id(id_)
+                self.assertIsNotNone(part, '#%s is not inside #trx-days' % id_)
+                self.assertEqual(part.tag, tag)
+        self.assertEqual(len(self.doc.find_all(attrs={'id': 'trx-days'})), 1)
+        self.assertEqual(self.doc.by_id('trx-days-h').text(), 'Journal days')
+        self.assertEqual(self.doc.by_id('trx-days-n').text(), '')              # 'N DAYS', written by trips.js with the hits
+        self.assertEqual(self.doc.by_id('trx-days-l').elements(), [])          # filled by trips.js, never at build time
+        more = self.doc.by_id('trx-days-more')
+        self.assertEqual((more.tag, more['type']), ('button', 'button'))
+        self.assertIn('hidden', more.attrs)
+        self.assertEqual(more.text(), '')
+
+    def test_the_journal_days_block_comes_after_the_results(self):
+        # reports first, then the journal days a search finds: a query for the journal's own name shows its card on top
+        order = list(self.doc.root.walk())
+        count, results, sec = self.doc.by_id('trx-count'), self.doc.by_id('trx-results'), self.doc.by_id('trx-days')
+        self.assertLess(order.index(count), order.index(results))
+        self.assertLess(order.index(results), order.index(sec))
+        # after the results container, not inside it: every card and both result lists come before the block
+        self.assertFalse(any(el is sec for el in results.walk()))
+        self.assertIs(sec.parent, results.parent)
+        cards = self.main.find_all('li', cls='tcard')
+        self.assertEqual(len(cards), 7)
+        self.assertLess(order.index(cards[-1]), order.index(sec))
+        self.assertLess(order.index(self.doc.by_id('trx-sorted')), order.index(sec))
+
+    def test_every_journal_day_hook_trips_js_names_is_on_the_page(self):
+        # the script and the page must agree on the ids: getElementById('trx-days-…') for the parts, '#trx-days' for the
+        # status line's link to the list
+        with open(TRIPS_JS, encoding='utf-8') as fh:
+            src = fh.read()
+        named = set(re.findall(r"""['"]#?(trx-days[\w-]*)['"]""", src))
+        self.assertIn('trx-days', named)
+        for id_ in sorted(named):
+            with self.subTest(id=id_):
+                self.assertIsNotNone(self.doc.by_id(id_), 'trips.js names #%s, which the page does not have' % id_)
+
+    def test_no_journal_block_or_index_without_a_journal(self):
+        site = dict(self.site)
+        site['published'] = [t for t in self.site['published'] if t['kind'] != 'series']
+        site['trips'] = [t for t in self.site['trips'] if t['kind'] != 'series']
+        pages = self.trips_mod.build(site)
+        self.assertEqual(sorted(p.url for p in pages), ['trips/', 'trips/search.json'])
+        self.assertNotIn('trx-days', pages_by_url(pages)['trips/'].html)
+
+    def test_a_journal_of_untitled_track_only_days_still_gets_the_block_and_the_index(self):
+        # no word anywhere in it, but each day has a name ('day 2') a reader can type
+        site = self.site_with_only_journal([{'id': '001', 'date': '2022-07-01'}, {'id': '002', 'date': '2022-07-02'}, {'id': '003'}])
+        journal = site['by_slug']['synthetic-traverse']
+        self.assertEqual(len(journal['days']), 3)
+        self.assertFalse(any(d['title'] or d['body_md'] for d in journal['days']))
+        self.assertTrue(all(d['track'] for d in journal['days']))
+        pages = self.build(site)
+        self.assertEqual(sorted(pages), ['trips/', 'trips/journal.json', 'trips/search.json'])
+        doc = Doc(pages['trips/'].html)
+        sec = doc.by_id('trx-days')
+        self.assertIsNotNone(sec)
+        for id_, tag in DAYS_PARTS.items():
+            self.assertIsNotNone(sec.by_id(id_), id_)
+        data = json.loads(pages['trips/journal.json'].html)
+        self.assertEqual([(e['s'], e['n'], e['a'], e['p'], e['h'], e['t'], e['x'], e['r']) for e in data],
+                         [('synthetic-traverse', '1', 'day-1', 'day 1', '', '', '', ''),
+                          ('synthetic-traverse', '2', 'day-2', 'day 2', '', '', '', ''),
+                          ('synthetic-traverse', '3', 'day-3', 'day 3', '', '', '', '')])
+        # the journal itself is still a report on the page and in the trip index
+        card = doc.find('li', attrs={'data-slug': 'synthetic-traverse'})
+        self.assertIsNotNone(card)
+        self.assertEqual((card['data-kind'], card['data-writeup']), ('series', '0'))
+        self.assertIn('synthetic-traverse', [e['s'] for e in json.loads(pages['trips/search.json'].html)])
+
+    def test_a_titled_track_only_day_is_in_the_index_with_its_title(self):
+        # no write-up anywhere, but one day has a name of its own to be found by
+        site = self.site_with_only_journal([{'id': '001', 'date': '2022-07-01'},
+                                            {'id': '002', 'title': 'Synthetic Pass', 'date': '2022-07-02'}, {'id': '003'}])
+        journal = site['by_slug']['synthetic-traverse']
+        self.assertFalse(journal['has_writeup'])
+        self.assertEqual([d['title'] for d in journal['days'] if d['title']], ['Synthetic Pass'])
+        pages = self.build(site)
+        self.assertEqual(sorted(pages), ['trips/', 'trips/journal.json', 'trips/search.json'])
+        sec = Doc(pages['trips/'].html).by_id('trx-days')
+        self.assertIsNotNone(sec)
+        self.assertEqual(sec['data-index'], 'journal.json')
+        for id_, tag in DAYS_PARTS.items():
+            self.assertIsNotNone(sec.by_id(id_), id_)
+            self.assertEqual(sec.by_id(id_).tag, tag)
+        data = json.loads(pages['trips/journal.json'].html)
+        self.assertEqual([(e['s'], e['n'], e['a'], e['h'], e['t'], e['w'], e['x'], e['r']) for e in data],
+                         [('synthetic-traverse', '1', 'day-1', '', '', 'Jul 1, 2022', '', ''),
+                          ('synthetic-traverse', '2', 'day-2', 'Synthetic Pass', 'synthetic pass', 'Jul 2, 2022', '', ''),
+                          ('synthetic-traverse', '3', 'day-3', '', '', '', '', '')])
+
+    def test_the_journal_days_heading_can_take_the_focus(self):
+        # the status line's link to the list moves the focus there by script (trips.js toDays): a heading needs
+        # tabindex="-1" for that, and stays out of the tab order
+        h = self.doc.by_id('trx-days-h')
+        self.assertEqual((h.tag, h['tabindex']), ('h2', '-1'))
 
     def test_search_json_is_the_dumped_index(self):
         data = json.loads(self.json_page.html)

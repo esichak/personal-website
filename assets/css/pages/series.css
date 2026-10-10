@@ -4,6 +4,18 @@
 body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
 @media (min-width: 760px) { body.p-series { --ser-nav-h: 64px; } }
 
+/* the lead photo (report.hero, styled in report.css .rep-hero) sits between the title block and the strip */
+body.p-series .rep-strip { margin-top: 24px; }
+/* three title actions: under the title at every width, so 'Pacific Crest Trail 2024' keeps its line beside none of them */
+@media (min-width: 1000px) {
+  body.p-series .rep-head { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 20px; }
+  body.p-series .rep-actions { flex-wrap: wrap; }
+}
+@media (max-width: 759.98px) {
+  body.p-series .rep-actions .btn, body.p-series .rep-actions .copy { flex: 1 1 auto; }
+  body.p-series .rep-actions .copy-btn { width: 100%; }
+}
+
 /* ---------------------------------------------------------------- intro row: overview map · overview + month index */
 .ser-intro { margin-top: 32px; display: grid; row-gap: 40px; }
 .ser-intro-map { min-width: 0; }
@@ -59,6 +71,23 @@ body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
   .ser-mi-h { flex-direction: column; align-items: flex-start; }
   .ser-mi-a { row-gap: 10px; }
 }
+
+/* ---------------------------------------------------------------- highlights (index.md journal_highlights, series.highlights) */
+.ser-high-l { margin-top: 16px; display: grid; row-gap: 24px; }
+.ser-high-a { display: flex; flex-direction: column; gap: 4px; min-height: 44px; color: var(--ink); }
+.ser-high-t { font: 600 19px/25px var(--sans); text-wrap: balance; }
+.ser-high-a:hover .ser-high-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.ser-high-l .t-mono-s { margin-top: 6px; text-transform: uppercase; }
+.ser-high-l .t-excerpt { margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+@media (min-width: 760px) { .ser-high-l { margin-top: 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
+@media (min-width: 1200px) { .ser-high-l { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* written-entry navigation under a write-up (series.written_nav) */
+.ser-wnav { max-width: 620px; margin-top: 24px; padding-top: 8px; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap;
+  align-items: center; column-gap: 24px; row-gap: 4px; }
+.ser-wnav .alink { color: var(--ink-2); }
+.ser-wnav .alink:hover { color: var(--ink); }
+.ser-wnav .copy { margin-left: auto; }
 
 /* ---------------------------------------------------------------- day log: head, filter, sticky month nav */
 .ser-log-h { align-items: center; padding-bottom: 8px; }

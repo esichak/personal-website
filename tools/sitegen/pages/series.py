@@ -8,6 +8,7 @@ and the "Show days with write-ups only" filter (no JS: every day shows).
 import os
 import re
 
+import content
 import icons
 import markdown
 
@@ -25,7 +26,9 @@ MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'Augus
 # ---------------------------------------------------------------- small helpers
 
 def day_anchor(d):
-    return 'day-' + str(d['label']).replace('.', '-')
+    """'day-31', 'day-5-2': the day's id on the journal page and the fragment every link to it uses (content.day_anchor,
+    which also makes load_trip refuse two days with one anchor)."""
+    return content.day_anchor(d['label'])
 
 
 def day_title(d):
@@ -171,21 +174,32 @@ def strip(t):
 def map_caption(t):
     """The shared map caption (core.map_caption), as on the report and multi-day maps: the track line, then the credit
     (two lines from 1200, one flowing paragraph below; phones drop the credit, which the in-map tag and footer carry)."""
-    return core.map_caption(['Tracks: ' + core.frange(t['date'], t['end_date']), 'full tracks, not trimmed', 'North up'])
+    when = core.recorded(t['date'], t['end_date'])   # 'on <date>' for a journal of one day
+    return core.map_caption(([when] if when else []) + ['full tracks, not trimmed', 'North up'])
 
 
 def lede(t):
-    """The series write-up when index.md has one; otherwise a short factual note on how the log is organised."""
+    """The series write-up when index.md has one; otherwise a factual introduction from the fields and the day files only:
+    what the journal is (title, recorded days, dates, place) and how the log is organised. No day's prose, no adjectives."""
     if t['body_md']:
         return '<div class="prose t-body ser-lede-prose">%s</div>' % markdown.to_html(t['body_md'])
     days = t['days']
     n_wu = sum(1 for d in days if written(d))
     rest = len(days) - n_wu
     pics = sum(1 for d in days if d['photos'] and not written(d))
-    bits = ['One entry per recorded day, grouped by month.']
+    # a journal whose day files carry no dates says nothing about when, rather than leaving a hole in the sentence
+    facts = ', '.join(x for x in ('%s: %s recorded day%s' % (esc(t['title']), n(len(days)), '' if len(days) == 1 else 's'),
+                                  core.frange(t['date'], t['end_date']), esc(t['place']) if t.get('place') else '') if x) + '.'
+    bits = [facts, 'One entry per recorded day, grouped by month.']
     if n_wu and rest:
-        bits.append('The %s days with a write-up carry the notes from that day and any photos; the other %s show the track%s.'
-                    % (n(n_wu), n(rest), (', %s of them with photos' % n(pics)) if pics else ' only'))
+        # the same sentence in the singular when one day is written, or one is not
+        first = ('The %s days with a write-up carry the notes from that day and any photos' % n(n_wu)) if n_wu > 1 \
+            else 'The one day with a write-up carries its notes and any photos'
+        if rest > 1:
+            second = 'the other %s show the track%s' % (n(rest), (', %s of them with photos' % n(pics)) if pics else ' only')
+        else:
+            second = 'the other day shows the track%s' % (' and its photos' if pics else ' only')
+        bits.append('%s; %s.' % (first, second))
     elif n_wu:
         bits.append('Every day has a write-up.')
     bits.append('Every track is the full recording, not trimmed, with its own GPX download.')
@@ -336,6 +350,51 @@ def stats_dl(d):
             % ''.join('<div class="ser-st-%s"><dt>%s</dt><dd>%s</dd></div>' % (k, lab, v) for k, lab, v in cells))
 
 
+def first_written(t):
+    """The first day with a write-up, or None."""
+    return next((d for d in t['days'] if written(d)), None)
+
+
+def highlights(t, here):
+    """The author's chosen entries (index.md journal_highlights, validated by content.py), in the listed order: Day N, the
+    day's title, the date, and the opening of its write-up when it has one. A day without a title is named by its date,
+    which is then not printed a second time; with neither it is 'Day N' alone. '' when none are listed."""
+    hs = t.get('journal_highlights') or []
+    if not hs:
+        return ''
+    items = []
+    for d in hs:
+        date_s = core.fdate(d['date'], 'day') if d['date'] else ''
+        name = esc(d['title']) if d['title'] else esc(date_s)
+        name = ('<span class="ser-high-t">%s</span>' % name) if name else ''
+        date_p = ('<p class="t-mono-s">%s</p>' % esc(date_s.upper())) if date_s and d['title'] else ''
+        ex = ('<p class="t-excerpt">%s</p>' % esc(markdown.plain(d['body_md'], 160))) if written(d) else ''
+        items.append('<li><a class="ser-high-a" href="#%s"><span class="t-label">Day %s</span>%s</a>%s%s</li>'
+                     % (day_anchor(d), esc(d['label']), name, date_p, ex))
+    count = core.nb('%s ENTR%s' % (n(len(hs)), 'Y' if len(hs) == 1 else 'IES'))
+    return ('<section class="ser-high wrap sec" id="highlights" aria-labelledby="high-h"><div class="shead"><h2 class="shead-t" id="high-h">Highlights</h2>'
+            '<span class="shead-m t-mono-s">%s</span></div><ol class="ser-high-l">%s</ol></section>' % (count, ''.join(items)))
+
+
+def written_nav(t, d, here):
+    """Under a written entry: the nearest written entries before and after (track-only days are skipped), each named by its
+    day, and a copy-link control for this entry's anchor. A div, not a nav: one landmark per entry would add dozens."""
+    if not written(d):
+        return ''
+    ws = [x for x in t['days'] if written(x)]
+    i = ws.index(d)
+    parts = []
+    if i > 0:
+        prev = ws[i - 1]
+        parts.append('<a class="alink ser-wnav-p" href="#%s">%sPrevious write-up: Day %s</a>' % (day_anchor(prev), icon('arrow-left', 16), esc(prev['label'])))
+    if i + 1 < len(ws):
+        nxt = ws[i + 1]
+        parts.append('<a class="alink ser-wnav-n" href="#%s">Next write-up: Day %s%s</a>' % (day_anchor(nxt), esc(nxt['label']), icon('arrow-right', 16)))
+    parts.append(core.copy_link(core.SITE_URL + t['url'] + '#' + day_anchor(d), 'Copy link to this entry', cls='alink',
+                                of='Day %s' % d['label']))
+    return '<div class="ser-wnav">%s</div>' % ''.join(parts)
+
+
 def day_article(t, d, here):
     aid = day_anchor(d)
     days_dir = os.path.join(t['rendered'], 'days')
@@ -352,6 +411,7 @@ def day_article(t, d, here):
     if d['body_md']:
         body += '<div class="prose t-body ser-wu">%s</div>' % markdown.to_html(d['body_md'], heading_shift=4)
     body += thumbs(t, d, here)
+    body += written_nav(t, d, here)
     cls = 'ser-day' + (' has-wu' if written(d) else '') + (' has-body' if body else '') + ('' if d['title'] else ' no-title')
     labelled = ('%s-n %s-t' % (aid, aid)) if d['title'] else ('%s-n' % aid)
     return ('<article class="%s" id="%s" aria-labelledby="%s">'
@@ -418,7 +478,9 @@ def day_log(t, here, months):
     gaps = label_gaps(t['days'])
     toggle = ''
     if 0 < n_wu < n_days:
-        toggle = ('<div class="ser-only" hidden><label class="ser-only-l"><input type="checkbox" id="ser-only" data-total="%d" data-wu="%d">'
+        # data-default="wu": series.js starts the filter on (written entries are the reader mode) unless the URL hash
+        # targets a day or month the filter would hide
+        toggle = ('<div class="ser-only" hidden><label class="ser-only-l"><input type="checkbox" id="ser-only" data-total="%d" data-wu="%d" data-default="wu">'
                   '<span class="ser-only-long">Show days with write-ups only</span><span class="ser-only-short">Write-ups only</span>'
                   '</label></div>' % (n_days, n_wu))
     return ('<section class="ser-log wrap sec" id="days" aria-labelledby="days-h" style="--ser-act:%s">'
@@ -433,17 +495,30 @@ def day_log(t, here, months):
 def page(t, site):
     here = t['url']
     months = group_months(t)
-    actions = '<a class="btn" href="#days">%sDay by day</a>' % icon('list', 18)
-    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site), strip(t), intro(t, here, months),
-            day_log(t, here, months), report.pager(t, here, site)]
+    fw = first_written(t)
+    actions = ''
+    if fw:
+        actions += '<a class="btn" href="#%s">%sRead the first written entry</a>' % (day_anchor(fw), icon('report', 18))
+    # data-ser-all: series.js turns the write-ups filter off when this is followed, so every recording shows
+    actions += '<a class="btn" href="#days" data-ser-all>%sBrowse all recordings</a>' % icon('list', 18)
+    actions += core.copy_link(core.SITE_URL + here)
+    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site)]
+    cover = t.get('cover')
+    lead = bool(cover) and report.lead_photo(t) is not None   # a portrait cover fronts the cards but does not lead the page
+    if lead:
+        body.append(report.hero(t, here))
+    body += [strip(t), intro(t, here, months), highlights(t, here), day_log(t, here, months), report.pager(t, here, site)]
     n_wu = sum(1 for d in t['days'] if written(d))
-    desc = '%s: %s recorded days, %s, with a GPX track for every day%s.' % (
-        t['title'], n(len(t['days'])), core.frange(t['date'], t['end_date']),
-        (' and %s written up' % n(n_wu)) if n_wu else '')
+    desc = '%s.' % ', '.join(x for x in (
+        '%s: %s recorded day%s' % (t['title'], n(len(t['days'])), '' if len(t['days']) == 1 else 's'),
+        core.frange(t['date'], t['end_date']),
+        'with a GPX track for every day%s' % ((' and %s written up' % n(n_wu)) if n_wu else '')) if x)
     first_photo = next((d['photos'][0] for d in t['days'] if d['photos']), None)
-    img = (t['url'] + first_photo['file']) if first_photo else ((t['url'] + t['photos'][0]['file']) if t['photos'] else None)
-    # the overview map's hillshade (and base layer) load at once at every width, each band fetching the render it shows
-    head = ov_preloads(t, here)
+    img = (t['url'] + cover['photo']['file']) if cover else (
+        (t['url'] + first_photo['file']) if first_photo else ((t['url'] + t['photos'][0]['file']) if t['photos'] else None))
+    # the lead photo is the page's first image; without one the overview map's hillshade (and base layer) load at once at
+    # every width, each band fetching the render it shows
+    head = core.cover_preload(t, here, report.HERO_SIZES) if lead else ov_preloads(t, here)
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img,
                                          body_cls='p-series', og_type='article', extra_head=head), t['title'])
 

@@ -42,6 +42,8 @@
 /* ---------------------------------------------------------------- status: count, active filter chips, clear */
 .trx-status { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 32px; }
 .trx-count { text-transform: uppercase; }
+.trx-count a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.trx-count a:hover { color: var(--route-ink); }
 .trx-chips { display: flex; flex-wrap: wrap; gap: 12px 8px; }
 .trx-chips:empty { display: none; }
 .trx-chip { position: relative; height: 32px; padding: 0 8px 0 10px; display: inline-flex; align-items: center; gap: 6px; border-radius: 2px; background: var(--sunk);
@@ -67,6 +69,17 @@
 @media (min-width: 560px) { .trx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
 @media (min-width: 760px) { .trx-yr { margin-top: 40px; } .trx-grid { margin-top: 24px; } }
 @media (min-width: 1200px) { .trx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* journal days a search finds (trips.js renderDays), listed after the reports: whose day it is, its title, the words around the hit */
+.trx-days { margin-top: 32px; }
+.trx-day { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.trx-day-a { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-height: 44px; color: var(--ink); }
+.trx-day-m { text-transform: uppercase; }
+.trx-day-t { font: 600 17px/22px var(--sans); }
+.trx-day-a:hover .trx-day-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.trx-day-x { margin-top: 6px; max-width: 720px; }   /* the words around the hit, whole: a clamp would cut the hit off on a phone */
+.trx-days-more { margin-top: 4px; }
+@media (min-width: 760px) { .trx-days { margin-top: 40px; } .trx-day-t { font-size: 19px; line-height: 25px; } }
 
 /* list view: one row per trip at every width, thumbnail beside the text (the .tcard row layout) */
 .trx--list .trx-grid { grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 4px; }

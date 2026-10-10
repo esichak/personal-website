@@ -1,6 +1,7 @@
 """Phase 1 review additions: the day label on multi-day home cards, no-photo and recent-card media, the cover image /
 preload helpers, home.page()'s share image, facts wording edges, a missing day-photo file, hand-written front matter
-and front-matter syntax errors naming their file."""
+and front-matter syntax errors naming their file. Since contract-phase3.md section 10.4 also the trip card's
+DATE · PLACE line: the place item may wrap inside a narrow card, the date item is as it was."""
 import os
 import sys
 import tempfile
@@ -93,6 +94,111 @@ class CardMediaTests(unittest.TestCase):
             html_ = home.page(self.site).html
         self.assertNotIn('og:image', html_)
         self.assertNotIn('hom-featured', html_)
+
+
+class TripCardMetaLineTests(unittest.TestCase):
+    """core.trip_card's meta line (contract-phase3.md 10.4): the place item is <span class="mi mi-w"> with ordinary
+    spaces, so a long place wraps at its spaces inside a narrow card (the related cards on a 320 px report page) instead
+    of widening the page; the date item is unchanged: a plain .mi kept on one line."""
+
+    SIZES = '(min-width: 760px) 400px, 100vw'
+    PLACE = 'Synthetic Demonstration Forest North'
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.tmp = tmp.name
+
+    def trip(self, slug, **meta):
+        meta.setdefault('activity', 'mtb')
+        meta.setdefault('track', True)
+        helpers.make_trip(self.tmp, slug, **meta)
+        return helpers.load(self.tmp, slug)
+
+    def line(self, t, **kw):
+        """(the card's html, its p.tcard-meta, that line's .mi items)."""
+        html_ = core.trip_card(t, 'trips/', self.SIZES, **kw)
+        p = helpers.Doc(html_).find('li').find('p', cls='tcard-meta')
+        return html_, p, p.find_all('span', cls='mi')
+
+    def test_place_item_is_a_wrapping_item_with_ordinary_spaces(self):
+        t = self.trip('syn-card-place', title='Synthetic Card', date='2026-01-17', place=self.PLACE)
+        html_, _p, items = self.line(t)
+        self.assertEqual(len(items), 2)
+        place = items[1]
+        self.assertEqual((place.tag, place.classes), ('span', ['mi', 'mi-w']))
+        raw = place.text(clean=False)
+        self.assertEqual(raw, ', SYNTHETIC DEMONSTRATION FOREST NORTH')   # ', ' is the screen-reader separator
+        self.assertNotIn('\xa0', raw)
+        self.assertEqual(raw.count(' '), 4)
+        self.assertIn('<span class="mi mi-w"><span class="sr">, </span>SYNTHETIC DEMONSTRATION FOREST NORTH</span>', html_)
+
+    def test_date_item_is_unchanged(self):
+        t = self.trip('syn-card-date', title='Synthetic Card', date='2026-01-17', place=self.PLACE)
+        html_, _p, items = self.line(t)
+        date = items[0]
+        self.assertEqual(date.classes, ['mi'])                                  # no mi-w: a date never wraps
+        self.assertEqual(date.text(clean=False), 'JAN\xa017,\xa02026')     # still kept on one line by its nbsp
+        self.assertEqual(date.text(clean=False), core.trip_date(t, short=True))
+        self.assertEqual(date.elements(), [])                                   # the first item: no ', ' before it
+        self.assertIn('<span class="mi">JAN\xa017,\xa02026</span>', html_)
+
+    def test_the_whole_line(self):
+        # the line as the card writes it: DATE, then PLACE, in one .ml, on the paragraph the title link is described by
+        t = self.trip('syn-card-line', title='Synthetic Card', date='2026-01-17', place=self.PLACE)
+        html_, p, _items = self.line(t, ns='rel')
+        self.assertIn('<p class="t-mono-s tcard-meta" id="rel-syn-card-line-m"><span class="ml">'
+                      '<span class="mi">JAN\xa017,\xa02026</span>'
+                      '<span class="mi mi-w"><span class="sr">, </span>SYNTHETIC DEMONSTRATION FOREST NORTH</span></span></p>', html_)
+        self.assertEqual(p.text(), 'JAN 17, 2026, SYNTHETIC DEMONSTRATION FOREST NORTH')
+        self.assertEqual(helpers.Doc(html_).find('h3').find('a')['aria-describedby'], p['id'])
+
+    def test_region_stands_in_for_a_missing_place_and_wraps_the_same_way(self):
+        t = self.trip('syn-card-region', title='Synthetic Card', date='2026-01-17', region='Synthetic Far Range')
+        _html, _p, items = self.line(t)
+        self.assertEqual([i.classes for i in items], [['mi'], ['mi', 'mi-w']])
+        self.assertEqual(items[1].text(clean=False), ', SYNTHETIC FAR RANGE')
+        both = self.trip('syn-card-both', title='Synthetic Card', date='2026-01-17', place=self.PLACE, region='Synthetic Far Range')
+        self.assertEqual(self.line(both)[2][1].text(clean=False), ', SYNTHETIC DEMONSTRATION FOREST NORTH')   # the place wins
+
+    def test_a_one_word_place_is_the_same_kind_of_item(self):
+        t = self.trip('syn-card-word', title='Synthetic Card', date='2026-01-17', place='Synthetica')
+        _html, _p, items = self.line(t)
+        self.assertEqual(items[1].classes, ['mi', 'mi-w'])
+        self.assertEqual(items[1].text(clean=False), ', SYNTHETICA')
+
+    def test_no_place_item_without_a_place_or_a_region(self):
+        t = self.trip('syn-card-nowhere', title='Synthetic Card', date='2026-01-17')
+        html_, _p, items = self.line(t)
+        self.assertEqual([i.classes for i in items], [['mi']])
+        self.assertEqual(items[0].text(clean=False), 'JAN\xa017,\xa02026')
+        self.assertNotIn('mi-w', html_)
+
+    def test_place_is_escaped_and_reads_back(self):
+        t = self.trip('syn-card-esc', title='Synthetic Card', date='2026-01-17', place="Synthetic Fork & Skier's <Gap>")
+        html_, _p, items = self.line(t)
+        self.assertNotIn('<Gap>', html_)
+        self.assertNotIn('<GAP>', html_)
+        self.assertNotIn(' & ', html_)
+        self.assertEqual(items[1].text(clean=False), ", SYNTHETIC FORK & SKIER'S <GAP>")
+        self.assertEqual(items[1].find_all('span'), [items[1].find('span', cls='sr')])   # the separator, and no markup from the place
+
+    def test_date_items_of_other_kinds_are_unchanged(self):
+        # a multi-day range, a journal's months and a goal's PLANNED: each core.trip_date(t, short=True), one unbroken .mi
+        helpers.make_trip(self.tmp, 'syn-card-tour', title='Synthetic Tour', activity='ski', kind='multi-day', date='2025-04-01',
+                          end_date='2025-04-03', place=self.PLACE, days=[{'date': '2025-04-01'}, {'date': '2025-04-03'}])
+        helpers.make_series(self.tmp, slug='syn-card-journal', title='Synthetic Journal', written_day=None, photos=False, place=self.PLACE)
+        helpers.make_trip(self.tmp, 'syn-card-goal', title='Synthetic Goal', activity='hike', kind='planned', place=self.PLACE)
+        want = {'syn-card-tour': 'APR\xa01–3,\xa02025', 'syn-card-journal': 'APR–SEP\xa02024', 'syn-card-goal': 'PLANNED'}
+        for slug, text in want.items():
+            with self.subTest(slug):
+                t = helpers.load(self.tmp, slug)
+                _html, _p, items = self.line(t)
+                self.assertEqual([i.classes for i in items], [['mi'], ['mi', 'mi-w']])
+                self.assertEqual(items[0].text(clean=False), text)
+                self.assertEqual(items[0].text(clean=False), core.trip_date(t, short=True))
+                self.assertNotIn(' ', items[0].text(clean=False))
+                self.assertEqual(items[1].text(clean=False), ', SYNTHETIC DEMONSTRATION FOREST NORTH')
 
 
 class CoverHelperTests(unittest.TestCase):

@@ -43,9 +43,10 @@ Useful front-matter fields (see any existing trip for the format):
 | `route_shape` | `loop`, `out-and-back` or `point-to-point` (detected from the track) |
 | `stats` | `distance_km`, `moving`, `elapsed`, `gain_m`, `loss_m`, `high_m`, `low_m` (Strava's numbers, or computed) |
 | `featured: true` | Eligible for the section pages' "Featured" block (single-day trips only; the home page is picked in `content/home.json`, see below) |
-| `cover_photo`, `cover_focal_x`, `cover_focal_y` | The photo the home page's cards use for this trip (a path declared under `photos`) and where to keep in the crop, 0–100 (default 50/50) |
+| `cover_photo`, `cover_focal_x`, `cover_focal_y` | The photo the trip's cards and its page's share image use (a path declared under `photos`), and where to keep in the crop, 0–100 (default 50/50). It is also the lead photo of a single-day report with a write-up, or of the PCT page, when it is at least 6:5 wide; a portrait or a square does not lead, and multi-day trips have no lead photo |
 | `card_summary` | Optional one- or two-sentence factual summary for the home page's featured card (the report's opening is used when it is absent) |
 | `search_aliases` | Other names people might search for, as an inline list (`[PCT, Pacific Crest]`); searched on the Trips page, never shown |
+| `journal_highlights` | PCT only: the entries the journal points to, as an inline list of day-file ids (`[001, 059]`), in display order; absent means no Highlights section |
 | `draft: true` | Keep it off the site |
 | `kind: planned` | A tick-list goal, not a report: planned route, approximate stats, `goal.json` beside it (see `docs/TICK_LIST_GUIDE.md`) |
 | `beta` | List of `label` / `value` rows shown beside the report |

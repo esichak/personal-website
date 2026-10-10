@@ -148,6 +148,20 @@ def status(site):
             % (plural(n, 'REPORT'), icon('close', 16)))
 
 
+def journal_block(site):
+    """Where trips.js lists the journal days a search finds (trips/journal.json): after the reports, empty and hidden
+    until then, and absent when the site has no journal. The status line links to it (the heading takes the focus). Each hit
+    names its journal, day and date and links to that day on the journal's own page, so a day never looks like a report
+    of its own."""
+    if not search.build_day_index(site):
+        return ''
+    return ('<section class="trx-days wrap" id="trx-days" aria-labelledby="trx-days-h" data-index="journal.json" hidden>'
+            '<div class="trx-yr-h"><h2 class="t-label" id="trx-days-h" tabindex="-1">Journal days</h2>'
+            '<span class="t-mono-s trx-yr-n" id="trx-days-n"></span></div>'
+            '<ol class="trx-dayl" id="trx-days-l"></ol>'
+            '<button type="button" class="alink trx-days-more" id="trx-days-more" hidden></button></section>')
+
+
 def results(site):
     out = []
     for y, ts in groups_of(site['published']):
@@ -164,8 +178,12 @@ def results(site):
 
 
 def build(site):
-    body = head(site) + browse(site) + controls(site) + status(site) + results(site)
+    body = head(site) + browse(site) + controls(site) + status(site) + results(site) + journal_block(site)
     desc = 'Every trip report, searchable by name, place, region, activity, named peak and write-up, with filters by activity, year and format.'
     page = core.Page(HERE, core.document(HERE, 'Trips', body, desc, active='trips', body_cls='p-trips'), 'Trips')
     index = core.Page('trips/search.json', search.dumps(search.build_index(site)), 'Search index', index=False)
-    return [page, index]
+    out = [page, index]
+    days = search.build_day_index(site)
+    if days:
+        out.append(core.Page('trips/journal.json', search.dumps(days), 'Journal search index', index=False))
+    return out

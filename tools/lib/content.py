@@ -124,8 +124,77 @@ def _split(text, where):
         raise ContentError('%s: front matter: %s' % (where, ex))
 
 
+def day_anchor(label):
+    """'day-31', 'day-5-2': the id of a journal day on its page and the fragment every link to it uses. A label is a number
+    as a rule ('31', '5.2'); whatever else a day file's `day:` holds becomes a hyphen too, so the id is always safe to
+    write into an attribute and a URL. load_trip refuses a journal whose labels give two days the same anchor."""
+    return 'day-' + re.sub(r'[^A-Za-z0-9]+', '-', str(label)).strip('-')
+
+
+DAY_SUB_IDS = ('-n', '-t')   # a day article's own ids: '<anchor>-n' on its number, '<anchor>-t' on its title (series.day_article)
+
+
+def _day_given(dm):
+    """A day file's `day:` as text, or None when the line is absent or empty. `day: 0` is a label (Day 0), not a missing
+    one."""
+    v = dm.get('day')
+    return str(v).strip() if v is not None and str(v).strip() else None
+
+
+def _day_label(dm, position):
+    """A day's label: its `day:` (_day_given), else its position among the day files."""
+    given = _day_given(dm)
+    return given if given is not None else str(position)
+
+
+def _check_day_anchors(t, unlabelled=()):
+    """A journal page gives every day an anchor built from its label (day_anchor); links, the copy-link address and the
+    day search all point at it. Two days with one anchor, or a label with nothing to build one from, is a content error
+    named by its day file, not a page with links that land on the wrong day. unlabelled: the ids of the day files
+    without a `day:` line, whose label is their position; the message says so, because the file holds no such value
+    (a day added to a journal whose labels do not follow the file order, such as the PCT, needs its own `day:`).
+    The page also writes two ids of the day's own from the anchor (DAY_SUB_IDS: its number and its title), so a label
+    such as '5 n' beside a Day 5 is refused too."""
+    seen, used = {}, {}   # anchor -> day id; every id a day's article writes -> day id
+    for d in t['days']:
+        where = 'content/trips/%s/days/%s.md' % (t['slug'], d['id'])
+        a = day_anchor(d['label'])
+        if a == 'day-':
+            raise ContentError('%s: day: %r has no letter or digit to make its page anchor from' % (where, d['label']))
+        if a in seen:
+            if d['id'] in unlabelled:
+                raise ContentError('%s: no day: line, so this day takes its position, %s, and that gives the same page anchor '
+                                   '(#%s) as days/%s.md; add a day: line with a label no other day has'
+                                   % (where, d['label'], a, seen[a]))
+            raise ContentError('%s: day: %r gives the same page anchor (#%s) as days/%s.md; give each day its own label'
+                               % (where, d['label'], a, seen[a]))
+        mine = [a] + [a + s for s in DAY_SUB_IDS]
+        clash = next((i for i in mine if i in used), None)
+        if clash:
+            raise ContentError('%s: day: %r needs the page id #%s, which days/%s.md already uses; give each day its own label'
+                               % (where, d['label'], clash, used[clash]))
+        seen[a] = d['id']
+        for i in mine:
+            used[i] = d['id']
+
+
 def _landscape(p):
     return bool(p.get('w') and p.get('h') and p['w'] >= p['h'])
+
+
+LEAD_MIN_AR = 1.2   # a page's lead photo sits in a 4:3 to 2:1 frame; anything narrower than 6:5 would lose most of itself to it
+
+
+def _wide(p):
+    """Wide enough to lead a page (sitegen report.lead_photo): at least 6:5."""
+    return bool(p.get('w') and p.get('h') and p['w'] >= LEAD_MIN_AR * p['h'])
+
+
+def _auto_cover(photos):
+    """The automatic pick among photos in their declared order: the first one wide enough to lead a page, else the first
+    that is at least as wide as tall, else None. A square first photo therefore does not keep a later landscape from
+    leading the page."""
+    return next((p for p in photos if _wide(p)), None) or next((p for p in photos if _landscape(p)), None)
 
 
 def resolve_cover(t):
@@ -135,8 +204,8 @@ def resolve_cover(t):
 
     An explicit cover_photo must name a photo declared in index.md or a days/NN.md (so its size and alt text are reused)
     and the file must exist; a broken explicit value is a ContentError, never a silent fallback. Without one, the first
-    landscape trip photo wins, then the first trip photo, then the first landscape day photo, then the first day photo:
-    an automatic pick, not an editorial choice."""
+    trip photo wide enough to lead a page wins (_auto_cover: at least 6:5, else at least as wide as tall), then the first
+    trip photo, then the same over the day photos: an automatic pick, not an editorial choice."""
     focal = tuple(t.get('cover_focal') or (50.0, 50.0))
     want = t.get('cover_photo')
     where = _index_of(t['slug'])
@@ -163,16 +232,49 @@ def resolve_cover(t):
             raise ContentError('%s: cover_photo %r is declared but the file is missing from the trip folder' % (where, want))
         return {'photo': p, 'source': 'explicit', 'day': d, 'focal': focal}
     if t['photos']:
-        p = next((p for p in t['photos'] if _landscape(p)), t['photos'][0])
-        return {'photo': p, 'source': 'parent', 'day': None, 'focal': focal}
-    for d in t['days']:
-        p = next((p for p in d['photos'] if _landscape(p)), None)
-        if p:
-            return {'photo': p, 'source': 'day', 'day': d, 'focal': focal}
+        return {'photo': _auto_cover(t['photos']) or t['photos'][0], 'source': 'parent', 'day': None, 'focal': focal}
+    for test in (_wide, _landscape):
+        for d in t['days']:
+            p = next((p for p in d['photos'] if test(p)), None)
+            if p:
+                return {'photo': p, 'source': 'day', 'day': d, 'focal': focal}
     for d in t['days']:
         if d['photos']:
             return {'photo': d['photos'][0], 'source': 'day', 'day': d, 'focal': focal}
     return None
+
+
+def _highlights(raw, t, where):
+    """journal_highlights: [001, 059] on a series -> the matching day dicts in the listed order (ids as in the days/NNN.md
+    file names; a bare number is zero-padded to the width the files use). Absent or empty -> []. An unknown id, a
+    repeat, a value that is not a list, or a non-empty list on a trip that is not a journal is a ContentError."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ContentError('%s: journal_highlights must be a list of day ids such as [001, 059], got %r' % (where, raw))
+    if not [x for x in raw if x is not None]:
+        return []      # an empty list is "none chosen yet", on any trip
+    if t['kind'] != 'series':
+        # only a journal page shows highlights: on any other trip the list would be accepted and silently never used
+        raise ContentError('%s: journal_highlights is for a journal (kind: series); this trip is kind: %s' % (where, t['kind']))
+    if not t['days']:
+        raise ContentError('%s: journal_highlights needs day files (days/NNN.md); this trip has none' % where)
+    by_id = {d['id']: d for d in t['days']}
+    width = max(len(d['id']) for d in t['days'])
+    out, seen = [], set()
+    for item in raw:
+        if item is None:
+            continue   # a trailing comma's empty item
+        key = str(item).strip()
+        if isinstance(item, int) or key.isdigit():
+            key = key.zfill(width)
+        if key not in by_id:
+            raise ContentError('%s: journal_highlights names day %r, which is not a days/NNN.md of this trip' % (where, item))
+        if key in seen:
+            raise ContentError('%s: journal_highlights lists day %r twice' % (where, item))
+        seen.add(key)
+        out.append(by_id[key])
+    return out
 
 
 def _stats(st):
@@ -243,18 +345,23 @@ def load_trip(folder):
         'track': os.path.join(folder, 'track.gpx') if os.path.exists(os.path.join(folder, 'track.gpx')) else None,
         'rendered': os.path.join(RENDERED, 'trips', slug),
     }
+    unlabelled = set()   # day files without a `day:` line (their label is their position)
     for f in sorted(glob.glob(os.path.join(folder, 'days', '*.md'))):
         with open(f, encoding='utf-8') as fh:
             dm, db = _split(fh.read(), 'content/trips/%s/days/%s' % (slug, os.path.basename(f)))
         stem = os.path.splitext(os.path.basename(f))[0]
         gpx = os.path.join(folder, 'days', stem + '.gpx')
+        if _day_given(dm) is None:
+            unlabelled.add(stem)
         t['days'].append({
-            'n': len(t['days']) + 1, 'id': stem, 'label': str(dm.get('day') or (len(t['days']) + 1)),
+            'n': len(t['days']) + 1, 'id': stem, 'label': _day_label(dm, len(t['days']) + 1),
             'title': dm.get('title'), 'date': _date(dm.get('date')), 'start_time': dm.get('start_time'),
             'hut': dm.get('hut'), 'transfer_before': bool(dm.get('transfer_before')),
             'stats': _stats(dm.get('stats')), 'photos': _photos(dm.get('photos'), folder),
             'body_md': re.sub(r'<!--.*?-->', '', db, flags=re.S).strip(), 'track': gpx if os.path.exists(gpx) else None,
         })
+    if kind == 'series':
+        _check_day_anchors(t, unlabelled)
     if t['days']:
         t['stats'] = _sum_stats(t['days'])
         t['date'] = t['date'] or t['days'][0]['date']
@@ -280,6 +387,7 @@ def load_trip(folder):
     else:
         raise ContentError('%s: search_aliases must be a list of names such as [PCT], got %r' % (where, al))
     t['cover'] = resolve_cover(t)
+    t['journal_highlights'] = _highlights(meta.get('journal_highlights'), t, where)
     # kind: planned trips are tick-list goals: goal.json (or the defaults for a legacy planned route)
     t['goal'] = goals.load_goal(folder, slug, kind)
     t['season'] = season_of(t['date'], act)

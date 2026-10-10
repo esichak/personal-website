@@ -1,4 +1,7 @@
-"""Phase 1: cover resolution and the optional presentation fields in the trip dict (tools/lib/content.py)."""
+"""Phase 1: cover resolution and the optional presentation fields in the trip dict (tools/lib/content.py), with the
+automatic pick as contract-phase3.md section 10.4 left it: the first photo wide enough to lead a page (w >= 1.2 * h),
+else the first at least as wide as tall, else the first photo; the same three steps over the day photos of a trip that
+has only those; never applied to an explicit cover_photo."""
 import os
 import sys
 import tempfile
@@ -132,6 +135,113 @@ class CoverTests(unittest.TestCase):
         # a declared photo that is not on disk is the existing situation on some trips: automatic resolution must not raise
         t = self.trip(photos=[photo('photos/01.webp', LANDSCAPE)], missing=('photos/01.webp',))
         self.assertEqual(t['cover']['photo']['file'], 'photos/01.webp')
+
+    # ------------------------------------------------------------ the automatic pick by shape (contract-phase3.md 10.4)
+
+    def auto(self, slug, *sizes):
+        """The file the automatic pick takes among a trip's own photos of these (w, h), declared in this order as
+        photos/01.webp, photos/02.webp, ..."""
+        t = self.trip(slug=slug, photos=[photo('photos/%02d.webp' % i, size) for i, size in enumerate(sizes, 1)])
+        self.assertIsNone(t['cover_photo'])
+        c = t['cover']
+        self.assertEqual((c['source'], c['day']), ('parent', None))
+        self.assertIn(c['photo'], t['photos'])
+        return c['photo']['file']
+
+    def day_auto(self, slug, *days):
+        """The same over day photos only: one tuple of (w, h) sizes per day, declared as photos/dDD-NN.webp. Also checks
+        that the cover names the day the photo belongs to."""
+        t = self.trip(slug=slug, kind='multi-day',
+                      days=[{'photos': [photo('photos/d%02d-%02d.webp' % (i, j), size) for j, size in enumerate(sizes, 1)]} if sizes else {}
+                            for i, sizes in enumerate(days, 1)])
+        self.assertEqual(t['photos'], [])
+        self.assertIsNone(t['cover_photo'])
+        c = t['cover']
+        self.assertEqual(c['source'], 'day')
+        self.assertIn(c['photo'], c['day']['photos'])
+        self.assertIs(c['day'], t['days'][int(c['photo']['file'][len('photos/d'):][:2]) - 1])
+        return c['photo']['file']
+
+    def test_lead_min_ar_is_one_point_two(self):
+        # 10.4: content.LEAD_MIN_AR = 1.2 (sitegen.pages.report.LEAD_MIN_AR is this value: tests/test_report_page.py)
+        self.assertEqual(content.LEAD_MIN_AR, 1.2)
+
+    def test_automatic_takes_the_first_photo_wide_enough_to_lead(self):
+        # 10.4, step 1: the first with w >= 1.2 * h. A square first photo no longer keeps a later landscape from being
+        # the cover; the first wide photo wins, not the widest
+        self.assertEqual(self.auto('square-first', (1000, 1000), (1600, 1200), (1600, 900)), 'photos/02.webp')
+        self.assertEqual(self.auto('near-square-first', (1150, 1000), (1600, 900)), 'photos/02.webp')
+        self.assertEqual(self.auto('tall-square-wide', (800, 1200), (1000, 1000), (1600, 1200)), 'photos/03.webp')
+        self.assertEqual(self.auto('wide-first', (1600, 1200), (1600, 900), (1000, 1000)), 'photos/01.webp')
+
+    def test_automatic_takes_the_first_photo_at_least_as_wide_as_tall_when_none_is_wide_enough(self):
+        # 10.4, step 2: no photo reaches 1.2: the first with w >= h, a square included
+        self.assertEqual(self.auto('near-squares', (1150, 1000), (1100, 1000)), 'photos/01.webp')
+        self.assertEqual(self.auto('tall-then-square', (800, 1200), (1000, 1000)), 'photos/02.webp')
+        self.assertEqual(self.auto('tall-near-square-square', (800, 1200), (1100, 1000), (1000, 1000)), 'photos/02.webp')
+        self.assertEqual(self.auto('almost-square', (999, 1000), (1000, 1000)), 'photos/02.webp')
+
+    def test_automatic_takes_the_first_photo_when_all_are_portraits(self):
+        # 10.4, step 3: else the first photo
+        self.assertEqual(self.auto('portraits', (800, 1200), (900, 1200), (1000, 1100)), 'photos/01.webp')
+        self.assertEqual(self.auto('one-portrait', (800, 1200)), 'photos/01.webp')
+
+    def test_automatic_wide_enough_means_at_least_six_to_five(self):
+        # 10.4: w >= 1.2 * h, pinned from both sides: 1200 x 1000 is wide enough, 1199 x 1000 is not (it is still at
+        # least as wide as tall, so it wins only when nothing wider follows)
+        self.assertEqual(self.auto('edge', (1199, 1000), (1200, 1000)), 'photos/02.webp')
+        self.assertEqual(self.auto('edge-reversed', (1200, 1000), (1199, 1000)), 'photos/01.webp')
+        self.assertEqual(self.auto('edge-run', (1000, 1000), (1199, 1000), (1200, 1000), (1600, 900)), 'photos/03.webp')
+        self.assertEqual(self.auto('edge-small', (5, 5), (6, 5)), 'photos/02.webp')
+        self.assertEqual(self.auto('edge-under', (1199, 1000), (1150, 1000)), 'photos/01.webp')
+
+    def test_automatic_day_pick_prefers_a_wide_photo_on_a_later_day_to_a_square_on_an_earlier_one(self):
+        # 10.4, a trip with only day photos, step 1: the first day photo (days in order) with w >= 1.2 * h
+        self.assertEqual(self.day_auto('day-wide', [(1000, 1000)], [(1600, 1200)]), 'photos/d02-01.webp')
+        self.assertEqual(self.day_auto('day-wide-late', [(800, 1200), (1000, 1000)], [(1100, 1000)], [(900, 1200), (1600, 900)]),
+                         'photos/d03-02.webp')
+        self.assertEqual(self.day_auto('day-wide-first', [(1000, 1000), (1600, 1200)], [(1600, 900)]), 'photos/d01-02.webp')
+        self.assertEqual(self.day_auto('day-edge', [(1199, 1000)], [(1200, 1000)]), 'photos/d02-01.webp')
+
+    def test_automatic_day_pick_takes_the_first_at_least_as_wide_as_tall_when_none_is_wide_enough(self):
+        # 10.4, day photos, step 2: else the first with w >= h, in day order
+        self.assertEqual(self.day_auto('day-near-squares', [(800, 1200)], [(1150, 1000), (1100, 1000)], [(1000, 1000)]), 'photos/d02-01.webp')
+        self.assertEqual(self.day_auto('day-square', [(800, 1200)], [(900, 1200), (1000, 1000)]), 'photos/d02-02.webp')
+        self.assertEqual(self.day_auto('day-square-first', [(1000, 1000)], [(1199, 1000)]), 'photos/d01-01.webp')
+
+    def test_automatic_day_pick_takes_the_first_day_photo_when_all_are_portraits(self):
+        # 10.4, day photos, step 3: else the first day photo (of the first day that has one)
+        self.assertEqual(self.day_auto('day-portraits', [], [(800, 1200), (900, 1200)], [(1000, 1100)]), 'photos/d02-01.webp')
+
+    def test_explicit_cover_is_never_overridden_by_the_automatic_pick(self):
+        # 10.4: 'Automatic cover (no cover_photo)': a named square, near-square or portrait stays the cover, whatever
+        # wide photo stands before or after it
+        sizes = [(1000, 1000), (1600, 1200), (800, 1200), (1150, 1000)]
+        for i in range(len(sizes)):
+            want = 'photos/%02d.webp' % (i + 1)
+            with self.subTest(cover_photo=want):
+                t = self.trip(slug='named-%d' % i, cover_photo=want,
+                              photos=[photo('photos/%02d.webp' % j, size) for j, size in enumerate(sizes, 1)])
+                self.assertEqual((t['cover']['source'], t['cover']['photo']['file'], t['cover']['day']), ('explicit', want, None))
+                self.assertIs(t['cover']['photo'], t['photos'][i])
+        self.assertEqual(self.auto('unnamed', *sizes), 'photos/02.webp')   # the same photos without cover_photo
+
+    def test_explicit_day_cover_is_never_overridden_by_the_automatic_pick(self):
+        # 10.4: the same for a named day photo: the square of day 1 stays although day 2 and the trip itself have a wide one
+        days = [{'photos': [photo('photos/d01-01.webp', SQUARE)]}, {'photos': [photo('photos/d02-01.webp', LANDSCAPE)]}]
+        t = self.trip(slug='named-day', kind='multi-day', days=days, cover_photo='photos/d01-01.webp')
+        self.assertEqual((t['cover']['source'], t['cover']['photo']['file']), ('explicit', 'photos/d01-01.webp'))
+        self.assertIs(t['cover']['day'], t['days'][0])
+        t = self.trip(slug='named-day-with-parent', kind='multi-day', days=days, cover_photo='photos/d01-01.webp',
+                      photos=[photo('photos/01.webp', LANDSCAPE)])
+        self.assertEqual((t['cover']['source'], t['cover']['photo']['file']), ('explicit', 'photos/d01-01.webp'))
+
+    def test_automatic_pick_stays_among_the_trips_own_photos_when_it_has_any(self):
+        # 10.4: 'among the trip's photos in declared order ... For a trip with only day photos': a wide day photo never
+        # outranks the trip's own square or portrait
+        days = [{'photos': [photo('photos/d01-01.webp', LANDSCAPE)]}]
+        t = self.trip(slug='own-square', kind='multi-day', days=days, photos=[photo('photos/01.webp', PORTRAIT), photo('photos/02.webp', SQUARE)])
+        self.assertEqual((t['cover']['source'], t['cover']['photo']['file'], t['cover']['day']), ('parent', 'photos/02.webp', None))
 
     # ------------------------------------------------------------ explicit errors
 

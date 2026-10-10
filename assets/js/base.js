@@ -189,14 +189,18 @@
     }
   });
 
-  // ------------------------------------------------------------ current section in the report rail / phone bottom bar
-  // Per nav, the current section is the last of its targets whose top has passed 35% of the viewport (at the very bottom
-  // of the page, the last one on screen). Targets are containers (the whole Beta block, the whole write-up), so each stays
-  // current for its full height, and a nav without a Photos link keeps 'Report' through the photos. A rAF-throttled
-  // scroll handler never skips a section on a fast scroll or a jump.
+  // ------------------------------------------------------------ current section in the phone bottom bar
+  // The current section is the last of the bar's targets whose top has passed 35% of the viewport (at the very bottom of
+  // the page, the last one on screen). Targets are containers (the whole Beta block, the whole write-up), so each stays
+  // current for its full height, and a bar without a Photos link keeps 'Report' through the photos. A rAF-throttled scroll
+  // handler never skips a section on a fast scroll or a jump. A link the reader pressed stays current while its section
+  // sits where the jump put it (a short section would otherwise hand the marker to the next one as soon as the jump
+  // lands); once the page has moved from there, by any means, the marker follows the scroll again. The story layout's
+  // section row (.rep-toc) is not marked: it scrolls away with the header, so it is only on screen above every section
+  // it lists.
   var idOf = function (a) { return decodeURIComponent(a.getAttribute('href').slice(1)); };
   var spies = [];
-  document.querySelectorAll('.rail-toc, .bbar').forEach(function (nav) {
+  document.querySelectorAll('.bbar').forEach(function (nav) {
     var links = Array.prototype.slice.call(nav.querySelectorAll('a[href^="#"]'));
     var targets = [];
     links.forEach(function (a) {
@@ -204,7 +208,7 @@
       if (el && targets.indexOf(el) === -1) targets.push(el);
     });
     targets.sort(function (a, b) { return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1; });
-    if (targets.length) spies.push({ links: links, targets: targets });
+    if (targets.length) spies.push({ links: links, targets: targets, pinned: null, pinTop: null });
   });
   var markCurrent = function (spy, id) {
     spy.links.forEach(function (a) { if (idOf(a) === id) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current'); });
@@ -216,6 +220,13 @@
       var lim = window.innerHeight * 0.35;
       var atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
       spies.forEach(function (spy) {
+        if (spy.pinned) {
+          var pel = document.getElementById(spy.pinned), ptop = pel ? pel.getBoundingClientRect().top : null;
+          if (ptop === null) spy.pinned = null;
+          else if (spy.pinTop === null) spy.pinTop = ptop;                  // where the jump put the section
+          else if (Math.abs(ptop - spy.pinTop) > 8) spy.pinned = null;    // the page has moved on since
+          if (spy.pinned) { markCurrent(spy, spy.pinned); return; }
+        }
         var cur = spy.targets[0];
         spy.targets.forEach(function (el) {
           var top = el.getBoundingClientRect().top;
@@ -227,11 +238,25 @@
     var request = function () { if (!ticking) { ticking = true; window.requestAnimationFrame(update); } };
     window.addEventListener('scroll', request, { passive: true });
     window.addEventListener('resize', request);
-    window.addEventListener('hashchange', request);
+    // Back or Forward to another fragment moves the page without any of the inputs below
+    window.addEventListener('hashchange', function () {
+      var id = '';
+      try { id = decodeURIComponent(window.location.hash.slice(1)); } catch (e) { /* a malformed escape names nothing */ }
+      spies.forEach(function (spy) { if (spy.pinned !== id) spy.pinned = null; });
+      request();
+    });
     document.addEventListener('click', function (e) {
-      var a = e.target.closest && e.target.closest('.rail-toc a[href^="#"], .bbar a[href^="#"]');
+      var a = e.target.closest && e.target.closest('.bbar a[href^="#"]');
       if (!a) return;
-      spies.forEach(function (spy) { if (spy.links.indexOf(a) !== -1) markCurrent(spy, idOf(a)); });
+      spies.forEach(function (spy) {
+        if (spy.links.indexOf(a) === -1 || !document.getElementById(idOf(a))) return;
+        spy.pinned = idOf(a);
+        spy.pinTop = null;   // read by the first update after the jump has landed
+        markCurrent(spy, spy.pinned);
+      });
+      // the jump is made in this same task and the frame comes after it, so the landing spot is recorded after every
+      // press, also when nothing moved (a second press of the link of the section already in place)
+      request();
     });
     update();
   }
@@ -280,8 +305,15 @@
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest(LINKS);
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      var box = a.closest('.jrows, .mul-photos, .ser-phs, .rep-aside-ph');
-      group = box ? Array.prototype.slice.call(box.querySelectorAll(LINKS)) : [a];
+      // a lead photo and its Photos grid share data-lb-group, so the viewer counts every photo of the trip once
+      var gk = a.closest('[data-lb-group]');
+      if (gk) {
+        var key = gk.getAttribute('data-lb-group').replace(/"/g, '');
+        group = Array.prototype.slice.call(document.querySelectorAll('[data-lb-group="' + key + '"] a.jph, a.jph[data-lb-group="' + key + '"]'));
+      } else {
+        var box = a.closest('.jrows, .mul-photos, .ser-phs, .rep-aside-ph');
+        group = box ? Array.prototype.slice.call(box.querySelectorAll(LINKS)) : [a];
+      }
       if (group.indexOf(a) === -1) group = [a];
       e.preventDefault();
       opener = a;
@@ -315,6 +347,51 @@
       opener = null;
     });
   }
+
+  // ------------------------------------------------------------ copy link (core.copy_link): the clipboard when the page
+  // may use it ('Link copied' under the button for 4 s), else the URL in a selected read-only field to copy by hand. Both
+  // hang under the button out of the flow (report.css), so nothing on the page moves; a button at the very bottom of the
+  // screen (or just above the phone bottom bar) has them scrolled into view. The field is kept inside the page gutters
+  // wherever its button sits, and closes on Escape, on a second press of the button, or on a press elsewhere.
+  var closeCopy = function (keep) {
+    Array.prototype.forEach.call(document.querySelectorAll('.copy-pop'), function (p) { if (p !== keep) p.parentNode.removeChild(p); });
+  };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.copy-btn');
+    if (!b) { closeCopy(e.target.closest && e.target.closest('.copy-pop')); return; }
+    var box = b.parentNode, url = b.getAttribute('data-copy') || window.location.href;
+    var msg = box.querySelector('.copy-msg');
+    if (box.querySelector('.copy-pop')) { closeCopy(); return; }
+    closeCopy();
+    var byHand = function () {
+      if (msg) msg.textContent = '';
+      var pop = document.createElement('span'), inp = document.createElement('input');
+      pop.className = 'copy-pop';
+      inp.type = 'text'; inp.readOnly = true; inp.className = 'copy-url'; inp.value = url;
+      inp.setAttribute('aria-label', 'Link to copy');
+      inp.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Escape' && ev.key !== 'Esc') return;
+        closeCopy();
+        b.focus();
+      });
+      pop.appendChild(inp);
+      box.appendChild(pop);
+      var r = box.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+      pop.style.left = Math.round(Math.max(16 - r.left, Math.min(0, vw - 16 - r.left - pop.offsetWidth))) + 'px';
+      if (pop.scrollIntoView) pop.scrollIntoView({ block: 'nearest', inline: 'nearest' });   // honours html's scroll-padding
+      inp.focus({ preventScroll: true }); inp.select();
+      inp.scrollLeft = 0;   // show the start of the address (https://…), not its tail
+    };
+    var done = function () {
+      if (!msg) return;
+      msg.textContent = 'Link copied';
+      if (msg.scrollIntoView) msg.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      window.clearTimeout(msg._t);
+      msg._t = window.setTimeout(function () { msg.textContent = ''; }, 4000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, byHand);
+    else byHand();
+  });
 
   // ------------------------------------------------------------ full-screen map page: open on the route, not the image
   // centre. A route that fits the screen is centred; a wider one opens on its start (kept in view, as much of the route as

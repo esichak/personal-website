@@ -360,7 +360,8 @@ def gpx_all(t):
 
 
 def overview_caption(t):
-    return core.map_caption(['Track: %s' % core.frange(t['date'], t['end_date']), 'full track, not trimmed', 'North up'])
+    when = core.recorded(t['date'], t['end_date'])   # 'on <date>' when every day shares one date
+    return core.map_caption(([when] if when else []) + ['full track, not trimmed', 'North up'])
 
 
 def fullscreen(t):
@@ -746,6 +747,12 @@ def first_photo(t):
     return (t['url'] + t['photos'][0]['file']) if t['photos'] else None
 
 
+def share_image(t):
+    """The photo a shared link shows: the cover the trip's cards show, else the first photo."""
+    c = t.get('cover')
+    return (t['url'] + c['photo']['file']) if c else first_photo(t)
+
+
 def bottom_bar(t):
     """Phone bottom bar (< 760; CSS and the current-section scrollspy are shared with single-day reports in report.css /
     base.js): Map · Days · Report (the first day with a write-up, when there is one) · GPX (all days)."""
@@ -773,8 +780,8 @@ def description(t, limit=160):
 def page(t, site):
     here = t['url']
     meta = core.render_meta(t)
-    actions = ('<a class="btn" href="#day-1">%sDay by day</a><a class="btn btn--ink" href="%s" download>%sDownload all GPX</a>'
-               % (icon('list', 18), gpx_all(t), icon('download', 18)))
+    actions = ('<a class="btn" href="#day-1">%sDay by day</a><a class="btn btn--ink" href="%s" download>%sDownload all GPX</a>%s'
+               % (icon('list', 18), gpx_all(t), icon('download', 18), core.copy_link(core.SITE_URL + here)))
     body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site),
             '<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note()),
             overview_map(t, here, meta)]
@@ -782,9 +789,11 @@ def page(t, site):
     body.append('<div class="mul-body">%s%s%s<section class="mul-days" aria-labelledby="days-h">'
                  '<h2 class="sr" id="days-h">Day by day</h2>%s</section></div>'
                  % (day_nav(t, here), stitched_profile(t, here, meta), overview(t, here), chapters))
+    body.append(report.share_row(here))   # phones hide the title actions here too (multiday.css); the copy link moves down
+    body.append(core.related_block(t, here, site, skip=report.neighbours(t, site)))
     body.append(report.pager(t, here, site))
     head = core.map_preloads(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', nowide='overview-wide' not in meta.get('maps', {}))
-    return core.Page(here, core.document(here, t['title'], ''.join(body), description(t), active=t['activity'], image=first_photo(t),
+    return core.Page(here, core.document(here, t['title'], ''.join(body), description(t), active=t['activity'], image=share_image(t),
                                          extra_head=head, body_cls='p-multiday', bottom=bottom_bar(t), og_type='article'),
                      t['title'])
 

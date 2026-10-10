@@ -699,7 +699,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 /* ---------------------------------------------------------------- forced colors: current states keep a visible cue */
 @media (forced-colors: active) {
   .nav a[aria-current]::after, .arc-tabs [aria-selected="true"]::after, .sec-tabs [aria-selected="true"]::after, .mul-dn-i[aria-current]::after,
-  .ser-mnav a[aria-current]::after, .bbar a[aria-current]::before, .rail-toc a[aria-current]::before { forced-color-adjust: none; background: Highlight; }
+  .ser-mnav a[aria-current]::after, .bbar a[aria-current]::before { forced-color-adjust: none; background: Highlight; }
   /* radios (aria-checked) and the no-JS section band's 'All' (aria-current) */
   .sec-seg-a:is([aria-checked="true"], [aria-current="true"]), .fchip[aria-checked="true"], .trx-view button[aria-checked="true"], .units button[aria-checked="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
   .menu-list a[aria-current] { border-left: 3px solid Highlight; box-shadow: none; }

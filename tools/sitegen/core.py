@@ -6,6 +6,7 @@ All links are relative, so the site works at https://esichak.github.io/personal-
 """
 import html
 import json
+import math
 import os
 import re
 import sys
@@ -118,6 +119,14 @@ def frange(a, b, caps=False):
     else:
         s = '%s – %s' % (fdate(a, 'short'), fdate(b, 'short'))
     return s.upper() if caps else s
+
+
+def recorded(a, b=None):
+    """The opening item of a map caption: 'As recorded on Mar 28, 2026' for one date, 'As recorded Apr 22 – Sep 21, 2024'
+    for a range, '' without a date (the caption then says nothing about when)."""
+    if not a:
+        return ''
+    return ('As recorded %s' if (b and b != a) else 'As recorded on %s') % frange(a, b)
 
 
 def ftime(hhmm):
@@ -373,7 +382,10 @@ def rendered(t, *parts):
 
 def render_meta(t):
     p = rendered(t, 'meta.json')
-    return json.load(open(p)) if os.path.exists(p) else {'maps': {}, 'charts': {}}
+    if not os.path.exists(p):
+        return {'maps': {}, 'charts': {}}
+    with open(p, encoding='utf-8') as fh:
+        return json.load(fh)
 
 
 def _strip_size(svg):
@@ -608,7 +620,7 @@ def feature_key(t, variants, miles=True, cls='keyrow--compact'):
 
 
 def map_caption(first_items, attrib=True):
-    """The one map caption (Small, under the key row): first_items (e.g. ['Track: Mar 28, 2026', 'full track, not trimmed',
+    """The one map caption (Small, under the key row): first_items (e.g. ['As recorded on Mar 28, 2026', 'full track, not trimmed',
     'North up'] — no device name: some tracks are Strava GPX exports, so the caption only claims what every file supports —
     or ['North up'] for maps with no single track), then the terrain / OSM / not-for-navigation
     credit. Two lines from 1200 (.ml-br), one flowing paragraph below; phones (< 560) drop the credit (.mapcap-2): the
@@ -725,13 +737,15 @@ def photo_partition(photos, per_row=4):
     return [r['ph'] for r in out]
 
 
-def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280, gap=24):
+def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280, gap=24, lead=0):
     """Justified photo rows (reports, multi-day chapters): every row fills the column at one height (1248: a landscape
     alone 1248×624, four portraits 294×392), clamped in CSS so a row of portraits never runs taller than 624. Phones
     (< 760) show a 2-column grid: landscapes and unpaired portraits full width. Each photo links to its full-size file
     (the lightbox opens it in-page; data-cap carries a caption when the content has one).
     col / jmax / jmin / gap: the desktop column and the CSS clamp (.jrows --jmax / --jmin / --jgap) of the page, so each
-    image's sizes attribute declares the width it is drawn at (a 294px portrait picks the 800px .sm file)."""
+    image's sizes attribute declares the width it is drawn at (a 294px portrait picks the 800px .sm file).
+    lead: how many of the trip's photos sit above the grid in the same viewer group (a story's lead photo: 1), so a photo
+    without alt text is numbered as the viewer numbers it ('Photo 2 of 7' for the first one in the grid)."""
     photos = [p for p in photos if p.get('file')]
     if not photos:
         return ''
@@ -740,7 +754,9 @@ def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280
     k = 0
     for row in photo_partition(photos, per_row):
         ars = [photo_ar(p) for p in row]
-        tot = sum(ars)
+        # math.fsum, not sum(): Python 3.12's sum() rounds a float total differently from 3.9's, and CI (3.12) would then
+        # print a different fourth decimal than a local build (3.9) for the same photos
+        tot = math.fsum(ars)
         lone_land = len(row) == 1 and ars[0] >= 1
         one = len(row) == 1 and not lone_land
         # drawn height at >= 1200: the row's natural height, never below jmin (object-fit: cover then crops the sides); a row
@@ -761,12 +777,12 @@ def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280
                 sizes = ('(min-width: 1200px) %dpx, (min-width: 760px) calc((100vw - 80px) * %.3f), %s'
                          % (round(a * h), a / tot, '100vw' if (land or i in solo) else '50vw'))
             c = 'jph jph--%s%s' % ('l' if land else 'p', ' jph--solo' if i in solo else '')
-            name = '' if p.get('alt') else ' aria-label="Photo %d of %d, full size"' % (k, len(photos))
+            name = '' if p.get('alt') else ' aria-label="Photo %d of %d, full size"' % (k + lead, len(photos) + lead)
             cap = (' data-cap="%s"' % esc(p['caption'])) if p.get('caption') else ''
             figs.append('<a class="%s" href="%s%s" style="--ar:%.4f;--fg:%d"%s%s>%s</a>'
                         % (c, base, p['file'], a, round(a * 1000), cap, name, photo(t, p, here, sizes=sizes, caption=False)))
         out.append('<div class="jrow%s" style="--n:%d;--sum:%.4f;--ar:%.4f">%s</div>'
-                   % (' jrow--one' if one else '', len(row), sum(ars), ars[0], ''.join(figs)))
+                   % (' jrow--one' if one else '', len(row), tot, ars[0], ''.join(figs)))
         caps = [p['caption'] for p in row if p.get('caption')]
         if caps:
             out.append('<p class="t-small jcap">%s</p>' % ' · '.join(esc(c) for c in caps))
@@ -1092,7 +1108,8 @@ def trip_card(t, here, sizes, ns='tc', cls='', summary=False):
         else:
             media = '<div class="tcard-img tcard-img--none" aria-hidden="true">%s</div>' % disc(t['activity'], 32, t.get('subtype'))
     loc = t.get('place') or t.get('region') or ''
-    meta = meta_items([trip_date(t, short=True), nb(esc(loc).upper()) if loc else ''])
+    # the place may wrap at its spaces when it alone is wider than the card's text column (a 320 px phone)
+    meta = meta_items([trip_date(t, short=True), (esc(loc).upper(), 'mi-w') if loc else ''])
     mid = '%s-%s-m' % (ns, t['slug'])
     stats = row_stats_line(t)
     ex = ''
@@ -1110,6 +1127,62 @@ def trip_card(t, here, sizes, ns='tc', cls='', summary=False):
             % ((' ' + cls) if cls else '', data, media, mid, meta, href, mid, title_html(t['title']),
                chip(t, variant='inline'), trip_tags(t, shape=False),
                ('<p class="t-mono-s tcard-ps">%s</p>' % stats) if stats else '', ex))
+
+
+RELATED_SIZES = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+
+
+def related(t, site, k=3, skip=()):
+    """Up to k published reports to read next, by one transparent rule. Candidates share t's region or its activity; they
+    are ordered: same region and same activity, then same region, then same activity; within each, the nearest in date
+    to t first (a trip without a date last), then the newer one, then site['published'] order. Never t itself, never a
+    planned route, never a draft (never loaded), each slug once. skip: reports the page already links to right beside
+    this list (its Newer / Older pager), left out so the page does not offer the same report twice."""
+    region, act, when = t.get('region'), t['activity'], t.get('date')
+
+    def key(ix):
+        i, x = ix
+        same_region = bool(region) and x.get('region') == region
+        same_act = x['activity'] == act
+        tier = 0 if (same_region and same_act) else (1 if same_region else 2)
+        d = x.get('date')
+        gap = abs((d - when).days) if (d and when) else None
+        return (tier, gap is None, gap or 0, -(d.toordinal()) if d else 0, i)
+    seen, cands = {t['slug']} | {x['slug'] for x in skip if x}, []
+    for i, x in enumerate(site['published']):
+        if x['slug'] in seen or x['kind'] == 'planned':
+            continue
+        if (region and x.get('region') == region) or x['activity'] == act:
+            seen.add(x['slug'])
+            cands.append((i, x))
+    return [x for _i, x in sorted(cands, key=key)[:k]]
+
+
+def related_block(t, here, site, k=3, skip=()):
+    """'More like this': the related() reports as cards (trip_card), or '' when there are none. The meta line states the
+    rule, so the choice is never a mystery, and says so when the page's Newer / Older reports were left out. skip: the
+    reports of the page's Newer / Older pager (related())."""
+    rel = related(t, site, k, skip)
+    if not rel:
+        return ''
+    rule = [nb('SAME REGION, THEN ACTIVITY') if t.get('region') else nb('SAME ACTIVITY'), nb('NEAREST IN DATE')]
+    if any(skip):
+        rule.append(nb('NEWER / OLDER NOT REPEATED'))
+    return ('<section class="rep-related wrap sec" aria-labelledby="rel-h"><div class="shead"><h2 class="shead-t" id="rel-h">More like this</h2>'
+            '<span class="shead-m t-mono-s">%s</span></div><ul class="rep-rel tgrid">%s</ul></section>'
+            % (meta_items(rule), ''.join(trip_card(x, here, RELATED_SIZES, ns='rel') for x in rel)))
+
+
+def copy_link(url, label='Copy link', cls='btn', of=''):
+    """A copy-to-clipboard control for an absolute url (base.js). On success 'Link copied' shows under the button for a
+    few seconds; when the clipboard is unavailable the url appears there in a read-only, selected field to copy by hand.
+    Both hang out of the flow (report.css), so the row the control sits in never moves. `of` names what the link is to
+    ('Day 3') for assistive technology, on a page that repeats the same label. The status is its own element after the
+    button and is always rendered: a live region that appears together with its text is not reliably announced. With
+    scripting off the control is not shown (report.css): the address bar already holds the page's URL."""
+    more = '<span class="sr">, %s</span>' % esc(of) if of else ''
+    return ('<span class="copy"><button type="button" class="%s copy-btn" data-copy="%s">%s<span>%s</span>%s</button>'
+            '<span class="copy-msg t-small" role="status"></span></span>' % (cls, esc(url), icon('link', 18), esc(label), more))
 
 
 def goal_tags(goal):

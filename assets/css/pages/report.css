@@ -78,21 +78,13 @@
 .rep-body { display: grid; gap: 32px; }
 .rep-rail { display: flex; flex-direction: column; gap: 32px; }
 .rep-rail:empty { display: none; }
-.rail-b .t-label, .rail-toc .t-label { display: block; margin-bottom: 12px; }
-.rail-toc { display: none; }
-.rail-toc a { min-height: 40px; display: flex; align-items: center; gap: 10px; font: 500 15px/20px var(--sans); color: var(--ink-2); }
-.rail-toc a::before { content: ""; width: 8px; height: 8px; background: transparent; }
-.rail-toc a:hover { color: var(--ink); }
-.rail-toc a:hover::before { background: var(--route); }
-.rail-toc a[aria-current] { color: var(--ink); }
-.rail-toc a[aria-current]::before { background: var(--route); }
+.rail-b .t-label { display: block; margin-bottom: 12px; }
 .rep-h { margin-bottom: 16px; }
 @media (max-width: 999.98px) { .rail-b { max-width: 480px; } }
 @media (min-width: 1000px) {
   .rep-body { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
   .rep-rail { grid-column: 1 / span 3; position: sticky; top: calc(var(--header-h) + 24px); align-self: start; }
   .rep-main { grid-column: 4 / span 7; }
-  .rail-toc { display: block; }
 }
 @media (min-width: 1000px) and (max-width: 1199.98px) {
   .rep-rail { grid-column: 1 / span 4; }
@@ -128,6 +120,60 @@
   .rep-body--ph:has(> .rep-main:empty):has(> .rep-rail:empty) .rep-aside-ph { grid-column: 1 / span 3; }
 }
 .rep-body--ph > .rep-main:empty { display: none; }
+
+/* ---------------------------------------------------------------- story layout (p-report--story): lead photo · strip · section
+   nav · write-up (+ Beta rail) · map · profile · remaining photos. The compact layout above is untouched. */
+.rep-hero { margin-top: 24px; }
+.rep-anchor { display: block; height: 0; }   /* the old #photos target on a report whose one photo is the lead photo */
+.rep-hero-a { display: block; background: var(--sunk); }
+.rep-hero .cover-img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.rep-hero-a:hover .cover-img { filter: brightness(1.04); }
+.rep-hero-a:focus-visible { outline-offset: 3px; }
+.rep-hero figcaption { padding-top: 12px; }
+@media (max-width: 559.98px) {
+  .rep-hero { width: 100%; margin-top: 12px; }
+  .rep-hero .cover-img { aspect-ratio: 4 / 3; }
+  .rep-hero figcaption { padding-inline: var(--m); }
+}
+@media (min-width: 1200px) { .rep-hero { margin-top: 32px; } .rep-hero .cover-img { aspect-ratio: 2 / 1; } }
+.p-report--story .rep-strip { margin-top: 24px; }
+.rep-toc { margin-top: 20px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.rep-toc ul { display: flex; flex-wrap: wrap; column-gap: 28px; }
+/* no current-section marker here: the row scrolls away with the header, so it is on screen only above what it lists */
+.rep-toc-a { display: inline-flex; align-items: center; min-width: 44px; min-height: 48px; font: 500 15px/20px var(--sans); color: var(--ink-2); }
+.rep-toc-a:hover { color: var(--ink); }
+.p-report--story .rep-toc + .rep-body { margin-top: 40px; }
+.p-report--story .rep-map { margin-top: var(--sec); }
+@media (max-width: 759.98px) { .p-report--story .rep-strip { margin-top: 16px; } }
+
+/* 'More like this' (core.related_block): the shared trip cards, two to a row from 560 and three from 1200 */
+.rep-rel { margin-top: 16px; display: grid; row-gap: 20px; }
+@media (min-width: 560px) { .rep-rel { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
+@media (min-width: 760px) { .rep-rel { margin-top: 24px; } }
+@media (min-width: 1200px) { .rep-rel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* phones: the bottom bar is the section navigation, so the section row is desktop and tablet only; the copy-link control
+   moves to the end of the page (the title actions are hidden below 760) */
+.rep-share { margin-top: 40px; }
+@media (max-width: 759.98px) { .rep-toc { display: none; } .p-report--story .rep-toc + .rep-body { margin-top: 32px; } }
+@media (min-width: 760px) { .rep-share { display: none; } }
+
+/* copy link (core.copy_link, base.js). The 'Link copied' status and the field to copy from by hand hang under the button,
+   out of the flow, so the row and the title beside it never move. The status is always rendered: empty, it has no box.
+   In the phone share row, which holds nothing else, the status sits beside the button instead. With scripting off the
+   button could do nothing, so the control (and the row that holds only it) is not shown. */
+.copy { position: relative; display: inline-flex; align-items: center; min-width: 0; }
+.copy-msg, .copy-pop { position: absolute; z-index: 3; top: 100%; left: 0; margin-top: 4px; }
+.copy-msg { white-space: nowrap; pointer-events: none; color: var(--paper); }
+.copy-msg:not(:empty) { padding: 4px 8px; border: 1px solid var(--ink); border-radius: 2px; background: var(--ink); }
+.rep-actions .copy-msg, .ser-wnav .copy-msg { left: auto; right: 0; }
+.rep-share .copy { gap: 12px; }
+.rep-share .copy-msg { position: static; margin: 0; padding: 0; border: 0; background: none; color: var(--ink-2); }
+.copy-pop { padding: 8px; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper); }
+.copy-url { display: block; width: min(36ch, calc(100vw - 50px)); min-height: 44px; padding: 0 8px; border: 1px solid var(--rule-strong);
+  border-radius: 2px; font: 400 13px/20px var(--mono); color: var(--ink); background: var(--surface); }
+.rep-actions .copy { flex-shrink: 0; }
+@media (scripting: none) { .copy, .rep-share { display: none; } }
 
 /* photos: justified rows (core.photo_rows, base.css .jrows) */
 .rep-sh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }

@@ -1,5 +1,6 @@
 """Phase 2: the build-time search index (tools/sitegen/search.py: normalize, entry, build_index, dumps) and the
-`search_aliases` front matter it draws on (content.load_trip -> t['aliases']).
+`search_aliases` front matter it draws on (content.load_trip -> t['aliases']). Phase 3: the journal-day index
+(day_entry, build_day_index -> trips/journal.json), one entry per journal day.
 
 tools/sitegen/search.py may not exist yet while Phase 2 is being written: it is imported in setUp, so a missing module
 fails each test with a clear message instead of breaking test discovery. tests/norm_cases.json is shared with
@@ -290,6 +291,200 @@ class IndexTests(IndexFixture):
         self.assertNotIn('<', text)
         for bad in ('.gpx', 'trkpt', '"lat"', '"lon"', 'photos/', '.webp'):
             self.assertNotIn(bad, text)
+
+
+DAY_FIELDS = {'s', 'a', 'n', 'j', 'h', 'w', 't', 'p', 'k', 'x', 'r', 'q'}
+# what finds a day; 'j', 'h', 'w', 'n' are for display, 's' and 'a' for the link, and 'q' (the journal's name) may only
+# come along with a hit in one of these
+MATCHED = ('t', 'p', 'k', 'x')
+
+
+class DayIndexTests(IndexFixture):
+    """trips/journal.json: one entry per journal day, attributed to the journal and linked to the day's existing anchor.
+    A day is found by its write-up, its title or its name ('day 5'), which is all an untitled track-only day has. No
+    day becomes a page or a trip entry. The journal's own name sits only in 'q', which never finds a day by itself."""
+
+    def setUp(self):
+        super().setUp()
+        # a longer journal beside the fixture's: a titled track-only day (2), a decimal label (2.5), an untitled written
+        # day (4), an untitled track-only day (5) and a titled track-only day without a date (6)
+        helpers.make_trip(self.tmp, 'long-walk', title='Long Walk 2023', activity='hike', kind='series', date='2023-06-01',
+                          end_date='2023-06-05', place='Synthetic Range', region='Synthetic Range',
+                          days=[{'id': '001', 'day': '1', 'title': 'Trailhead', 'date': '2023-06-01', 'body': 'Synthetic entry one about a creek ford.'},
+                                {'id': '002', 'day': '2', 'title': 'Ridge', 'date': '2023-06-02'},
+                                {'id': '003', 'day': '2.5', 'title': 'Résupply <town>', 'date': '2023-06-03',
+                                 'body': 'Synthetic entry two: a **zero** day in town & a [link](https://example.test).'},
+                                {'id': '004', 'day': '4', 'date': '2023-06-04', 'body': 'Synthetic entry three with no title.'},
+                                {'id': '005', 'day': '5', 'date': '2023-06-05'},
+                                {'id': '006', 'day': '6', 'title': 'Border'}])
+        self.trips = helpers.load_dir(self.tmp)
+        self.site = helpers.make_site(self.trips)
+        self.by = self.site['by_slug']
+        self.days = self.search.build_day_index(self.site)
+
+    def of(self, slug, days=None):
+        return [e for e in (self.days if days is None else days) if e['s'] == slug]
+
+    def walk(self, label):
+        """The long-walk entry of the day labelled `label`."""
+        hits = [e for e in self.of('long-walk') if e['n'] == label]
+        self.assertEqual(len(hits), 1, 'long-walk day %s has %d entries' % (label, len(hits)))
+        return hits[0]
+
+    def index_with(self, slug, days, **meta):
+        """The day index of the fixture site plus one more journal, and that journal's entries."""
+        helpers.make_trip(self.tmp, slug, activity='hike', kind='series', days=days, **meta)
+        site = helpers.make_site(helpers.load_dir(self.tmp))
+        self.assertIn(slug, helpers.slugs(site['published']))
+        index = self.search.build_day_index(site)
+        return index, self.of(slug, index)
+
+    def test_one_entry_per_day_of_each_journal_and_nothing_else(self):
+        self.assertEqual({e['s'] for e in self.days}, {'pacific-crest-trail-2024', 'long-walk'})
+        # days 2 and 6 have a title and no write-up, day 4 a write-up and no title, day 5 neither: every one is an entry
+        self.assertEqual([e['n'] for e in self.of('long-walk')], ['1', '2', '2.5', '4', '5', '6'])
+        self.assertEqual(len(self.of('long-walk')), len(self.by['long-walk']['days']))
+        # make_series titles all three days and writes the first: each has words to search
+        self.assertEqual([(e['n'], e['h'], bool(e['x'])) for e in self.of('pacific-crest-trail-2024')],
+                         [('1', 'Campo', True), ('2', 'Hauser Creek', False), ('3', 'Lake Morena', False)])
+        # multi-day trips stay whole in the trip index; planned routes and drafts are in neither
+        for slug in ('haute-route', 'hut-days', 'someday-ridge', 'secret-draft'):
+            self.assertEqual(self.of(slug), [])
+        self.assertEqual(len(self.search.build_index(self.site)), len(self.site['published']))   # the trip index is unchanged
+
+    def test_entries_equal_day_entry_of_each_indexed_day(self):
+        walk = self.by['long-walk']
+        self.assertEqual(self.of('long-walk'), [self.search.day_entry(walk, d) for d in walk['days']])
+        for e in self.days:
+            self.assertEqual(set(e), DAY_FIELDS, sorted(e))
+            self.assertTrue(all(isinstance(v, str) for v in e.values()), e)
+
+    def test_journals_newest_first_days_in_order(self):
+        self.assertEqual([e['s'] for e in self.days], ['pacific-crest-trail-2024'] * 3 + ['long-walk'] * 6)
+
+    def test_anchor_is_the_journal_pages_own(self):
+        series = importlib.import_module('sitegen.pages.series')
+        walk = self.by['long-walk']
+        self.assertEqual(len(walk['days']), 6)
+        self.assertEqual([e['a'] for e in self.of('long-walk')], [series.day_anchor(d) for d in walk['days']])
+        # a decimal label keeps its dash form
+        self.assertEqual([e['a'] for e in self.of('long-walk')], ['day-1', 'day-2', 'day-2-5', 'day-4', 'day-5', 'day-6'])
+
+    def test_fields_name_the_journal_the_day_and_the_date(self):
+        one, half, four = self.walk('1'), self.walk('2.5'), self.walk('4')
+        self.assertEqual((one['j'], one['h'], one['w'], one['n']), ('Long Walk 2023', 'Trailhead', 'Jun 1, 2023', '1'))
+        self.assertEqual(one['t'], 'trailhead')
+        self.assertEqual(one['p'], 'day 1')
+        self.assertEqual(one['k'], '')
+        self.assertEqual(one['x'], 'synthetic entry one about a creek ford')
+        self.assertEqual(one['r'], 'Synthetic entry one about a creek ford.')
+        self.assertEqual((half['h'], half['t'], half['p']), ('Résupply <town>', 'resupply town', 'day 2 5'))
+        self.assertEqual((four['h'], four['t']), ('', ''))                                    # an untitled day: no invented title
+        self.assertEqual(set(one), DAY_FIELDS)
+
+    def test_p_is_the_days_name_the_word_day_and_its_label(self):
+        self.assertEqual(self.walk('1')['p'], 'day 1')        # an integer label
+        self.assertEqual(self.walk('2.5')['p'], 'day 2 5')    # a decimal label: the point is a space, as in a typed query
+        for e in self.days:
+            self.assertEqual(e['p'], self.search.normalize('day ' + e['n']), (e['s'], e['n']))
+        # the contract's own examples, on a titled track-only day and on an untitled written one
+        _, labelled = self.index_with('label-walk', [{'id': '031', 'day': '31', 'title': 'Synthetic Gap'},
+                                                     {'id': '032', 'day': '5.2', 'body': 'Synthetic half day.'}],
+                                     title='Label Walk', date='2021-06-01')
+        self.assertEqual([(e['n'], e['p'], e['a']) for e in labelled], [('31', 'day 31', 'day-31'), ('5.2', 'day 5 2', 'day-5-2')])
+
+    def test_a_titled_track_only_day_is_indexed_with_no_text(self):
+        # found by its title; trips.js shows no snippet for it
+        self.assertEqual(self.by['long-walk']['days'][1]['body_md'], '')
+        self.assertEqual(self.walk('2'), {'s': 'long-walk', 'a': 'day-2', 'n': '2', 'j': 'Long Walk 2023', 'h': 'Ridge', 'w': 'Jun 2, 2023',
+                                          't': 'ridge', 'p': 'day 2', 'k': '', 'x': '', 'r': '', 'q': 'long walk 2023'})
+        border = self.walk('6')
+        self.assertEqual((border['h'], border['t'], border['w'], border['x'], border['r']), ('Border', 'border', '', '', ''))
+
+    def test_an_untitled_track_only_day_is_indexed_by_its_name_alone(self):
+        bare = [d for d in self.by['long-walk']['days'] if not d['body_md'] and not d['title']]
+        self.assertEqual([d['label'] for d in bare], ['5'])            # one such day, and it is a real one: a track and a date
+        self.assertTrue(bare[0]['track'])
+        self.assertIsNotNone(bare[0]['date'])
+        # 'day 5' is the one thing a reader can type to find it: no title, no text, no invented words
+        self.assertEqual(self.walk('5'), {'s': 'long-walk', 'a': 'day-5', 'n': '5', 'j': 'Long Walk 2023', 'h': '', 'w': 'Jun 5, 2023',
+                                          't': '', 'p': 'day 5', 'k': '', 'x': '', 'r': '', 'q': 'long walk 2023'})
+        # a journal of nothing but such days is indexed too, one entry a day, labelled by position
+        index, entries = self.index_with('bare-walk', [{'id': '001', 'date': '2021-06-01'}, {'id': '002', 'date': '2021-06-02'}, {'id': '003'}],
+                                         title='Bare Walk', date='2021-06-01')
+        self.assertEqual([(e['n'], e['a'], e['p'], e['t'], e['x'], e['r']) for e in entries],
+                         [('1', 'day-1', 'day 1', '', '', ''), ('2', 'day-2', 'day 2', '', '', ''), ('3', 'day-3', 'day 3', '', '', '')])
+        self.assertEqual([e for e in index if e['s'] != 'bare-walk'], self.days)
+
+    def test_q_is_the_journals_title_and_aliases(self):
+        # trips.js lets these words come along with something of the day's own ('pct whitney'); alone they find no day
+        for e in self.days:
+            t = self.by[e['s']]
+            self.assertEqual(e['q'], self.search.normalize(' '.join([t['title']] + list(t.get('aliases') or []))), (e['s'], e['n']))
+        self.assertEqual({e['q'] for e in self.of('long-walk')}, {'long walk 2023'})
+        _, aliased = self.index_with('alias-walk', [{'id': '001', 'day': '1', 'title': 'Synthetic Gap'}], title='Alias Walk: The Long Way',
+                                     date='2021-06-01', search_aliases=['ALW', 'Long Way'])
+        self.assertEqual([e['q'] for e in aliased], ['alias walk the long way alw long way'])
+
+    def test_the_journals_name_is_in_no_field_a_query_is_matched_against(self):
+        # 'j' carries the journal's title for display and 'q' its title and aliases, which trips.js never matches a day on
+        # alone. t, p, k and x hold only the day's own words, so the journal's name finds the journal itself (in the trip
+        # index) and not every one of its days. trips.js matches by substring, so no word of the title may sit anywhere
+        # inside those fields.
+        for e in self.days:
+            title = self.by[e['s']]['title']
+            self.assertEqual(e['j'], title)
+            words = self.search.normalize(title).split()
+            self.assertGreaterEqual(len(words), 3, title)
+            for f in MATCHED:
+                for word in words:
+                    with self.subTest(journal=e['s'], day=e['n'], field=f, word=word):
+                        self.assertNotIn(word, e[f])
+
+    def test_a_day_whose_own_words_name_the_journal_keeps_them(self):
+        _, (one, two, three) = self.index_with('echo-loop', [{'id': '001', 'day': '1', 'date': '2021-06-01', 'body': 'Synthetic start of the Echo Loop.'},
+                                                             {'id': '002', 'day': '2', 'title': 'Echo Loop, the far side'},
+                                                             {'id': '003', 'day': '3', 'title': 'Camp', 'body': 'Synthetic rest.'}],
+                                         title='Echo Loop', date='2021-06-01')
+        self.assertEqual([e['j'] for e in (one, two, three)], ['Echo Loop'] * 3)
+        self.assertEqual([e['p'] for e in (one, two, three)], ['day 1', 'day 2', 'day 3'])     # never in the day's name
+        self.assertEqual((one['t'], one['x']), ('', 'synthetic start of the echo loop'))       # the write-up says it
+        self.assertEqual((two['t'], two['x']), ('echo loop the far side', ''))                 # the title says it
+        for f in MATCHED:                                                                      # this day says neither word
+            self.assertNotIn('echo', three[f], f)
+            self.assertNotIn('loop', three[f], f)
+
+    def test_text_is_plain_and_the_dump_is_safe_inside_a_page(self):
+        half = self.walk('2.5')
+        self.assertNotIn('**', half['r'])
+        self.assertNotIn('](', half['r'])
+        self.assertIn('zero day in town', half['x'])
+        text = self.search.dumps(self.days)
+        self.assertNotIn('<', text)                       # the '<town>' of a title is escaped
+        self.assertIn('\\u003ctown', text)
+        for bad in ('.gpx', 'trkpt', '"lat"', 'photos/', '.webp'):
+            self.assertNotIn(bad, text)
+
+    def test_a_long_day_is_capped(self):
+        body = 'Synthetic words again. ' * 600
+        self.assertGreater(len(self.search.normalize(markdown.plain(body))), self.search.DAY_CAP)   # longer than a day may be
+        self.assertGreater(self.search.DAY_CAP, self.search.CAP)
+        _, (e,) = self.index_with('wordy', [{'id': '001', 'day': '1', 'date': '2022-06-01', 'body': body}], title='Wordy Walk', date='2022-06-01')
+        for f in ('x', 'r'):
+            self.assertLessEqual(len(e[f]), self.search.DAY_CAP, f)
+            # a day keeps more than a trip's write-up does: cut at the trip cap, the end of a long day could not be found
+            self.assertGreater(len(e[f]), self.search.CAP, f)
+        self.assertFalse(e['x'].endswith(' '))
+        self.assertTrue(e['x'].startswith('synthetic words again synthetic words again'), e['x'][:80])
+        self.assertIn(e['x'].rsplit(' ', 1)[-1], ('synthetic', 'words', 'again'))    # cut between words, not inside one
+
+    def test_a_day_without_a_date_has_an_empty_date(self):
+        _, (e,) = self.index_with('undated', [{'id': '001', 'day': '1', 'body': 'Synthetic undated entry.'}], title='Undated Walk')
+        self.assertEqual(e['w'], '')
+
+    def test_no_journal_no_entries(self):
+        site = dict(self.site, published=[t for t in self.site['published'] if t['kind'] != 'series'])
+        self.assertEqual(self.search.build_day_index(site), [])
 
 
 class DumpsTests(unittest.TestCase):

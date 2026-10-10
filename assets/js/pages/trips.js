@@ -1,8 +1,11 @@
 /* Trips explorer (/trips/): text search over the build-time index (trips/search.json), combined filters (activity,
    region, year, format, has a write-up), newest / oldest / best-match order, cards or list, and the whole state in the
-   URL (?q=…&activity=…) so a filtered view can be shared and Back / Forward restore it. Without JavaScript the page is
-   the full list by year with the browse links; the form stays hidden. The pure parts come from explore.js (shared with
-   tick-list/) and are re-exported as TRX for the Node unit test (tests/trips_js_harness.js). */
+   URL (?q=…&activity=…) so a filtered view can be shared and Back / Forward restore it. A search also looks through the
+   days of a journal (trips/journal.json) and lists the days it finds under "Journal days", after the reports: each is
+   named by its journal, day and date and links to that day on the journal's own page.
+   Without JavaScript the page is the full list by year with the browse links; the form stays hidden. The pure parts
+   (explore.js, shared with tick-list/, and the journal-day decisions below) are exported as TRX for the Node unit test
+   (tests/trips_js_harness.js). */
 (function () {
   'use strict';
   var X = (typeof module === 'object' && module && module.exports) ? require('./explore.js') : window.Explore;  // the shared helpers
@@ -13,7 +16,81 @@
   function parseState(search, allowed) { return X.parseState(search, allowed, DEFAULTS, KEYS); }
   function serialize(st) { return X.serialize(st, DEFAULTS, KEYS); }
   function chipLabel(key, value, names) { return X.chipLabel(key, value, names, LABELS); }
-  var TRX = { norm: norm, tokens: tokens, parseState: parseState, serialize: serialize, match: match, score: score, snippet: snippet, chipLabel: chipLabel, DEFAULTS: DEFAULTS };
+  // The journal days (the entries of trips/journal.json) a query finds. A day is found by its own words: every token is
+  // in its title or its write-up. A query may also name the day ('day 31', 'day 5.2': the word day, then exactly its
+  // label), which is the only way to find a day that has no words. The journal's own name and aliases (e.q) find the
+  // journal, among the reports, not its days: alone they match nothing here, or every day would be listed. They may
+  // come along, as whole words, with something of the day's own ('pct whitney', 'pacific crest trail day 48'). Order: a
+  // day the query names (the longer label first, so 'day 5.2' puts Day 5.2 above Day 5), then title hits above write-up
+  // hits, then journal order.
+  function dayHits(days, toks) {
+    if (!toks.length) return [];
+    var out = [];
+    (days || []).forEach(function (e, i) {
+      var title = e.t || '', text = e.x || '';
+      var name = (e.p || '').split(' ').filter(Boolean);   // ['day', '31'], ['day', '5', '2']
+      var rest = toks.slice(), named = 0;
+      for (var k = 0; name.length > 1 && k + name.length <= rest.length;) {   // every run of the name, should it be typed twice
+        var run = true;
+        for (var j = 0; j < name.length; j++) if (rest[k + j] !== name[j]) { run = false; break; }
+        if (run) { named = name.length; rest.splice(k, name.length); } else k++;
+      }
+      var journal = ' ' + (e.q || '') + ' ';
+      var n = named * 100, own = named > 0, rode = false;
+      for (var r = 0; r < rest.length; r++) {
+        var inTitle = title.indexOf(rest[r]) !== -1, inText = text.indexOf(rest[r]) !== -1;
+        var inJournal = journal.indexOf(' ' + rest[r] + ' ') !== -1;
+        if (!inTitle && !inText) { if (!inJournal) return; rode = true; }
+        else if (!inJournal) own = true;
+        n += (inTitle ? 3 : 0) + (inText ? 1 : 0);
+      }
+      if (rode && !own) return;   // nothing of the day's own beside the journal's name
+      out.push({ e: e, i: i, score: n });
+    });
+    out.sort(function (a, b) { return b.score - a.score || a.i - b.i; });
+    return out.map(function (x) { return x.e; });
+  }
+  // 'Pacific Crest Trail 2024 · Day 31 · May 22, 2024': whose day this is (the page shows it in caps)
+  function dayMeta(e) { return [e.j, 'Day ' + e.n, e.w].filter(Boolean).join(' · '); }
+  // the day on its journal's page, relative to trips/: '<slug>/#day-31'
+  function dayHref(e) { return encodeURIComponent(e.s) + '/#' + encodeURIComponent(e.a); }
+  // the words around the hit, or the day's opening when the hit is in its title or its name ('' for a day without a write-up)
+  function dayText(e, toks) {
+    var s = snippet(e.r, toks, 14);
+    if (s) return s;
+    var words = String(e.r || '').split(/\s+/).filter(Boolean);
+    return words.slice(0, 24).join(' ') + (words.length > 24 ? ' …' : '');
+  }
+  // the status line: 'N REPORTS', or 'K OF N REPORTS' while a search or a filter narrows the list
+  function countText(k, total, narrowed) { return (narrowed ? k + ' OF ' + total : total) + (total === 1 ? ' REPORT' : ' REPORTS'); }
+  // 'N JOURNAL DAYS' for the status line and '' for none; 'N DAYS' beside the section's heading
+  function daysCount(n) { return n ? n + (n === 1 ? ' JOURNAL DAY' : ' JOURNAL DAYS') : ''; }
+  function daysHead(n) { return n + (n === 1 ? ' DAY' : ' DAYS'); }
+  // the journal days listed: the first DAYS_SHOWN until the reader asks for all of them
+  var DAYS_SHOWN = 5;
+  function daysListed(list, all) { return all ? list.slice() : list.slice(0, DAYS_SHOWN); }
+  // the button under the list: none when everything already shows
+  function daysMoreText(n, all) { return n <= DAYS_SHOWN ? '' : all ? 'Show fewer journal days' : 'Show all ' + n + ' journal days'; }
+  // whether a found day is listed: its journal's card passes the filters (cardOk; false when the journal has no card),
+  // and with 'Has a write-up' on the day itself has one. A titled track-only day has none, whatever its journal has.
+  function dayShown(e, cardOk, writeup) { return !!cardOk && (!writeup || !!(e && e.x)); }
+  // a first search fetches two indexes: until both have answered, the count is not rewritten and the empty state is not
+  // shown, so 'No trips match' never flashes before the journal days arrive and the status line is spoken once
+  function pending(searching, tripsState, daysState) { return !!searching && (tripsState === 'loading' || daysState === 'loading'); }
+  // what to say when an index did not load: nothing without a query; the journal days still work when only theirs loaded
+  var FAIL = 'Search isn’t available right now (the search index didn’t load). The filters still work.';
+  var FAIL_REPORTS = 'Report search isn’t available right now (its index didn’t load). Journal days and the filters still work.';
+  function failText(searching, tripsFailed, daysReady) { return !searching || !tripsFailed ? '' : daysReady ? FAIL_REPORTS : FAIL; }
+  // the one note under the search box: what failed, else that the search is still loading, else nothing
+  var LOADING = 'Loading search…';
+  function noteText(searching, tripsState, daysState) {
+    if (tripsState === 'failed') return failText(searching, true, daysState === 'ready');
+    return pending(searching, tripsState, daysState) ? LOADING : '';
+  }
+  var TRX = { norm: norm, tokens: tokens, parseState: parseState, serialize: serialize, match: match, score: score, snippet: snippet, chipLabel: chipLabel, DEFAULTS: DEFAULTS,
+    dayHits: dayHits, dayMeta: dayMeta, dayHref: dayHref, dayText: dayText, countText: countText, daysCount: daysCount, daysHead: daysHead,
+    DAYS_SHOWN: DAYS_SHOWN, daysListed: daysListed, daysMoreText: daysMoreText, dayShown: dayShown, pending: pending, failText: failText, noteText: noteText,
+    FAIL: FAIL, FAIL_REPORTS: FAIL_REPORTS, LOADING: LOADING };
   if (typeof module === 'object' && module && module.exports) { module.exports = TRX; return; }
   if (typeof document === 'undefined' || !document.body.classList.contains('p-trips')) return;
 
@@ -46,12 +123,21 @@
   var index = null, indexState = 'idle', failedFor = null;   // idle | loading | ready | failed (failedFor: the query that failed)
   var excerpts = {};                              // slug -> the card's own excerpt text, restored when a snippet goes
   var timer = null, lastPush = 0;
-  var FAIL = 'Search isn’t available right now (the search index didn’t load). The filters still work.';
+  // journal days: listed only while searching; the section is absent when no journal has a day to search
+  var daysSec = document.getElementById('trx-days'), daysList = document.getElementById('trx-days-l');
+  var daysN = document.getElementById('trx-days-n'), daysMore = document.getElementById('trx-days-more');
+  if (!daysList || !daysN || !daysMore) daysSec = null;
+  var days = null, daysState = daysSec ? 'idle' : 'none';   // none | idle | loading | ready | failed
+  var daysAll = false, daysAllFor = null;         // 'Show all' belongs to one query: any other starts from the short list
+  var daysFailedFor = null;                       // the query the journal index failed on: a changed query tries once more
+  var lastSearch = location.search;              // the query string of the view on screen (write() and popstate keep it)
+  var bySlug = {};
+  cards.forEach(function (c) { bySlug[c.dataset.slug] = c; });
 
   function message(text) { if (msgEl.textContent !== (text || '')) msgEl.textContent = text || ''; msgEl.hidden = !text; }
   function loadIndex(done) {
     indexState = 'loading';
-    message('Loading search…');
+    message(LOADING);
     var ok = function (data) { index = data; indexState = 'ready'; done(); };
     var fail = function () { indexState = 'failed'; failedFor = state.q; done(); };
     if (typeof fetch !== 'function') { fail(); return; }
@@ -59,6 +145,64 @@
       if (!r.ok) throw new Error(String(r.status));
       return r.json();
     }).then(ok, fail);
+  }
+  // a journal index that does not load costs only the day results: the trip search and the filters carry on
+  // The status line waits for this index (pending), so the wait is bounded: after DAYS_WAIT ms the request is given up
+  // as failed and the reports' count is shown without the journal days.
+  var DAYS_WAIT = 8000;
+  function loadDays(done) {
+    daysState = 'loading';
+    var settled = false, timer = null;
+    var fail = function () { if (settled) return; settled = true; clearTimeout(timer); daysState = 'failed'; daysFailedFor = state.q; done(); };
+    var ok = function (data) { if (settled) return; settled = true; clearTimeout(timer); days = data; daysState = 'ready'; done(); };
+    if (typeof fetch !== 'function') { fail(); return; }
+    var opts = { credentials: 'same-origin' }, ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    if (ctl) opts.signal = ctl.signal;
+    timer = setTimeout(function () { if (ctl) ctl.abort(); fail(); }, DAYS_WAIT);
+    fetch(daysSec.getAttribute('data-index') || 'journal.json', opts).then(function (r) {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    }).then(ok, fail);
+  }
+  // a card's facets against the filters: a journal day is filtered as its journal is
+  function facetOk(d) {
+    if (state.activity !== 'all' && d.act !== state.activity) return false;
+    if (state.region && d.region !== state.region) return false;
+    if (state.year && d.year !== state.year) return false;
+    if (state.format && d.kind !== state.format) return false;
+    if (state.writeup && d.writeup !== '1') return false;
+    return true;
+  }
+  function renderDays(list, toks) {
+    if (!daysSec) return;
+    if (daysAllFor !== state.q) { daysAll = false; daysAllFor = state.q; }
+    while (daysList.firstChild) daysList.removeChild(daysList.firstChild);
+    daysListed(list, daysAll).forEach(function (e) {
+      var li = document.createElement('li'), a = document.createElement('a');
+      var m = document.createElement('span'), t = document.createElement('span');
+      li.className = 'trx-day';
+      a.className = 'trx-day-a';
+      a.setAttribute('href', dayHref(e));
+      m.className = 't-mono-s trx-day-m';
+      m.textContent = dayMeta(e);
+      t.className = 'trx-day-t';
+      t.textContent = e.h || ('Day ' + e.n);
+      a.appendChild(m); a.appendChild(t); li.appendChild(a);
+      var text = dayText(e, toks);
+      if (text) {
+        var p = document.createElement('p');
+        p.className = 't-excerpt trx-day-x';
+        p.textContent = text;
+        li.appendChild(p);
+      }
+      daysList.appendChild(li);
+    });
+    daysSec.hidden = list.length === 0;
+    daysN.textContent = daysHead(list.length);
+    var more = daysMoreText(list.length, daysAll);
+    daysMore.hidden = !more;
+    daysMore.textContent = more;
+    daysMore.setAttribute('aria-expanded', String(daysAll));
   }
   function searching() { return tokens(state.q).length > 0; }
   function anyFilter() {
@@ -106,19 +250,14 @@
   function render() {
     var toks = tokens(state.q);
     var useQ = toks.length > 0 && indexState === 'ready';
-    if (indexState === 'failed') message(toks.length ? FAIL : '');
-    else if (indexState === 'loading' && !toks.length) message('');
-    else if (indexState === 'ready') message('');
+    // while a search waits for either index the count below is not rewritten, so the note says why
+    var wait = pending(toks.length > 0, indexState, daysState);
+    message(noteText(toks.length > 0, indexState, daysState));
     var hits = {};
     if (useQ) index.forEach(function (e) { if (match(e, toks)) hits[e.s] = e; });
     var shown = [];
     cards.forEach(function (c, i) {
-      var d = c.dataset, on = true;
-      if (state.activity !== 'all' && d.act !== state.activity) on = false;
-      if (on && state.region && d.region !== state.region) on = false;
-      if (on && state.year && d.year !== state.year) on = false;
-      if (on && state.format && d.kind !== state.format) on = false;
-      if (on && state.writeup && d.writeup !== '1') on = false;
+      var d = c.dataset, on = facetOk(d);
       if (on && useQ && !hits[d.slug]) on = false;
       c.hidden = !on;
       var e = on && useQ ? hits[d.slug] : null;
@@ -147,11 +286,30 @@
       shown.forEach(function (x) { sortedUl.appendChild(x.el); });
       groups.forEach(function (g) { g.hidden = true; });
       if (sortedH) sortedH.textContent = sort === 'oldest' ? 'Oldest first' : 'Best match first';
-      if (sortedSec) sortedSec.hidden = false; else sortedUl.hidden = false;
+      // no report matches: no empty 'Best match first' head above nothing (journal days may still be listed)
+      if (sortedSec) sortedSec.hidden = shown.length === 0; else sortedUl.hidden = shown.length === 0;
     }
     var k = shown.length;
-    var countText = anyFilter() ? k + ' OF ' + total + ' REPORTS' : total + ' REPORTS';
-    if (countEl.textContent !== countText) countEl.textContent = countText;
+    // the journal days the query finds, filtered like their journal's own card
+    var dayList = [];
+    if (toks.length && daysState === 'ready') {
+      dayList = dayHits(days, toks).filter(function (e) { var c = bySlug[e.s]; return dayShown(e, !!c && facetOk(c.dataset), state.writeup); });
+    }
+    renderDays(dayList, toks);
+    // the count, then the journal days as a link to their list under the reports (rewritten only when it changes, so
+    // the live region speaks once per result)
+    var reportsText = countText(k, total, anyFilter()), jdText = daysCount(dayList.length);
+    if (!wait && countEl.textContent !== reportsText + (jdText ? ' · ' + jdText : '')) {
+      countEl.textContent = reportsText;
+      if (jdText) {
+        var jump = document.createElement('a');
+        jump.setAttribute('href', '#trx-days');
+        jump.textContent = jdText;
+        jump.addEventListener('click', toDays);
+        countEl.appendChild(document.createTextNode(' · '));
+        countEl.appendChild(jump);
+      }
+    }
     while (chipsEl.firstChild) chipsEl.removeChild(chipsEl.firstChild);
     ['q'].concat(FACETS).forEach(function (key) {
       var v = state[key];
@@ -160,7 +318,16 @@
       chipsEl.appendChild(chip(key, chipLabel(key, v, names)));
     });
     clearBtn.hidden = !(searching() || anyFilter());
-    noneEl.hidden = k > 0;
+    noneEl.hidden = wait || k > 0 || dayList.length > 0;
+  }
+  // the status line's link to the journal days: scrolled to and focused by script. As a fragment in the address it would
+  // not survive a reload or a share, because the list is filled only after its index has loaded.
+  function toDays(e) {
+    if (!daysSec || daysSec.hidden) return;
+    e.preventDefault();
+    daysSec.scrollIntoView();
+    var h = document.getElementById('trx-days-h');
+    if (h) h.focus({ preventScroll: true });
   }
   // the canonical URL for the state; the fragment is kept on the first (load-time) write and dropped once the visitor acts
   function write(push, keepHash) {
@@ -171,11 +338,13 @@
     try {
       history[push ? 'pushState' : 'replaceState'](null, '', url);
       if (push) lastPush = Date.now();
+      lastSearch = location.search;   // the browser's own spelling: it writes an apostrophe as %27
     } catch (e) { /* file:// */ }
   }
   function apply(push, keepHash) {
     setControls();
     if (searching() && (indexState === 'idle' || (indexState === 'failed' && state.q !== failedFor))) loadIndex(render);
+    if (searching() && (daysState === 'idle' || (daysState === 'failed' && state.q !== daysFailedFor))) loadDays(render);
     render();
     write(push, keepHash);
   }
@@ -205,6 +374,7 @@
       apply(false);
     }, 150);
   });
+  if (daysSec) daysMore.addEventListener('click', function () { daysAll = !daysAll; render(); });
   actBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.activity === b.dataset.filter) return; state.activity = b.dataset.filter; apply(true); }); });
   viewBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.view === b.dataset.view) return; state.view = b.dataset.view; apply(true); }); });
   ['region', 'year', 'format'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { state[k] = sel[k].value; apply(true); }); });
@@ -214,10 +384,15 @@
   clearBtn.addEventListener('click', clearAll);
   Array.prototype.forEach.call(noneEl.querySelectorAll('[data-clear]'), function (b) { b.addEventListener('click', clearAll); });
   window.addEventListener('popstate', function () {
+    // a jump to a fragment (a year link) is not a change of view: re-reading the URL would take the automatic sort it
+    // carries for the visitor's own choice
+    if (location.search === lastSearch) return;
+    lastSearch = location.search;
     state = parseState(location.search, allowed);
     userSort = state.sort !== DEFAULTS.sort;
     setControls();
     if (searching() && (indexState === 'idle' || (indexState === 'failed' && state.q !== failedFor))) loadIndex(render);
+    if (searching() && (daysState === 'idle' || (daysState === 'failed' && state.q !== daysFailedFor))) loadDays(render);
     render();
   });
   // the header's Search link is trips/#search: focus the box after the first render (a same-page click too)

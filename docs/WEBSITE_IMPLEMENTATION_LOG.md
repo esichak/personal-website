@@ -365,3 +365,203 @@ screen readers, real devices.
   a `goal.json`; `export` names it until then.
 - After logging a completion or archiving a goal, run `python3 tools/render.py --site` (internet) so the region maps
   drop its dashed line. The lists and counts change on the next build without it.
+
+## Phase 3 — Reports and PCT reading (2026-10-10)
+
+Starting point: Phases 1, 2 and 2T committed on `phase1-curated-homepage`; `HEAD` was `282d0db` (the last of the
+Phase 2T review commits). Baseline before this phase: 493 tests OK and `build.py --check` OK (348 pages). The content
+relied on is the Phase 0 inventory: 156 single-day reports, 10 multi-day trips, one planned route and the PCT, which
+has 150 recorded days, 32 of them written, and no parent write-up. Three trips carry `cover_photo` (the Phase 1 picks:
+the PCT, Matterhorn Peak – West Couloir, PEAK BAGGING SZN). No journal highlights were supplied and no introduction
+was written, so `journal_highlights` is not set anywhere and the PCT's introduction is built from fields. No copy was
+written for any page, and nothing under `content/` or `rendered/` changed.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/content.py` | `t['journal_highlights']`: `journal_highlights: [001, 059]` resolved to the day dicts in the listed order (a number is padded to the width of the day file names); `[]` when absent or empty; a value that is not a list, a non-empty list on a trip that is not `kind: series`, an id with no day file, or a repeat is a `ContentError` naming the file. `LEAD_MIN_AR` (1.2) and the automatic cover pick that uses it: the first photo at least 6:5 wide, else the first at least as wide as tall, else the first photo. No real trip's cover changed. `day_anchor()`; a day's label is its `day:` as text (`0` included), else its position; two days of a journal with one anchor, or a label with no letter or digit, is a `ContentError` naming the day file. |
+| `tools/lib/icons.py` | The `link` icon for the copy-link control. |
+| `tools/sitegen/core.py` | `related()` and `related_block()` ("More like this", with `skip` for the reports a page already links), `RELATED_SIZES`, `copy_link()` (with `of` for a per-control accessible name); `photo_rows(lead=)` numbers unnamed grid photos as the viewer does; a card's place may wrap; `recorded()`, the opening item of every map caption; `photo_rows` sums aspect ratios with `math.fsum` so Python 3.9 and 3.12 print the same value. |
+| `tools/sitegen/pages/report.py` | `narrative()`, `lead_photo()`, `hero()`, `section_nav()`, `share_row()`, `neighbours()`, `HERO_SIZES`; `page()` builds the story order or the compact order, takes the lead photo out of the gallery (it carries a `#photos` target when no photo remains for a grid), preloads the cover in place of the map when there is a lead photo, and appends the share row and the related block; `bottom_bar(story=)`; `map_caption` opens with "As recorded on <date>"; `data-lb-group="photos"` on the gallery; the share image is the cover; the copy-link action and share row on goal pages. The rail's old Contents list is removed: no page could show it once a report with a write-up and photos became a story. |
+| `tools/sitegen/pages/multiday.py` | Copy-link as the last title action; the share row and the related block before the pager; the overview caption opens with "As recorded <date range>" (no such item without dates); `share_image()`: the cover. |
+| `tools/sitegen/pages/series.py` | The lead photo and its preload; `lede()` opens with a facts sentence, has singular forms and leaves out a missing date range or place; the actions "Read the first written entry" and "Browse all recordings" and the copy-link control in place of "Day by day"; `first_written()`, `highlights()`, `written_nav()`; `day_anchor()` is safe for any label; `data-default="wu"` on the write-ups toggle; the map caption opens with "As recorded <date range>". |
+| `tools/sitegen/pages/section.py` | The featured map's caption opens "As recorded on <date>" like every other map caption. |
+| `tools/sitegen/search.py` | `day_entry()` and `build_day_index()`: one entry per day of a published journal (`kind: series`), with the journal's slug, title and aliases, the day's label, anchor, title and date, and the day's write-up. The trip index is unchanged. |
+| `tools/sitegen/pages/trips.py` | `journal_block()`: the empty, hidden "Journal days" section after the results; `build()` writes `trips/journal.json` when the site has a journal. |
+| `assets/js/base.js` | The copy-link handler (clipboard, "Link copied" for four seconds, else a selected read-only field that closes on Escape, a second press or a press elsewhere); photo viewer groups by `data-lb-group`; the current-section marker is the phone bottom bar's alone, and a pressed link stays current until the page scrolls on from where the jump put it. |
+| `assets/js/pages/series.js` | `hashTarget`, `startFiltered`, `revealId` and `landAfterLoad`, exported for Node; the write-ups filter starts on; the reader's own choice is kept in `sessionStorage` for the tab; a hash that targets a hidden day or month keeps the filter off on load and turns it off on `hashchange` or when its link is followed again; a page opened by a link that ends filtered scrolls to its day or month target again (not once the reader has scrolled on), a reload or Back does not; "Browse all recordings" turns the filter off and is remembered. |
+| `assets/js/pages/trips.js` | Fetches `journal.json` with the first query; `dayHits`, `dayMeta`, `dayHref`, `dayText` and the count, list, waiting and message helpers (exported for Node); lists matching journal days under "Journal days", five at first, filtered like their journal's card; the status line is written once both indexes have answered and links to the list; a jump to a fragment is no longer read as a change of view; an empty sorted section is hidden. |
+| `assets/css/pages/report.css`, `series.css`, `trips.css`, `base.css` | The story layout (`.rep-hero`, `.rep-anchor`, `.rep-toc`), `.rep-rel`, `.rep-share`, the copy control (status and fallback field out of the flow; hidden when scripting is off); `.ser-high-*`, `.ser-wnav`, the journal's title actions under its title; the journal-day rows. `.rep-toc` is hidden under 760 px and `.rep-share` is shown only there. The `.rail-toc` rules are gone with the list. |
+| `docs/CONTENT_GUIDE.md`, `docs/DEVELOPING.md`, `README.md` | Section 7 "Report pages and the PCT journal", the "Journal days" paragraph in the search section, four error-table rows, the "What not to do" bullets; the developer rules for both layouts, related reports, the copy control, the journal page and the journal-day index; two README rows. |
+| `tests/test_report_page.py`, `tests/test_related.py`, `tests/test_series_page.py`, `tests/test_series_js.py`, `tests/series_js_harness.js`, `tests/test_journal_days.py` (new) | See Checks. |
+| `tests/test_search.py`, `tests/test_trips_page.py`, `tests/trips_js_harness.js`, `tests/test_cover.py`, `tests/test_cards_extra.py` | The journal-day index, `trips/journal.json`, the Journal days block and the journal-day helpers; the automatic cover pick; the card's place line and the section page's caption. |
+
+### Behaviour
+
+- A single-day report with a write-up and a photo gets the story layout: the title block ("View route", "Download
+  GPX", "Copy link"), the lead photo, the stats strip, a section row listing only the sections the page has (Report,
+  Photos, Route, Trip details, in the plan's order), the write-up beside the Beta block, the map, the profile, the
+  remaining photos, the related reports, Newer / Older. Track-only, photo-only and no-photo reports keep the compact
+  map-first order. Both layouts keep `#title #stats #map #profile #beta #report #photos` wherever the section exists;
+  when the lead photo is a story's only photo, `#photos` lands on the lead photo.
+- The lead photo is the trip's cover (`cover_photo`, else the automatic pick) when it is at least 6:5 wide. It is left
+  out of the Photos grid and shares the viewer with it: the viewer steps through every photo of the trip once, lead
+  first. A cover that is a portrait or nearly square does not lead: the page keeps the story order and its photos stay
+  in the Photos section, or, for a single portrait, beside the write-up. The write-up is rendered word for word and no
+  copy is generated on either layout.
+- Multi-day pages keep their map-first layout in this phase (no lead photo, no section row). They gained the copy
+  link, the related reports and the caption wording only.
+- Map captions open with when the track was recorded: "As recorded on <date>" on single-day reports and on the
+  section pages' featured map, "As recorded <date range>" on multi-day trips and the PCT, and no such item when the
+  trip has no date. Goal captions are unchanged.
+- "More like this" shows up to three other published reports on single-day and multi-day pages: same region and
+  activity first, then same region, then same activity, the nearest in date first within each. Never the report
+  itself, a planned route, a draft or a repeat, and never the two reports the page links as Newer / Older just below;
+  omitted when empty; not on goal or series pages. The rule is printed beside the heading, and ends "NEWER / OLDER NOT
+  REPEATED" when one was left out.
+- "Copy link" copies the page's absolute public URL. It is the last title action on single-day, multi-day, goal and
+  series pages. Single-day, multi-day and goal pages hide their title actions under 760 px, so a second control near
+  the end of the page is shown there. On success "Link copied" shows under the button for four seconds; when the
+  clipboard is unavailable the URL is shown there in a selected read-only field. Neither moves anything on the page;
+  a button at the bottom edge of the screen has them scrolled into view. With scripting off the control is not shown,
+  in browsers that know the `scripting` media feature.
+- The phone bottom bar of a story page reads Report, Map, Photos, GPX, or Beta, Report, Map, GPX without a Photos
+  section, or Report, Map, Profile (Speed, Stats), GPX with neither photos nor beta rows. The compact bar is unchanged.
+  The bar marks the current section, and a link the reader pressed stays current until the page scrolls on. The section row
+  is not sticky, carries no current marker, and is hidden on phones, where the bottom bar is the one section navigation.
+- PCT: the page opens with the cover as a lead photo. The introduction is one paragraph from fields and counts until
+  `index.md` has a write-up, which then replaces it. The actions, under the title, are "Read the first written entry",
+  "Browse all recordings" and "Copy link". Every written entry ends with "Previous write-up" and "Next write-up" links
+  to the nearest written days (anchors from `day_anchor`, so Day 5.2 is `#day-5-2`) and "Copy link to this entry", which
+  names its day for assistive technology. `journal_highlights` renders a Highlights section between the overview and
+  the day log when set and nothing when absent. The build refuses a journal in which two day labels give the same
+  anchor.
+- PCT reading mode: with JavaScript the day log starts on the days with write-ups, and the reader's own choice (the
+  toggle, or "Browse all recordings") is kept for the browser tab. A page opened with a hash that targets a track-only
+  day or a month without write-ups starts unfiltered; a link to such a target turns the filter off, announces
+  "Showing all N days" and scrolls to it, also when the URL already ends with that hash. A reload or Back returns the
+  reader to where they were, not to the hash. Month browsing, the all-recordings view, every `#day-…` and `#month-…`
+  anchor, the GPX links and their file names are unchanged, and no day pages were created. Without JavaScript every
+  day shows.
+- Journal-day search: a search on the Trips page also reads every day of a journal (`trips/journal.json`: the PCT's
+  150 days, 95 KB, 19 KB gzipped, fetched with the first search) and lists the matching days under "Journal days"
+  after the reports, each naming its journal, day and date and linking to that day's anchor on the journal page. A day
+  is found by its own title and write-up ("whitney" finds Day 48, a track-only day titled "Mount Whitney") or by
+  naming it ("day 100"). The journal's name and aliases never find a day alone, but may be typed with something of the
+  day's own ("pct whitney"). The status line counts the days and links to the list. Five show at first; the filters
+  apply to a day as to its journal's card, and "Has a write-up" also to the day itself. Multi-day trips stay whole in
+  the trip index. A journal index that fails to load costs only the day results.
+- The share image of every trip page with a cover is the cover. Against the build from before the phase it changed
+  on 16 pages, each from the trip's first photo to its cover.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests` | 930 tests, OK (493 before the phase). |
+| The same suite under Python 3.12 (`python3.12 -W error::DeprecationWarning`), the version CI uses | 930 tests, OK. |
+| Node harnesses | `trips_js_harness.js` 89 checks, `series_js_harness.js` 43 checks and 25 more when `test_series_js.py` gives it a generated journal page to run the whole script against, `ticklist_js_harness.js` 60 checks. All pass. |
+| `python3 tools/build.py --out <scratch> --link --check` | OK: 349 pages, 168 trips, every internal link, image and anchor resolved. |
+| Builds under Python 3.9 and 3.12 compared file by file | Identical. One fix was needed on the way: `sum()` of photo aspect ratios rounds differently in 3.12, which changed one printed CSS value on one page; `math.fsum` gives the same value in both. |
+| Output compared with the build from just before this phase (3,297 files, leaving aside the iCloud conflict copies a local build carries) | No path removed; one added (`trips/journal.json`). All 351 GPX downloads byte-identical. `feed.xml`, `sitemap.xml` and `trips/search.json` identical. Write-up text identical on all 347 HTML pages. No legacy anchor lost: `#title #stats #map #profile #beta #report #photos #days #overview` are present wherever they were, and the PCT keeps all of its `#day-…` and `#month-…` ids, `#day-5-2` included. Two internal heading ids are gone: `toc-h` on 53 pages (the removed Contents list) and `ph-h` on the 12 pages whose only photo became the lead photo (their `#photos` target moved onto it). |
+| Layout census in the built site (156 single-day reports) | 45 story pages with a lead photo (on 12 of them it is the only photo); 16 story pages without one (8 with a single portrait beside the write-up, 8 whose photos are all portraits or squares); 95 compact pages. |
+| Covers before and after the automatic-pick change (168 trips) | No trip's cover changed. |
+| Horizontal overflow, measured in the browser | All 167 published trip pages at 320 and 1000 px, and 21 other pages (home, Trips with three queries and in list view, Tick list, Map, About, the goal, the PCT, a multi-day trip, four reports, the five activity pages) at 320, 390, 768, 1024 and 1440 px: the page is never wider than the window. |
+| Copy link in the browser (journal, a story, a multi-day trip, the goal, Matterhorn; 320 to 1440 px) | With "Link copied" showing, the scroll position, the page height, the H1 and the button do not move, and the status stays inside the page. With the clipboard stubbed to succeed the handler wrote the control's URL; stubbed to fail, the read-only field appeared with the address selected, inside the page gutters, with no sideways scroll; Escape closed it and returned focus to the button; a press elsewhere and a second press closed it. With the phone button 6 px above the bottom bar the field was scrolled clear of the bar, and an entry button at the bottom edge of a desktop window had its status scrolled into view. A real clipboard write was not observed: the test browser refuses them. |
+| Section navigation in the browser | The section row never carries a current marker, before or after scrolling. On a 390 px page the bottom bar starts on Report; each pressed link becomes and stays the current one after the jump and through a 4 px drift; a scroll to the top with no wheel, touch or key event releases it; Back moves the marker to the earlier fragment; after a second press of the link already in place, one 300 px step moves the marker on. |
+| PCT page in the browser | The title is on one line from 800 px with the three actions under it; at 390 px the first action fills the row and the other two share the next. Opened at `#day-3` the page lands on Day 3 with the filter on; after scrolling to 9,000 px and reloading it was still at 9,000 px. A link to hidden Day 25 turned the filter off; with the filter turned back on, a second link to the same hash turned it off again and announced "Showing all 150 days". "Browse all recordings" stored the choice with the filter already off. The 32 entry copy buttons have 32 different names. With one image answered 1.5 s late, a reader who scrolled on before the page finished loading stayed where they were; one who waited stayed on the entry. |
+| Journal-day search in the browser | "pacific crest trail": the PCT's card and no journal days. "pct whitney" and "pacific crest trail 2024 day 48": Day 48, a track-only day. "day 100": Day 100 first. "day 5.2": Day 5.2, then Day 5. "whitney" with "Has a write-up": no day. "tent" at 320 px: 11 days, five shown, no snippet cut off when all are shown; a new query entered with Enter went back to five. On a first search with either index answered 600 ms late the status line was written once and "No trips match" did not appear before the days did. The status link scrolled to the list, moved the focus to its heading and left no fragment in the address; after it, and after a jump to a year heading (also with an apostrophe in the query), clearing the search returned the sort to Newest first. With the journal index never answering, the note read "Loading search…", the request was given up after 8.2 s, and the count and the empty state then appeared. Under Node, over the real index: "day N", alone and after the journal's name, lists the named day first for all 150 days. |
+| Rendering | Not run. `render.py` needs the internet and this phase changes no track, title or `map:` setting; `git status` shows no tracked change under `rendered/` or `content/`. |
+| Not run | A real clipboard write; the pages with scripting off (the rule that hides the copy control is in the built CSS and parsed by the browser, but the state was not loaded); keyboard-only operation by hand; 200 % zoom; reduced motion; Lighthouse; screen readers; real devices. The test browser's pane was hidden during these checks: layout was measured and events were dispatched by script, so real wheel and touch scrolling, the viewer's focus return and a visible window were not observed. The page code of `base.js` and `trips.js` has no automated test. Most of its decisions are pure functions that the Node harness runs; four rules of `trips.js` are not, and were checked in the browser only: the status line and the empty state waiting while a search is pending, the status link followed by script, and the `popstate` guard. `series.js` is also run whole against a stand-in for the browser, which is not a browser: a property it does not model reads as undefined instead of failing the run. |
+
+### Review
+
+The phase went through two review rounds before it was left for commit. Reviewers and skeptics were read-only; every
+fix was made afterwards and re-checked.
+
+**First round: seven lenses over the whole phase** (plan compliance, Python, JavaScript, HTML and accessibility, CSS
+and responsive layout, documentation, test quality). 57 findings: none high, 11 medium, 46 low (two of the low entries
+were a lens's "requirements met" summary). One medium was a duplicate; the other ten each went to two skeptics, one
+told to reproduce it and one to judge it against the plan and the contract.
+
+| Verdict | Count | What happened |
+| --- | --- | --- |
+| Confirmed by both | 3 | Fixed: "Link copied" re-wrapped the title on 65 of 168 pages at 1000 px (the status now hangs under the button); the two-line clamp hid the matched words of a journal hit on phones (removed); the guide described a near-square cover as a lead photo (rewritten, and the automatic cover now prefers a photo at least 6:5 wide). |
+| Split | 6 | All six fixed. Every written day matched its journal's name, and "day 2" ranked Day 2 twenty-first (new matching and ranking; the list moved below the reports). A reload threw the journal reader back to the entry in the URL. The section row marked "Trip details" as current at the top of the page (the row no longer carries a marker). Three test weaknesses: a substring check of the journal script, a share-image test that passed by coincidence, and "write-ups verbatim" not pinned on the journal page. |
+| Rejected by both | 1 | "No automated test runs the page scripts' DOM code." Not required by the plan, which asks for unit tests of pure logic and browser checks of interaction. The decisions those scripts take were still moved into pure functions and tested under Node. |
+
+Low findings fixed in the same pass: the copy control without JavaScript and its per-entry names; the fallback field
+squeezing the title row; the journal's title wrapping beside three buttons; "More like this" repeating the Newer /
+Older links on 155 of 167 pages; 23 titled track-only PCT days that could not be found; a highlight printing an
+untitled day's date twice; captions and sentences for trips without dates; the section pages' "Track: <date>" caption;
+unescaped day anchors; grid photo labels that disagreed with the viewer's count; "Show all" staying open for a new
+query; the search-failure message over working journal results; "Browse all recordings" not remembered; a repeated
+link to a hidden day doing nothing; a card's place line widening four report pages at 320 px; dead CSS; stale
+developer notes; and the test gaps the test-quality lens listed. Recorded, not built: multi-day pages keep their
+map-first layout (Remaining issues).
+
+**Second round: four lenses over the fixes** (JavaScript, CSS and accessibility, Python, plan and intent), again with
+two skeptics for anything medium or higher. 19 findings: none high, one medium, 18 low.
+
+- The medium one split and was fixed with the reproducing skeptic's stricter rule: after the first round a query such
+  as "pct whitney" or the very words a result row prints ("Pacific Crest Trail 2024 · Day 48") found nothing. The
+  journal's name and aliases may now accompany something of the day's own, as whole words, and still find no day
+  alone. On the real index "day N" and "Pacific Crest Trail 2024 day N" list the named day first for all 150 days.
+- Low findings fixed: every journal day is indexed, so "day 100" finds Day 100; "Has a write-up" no longer lists
+  track-only days; the status line is written once and "No trips match" no longer flashes while the journal index
+  loads; its link to the list no longer leaves a fragment in the address or makes the automatic sort stick; the
+  journal's second landing yields to a reader who has already scrolled; the copy status and field are scrolled into
+  view at the bottom edge and above the phone bar; the bottom bar's pressed link is released by any scroll, not by
+  four input events; two days of a journal can no longer share an anchor, and `day: 0` is a label; a one-day journal
+  says "1 recorded day" and "As recorded on"; the "More like this" rule line says when Newer / Older were left out;
+  three sizes (the phone gap above the write-up, the "Route" link, the fallback field).
+- Not changed: two trips whose share image is now a weaker photo than before (an author choice, under Remaining
+  issues); file handles left to the garbage collector in six older `json.load(open(...))` calls (Phase 4); a goal
+  page's share image, which stays its first photo.
+
+**Third round: three lenses over the second round's fixes, the tests and the three guides** (JavaScript and CSS,
+Python and tests, documentation). 15 findings, all low; nothing went to a skeptic. Fixed: the fragment-jump guard
+missed any query with an apostrophe; the status line could wait on a stalled journal index with nothing saying so
+(a "Loading search…" note now stays up, and the request is given up after 8 s); a second press of a bottom-bar link
+already in place kept the marker through the next move; the day's name typed twice found other days; a day label
+such as "5 n" could take the id the page writes on Day 5's number; a day file without a `day:` line that collides on
+the PCT is now told so; a test fixture used the wrong `kind` for a multi-day trip; "nothing is announced on load" had
+no check; raw non-breaking spaces in two test files; four statements in the guides (the Ski page has no featured
+map, the facet checklist, the README's cover row, unlabelled days on the PCT). The same reviewer ran the suite five
+times under each Python, in reversed and shuffled order and one test at a time, without a failure. Not changed: the
+browser stand-in's leniency about unmodelled properties (noted under Not run).
+
+The reviewers' independent comparisons with the build from before the phase agree with the table above: no path
+removed, 351 GPX files byte-identical, no write-up changed, no legacy anchor lost.
+
+### Remaining issues and author inputs
+
+- Lead photos are not yet Eric's choices. The PCT leads with the Phase 1 pick (`cover_photo: photos/d059-01.webp`,
+  focal 45 / 55), still waiting for confirmation. Every single-day report without `cover_photo` leads with the automatic
+  pick (the first photo at least 6:5 wide declared in `index.md`); only the three Phase 1 trips have the line. Set
+  `cover_photo` and the focal point on the reports that matter (CONTENT_GUIDE section 7.3).
+- Sixteen written reports have no lead photo because no photo of theirs is wide enough: eight with a single portrait,
+  eight with only portraits or squares. Adding a landscape and naming it in `cover_photo` gives them one.
+- `journal_highlights` is empty, so the PCT page has no Highlights section until Eric lists the entries he wants to
+  point to (day-file ids, display order; section 7.8). No entry was chosen for him.
+- The PCT introduction is facts only until Eric writes one under the front matter of its `index.md` (section 7.7).
+- Multi-day pages keep their map-first layout. Giving them a lead photo and a section row is a design decision for a
+  later phase, not something this phase attempted.
+- Two share images are now a weaker picture than before, because the automatic cover is the first wide photo:
+  Tumalo Falls (the waterfall portrait gave way to a trail through pines) and the LTCC multiday ski class (skiers
+  gave way to the inside of a tent). The same photos have fronted those trips' cards since Phase 1; naming a
+  `cover_photo` on each fixes both.
+- A day added to the PCT needs a `day:` line. Its labels do not follow the file order (`days/148.md` is Day 151), and
+  `add_trip.py --day-of` writes none, so the new file would take a position another day already uses as its label; the
+  build now stops and says so (CONTENT_GUIDE section 7.7).
+- Day search covers journals (`kind: series`, today the PCT) and lives in the Trips page's search box only. An
+  untitled track-only day is found by its name alone ("day 100"), multi-day trips are searched as whole reports, and
+  no day pages exist or should be added for search.
+- For Phase 4: six older `json.load(open(...))` calls leave the file to the garbage collector (`core.py`, `archive.py`,
+  `multiday.py`, `series.py`, `section.py`); harmless in a build, a `ResourceWarning` under `-W error`.
+- No Phase 5 features were added: collections, region pages, a verified summit index, the local "Continue reading"
+  bookmark and the interactive map stay out of scope.
+
+**Next smallest step:** Phase 4 (hardening, performance measurements, share metadata, structured data where the
+content supports it, the remaining manual checks).
