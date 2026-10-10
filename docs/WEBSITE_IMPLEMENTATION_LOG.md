@@ -322,7 +322,12 @@ Confirmed and fixed:
   bounded, control and formatting characters shown as `\uXXXX`), and the scan files every element and attribute as
   either geometry or a reported item (unknown elements, stray attributes, unnamed waypoints, named points, GPS
   fields, loose text, a track hidden inside a waypoint), so only a truly bare file is called bare; a missing scan is
-  an error. Tests use a hostile but well-formed file.
+  an error. Tests use a hostile but well-formed file. A further review pass found the inventory still missed free
+  text outside elements and that names alone decided what counted as geometry. Namespace declarations (prefix and
+  URI), a `version` that is not 1.0 or 1.1 and non-XML white space are now reported; only GPX-namespace elements are
+  read as tracks, routes and points (a lookalike `trk` in another namespace is never a candidate and is listed as an
+  unknown element); the escaping also covers stacked combining marks and right-to-left letters; and the bare-file
+  line now says what it is, a scan result, and that the coordinates themselves are public.
 - **Documentation.** `--approximation-note`, the repeatable flags, the reference date, the exact duplicate rule, the
   export field list, what stops a multi-route import, what a chosen-element publish leaves out.
 - **Tests.** The report recording's checksum is compared after `log-outing`; the build's own `site_of()` assembles the
@@ -340,7 +345,7 @@ listed as not run). The other three:
 - A copy-link action on goal pages (plan 20.9): added with the copy-link control in Phase 3.
 - The checkbox finding described the earlier commit; the switch button was already in place.
 
-Checks run for this round (2026-10-10): 489 tests OK (480 at the fix commit, 9 more with the published-copy report); the ticklist.js harness 60 checks and the trips.js harness 50;
+Checks run for this round (2026-10-10): 493 tests OK (480 at the fix commit, 13 more with the published-copy report); the ticklist.js harness 60 checks and the trips.js harness 50;
 `build.py --out <scratch> --link --check` 348 pages, link check OK. On the synthetic demo site (now seven goals,
 including one completed then reopened and one whose attempt names a multi-day report) in the built-in browser: no
 horizontal overflow at 320, 390, 768, 1024 and 1440 px on the tick list, a goal page and the map page; one, two and

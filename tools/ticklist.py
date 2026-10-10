@@ -158,6 +158,8 @@ def carried(info):
     out = []
     if c['creator']:
         out.append('creator %s' % P(c['creator']))
+    if c['version']:
+        out.append('GPX version text %s' % P(c['version']))
     if c['names']:
         out.append('route / track names (%s)' % some(c['names']))
     if c['descriptions']:
@@ -181,6 +183,9 @@ def carried(info):
         out.append('other elements (%s)' % names(c['other']))
     if c['attributes']:
         out.append('attributes (%s)' % names(c['attributes']))
+    if c['namespaces']:
+        out.append('namespace declarations (%s)' % ', '.join(P(x, 100) for x in c['namespaces'][:6])
+                   + (', … (%d in all)' % len(c['namespaces']) if len(c['namespaces']) > 6 else ''))
     if c['text']:
         out.append('loose text between elements')
     if c['comments']:
@@ -322,7 +327,8 @@ def cmd_add(a):
                     say('  the published copy carries: %s — all of it becomes public; if any of it is private, export the route '
                         'again without it and import that file' % '; '.join(kept))
                 else:
-                    say('  the published copy carries nothing besides the geometry (no names, text, links, extensions, times or comments)')
+                    say('  the published copy: the scan found nothing besides the line (no names, text, links, extensions, times, waypoints, '
+                        'comments, extra attributes, namespaces or unknown elements). The coordinates themselves are public.')
             else:
                 say('  not published: pass --publish-track to copy this geometry into the public checkout (nothing from it is written now)')
     g = validated(g, slug)

@@ -256,7 +256,8 @@ class AddReportTests(CliFixture):
         self.assertIn('Pat Example front door', self.track().decode('utf-8'))
         bare = gf.gpx(gf.trk([gf.line(38.9, -120.1, 12, times=False)]), head=gf.HEAD.replace(' creator="synthetic fixture"', ''))
         out = self.add('--gpx', self.gpx('bare.gpx', bare), '--publish-track', '--slug', 'bare-goal', title='Bare Goal')
-        self.assertIn('carries nothing besides the geometry', out)
+        self.assertIn('the scan found nothing besides the line', out)
+        self.assertIn('The coordinates themselves are public', out)     # the one thing no scan can vouch for
         self.assertNotIn('the published copy carries:', out)
 
     def test_duplicate_check_also_covers_a_planned_route_without_a_goal_json(self):
@@ -302,8 +303,20 @@ class AddReportTests(CliFixture):
         first = [ln for ln in out.splitlines() if ln.strip().startswith('the file also carries')]
         self.assertEqual(len(first), 1, out)
         for said in ('2 waypoint(s)', 'unnamed', '1 named point(s) on the line', 'GPS fields on points (sat)', 'other elements (bar, trk)',
-                     'attributes (k)', 'loose text between elements', 'timestamps'):
+                     'namespace declarations ("foo=urn:x-fixture")', 'loose text between elements', 'timestamps'):
             self.assertIn(said, first[0])
+
+    def test_free_text_in_the_version_a_namespace_or_a_lookalike_track_is_reported_not_published_as_the_line(self):
+        # one real track; a second "track" in another namespace is not a track: the file needs no --select, and the
+        # report names the lookalike, the namespace it came in and the odd version text
+        out = self.add('--gpx', self.gpx('smuggled.gpx', gf.SMUGGLED), '--publish-track')
+        line = self.published_line(out)
+        for said in ('GPX version text "1.1 exported by pat"', 'other elements (trk)',
+                     'namespace declarations ("pat-home=urn:x-fixture:12-example-street")', 'loose text between elements'):
+            self.assertIn(said, line)
+        self.assertNotIn('the scan found nothing', out)
+        g = self.goal()
+        self.assertEqual((g['route']['alternatives'], g['route']['points'], g['route']['segments']), (1, 12, 1))
 
     def test_nothing_besides_the_geometry_is_said_only_when_the_scan_found_nothing(self):
         carried = self.cli.carried

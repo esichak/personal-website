@@ -54,8 +54,22 @@ class NoRoute(GpxError):
     """No track or route points (a waypoint-only or empty file): a valid idea, not a route."""
 
 
+GPX_NS = ('http://www.topografix.com/GPX/1/1', 'http://www.topografix.com/GPX/1/0')
+_XSI_NS = 'http://www.w3.org/2001/XMLSchema-instance'
+_XML_WS = ' \t\r\n'      # what XML itself calls white space; any other "blank" character is text and is reported
+
+
 def _local(tag):
     return tag.rsplit('}', 1)[-1]
+
+
+def _gpx(tag):
+    """The element's name when it is a GPX element (the GPX 1.1 or 1.0 namespace, or no namespace at all), else None: a
+    <trk> or <trkpt> in any other namespace is not part of the line, is never read as one, and is reported as unknown."""
+    if tag[:1] != '{':
+        return tag
+    ns, _sep, local = tag[1:].partition('}')
+    return local if ns in GPX_NS else None
 
 
 _ZONE = re.compile(r'(Z|[+-]\d\d:?\d\d)$', re.I)
@@ -97,7 +111,7 @@ def _point(el, where):
         raise GpxError('%s: coordinates out of range (lat %s, lon %s)' % (where, lat, lon))
     ele = time = None
     for ch in el:
-        name = _local(ch.tag)
+        name = _gpx(ch.tag)
         if name == 'ele':
             ele = _num(ch.text, 'ele', where)
         elif name == 'time':
@@ -121,16 +135,18 @@ _PLACE = {'trk': ('gpx',), 'rte': ('gpx',), 'wpt': ('gpx',), 'trkseg': ('trk',),
 
 
 def printable(text, limit=80):
-    """Text taken from a GPX, safe to print in a report the author relies on: one line, every control or formatting
-    character written as an escape (a track name must not be able to forge report lines, hide text or drive the
-    terminal), quotes and backslashes escaped, cut to `limit` characters, wrapped in double quotes."""
+    """Text taken from a GPX, safe to print in a report the author relies on: one line, quotes and backslashes escaped,
+    cut to `limit` characters, wrapped in double quotes, and every character that could change how the line reads
+    written as an escape: control and formatting characters (a track name must not be able to forge report lines or
+    drive the terminal), combining marks left after normalisation (they can stack over neighbouring text), and
+    right-to-left letters and digits (they reorder what is printed beside them)."""
     out = []
-    for ch in str(text):
+    for ch in unicodedata.normalize('NFC', str(text)):
         cat = unicodedata.category(ch)
         if ch in '\r\n\t\x0b\x0c' or cat in ('Zl', 'Zp', 'Zs'):
             out.append(' ')
-        elif cat.startswith('C'):                 # control, format (bidi, zero width), private use, unassigned
-            out.append('\\u%04x' % ord(ch))
+        elif cat.startswith('C') or cat in ('Mn', 'Me') or unicodedata.bidirectional(ch) in ('R', 'AL', 'AN'):
+            out.append(('\\u%04x' if ord(ch) <= 0xFFFF else '\\U%08x') % ord(ch))
         elif ch in '"\\':
             out.append('\\' + ch)
         else:
@@ -146,20 +162,35 @@ def printable_name(name, limit=40):
     return printable(name, limit)[1:-1]
 
 
-def _contents(root, data):
-    """Everything the document holds that is not the line itself. Every element is either geometry (gpx, trk, trkseg,
-    trkpt, rte, rtept, wpt, ele, with lat / lon) or lands in one of these, so an empty result really means "nothing but
-    the line", and something this code has never heard of is still reported (under 'other'):
+def _contents(root, data, declared=()):
+    """Everything the document holds that is not the line itself. Every element is either geometry (a GPX-namespace gpx,
+    trk, trkseg, trkpt, rte, rtept, wpt or ele in its proper place, with lat / lon) or lands in one of these, so an
+    empty result means the scan found nothing but the line, and something this code has never heard of is still
+    reported (under 'other'):
 
-    creator (the <gpx> creator text), names (tracks and routes), waypoint_names, point_names (count of named track or
-    route points), descriptions (count of desc / cmt / src / keywords / type / sym texts), metadata (the tag names
-    inside <metadata>, plus author / email / copyright / bounds / name / time found straight under <gpx>), extensions,
-    links (link and url elements), times (any <time> on a point), point_fields (GPS quality fields such as sat or
-    hdop), attributes (attribute names other than lat, lon, the root's version and creator), other (element names
-    not covered above, outside <extensions> and <metadata>), text (loose text between elements), comments."""
-    c = {'creator': (root.get('creator') or '').strip() or None, 'names': [], 'waypoint_names': [], 'point_names': 0,
-         'descriptions': 0, 'metadata': set(), 'extensions': False, 'links': 0, 'times': False, 'point_fields': set(),
-         'attributes': set(), 'other': set(), 'text': False, 'comments': b'<!--' in data}
+    creator (the <gpx> creator text), version (the <gpx> version when it is not plainly 1.0 or 1.1), names (tracks and
+    routes), waypoint_names, point_names (count of named track or route points), descriptions (count of desc / cmt /
+    src / keywords / type / sym texts), metadata (the tag names inside <metadata>, plus author / email / copyright /
+    bounds / name / time found straight under <gpx>), extensions, links (link and url elements), times (any <time> on
+    a point), point_fields (GPS quality fields such as sat or hdop), attributes (attribute names other than lat, lon
+    and the root's version and creator), namespaces (every declaration but the GPX default and xsi, as 'prefix=uri':
+    a prefix and a URI are free text), other (element names not covered above, outside <extensions> and <metadata>,
+    including anything in a foreign namespace and geometry found in the wrong place), text (loose text between
+    elements, any character XML does not count as white space), comments.
+
+    What no scan of the structure can report: the coordinates themselves (a line that starts at a front door says
+    where it is) and information carried by spacing or number formatting."""
+    version = root.get('version')
+    c = {'creator': (root.get('creator') or '').strip(_XML_WS) or None,
+         'version': None if version is None or version in ('1.0', '1.1') else version,
+         'names': [], 'waypoint_names': [], 'point_names': 0, 'descriptions': 0, 'metadata': set(), 'extensions': False,
+         'links': 0, 'times': False, 'point_fields': set(), 'attributes': set(), 'other': set(), 'text': False,
+         'namespaces': sorted('%s=%s' % (pfx or '(default)', uri) for pfx, uri in set(declared)
+                              if not ((pfx == '' and uri in GPX_NS) or (pfx == 'xsi' and uri == _XSI_NS))),
+         'comments': b'<!--' in data}
+
+    def has(text):
+        return bool((text or '').strip(_XML_WS))
 
     def attrs(el, own):
         for k in el.attrib:
@@ -167,18 +198,21 @@ def _contents(root, data):
                 c['attributes'].add('schemaLocation' if k == _XSI_LOCATION else _local(k))
 
     def loose(el):
-        if (el.text or '').strip() or any((ch.tail or '').strip() for ch in el):
+        if has(el.text) or any(has(ch.tail) for ch in el):
             c['text'] = True
 
     def walk(el, parent, inside):
-        name = _local(el.tag)
+        name = _gpx(el.tag)
         if inside == 'extensions':
             return                                   # everything under <extensions> is reported as one thing
         if inside == 'metadata':
-            if (el.text or '').strip() or el.attrib or len(el):
-                c['metadata'].add(name)
+            if has(el.text) or el.attrib or len(el):
+                c['metadata'].add(_local(el.tag))
             for ch in el:
                 walk(ch, name, 'metadata')
+            return
+        if name is None:
+            c['other'].add(_local(el.tag))           # a foreign namespace: never the line, whatever it is called
             return
         if name == 'extensions':
             c['extensions'] = True
@@ -203,7 +237,7 @@ def _contents(root, data):
             if len(el):
                 c['other'].add(name)
             return
-        text = (el.text or '').strip()
+        text = (el.text or '').strip(_XML_WS)
         if name == 'time':
             if parent in _POINTS:
                 c['times'] = c['times'] or bool(text)
@@ -269,30 +303,30 @@ def inspect_bytes(data, where):
     for rx, why in _UNSAFE:
         if rx.search(data):
             raise GpxError('%s: %s' % (where, why))
-    _scan_parsed(data, where)
+    declared = _scan_parsed(data, where)
     try:
         root = ET.fromstring(data)
     except ET.ParseError as ex:
         raise GpxError('%s: not well-formed XML (%s)' % (where, ex))
-    if _local(root.tag) != 'gpx':
-        raise GpxError('%s: the root element is <%s>, not <gpx>' % (where, printable_name(_local(root.tag))))
+    if _gpx(root.tag) != 'gpx':
+        raise GpxError('%s: the root element is <%s>, not a GPX <gpx>' % (where, printable_name(_local(root.tag))))
     info = {'tracks': [], 'routes': [], 'waypoints': 0, 'bytes': size, 'sha256': hashlib.sha256(data).hexdigest(),
-            'contains': _contents(root, data)}
+            'contains': _contents(root, data, declared)}
     count = 0
 
     def name_of(el):
         for ch in el:
-            if _local(ch.tag) == 'name':
+            if _gpx(ch.tag) == 'name':
                 return (ch.text or '').strip() or None
         return None
     for el in root:
-        kind = _local(el.tag)
+        kind = _gpx(el.tag)
         if kind == 'trk':
             segs = []
             for seg in el:
-                if _local(seg.tag) != 'trkseg':
+                if _gpx(seg.tag) != 'trkseg':
                     continue
-                pts = [_point(p, where) for p in seg if _local(p.tag) == 'trkpt']
+                pts = [_point(p, where) for p in seg if _gpx(p.tag) == 'trkpt']
                 count += len(pts)
                 if count > MAX_POINTS:
                     raise GpxError('%s: more than %d points' % (where, MAX_POINTS))
@@ -300,7 +334,7 @@ def inspect_bytes(data, where):
                     segs.append(pts)
             info['tracks'].append({'name': name_of(el), 'segments': segs})
         elif kind == 'rte':
-            pts = [_point(p, where) for p in el if _local(p.tag) == 'rtept']
+            pts = [_point(p, where) for p in el if _gpx(p.tag) == 'rtept']
             count += len(pts)
             if count > MAX_POINTS:
                 raise GpxError('%s: more than %d points' % (where, MAX_POINTS))
@@ -317,7 +351,8 @@ def _scan_parsed(data, where):
     instruction, an XHTML / SVG / MathML / XLink namespace however the URI is spelled, a <script>-like element under any
     prefix, an on* event attribute, and any attribute whose value starts with a javascript: / vbscript: / data: scheme
     once character references are decoded and control characters dropped (browsers drop them from URLs too). A parse
-    error here, including an encoding expat does not know, is reported as not well-formed."""
+    error here, including an encoding expat does not know, is reported as not well-formed. Returns every namespace
+    declaration in the document as (prefix, uri), for the contents report."""
     import xml.parsers.expat as expat
     parser = expat.ParserCreate(namespace_separator=' ')
     bad = []
@@ -336,7 +371,10 @@ def _scan_parsed(data, where):
     def pi(target, _data):
         fail('processing instructions (such as %s) are not accepted' % printable_name(target))
 
+    declared = []
+
     def ns(prefix, uri):
+        declared.append((prefix or '', uri or ''))
         u = _CTRL.sub('', uri or '').lower().rstrip('/')
         if u in _BAD_NS or 'w3.org/1999/xhtml' in u or 'w3.org/2000/svg' in u or 'mathml' in u:
             fail('XHTML, SVG and MathML content is not accepted (namespace %r)' % uri)
@@ -365,6 +403,7 @@ def _scan_parsed(data, where):
         raise GpxError('%s: not well-formed XML (%s)' % (where, ex))
     if bad:
         raise GpxError('%s: %s' % (where, bad[0]))
+    return declared
 
 
 def candidates(info):
@@ -458,7 +497,9 @@ def _layout(data):
         nm, at = stack.pop()
         if len(stack) == 1:  # a child of the root
             close = data.index(b'>', parser.CurrentByteIndex) + 1
-            out.append((nm.rsplit('}', 1)[-1], at, close))
+            ns, sep, local = nm.rpartition('}')
+            # the same rule as inspect(): only GPX-namespace (or no-namespace) elements count as tracks and routes
+            out.append((local if (not sep or ns in GPX_NS) else '{}' + local, at, close))
 
     def other(*_a):
         mark()

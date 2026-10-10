@@ -386,12 +386,18 @@ publication choice, not a privacy measure; the files are still in the repository
   the list that matters: everything on it becomes public. If any of it is private, export the route again without it
   and import that file; nothing is stripped for you, because the published file is kept byte for byte.
   - The list is complete by construction: every element and attribute in the file is either the line itself
-    (points with latitude, longitude and elevation) or an item on the list. Something no GPX schema knows shows up
-    under "other elements" or "attributes"; it is never skipped. The report says "nothing besides the geometry" only
-    when that scan found nothing at all.
-  - Text taken from the file (a track name, the creator, a waypoint name) is printed in quotes, on one line, cut at
-    60 to 80 characters, with control and invisible characters written as `\uXXXX`. A name cannot add lines to the
-    report or hide part of it; if you see `\u…` in a name, the file contains characters you would not otherwise see.
+    (GPX points with latitude, longitude and elevation, in their proper place) or an item on the list. Something no
+    GPX schema knows shows up under "other elements" or "attributes"; it is never skipped. So do the places a field
+    list would miss: namespace declarations (a prefix and a URI are free text), a `version` that is not plainly 1.0
+    or 1.1, loose text between elements, and anything in another namespace that merely looks like a track (it is
+    never read as one). The report says "the scan found nothing besides the line" only when all of that is empty.
+  - Two things no scan can tell you. The coordinates are the point of publishing and are public: a line that starts
+    at a front door says where the door is. And a file could carry information in its spacing or in how its numbers
+    are written; if a file comes from someone you do not trust, export the line again from your own planner.
+  - Text taken from the file (a track name, the creator, a waypoint name, a namespace) is printed in quotes, on one
+    line, cut at 60 to 100 characters. Control and invisible characters, stacked accents and right-to-left letters
+    are written as `\uXXXX`, because they can forge, hide or reorder what the report shows. If you see `\u…` in a
+    name, the file contains characters you would not otherwise notice.
 - **Rendering is local.** Maps, tiles and glyphs come from `tools/render.py` on your Mac, which downloads terrain
   and OpenStreetMap data; GitHub never renders. Planned routes are drawn segment by segment in the planned style, with
   no elevation profile. Until a render exists (or if it fails), the goal is still valid and its card and page show

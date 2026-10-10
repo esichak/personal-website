@@ -165,6 +165,12 @@ HOSTILE = gpx('<trk><name>%s</name>%s' % (FORGED_NAME, trk([SEG_A])[len('<trk>')
               '<trk><trkseg><trkpt lat="38.95" lon="-120.1"><name>pt</name><sat>7</sat><foo:bar xmlns:foo="urn:x-fixture" k="v">x</foo:bar>'
               '</trkpt><trkpt lat="38.951" lon="-120.1"/></trkseg>loose words</trk>',
               '<wpt lat="38.9" lon="-120.1"><trk><trkseg><trkpt lat="38.8" lon="-120.2"/></trkseg></trk></wpt>')
+# free text in places a field scan would not look: the root's version, a namespace prefix and URI, a second "track" that
+# only looks like one because it sits in another namespace, and a no-break space between elements
+SMUGGLED = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<gpx version="1.1 exported by pat" xmlns="http://www.topografix.com/GPX/1/1" xmlns:pat-home="urn:x-fixture:12-example-street">\n'
+            '%s\n<pat-home:trk><pat-home:trkseg><pat-home:trkpt lat="38.7" lon="-120.3"/><pat-home:trkpt lat="38.701" lon="-120.3"/>'
+            '</pat-home:trkseg></pat-home:trk>\u00a0\n</gpx>\n' % trk([line(38.9, -120.1, 12, times=False)]))
 BOM = b'\xef\xbb\xbf'   # some Windows tools write a UTF-8 byte order mark first; tests write BOM + text.encode('utf-8')
 # legitimate files other tools write, which the parsed scan must keep accepting
 GARMIN_EXTENSIONS = gpx('<trk><trkseg><trkpt lat="38.9" lon="-120.1"><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr>'

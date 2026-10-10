@@ -290,7 +290,9 @@ class InspectTests(GpxFixture):
     def test_contents_files_every_element_and_attribute_somewhere(self):
         c = self.inspect('hostile.gpx', gf.HOSTILE)['contains']
         self.assertEqual(c['other'], ['bar', 'trk'])         # an unknown element, and a track hidden inside a waypoint
-        self.assertEqual(c['attributes'], ['k'])
+        self.assertEqual(c['attributes'], [])                # the unknown element is reported whole, attributes and all
+        self.assertEqual(c['namespaces'], ['foo=urn:x-fixture'])
+        self.assertIsNone(c['version'])
         self.assertEqual(c['point_fields'], ['sat'])
         self.assertEqual(c['point_names'], 1)
         self.assertIs(c['text'], True)
@@ -305,6 +307,42 @@ class InspectTests(GpxFixture):
         personal = self.inspect('personal.gpx', gf.PERSONAL)['contains']
         self.assertEqual(personal['metadata'], ['author', 'name'])
         self.assertEqual((personal['links'], personal['descriptions'], personal['extensions'], personal['comments']), (1, 1, True, True))
+
+    def test_only_gpx_namespace_elements_are_the_line(self):
+        info = self.inspect('smuggled.gpx', gf.SMUGGLED)
+        self.assertEqual(len(info['tracks']), 1)             # the pat-home:trk is not a track
+        self.assertEqual(len(self.gpx.candidates(info)), 1)
+        c = info['contains']
+        self.assertEqual(c['other'], ['trk'])
+        self.assertEqual(c['namespaces'], ['pat-home=urn:x-fixture:12-example-street'])
+        self.assertEqual(c['version'], '1.1 exported by pat')
+        self.assertIs(c['text'], True)                       # a no-break space is not XML white space
+        # the standard declarations and versions are not news
+        for name, text in (('plain.gpx', gf.SINGLE), ('nons.gpx', gf.SINGLE_NO_NS), ('xsi.gpx', gf.XSI_SCHEMA)):
+            plain = self.inspect(name, text)['contains']
+            self.assertEqual((plain['namespaces'], plain['version'], plain['other'], plain['text']), ([], None, [], False), name)
+        # a prefixed GPX namespace is still GPX (the tracks are read), and the prefix is reported as the free text it is
+        pre = self.inspect('prefixed.gpx', gf.ROOT_PREFIXED)
+        self.assertEqual(len(pre['tracks']), 2)
+        self.assertEqual(pre['contains']['namespaces'], ['g=http://www.topografix.com/GPX/1/1'])
+        self.assertEqual(self.inspect('garmin.gpx', gf.GARMIN_EXTENSIONS)['contains']['namespaces'],
+                         ['gpxtpx=http://www.garmin.com/xmlschemas/TrackPointExtension/v1'])
+
+    def test_a_root_named_gpx_in_another_namespace_is_not_a_gpx_file(self):
+        with self.assertRaises(self.gpx.GpxError):
+            self.inspect('other.gpx', gf.SINGLE.replace('http://www.topografix.com/GPX/1/1', 'urn:x-fixture:not-gpx'))
+
+    def test_printable_escapes_what_could_reorder_or_overprint_the_line(self):
+        p = self.gpx.printable
+        self.assertEqual(p('Aiguille d\u2019Argenti\u00e8re'), '"Aiguille d\u2019Argenti\u00e8re"')    # accents stay readable
+        self.assertEqual(p('Argentie\u0300re'), '"Argenti\u00e8re"')                                   # composed first
+        self.assertEqual(p('x\u0336\u0336y'), '"x\\u0336\\u0336y"')                                   # stacked marks: escaped
+        got = p('abc \u05d0\u05d1 \u0627\u0628 123')                                                # Hebrew and Arabic letters
+        for ch in ('\u05d0', '\u05d1', '\u0627', '\u0628'):
+            self.assertNotIn(ch, got)
+        self.assertIn('\\u05d0', got)
+        self.assertEqual(p('\U0001f600'), '"\U0001f600"')                                              # a plain symbol passes
+        self.assertEqual(p('\U000e0001'), '"\\U000e0001"')                                            # an invisible tag does not
 
     def test_describe_escapes_a_candidates_name(self):
         info = self.inspect('hostile.gpx', gf.HOSTILE)
