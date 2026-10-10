@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 import fit_reader  # noqa: E402
 import geo  # noqa: E402
+import gpxroute  # noqa: E402
 import mapkit  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
 
@@ -201,14 +202,27 @@ def is_flat(t):
     return t.get('subtype') in ('SUP', 'Kayaking') or ((st.get('high_m') or 0) - (st.get('low_m') or 0)) < 30
 
 
+def planned_tracks(t):
+    """A tick-list goal's line as one Track per segment (gpxroute.as_tracks: routes and tracks alike, gaps never bridged),
+    so a two-part plan is drawn as two parts."""
+    return gpxroute.as_tracks(t['track'], t['slug'], t['cat'])
+
+
 def render_single(t, meta):
     act, cat = t['activity'], t['cat']
-    tr = load_track(t['track'], t['slug'], cat, t['stats'])
+    planned = t['kind'] == 'planned'
+    if planned:
+        trs = planned_tracks(t)
+        if not trs:
+            raise ValueError('%s: the planned GPX has no track or route points to draw' % t['slug'])
+        tr = trs[0]
+    else:
+        trs = None
+        tr = load_track(t['track'], t['slug'], cat, t['stats'])
     mo = t['map']
     peaks = mo.get('peaks') or []
-    small = extent_m([tr]) < 3000
+    small = extent_m(trs or [tr]) < 3000
     flat = is_flat(t)
-    planned = t['kind'] == 'planned'
     style = 'planned' if planned else 'route'
     base = {}
     if small:
@@ -226,21 +240,23 @@ def render_single(t, meta):
         dict(SMALL, **{k: v for k, v in base.items() if k not in ('water_labels',)}, name='map-phone', w=390, h=336, scale_corner='bl',
              priority_peaks=peaks, reserve=[(0, 0, 60, 60), (390 - 208, 336 - 36, 390, 336)], pad_bottom_px=40, aria=aria),
     ]
-    trks = [{'track': tr, 'style': style}]
+    drawn = trs or [tr]
+    trks = [{'track': x, 'style': style} for x in drawn]
     osm = fetch_osm(union([frame_bbox(s, trks) for s in specs]), 'report')
     for s in specs:
-        s['tracks'] = [{'track': tr, 'style': style, 'width': 3 if s['name'] == 'map-phone' else 3}]
+        s['tracks'] = [{'track': x, 'style': style, 'width': 3} for x in drawn]
         s['osm_data'] = osm
         m = render_map(s)
         meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'interval_ft': m.get('interval_ft'),
                                    'outbound_only': m.get('outbound_only')}
     single_charts(t, meta, tr)
-    render_tile('tile', tr, 200, 152, cat, osm_detail=None, osm_data=osm, planned=planned)
-    render_glyph('g112', tr, 112, 64, cat, planned=planned)
-    render_glyph('g64', tr, 64, 48, cat, planned=planned, pad=5)
-    meta['start'] = tr.raw[0][:2]
-    meta['end'] = tr.raw[-1][:2]
-    meta['bbox'] = geo.bbox_of([[(p[0], p[1]) for p in tr.raw]])
+    multi = [{'track': x, 'style': 'planned', 'cat': cat, 'width': 2.5, 'trim': mapkit.DEFAULT_TRIM} for x in drawn] if len(drawn) > 1 else None
+    render_tile('tile', tr, 200, 152, cat, osm_detail=None, osm_data=osm, planned=planned, tracks=multi)
+    render_glyph('g112', drawn if len(drawn) > 1 else tr, 112, 64, cat, planned=planned)
+    render_glyph('g64', drawn if len(drawn) > 1 else tr, 64, 48, cat, planned=planned, pad=5)
+    meta['start'] = drawn[0].raw[0][:2]
+    meta['end'] = drawn[-1].raw[-1][:2]
+    meta['bbox'] = geo.bbox_of([[(p[0], p[1]) for x in drawn for p in x.raw]])
 
 
 def axis_step(total_mi, w):

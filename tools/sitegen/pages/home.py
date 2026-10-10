@@ -175,7 +175,7 @@ def recent(site):
 def activity_tile(site, act, label):
     pub = [t for t in site['published'] if t['activity'] == act]
     reps = [t for t in pub if is_report(t)]
-    planned = [t for t in site['planned'] if t['activity'] == act]
+    planned = [t for t in site.get('active_goals', site['planned']) if t['activity'] == act]  # the live tick-list goals
     # core.count_items after the report count: 'INCL. 2 MULTI-DAY, 1 SERIES', then '+ 1 PLANNED ROUTE' (never a report),
     # one per line
     sub = core.count_items(reps, planned)[1:]

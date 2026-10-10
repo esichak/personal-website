@@ -5,6 +5,7 @@ import re
 from datetime import date
 
 import frontmatter
+import goals
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 TRIPS_DIR = os.path.join(ROOT, 'content', 'trips')
@@ -279,6 +280,8 @@ def load_trip(folder):
     else:
         raise ContentError('%s: search_aliases must be a list of names such as [PCT], got %r' % (where, al))
     t['cover'] = resolve_cover(t)
+    # kind: planned trips are tick-list goals: goal.json (or the defaults for a legacy planned route)
+    t['goal'] = goals.load_goal(folder, slug, kind)
     t['season'] = season_of(t['date'], act)
     t['has_writeup'] = bool(t['body_md']) or any(d['body_md'] for d in t['days'])
     return t

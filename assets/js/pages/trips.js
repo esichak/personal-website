@@ -1,89 +1,18 @@
 /* Trips explorer (/trips/): text search over the build-time index (trips/search.json), combined filters (activity,
    region, year, format, has a write-up), newest / oldest / best-match order, cards or list, and the whole state in the
    URL (?q=…&activity=…) so a filtered view can be shared and Back / Forward restore it. Without JavaScript the page is
-   the full list by year with the browse links; the form stays hidden. The pure parts (TRX) are exported for the Node
-   unit test (tests/trips_js_harness.js) and never touch the DOM. */
+   the full list by year with the browse links; the form stays hidden. The pure parts come from explore.js (shared with
+   tick-list/) and are re-exported as TRX for the Node unit test (tests/trips_js_harness.js). */
 (function () {
   'use strict';
+  var X = (typeof module === 'object' && module && module.exports) ? require('./explore.js') : window.Explore;  // the shared helpers
   var DEFAULTS = { q: '', activity: 'all', region: '', year: '', format: '', writeup: false, sort: 'newest', view: 'cards' };
   var KEYS = ['q', 'activity', 'region', 'year', 'format', 'writeup', 'sort', 'view'];
-
-  // mirrors tools/sitegen/search.py normalize() exactly: NFKD, the U+0300–036F combining marks dropped, lower-case,
-  // anything but a–z / 0–9 is a space
-  function norm(s) {
-    s = String(s == null ? '' : s).normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
-    return s.replace(/[^a-z0-9]+/g, ' ').trim();
-  }
-  function tokens(q) { return norm(q).split(' ').filter(Boolean); }
-  function decode(s) { try { return decodeURIComponent(s.replace(/\+/g, ' ')); } catch (e) { return null; } }
-  // ?q=…&activity=… -> a state; unknown keys are ignored, values outside `allowed` fall back to the defaults
-  function parseState(search, allowed) {
-    var st = {};
-    KEYS.forEach(function (k) { st[k] = DEFAULTS[k]; });
-    var s = String(search || '');
-    if (s.charAt(0) === '?') s = s.slice(1);
-    s.split('&').forEach(function (pair) {
-      if (!pair) return;
-      var i = pair.indexOf('='), k = decode(i < 0 ? pair : pair.slice(0, i)), v = decode(i < 0 ? '' : pair.slice(i + 1));
-      if (k === null || v === null) return;
-      if (k === 'q') st.q = Array.from(v).slice(0, 200).join('');
-      else if (k === 'writeup') st.writeup = v === '1';
-      else if (KEYS.indexOf(k) !== -1 && allowed && allowed[k] && allowed[k].indexOf(v) !== -1) st[k] = v;
-    });
-    return st;
-  }
-  // the canonical query string: only non-default keys, in a fixed order ('' for the default state)
-  function serialize(st) {
-    var out = [];
-    KEYS.forEach(function (k) {
-      var v = st[k];
-      if (k === 'writeup') { if (v) out.push('writeup=1'); return; }
-      if (v === DEFAULTS[k] || v === '' || v == null) return;
-      out.push(encodeURIComponent(k) + '=' + encodeURIComponent(v).replace(/%20/g, '+'));
-    });
-    return out.join('&');
-  }
-  function fields(e) { return (e.t || '') + ' ' + (e.p || '') + ' ' + (e.k || '') + ' ' + (e.x || ''); }
-  // every token must occur somewhere; the score prefers title hits, then place / region / alias / peak hits
-  function match(e, toks) {
-    var all = fields(e);
-    return toks.every(function (t) { return all.indexOf(t) !== -1; });
-  }
-  function score(e, toks) {
-    var n = 0;
-    toks.forEach(function (t) {
-      if ((e.t || '').indexOf(t) !== -1) n += 3;
-      if ((e.p || '').indexOf(t) !== -1 || (e.k || '').indexOf(t) !== -1) n += 2;
-      if ((e.x || '').indexOf(t) !== -1) n += 1;
-    });
-    return n;
-  }
-  // a few words of the plain write-up around the first token hit (words compared in normalised form)
-  function snippet(raw, toks, span) {
-    var words = String(raw || '').split(/\s+/).filter(Boolean);
-    span = span || 9;
-    for (var i = 0; i < words.length; i++) {
-      var w = norm(words[i]);
-      for (var j = 0; j < toks.length; j++) {
-        if (w.indexOf(toks[j]) !== -1) {
-          var a = Math.max(0, i - span), b = Math.min(words.length, i + span + 1);
-          return (a > 0 ? '… ' : '') + words.slice(a, b).join(' ') + (b < words.length ? ' …' : '');
-        }
-      }
-    }
-    return '';
-  }
-  // the text of a filter chip: names maps facet values to their labels (region slug -> name, activity key -> label)
-  function chipLabel(key, value, names) {
-    var n = (names && names[key] && names[key][value]) || value;
-    if (key === 'q') return 'Search: ' + value;
-    if (key === 'activity') return n;
-    if (key === 'region') return 'Region: ' + n;
-    if (key === 'year') return 'Year: ' + n;
-    if (key === 'format') return 'Format: ' + n;
-    if (key === 'writeup') return 'Has a write-up';
-    return n;
-  }
+  var LABELS = { region: 'Region: ', year: 'Year: ', format: 'Format: ', writeup: 'Has a write-up' };
+  var norm = X.norm, tokens = X.tokens, match = X.match, score = X.score, snippet = X.snippet;
+  function parseState(search, allowed) { return X.parseState(search, allowed, DEFAULTS, KEYS); }
+  function serialize(st) { return X.serialize(st, DEFAULTS, KEYS); }
+  function chipLabel(key, value, names) { return X.chipLabel(key, value, names, LABELS); }
   var TRX = { norm: norm, tokens: tokens, parseState: parseState, serialize: serialize, match: match, score: score, snippet: snippet, chipLabel: chipLabel, DEFAULTS: DEFAULTS };
   if (typeof module === 'object' && module && module.exports) { module.exports = TRX; return; }
   if (typeof document === 'undefined' || !document.body.classList.contains('p-trips')) return;

@@ -4,7 +4,8 @@ Static site, Python 3 standard library only. No npm, no pip.
 
 ```
 content/trips/<slug>/index.md     one trip: YAML-ish front matter + Markdown write-up
-content/trips/<slug>/track.gpx    full recorded track (single-day trips and planned routes)
+content/trips/<slug>/track.gpx    full recorded track (single-day trips) or, for a kind: planned goal, the published planned GPX
+content/trips/<slug>/goal.json    a tick-list goal's intent and provenance (tools/lib/goals.py validates; optional: a legacy planned route has none)
 content/trips/<slug>/days/NN.md   multi-day / series days (front matter + write-up) with NN.gpx beside them
 content/trips/<slug>/photos/      web copies: NN.webp (1600 px) + NN.sm.webp (800 px); no EXIF/GPS
 content/home.json                 the home page's featured trips, in order (tools/sitegen/curation.py validates it)
@@ -17,12 +18,19 @@ tools/sitegen/core.py             shared layout + components (header, footer, un
 tools/sitegen/curation.py         content/home.json -> site['featured'] (strict: unknown, draft, planned, duplicate slugs fail the build)
 tools/sitegen/search.py           the search index: normalize(), entry(t), build_index(site), dumps() -> trips/search.json
 tools/sitegen/pages/trips.py      the Trips explorer (trips/) and its index (trips/search.json): every published trip, by year
+tools/sitegen/pages/ticklist.py   the Tick list (tick-list/): every goal as a map-led card, by region, with filters in ticklist.js
+tools/lib/goals.py                goal.json defaults, validation, is_active(), site checks (outing report slugs) and report backlinks
+tools/lib/gpxroute.py             safe GPX inspection for goals: routes and tracks, segments kept, selection among alternatives, measure()
+tools/ticklist.py                 the local goal workflow: add, update, log-outing, review-packet, export (never pushes or deploys)
 tools/sitegen/pages/*.py          one module per page type; each has build(site) -> [core.Page]
 assets/css/base.css               tokens, type scale, layout, shared components
 assets/css/pages/<module>.css     page CSS (bundled after base.css into assets/site.css)
 assets/js/base.js (+ pages/*.js)  bundled into assets/site.js
 assets/css/pages/trips.css        the explorer: head, browse block, form, chips, year groups, .trx-grid and .trx--list
+assets/js/pages/explore.js        the pure helpers both lists share (norm, parseState, serialize, match, snippet, chipLabel): window.Explore
 assets/js/pages/trips.js          the explorer's behaviour: URL state, history, search.json fetch, match / score (node-testable)
+assets/js/pages/ticklist.js       the tick list's behaviour: scope, filters over data attributes, priority / added / name order (node-testable)
+docs/TICK_LIST_GUIDE.md           how to save, import, review, publish, update and complete a goal; the research prompt
 tests/                            stdlib unit tests: python3 -m unittest discover -s tests (CI runs them before the build)
 docs/CONTENT_GUIDE.md             how to feature trips, choose covers, write card summaries and add search aliases
 ```
@@ -127,16 +135,37 @@ menu button below 1140px.
     Python test (option values match the data) and the Node test (`parseState` rejects values outside `allowed`). Adding
     an alias is content only (`search_aliases: [PCT]`); it needs a build, not a render.
 
+- Tick list (`tick-list/`, `tools/sitegen/pages/ticklist.py`): every `kind: planned` trip is a goal. `t['goal']` is
+  `goals.load_goal()`'s dict (status, priority, archived, tags, why, added_at, target_months, target_year, time_commitment,
+  season_notes, difficulty, route_scope, route_source, references, field_evidence, checklist, outings, route, legacy); the
+  rules are in `tools/lib/goals.py` and docs/TICK_LIST_GUIDE.md. `site['goals']` = `site['planned']` (pages and assets for
+  every goal); `site['active_goals']` (not completed, not archived) drives every '+ N PLANNED ROUTE' counter and the Planned
+  blocks; `site['goal_backlinks']` maps a report slug to the goals whose outings name it (`report.tick_backlink`). Goals
+  never enter `site['published']`, the feed, the search index, home features or report counts.
+  - `core.goal_card(t, here)` is the one goal card (`data-slug / act / region / status / priority / months / gpx / archived /
+    added / text`); the route tile is its image, with 'Map not rendered yet' / 'Route not added yet' fallbacks.
+  - ticklist.js state keys: `q, activity, region, status, priority, month, gpx (1), scope (active | shortlisted | completed
+    | archived | all), sort (priority | added | name), view (cards | list)`; filtering is entirely from the cards' data
+    attributes (no index fetch); the history rules are trips.js's. The explorer's control classes (`.trx-*`) are reused.
+  - A goal page (`report.goal_page`) says Planned route and Planning notes, never Trip report: an approximate stats strip
+    (≈, gain only with full elevation, never a moving time, a note naming the source kind and scope), the rendered map or
+    an honest fallback, Why · Planning notes · Season and commitment (only approved field_evidence is published) · Route
+    source · References · Still to check (read-only) · Outings. The download is the published source bytes.
+  - `render.py` draws a goal from `gpxroute.as_tracks` (one Track per segment, routes included) so gaps stay gaps; goals
+    get no elevation chart.
+
 ## Trip dict (from tools/lib/content.py)
 `slug, title, activity (ski|climb|hike|mtb|other), activity_label, cat, subtype, kind (trip|multi-day|series|planned),
 date, end_date, start_time, timezone, place, region, party, route_shape, featured, beta[{label,value}],
 conditions{}, map{}, body_md, photos[{file, sm, w, h, alt, caption}], days[…], url ('trips/<slug>/'), track,
 rendered, stats{distance_km, gain_m, loss_m, high_m, low_m, moving_s, elapsed_s}, season, has_writeup,
-cover_photo, cover_focal (x, y), card_summary, cover{photo, source ('explicit'|'parent'|'day'), day, focal}, aliases`.
+cover_photo, cover_focal (x, y), card_summary, cover{photo, source ('explicit'|'parent'|'day'), day, focal}, aliases,
+goal (None unless kind is planned)`.
 `aliases`: the optional `search_aliases` front matter (an inline list `[PCT, Pacific Crest]`, or one string) as a list of
 stripped, non-empty strings; `[]` when absent; anything else is a `content.ContentError`. Only `search.entry` reads it.
 Day: `n, id, label, title, date, start_time, hut, transfer_before, stats, photos, body_md, track`.
-`site = {'trips': all (newest first), 'by_slug', 'published' (not planned), 'planned', 'featured' (home.json's picks, in order)}`.
+`site = {'trips': all (newest first), 'by_slug', 'published' (not planned), 'planned', 'goals' (= planned), 'active_goals',
+'goal_backlinks', 'featured' (home.json's picks, in order)}`.
 
 Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
 - single: `map-wide` 1440×640, `map-col` 718×400, `map-phone` 390×336, `profile-wide|col|phone` (1248/718/358)
@@ -156,6 +185,6 @@ Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
 `python3 tools/build.py --check` builds everything and verifies every internal link, image and anchor, including
 anchors on other pages (`map/#region-utah`, `trips/#y-2024` must land on an element with that id).
 `python3 -m unittest discover -s tests` runs the unit tests (home.json curation, cover resolution, card summaries, home
-cards, the search index, the Trips page, the header's nav state, trip cards; a Node test of trips.js's pure functions runs
-when `node` is installed and is skipped otherwise); they build synthetic trips in temp folders, so they never touch
+cards, the search index, the Trips page, the header's nav state, trip cards, goal sidecars, the GPX inspector, the tick-list
+CLI and page; Node tests of trips.js's and ticklist.js's pure functions run when `node` is installed and are skipped otherwise); they build synthetic trips in temp folders, so they never touch
 content/ and take a few seconds.

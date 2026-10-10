@@ -189,8 +189,8 @@ When a search matches only in the write-up, the card shows the words around the 
 (and a day excerpt's DAY label is hidden); clearing the search restores the card. A region appears as a link in the
 browse block to its map panel once the map page has one; until then (the PCT) it links to the Trips page's own filter.
 
-**Planned routes** are not on the Trips page and not in search. They stay on the map (`/map/`) and on their activity
-page until the Tick list ships.
+**Planned routes** are tick-list goals: they live on `/tick-list/` (and on the map and their activity page), never on the
+Trips page or in its search. Adding, importing and updating them is a separate workflow: [TICK_LIST_GUIDE.md](TICK_LIST_GUIDE.md).
 
 Preview with `python3 tools/build.py --serve` and open http://localhost:8000/trips/; type the alias into the search
 box. The index is rebuilt on every build, so an alias needs no `render.py` run. Run the checks from section 5 and

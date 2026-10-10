@@ -481,7 +481,7 @@ def page(act, site):
     body = []
     extra_head = ''
     intro = OTHER_LINE if act == 'other' else ''
-    planned = [t for t in site['planned'] if t['activity'] == act]
+    planned = [t for t in site.get('active_goals', site['planned']) if t['activity'] == act]  # active tick-list goals only
     body.append(header(act, here, ts, intro, planned))
     feat = None
     if act == 'ski':

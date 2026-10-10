@@ -1,0 +1,35 @@
+/* Tick list (/tick-list/) — head, the explorer's shared controls (.trx-* from trips.css), region groups of goal cards. */
+.tkl-head { padding-top: 24px; }
+.tkl-intro { margin-top: 12px; max-width: 620px; }
+.tkl-stats { margin-top: 8px; text-transform: uppercase; }
+@media (min-width: 760px) { .tkl-stats { margin-top: 12px; font-size: 15px; line-height: 20px; color: var(--ink-2); } }
+@media (min-width: 1200px) { .tkl-head { padding-top: 40px; } }
+.tkl-row2 { padding-top: 4px; }
+.tkl-scope { flex: 0 1 auto; }
+
+/* ---------------------------------------------------------------- goal card (core.goal_card): map-led, read-only */
+.gcard { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: 14px; align-items: start; min-width: 0; }
+.gcard-map { display: block; aspect-ratio: 200 / 152; background: var(--surface); border: 1px solid var(--rule); overflow: hidden; }
+.gcard-map .gl { width: 100%; height: 100%; }
+.gcard-map--none { display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; background: var(--sunk); }
+.gcard-map--none .t-mono-s { font-size: 11px; line-height: 14px; }
+.gcard-b { display: flex; flex-direction: column; min-width: 0; }
+.gcard-meta { text-transform: uppercase; }
+.gcard-t { margin-top: 4px; font: 600 17px/22px var(--sans); text-wrap: balance; }
+.gcard-t a { color: var(--ink); }
+.gcard-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.gcard-tags { margin-top: 8px; gap: 6px; }
+.gcard-tags .tag { height: 24px; padding: 0 8px; font-size: 11px; }
+.gcard-stats { margin-top: 8px; text-transform: uppercase; }
+.gcard-go { margin-top: 2px; align-self: flex-start; }
+@media (min-width: 560px) {
+  .tgrid .gcard { display: flex; flex-direction: column; align-items: stretch; }
+  .tgrid .gcard-map { aspect-ratio: 200 / 152; }
+  .tgrid .gcard-b { padding-top: 12px; }
+}
+@media (min-width: 760px) { .gcard-t { font-size: 19px; line-height: 25px; } .gcard-map--none .t-mono-s { font-size: 12px; line-height: 16px; } }
+/* list view: one row per goal at every width */
+.trx--list .gcard { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: 14px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.trx--list .gcard-b { padding-top: 0; }
+@media (min-width: 560px) { .trx--list .gcard { grid-template-columns: 160px minmax(0, 1fr); column-gap: 20px; padding: 16px 0; } }
+@media (min-width: 760px) { .trx--list .gcard { grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; } }

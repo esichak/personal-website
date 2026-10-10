@@ -220,3 +220,62 @@ the PCT's write-ups (deliberate; documented), a longer announcement delay for th
 
 **Next smallest step:** Phase 2T, the Tick list (section 20), reusing `core.trip_card`, the `.fchip` filters and the
 explorer's URL-state code.
+
+## Phase 2T — Tick list and future-goal workflow (2026-10-09)
+
+Starting point: Phases 1 and 2 committed (`c46949e`, `ca5c6ec`); the working tree was clean apart from the untracked
+iCloud conflict copies under `rendered/`. Baseline before this phase: 188 tests OK, `build.py --check` OK (347 pages).
+The content has one existing planned route (`crystal-range-to-bayview`, a legacy goal without a sidecar) and no future
+goals were supplied: every goal used for testing and screenshots is a synthetic fixture built in a scratch copy, never
+in `content/`.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/goals.py` (new) | `goal.json` defaults and strict validation (statuses, priorities, months, commitment, scope, source kinds and the author-drawn approximation note, references, field evidence that must be approved before difficulty or season notes publish, checklist, outings, the derived route block and its checksum), `is_active`, site-level outing checks, report backlinks. |
+| `tools/lib/gpxroute.py` (new) | Bounded GPX inspection (30 MB, 500,000 points, no DOCTYPE/ENTITY, finite coordinates in range), routes and tracks kept apart with every segment, explicit selection among alternatives, `measure()` (per-segment polyline length, gain only with full elevation, elevation full/partial/none, times only noted), byte-exact extraction of the chosen element, `as_tracks()` for the renderer. |
+| `tools/ticklist.py` (new) | `add`, `update`, `log-outing`, `review-packet`, `export`, all with `--dry-run`; drafts by default; `--publish-track` is the only way a file enters the checkout; no local path is ever written; never calls `add_trip.py`; a render failure leaves a valid goal. |
+| `tools/lib/content.py`, `tools/build.py` | `t['goal']` for planned trips; `site['goals']`, `site['active_goals']`, `site['goal_backlinks']`; site validation of outing report slugs. |
+| `tools/sitegen/pages/ticklist.py` (new), `assets/css/pages/ticklist.css` (new), `assets/js/pages/ticklist.js` (new), `assets/js/pages/explore.js` (new) | `tick-list/`: counts from the data, search and filters (activity, region, status, priority, month, has a route), scope tabs, priority / newest / name order, cards or list, shareable URL state with Back/Forward; static region groups without JavaScript; read-only. `explore.js` holds the helpers trips.js and ticklist.js share. |
+| `tools/sitegen/core.py` | `goal_card`, `goal_tags`, `goal_stats_line`; Tick list in the header, phone menu and footer; `summary()` for goals without a route. |
+| `tools/sitegen/pages/report.py`, `assets/css/pages/report.css` | Goal pages: Tick list breadcrumb, Planned route and status tags, ≈ values, an approximate stats strip with a provenance note (no gain without full elevation, never a moving time), the map or an honest fallback, Why · Planning notes · Season and commitment · Route source · References · Still to check (read-only) · Outings, "Back to the tick list"; `On the tick list:` backlink on referenced reports; no full-screen map page for an unrendered goal. |
+| `tools/render.py` | Planned routes drawn from `gpxroute.as_tracks`: one track per segment, routes included, gaps never bridged. No existing render changed. |
+| `tools/sitegen/pages/home.py`, `section.py`, `archive.py` | "+ N PLANNED ROUTE" counters and the Planned blocks use the active goals; completed and archived goals keep their pages. |
+| `docs/TICK_LIST_GUIDE.md` (new), `README.md`, `docs/DEVELOPING.md`, `docs/CONTENT_GUIDE.md` | The complete workflow, every field and rule, the importer's GPX behaviour, privacy, the enrichment workflow and the research prompt (verbatim from the prompt pack). |
+| `tests/` | Phase 2T tests (see below). |
+
+### Behaviour
+
+- A goal is a `kind: planned` trip folder with an optional `goal.json`; the one legacy planned route keeps working with
+  documented defaults (`legacy: true`, status idea, normal priority). A sidecar beside a report is an error.
+- Minimum intake is a name and an activity; everything else is optional. New goals are drafts. `--publish-track` copies
+  the chosen geometry byte for byte (or the chosen element of a multi-route file), records its SHA-256, writes the
+  approximate stats and the route block; without it nothing from the file reaches the checkout. A changed published file
+  fails the build rather than being re-measured silently.
+- Statuses are intent; `completed` exists only as a logged outing and `attempted` needs an attempted outing; a report
+  linked from an outing must be a published, non-planned trip; the planned track and the report are never modified;
+  dates and reports may stay unknown. Archival is a separate flag.
+- Goals never enter the Trips explorer, the search index, the feed, home features or report counts; the planned-route
+  counters count only active goals.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests` (the 188 tests of Phases 1–2, with the navigation tests updated for Tick list) | OK. The Phase 2T test matrix (goal sidecars, GPX inspector, importer CLI, tick-list page, goal pages, Node harness) was being authored at commit time and lands in the follow-up commit with its results. |
+| `python3 tools/build.py --out <scratch> --link --check` | 348 pages (347 + `tick-list/`), link check OK, 13 s. The one existing planned route builds as a legacy goal with the defaults. |
+| Importer, in a temporary content folder | Dry run writes nothing; a published track's bytes equal the source (SHA-256 recorded); no local path in any written file; a duplicate checksum, an existing slug, a traversal slug, `--status completed` without an outing, an unknown report slug, a review packet inside the checkout and reopening a completed goal are each refused; attempted then completed outings set the status and keep both events; the packet carries the research prompt; export lists non-draft goals only. |
+| Synthetic demo site (a scratch copy of the content with five synthetic goals created through the importer: a two-segment track, a route-only file, an idea without a route, a completed goal with an attempt and a linked real report, an archived idea) | The tick list shows the six goals by region with honest counts (4 active · 1 shortlisted · 1 completed); scope, filters, search, sort and view work with shareable URLs; goal pages show ≈ stats with the provenance note, the map fallback, Why, Planning notes, Season and commitment, Route source, Still to check (read-only), Outings; the completed goal links to its report and the report shows "On the tick list"; the search index and the feed contain no goal; the Hiking page and the home tile count only active goals; no horizontal overflow at 390 px; no duplicate ids; the phone bottom bar reads Map · Notes · GPX. |
+| Rendering | Not run (no new goals exist and render.py needs the internet); the segment-aware planned path is unit-tested at the geometry level and the existing planned render is untouched. |
+| Not run | Lighthouse, screen readers, real devices. The multi-lens review of this phase runs after the commit; its findings are recorded in the follow-up. |
+
+### Review
+
+(filled in after the multi-lens review)
+
+### Remaining issues and author inputs
+
+- No real goals exist yet: add the first with `python3 tools/ticklist.py add … --dry-run`, then publish by path.
+- The header now has Tick list; the optional "On my list" home shelf (plan 20.9) was not added.
+- Daily PCT search, collections and the local upload desk stay out of scope (Phases 3, 5 and the optional desk).

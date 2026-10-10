@@ -96,7 +96,7 @@ def dist_line(t):
 def head_block(site, regs, meta):
     pub = site['published']
     # same count as the "All reports" meta and the filter chips (series included); the planned route is never a report
-    bits = [x for x in core.count_items(pub, site['planned']) if not x.startswith('INCL.')]
+    bits = [x for x in core.count_items(pub, site.get('active_goals', site['planned'])) if not x.startswith('INCL.')]
     # every region a report is filed under, mapped or not (rendered/site/meta.json 'all_regions'; each has an anchor on this page)
     bits.append(core.nb(plural(len(meta.get('all_regions') or [r[0] for r in regs]), 'REGION')))
     years = sorted({t['date'].year for t in pub if t['date']} | {t['end_date'].year for t in pub if t.get('end_date')})
@@ -229,15 +229,16 @@ def map_section(site, here, regs, meta):
 
 
 def archive_section(site, here):
-    trips = site['published'] + site['planned']
+    active = site.get('active_goals', site['planned'])  # completed / archived goals keep their pages, not a Planned row
+    trips = site['published'] + active
     groups = []
     for t in site['published']:
         y = t['date'].year if t['date'] else None
         if not groups or groups[-1][0] != y:
             groups.append((y, []))
         groups[-1][1].append(t)
-    if site['planned']:
-        groups.append(('Planned', list(site['planned'])))
+    if active:
+        groups.append(('Planned', list(active)))
     # activity filter: a radio group (base.js gives it one tab stop and arrow / Home / End keys; archive.js applies it)
     chips = ['<button type="button" class="fchip" role="radio" data-filter="all" aria-checked="true" tabindex="0">'
              '<span class="fchip-l">All</span></button>']

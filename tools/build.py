@@ -25,9 +25,10 @@ import content  # noqa: E402
 import mapkit  # noqa: E402
 from sitegen import core  # noqa: E402
 from sitegen import curation  # noqa: E402
+import goals  # noqa: E402
 
 OUT = os.path.join(ROOT, '_site')
-PAGE_MODULES = ['home', 'trips', 'section', 'report', 'multiday', 'series', 'archive', 'about', 'notfound']
+PAGE_MODULES = ['home', 'trips', 'ticklist', 'section', 'report', 'multiday', 'series', 'archive', 'about', 'notfound']
 
 
 def css_bundle():
@@ -142,6 +143,12 @@ def build(verbose=True, only=None):
     trips = content.load_all()
     site = {'trips': trips, 'by_slug': {t['slug']: t for t in trips},
             'published': [t for t in trips if t['kind'] != 'planned'], 'planned': [t for t in trips if t['kind'] == 'planned']}
+    # tick-list goals: every non-draft planned trip (pages and assets for all of them); the active subset drives the
+    # '+ N PLANNED ROUTE' counters; outings that name a report give that report a backlink
+    site['goals'] = site['planned']
+    site['active_goals'] = [t for t in site['planned'] if goals.is_active(t['goal'])]
+    goals.validate_site(site)
+    site['goal_backlinks'] = goals.backlinks(site)
     # content/home.json picks the home page's featured trips; an invalid manifest stops the build here, before any page
     site['featured'] = curation.featured_for(site)
     core.register_site(site)

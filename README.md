@@ -47,6 +47,7 @@ Useful front-matter fields (see any existing trip for the format):
 | `card_summary` | Optional one- or two-sentence factual summary for the home page's featured card (the report's opening is used when it is absent) |
 | `search_aliases` | Other names people might search for, as an inline list (`[PCT, Pacific Crest]`); searched on the Trips page, never shown |
 | `draft: true` | Keep it off the site |
+| `kind: planned` | A tick-list goal, not a report: planned route, approximate stats, `goal.json` beside it (see `docs/TICK_LIST_GUIDE.md`) |
 | `beta` | List of `label` / `value` rows shown beside the report |
 | `map` | `peaks: [Mount Tallac]` to label summits (also searchable on the Trips page), `places: [...]`, `water_labels: [{text, x, y}]` |
 | `photos` | `file`, `w`, `h`, `alt`, optional `caption` |
@@ -63,13 +64,29 @@ Edit the list to feature, reorder or remove trips; nothing else decides it. Cove
 fields on the trip (`cover_photo`, `cover_focal_x`/`cover_focal_y`, `card_summary`). The build stops with a clear
 message when a slug is unknown, a draft, a planned route or listed twice. Details: **[docs/CONTENT_GUIDE.md](docs/CONTENT_GUIDE.md)**.
 
+## Keep a tick list of future goals
+
+Future routes live beside the reports as `kind: planned` trips with an optional `goal.json`, shown at
+https://esichak.github.io/personal-website/tick-list/. Save one locally (a name and an activity are enough; a GPX is
+optional and is copied into the public checkout only with `--publish-track`), review it, then publish through git:
+
+```bash
+python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity hike --gpx ~/Downloads/route.gpx --dry-run
+python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity hike --gpx ~/Downloads/route.gpx --publish-track
+python3 tools/ticklist.py update your-route-name --status shortlisted --priority high
+python3 tools/ticklist.py log-outing your-route-name --outcome completed --report-slug an-existing-report
+```
+
+New goals are drafts until you remove `draft: true`. The full workflow, every field and the research prompt are in
+**[docs/TICK_LIST_GUIDE.md](docs/TICK_LIST_GUIDE.md)**.
+
 ## Re-render or rebuild
 
 ```bash
 python3 tools/render.py              # render anything whose track or map settings changed (needs internet)
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)
 python3 tools/build.py --check       # build _site/ and check every link and image
-python3 -m unittest discover -s tests   # the generator's unit tests (curation, covers, summaries, search index, Trips page, header)
+python3 -m unittest discover -s tests   # the generator's unit tests (curation, covers, summaries, search, Trips page, header, tick list)
 ```
 
 ## Privacy

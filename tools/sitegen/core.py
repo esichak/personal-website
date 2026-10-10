@@ -1099,6 +1099,63 @@ def trip_card(t, here, sizes, ns='tc', cls='', summary=False):
                ('<p class="t-mono-s tcard-ps">%s</p>' % stats) if stats else '', ex))
 
 
+def goal_tags(goal):
+    """A goal's status tag (Idea … Completed), its priority when not normal, and Archived when archived."""
+    import goals
+    out = [tag(goals.STATUS_LABELS.get(goal['status'], goal['status']))]
+    if goal['priority'] != 'normal':
+        out.append(tag(goals.PRIORITY_LABELS[goal['priority']]))
+    if goal['archived']:
+        out.append(tag('Archived'))
+    return ''.join(out)
+
+
+def goal_stats_line(t):
+    """'≈ 12.3 MI · ≈ 2,100 FT GAIN' (gain only when the file had full elevation; a legacy goal shows what its front matter
+    says), 'ROUTE NOT ADDED' with no track."""
+    if not t['track']:
+        return meta_items([nb('ROUTE NOT ADDED')])
+    st = t['stats']
+    mi, km = dist_vals(st.get('distance_km'))
+    items = []
+    if mi:
+        items.append(U(nb('≈ ' + mi + ' MI'), nb('≈ ' + km + ' KM')))
+    if st.get('gain_m') is not None:
+        items.append(U(nb('≈ ' + n(st['gain_m'] * FT) + ' FT GAIN'), nb('≈ ' + n(st['gain_m']) + ' M GAIN')))
+    return meta_items(items)
+
+
+def goal_card(t, here):
+    """A tick-list goal as a map-led card: the route tile (else 'Map not rendered yet' with a track, 'Route not added yet'
+    without), REGION / PLACE · ACTIVITY, the H3 title link (described by that line), status / priority / archived tags,
+    the approximate stats line and a 'View goal' link. data-* carries the facets ticklist.js filters on; data-text is the
+    normalised searchable text (title, place, region, tags, why). No input of any kind: the public list is read-only."""
+    import content as _c
+    from sitegen import search as _s
+    g = t['goal']
+    href = link(here, t['url'])
+    tl = tile(t, here)
+    if tl:
+        media = '<a class="gcard-map" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, tl)
+    else:
+        media = ('<div class="gcard-map gcard-map--none" aria-hidden="true"><span class="t-mono-s">%s</span></div>'
+                 % ('MAP NOT RENDERED YET' if t['track'] else 'ROUTE NOT ADDED YET'))
+    loc = t.get('place') or t.get('region') or ''
+    meta = meta_items([(nb(esc(loc).upper()), 'mi-w') if loc else '', nb(esc(act_word(t)).upper())])
+    mid = 'gc-%s-m' % t['slug']
+    text = _s.normalize(' '.join(x for x in [t['title'], t.get('place') or '', t.get('region') or ''] + g['tags'] + [g['why']] if x))
+    data = (' data-slug="%s" data-act="%s" data-region="%s" data-status="%s" data-priority="%s" data-months="%s" data-gpx="%s"'
+            ' data-archived="%s" data-added="%s" data-text="%s"'
+            % (esc(t['slug']), t['activity'], _c.slugify(t['region']) if t.get('region') else '', g['status'], g['priority'],
+               ' '.join(str(m) for m in g['target_months']), '1' if t['track'] else '0', '1' if g['archived'] else '0',
+               g['added_at'] or '', esc(text)))
+    return ('<li class="gcard"%s>%s<div class="gcard-b"><p class="t-mono-s gcard-meta" id="%s">%s</p>'
+            '<h3 class="gcard-t"><a href="%s" aria-describedby="%s">%s</a></h3><div class="chips gcard-tags">%s</div>'
+            '<p class="t-mono-s gcard-stats">%s</p><a class="alink gcard-go" href="%s">View goal<span class="sr">: %s</span>%s</a></div></li>'
+            % (data, media, mid, meta, href, mid, title_html(t['title']), goal_tags(g), goal_stats_line(t), href, esc(t['title']),
+               icon('arrow-right', 16)))
+
+
 def count_items(ts, planned=0):
     """Mono-S count items for a set of trips: ['23 REPORTS', 'INCL. 1 MULTI-DAY, 1 SERIES', '+ 1 PLANNED ROUTE'] (the last
     two only when present). A multi-day trip or a series counts as one report; planned routes are never counted as
@@ -1128,7 +1185,8 @@ def summary(t):
     where = ', '.join(x for x in (t.get('place'), t.get('region')) if x)
     if t['kind'] == 'planned':
         head = '%s: planned %s route' % (t['title'], act.lower())
-        return '%s%s.%s' % (head, (', ' + where) if where else '', (' %s mi, GPX download.' % mi) if mi else ' GPX download.')
+        tail = ((' About %s mi, planned GPX download.' % mi) if mi else ' Planned GPX download.') if t.get('track') else ' An idea on the tick list, no route yet.'
+        return '%s%s.%s' % (head, (', ' + where) if where else '', tail)
     if t['kind'] == 'series':
         when = frange(t['date'], t.get('end_date'))
         first = '%s series: %s' % (act, ', '.join(x for x in (t['title'], where, when) if x))
@@ -1194,8 +1252,8 @@ def register_site(site):
 
 
 def main_nav():
-    """[(key, label, url)] of the primary destinations: Trips, Map, PCT (when that journal exists), About."""
-    out = [('trips', 'Trips', 'trips/'), ('map', 'Map', 'map/')]
+    """[(key, label, url)] of the primary destinations: Trips, Tick list, Map, PCT (when that journal exists), About."""
+    out = [('trips', 'Trips', 'trips/'), ('ticklist', 'Tick list', 'tick-list/'), ('map', 'Map', 'map/')]
     if _HAS_PCT[0]:
         out.append(('pct', PCT_LABEL, 'trips/%s/' % PCT_SLUG))
     out.append(('about', 'About', 'about/'))
@@ -1203,10 +1261,10 @@ def main_nav():
 
 
 def header(here, active=None, trip=None):
-    """Site header + menu. Main nav: Trips · Map · PCT · About, then Search (the explorer's search box). active: 'trips',
-    'map', 'about', or an activity key (section, report, multi-day and full-screen-map pages: Trips is current as
-    'true', and the phone menu's activity row as before). aria-current="page" only on the page a link points to; the
-    PCT journal page marks PCT alone. The activity pages stay reachable from the phone menu's Reports column, the
+    """Site header + menu. Main nav: Trips · Tick list · Map · PCT · About, then Search (the explorer's search box). active:
+    'trips', 'ticklist', 'goal' (a goal page: Tick list is current as 'true'), 'map', 'about', or an activity key (section,
+    report, multi-day and full-screen-map pages: Trips is current as 'true', and the phone menu's activity row as before).
+    aria-current="page" only on the page a link points to; the PCT journal page marks PCT alone. The activity pages stay reachable from the phone menu's Reports column, the
     footer and the home page. trip: report, multi-day and series pages get the phone compact app bar (glyph + title,
     shown once the H1 has scrolled under the header; links back to the top)."""
     pct_page = bool(trip) and trip.get('slug') == PCT_SLUG and here == trip.get('url')
@@ -1214,6 +1272,8 @@ def header(here, active=None, trip=None):
     def cur(key, url):
         if key == 'pct':
             state = 'page' if pct_page else None
+        elif key == 'ticklist':
+            state = 'page' if (active == 'ticklist' and here == url) else ('true' if active in ('ticklist', 'goal') else None)
         elif key == 'trips':
             state = None if pct_page else ('page' if here == url else ('true' if (active == 'trips' or active in ACT) else None))
         elif active == key:
@@ -1234,7 +1294,7 @@ def header(here, active=None, trip=None):
                          % (link(here, section_url(act)), cur(act, section_url(act)), disc(act, 32), lab, sub,
                             icon('chevron-right', 20)))
     site_rows = []
-    menu_icons = {'trips': 'list', 'map': 'map', 'pct': 'HIK', 'about': 'info'}
+    menu_icons = {'trips': 'list', 'ticklist': 'checkbox', 'map': 'map', 'pct': 'HIK', 'about': 'info'}
     for key, lab, url in main + [('search', 'Search', 'trips/#search')]:
         word = 'Map &amp; archive' if key == 'map' else lab
         site_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span></span>%s</a></li>'
@@ -1261,8 +1321,8 @@ def header(here, active=None, trip=None):
 
 def footer(here):
     reports = ''.join('<li><a href="%s">%s</a></li>' % (link(here, section_url(a)), lab) for a, lab in NAV)
-    site = ('<li><a href="%s">Trips</a></li><li><a href="%s">Map &amp; archive</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
-            % (link(here, 'trips/'), link(here, 'map/'), link(here, 'about/'), link(here, 'feed.xml'), icon('rss', 16)))
+    site = ('<li><a href="%s">Trips</a></li><li><a href="%s">Tick list</a></li><li><a href="%s">Map &amp; archive</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
+            % (link(here, 'trips/'), link(here, 'tick-list/'), link(here, 'map/'), link(here, 'about/'), link(here, 'feed.xml'), icon('rss', 16)))
     return ('<footer class="site-f"><div class="site-f-in">'
             '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">%s</span></div>'
             '<nav class="f-nav" aria-labelledby="f-rep"><p class="t-label" id="f-rep">Reports</p><ul>%s</ul></nav>'

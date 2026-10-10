@@ -1,11 +1,15 @@
-"""Single-day trip report (kind: trip) and planned routes (kind: planned) — /trips/<slug>/, plus the phone full-screen
-map page /trips/<slug>/map/."""
+"""Single-day trip report (kind: trip) and tick-list goals (kind: planned) — /trips/<slug>/, plus the phone full-screen
+map page /trips/<slug>/map/. A goal page says Planned route and Planning notes, never Trip report: its line is a plan or
+somebody else's recording, its numbers are approximate, and completion exists only as an explicitly logged outing."""
+from datetime import date
+
 import markdown
 import mapkit
 import fit_reader
+import goals
 
 from sitegen import core
-from sitegen.core import esc, U, n, link, icon, FT, MI
+from sitegen.core import esc, U, U_sub, n, link, icon, FT, MI
 
 
 def date_slot(t):
@@ -13,7 +17,7 @@ def date_slot(t):
     PLANNED tag chip before it already says so)."""
     if t['kind'] == 'planned':
         mi, km = core.dist_vals(t['stats'].get('distance_km'))
-        return U(core.nb(mi + ' MI'), core.nb(km + ' KM')) if mi else ''
+        return U(core.nb('≈ ' + mi + ' MI'), core.nb('≈ ' + km + ' KM')) if mi else ''
     return core.trip_date(t)
 
 
@@ -22,7 +26,12 @@ def title_block(t, here, actions):
     then leads the place line (Phone-Report-A)."""
     act = t['activity']
     sec = link(here, core.section_url(act))
-    crumbs = ['<a href="%s">Reports</a>' % link(here, ''), '<a href="%s">%s</a>' % (sec, esc(core.ACT[act][0]))]
+    if t['kind'] == 'planned':
+        crumbs = ['<a href="%s">Tick list</a>' % link(here, 'tick-list/')]
+        tags = core.tag('Planned route') + core.goal_tags(t['goal'])
+    else:
+        crumbs = ['<a href="%s">Reports</a>' % link(here, ''), '<a href="%s">%s</a>' % (sec, esc(core.ACT[act][0]))]
+        tags = core.trip_tags(t)
     reg = core.region_map_href(here, t.get('region'))
     if reg:
         crumbs.append('<a href="%s">%s</a>' % (reg, esc(t['region'])))
@@ -35,7 +44,7 @@ def title_block(t, here, actions):
             '<div class="chips rep-chips">%s%s%s</div>'
             '<div class="rep-head"><div class="rep-head-t"><h1 id="title" class="t-d1%s">%s</h1>'
             '<p class="t-mono-s rep-place">%s</p></div><div class="rep-actions">%s</div></div></section>'
-            % ('<span aria-hidden="true">/</span>'.join(crumbs), core.chip(t, href=sec), core.trip_tags(t),
+            % ('<span aria-hidden="true">/</span>'.join(crumbs), core.chip(t, href=sec), tags,
                ('<span class="t-mono-s">%s</span>' % date_) if date_ else '',
                ' t-d1--long' if long_ else '', core.title_html(t['title']), place, actions))
 
@@ -246,17 +255,212 @@ def bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery, chart=''):
     return '<nav class="bbar" aria-label="Report sections" style="--n:%d">%s</nav>' % (len(items) + 1, out)
 
 
-def page(t, site):
+# ---------------------------------------------------------------- tick-list goal pages (kind: planned)
+
+def goal_strip(t):
+    """The approximate numbers a goal has (distance; gain only with full elevation; the file's high point), each marked ≈,
+    with a note saying where they come from and what is unknown. Never a moving time: a plan has none."""
+    g, st = t['goal'], t['stats']
+    cells = []
+    mi, km = core.dist_vals(st.get('distance_km'))
+    if mi:
+        cells.append(('Distance', '≈ ' + U(mi, km, 'mi', 'km'), U_sub(mi, km, 'mi', 'km')))
+    if st.get('gain_m') is not None:
+        v = st['gain_m']
+        cells.append(('Gain', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
+    if st.get('high_m') is not None:
+        v = st['high_m']
+        cells.append(('High point', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
+    if not cells:
+        return ''
+    if g.get('route'):
+        src = goals.SOURCE_LABELS[g['route_source']['kind']]
+        bits = ['Approximate, measured from the planned route (%s, %s).' % (src, goals.SCOPE_LABELS[g['route_scope']])]
+        if g['route']['elevation'] == 'none':
+            bits.append('The file has no elevation, so no gain is shown.')
+        elif g['route']['elevation'] == 'partial':
+            bits.append('Elevation covers only part of the route, so no gain is shown.')
+    else:
+        bits = ['Approximate values from the planned route file.']
+    if st.get('high_m') is not None:
+        bits.append('The high point is the highest point in the file, not a surveyed summit.')
+    return ('<section class="wrap rep-strip" id="stats" aria-label="Approximate stats">%s<p class="strip-note">%s</p></section>'
+            % (core.strip(cells, label='Approximate stats'), ' '.join(bits)))
+
+
+def goal_map_section(t, here, meta):
+    variants = [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]
+    if meta['maps']:
+        nowide = 'map-wide' not in meta['maps']
+        return ('<section class="rep-map" id="map" aria-label="Planned route map"><div class="bleed">%s</div><div class="wrap">%s%s</div></section>'
+                % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=True, cls='map--report' + (' map--nowide' if nowide else ''),
+                                  fullscreen_href=link(here, t['url'] + 'map/')),
+                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t)))
+    if t['track']:
+        text = 'Map not rendered yet. The planned GPX is published and can be downloaded above.'
+    else:
+        text = 'No route added yet: this is an idea without a GPX.'
+    return '<section class="wrap sec" id="map" aria-label="Planned route map"><div class="empty">%s<p>%s</p></div></section>' % (icon('map', 24), esc(text))
+
+
+def goal_bottom_bar(t, has_notes):
+    items = [('#map', 'map', 'Map')]
+    if has_notes:
+        items.append(('#report', 'report', 'Notes'))
+    out = ''.join('<a href="%s">%s<span>%s</span></a>' % (h, icon(ic, 24), lab) for h, ic, lab in items)
+    if t['track']:
+        out += '<a href="%s" download>%s<span>GPX</span></a>' % (t['slug'] + '.gpx', icon('download', 24))
+    return '<nav class="bbar" aria-label="Goal sections" style="--n:%d">%s</nav>' % (len(items) + (1 if t['track'] else 0), out)
+
+
+def goal_pager(t, here):
+    cells = ['<a class="prev" href="%s"><span class="pager-t"><span class="t-label pager-l">%s<span>Tick list</span></span>'
+             '<span class="pager-n">Back to the tick list</span></span></a>' % (link(here, 'tick-list/'), icon('arrow-left', 14))]
+    reg = core.region_map_href(here, t.get('region'))
+    if reg:
+        cells.append('<a class="next" href="%s"><span class="pager-t"><span class="t-label pager-l"><span>%s</span>%s</span>'
+                     '<span class="pager-n">Open the map</span></span></a>' % (reg, esc(t['region']), icon('arrow-right', 14)))
+    return '<nav class="pager wrap sec" aria-label="More goals">%s</nav>' % ''.join(cells)
+
+
+def _refs(g, ids, here):
+    """Links for the reference ids an approved field_evidence entry names."""
+    by = {r['id']: r for r in g['references']}
+    out = []
+    for rid in ids:
+        r = by.get(rid)
+        if r:
+            out.append('<a href="%s" rel="noopener">%s</a>' % (esc(r['url']), esc(r['label'] or r['url'])))
+    return (' <span class="t-small goal-src">Source: %s</span>' % ', '.join(out)) if out else ''
+
+
+def _fdate(iso, style='short'):
+    try:
+        return core.fdate(date.fromisoformat(iso), style)
+    except (TypeError, ValueError):
+        return ''
+
+
+def goal_sections(t, here, site):
+    """Why · Planning notes · Season and commitment · Route source · References · Still to check · Outings (a completed
+    goal leads with its outings). Each only when it has content; nothing is invented to fill a slot."""
+    g = t['goal']
+    by = site.get('by_slug') or {}
+    secs = []
+
+    def sec(id_, title, inner, cls=''):
+        secs.append('<section class="goal-sec%s" id="%s" aria-labelledby="%s-h"><h2 class="t-h3 rep-h" id="%s-h">%s</h2>%s</section>'
+                    % ((' ' + cls) if cls else '', id_, id_, id_, esc(title), inner))
+
+    def outings():
+        if not g['outings']:
+            return
+        items = []
+        for o in g['outings']:
+            lab = 'Completed' if o['outcome'] == 'completed' else 'Attempted'
+            when = _fdate(o['date'], 'long') if o['date'] else 'date not recorded'
+            rep = by.get(o['report_slug']) if o['report_slug'] else None
+            bits = ['<span class="tag">%s</span>' % lab, '<span class="t-mono-s">%s</span>' % esc(when.upper())]
+            if rep:
+                bits.append('<a class="goal-rep" href="%s">%s</a>' % (link(here, rep['url']), core.title_html(rep['title'])))
+            elif o['report_slug']:
+                bits.append('<span class="t-small">report %s</span>' % esc(o['report_slug']))
+            items.append('<li><div class="goal-out">%s</div>%s</li>' % (' '.join(bits), ('<p class="t-excerpt">%s</p>' % esc(o['note'])) if o['note'] else ''))
+        sec('outings', 'Outings', '<ul class="goal-outs">%s</ul>' % ''.join(items))
+    if g['status'] == 'completed':
+        outings()
+    if g['why']:
+        sec('why', 'Why', '<p class="t-body goal-why">%s</p>' % esc(g['why']))
+    if t['body_md']:
+        sec('report', 'Planning notes', '<div class="prose t-body">%s</div>' % markdown.to_html(t['body_md']))
+    rows = []
+    if g['time_commitment']:
+        rows.append('<div><dt>Time</dt><dd>%s</dd></div>' % esc(goals.COMMITMENT_LABELS[g['time_commitment']]))
+    if g['difficulty']:
+        d = g['difficulty']
+        rows.append('<div><dt>Difficulty</dt><dd>%s (%s)%s%s</dd></div>'
+                    % (esc(d['value']), esc(d['system']), (' – ' + esc(d['note'])) if d['note'] else '', _refs(g, g['field_evidence']['difficulty']['source_ids'], here)))
+    if g['target_months'] or g['target_year']:
+        from sitegen.pages.ticklist import MONTHS
+        names = [lab for m, lab in MONTHS if m in g['target_months']]
+        when = ', '.join(names) + ((' %d' % g['target_year']) if g['target_year'] else '')
+        rows.append('<div><dt>My window</dt><dd>%s</dd></div>' % esc(when.strip()))
+    season = ('<p class="t-excerpt goal-season">%s%s</p>' % (esc(g['season_notes']), _refs(g, g['field_evidence']['season_notes']['source_ids'], here))) if g['season_notes'] else ''
+    if rows or season:
+        sec('season', 'Season and commitment', ('<dl class="dl-leader">%s</dl>' % ''.join(rows) if rows else '') + season)
+    src = g['route_source']
+    bits = []
+    if t['track'] or src['kind'] != 'unknown' or src['label'] or src['url']:
+        what = goals.SOURCE_LABELS[src['kind']]
+        line = 'The line is %s, %s.' % (what, goals.SCOPE_LABELS[g['route_scope']])
+        if src['label'] or src['url']:
+            ref = ('<a href="%s" rel="noopener">%s</a>' % (esc(src['url']), esc(src['label'] or src['url']))) if src['url'] else esc(src['label'])
+            line += ' From %s%s.' % (ref, (', checked %s' % _fdate(src['checked_at'])) if src['checked_at'] else '')
+        bits.append('<p>%s</p>' % line)
+        if src['approximation_note']:
+            bits.append('<p class="t-small">%s</p>' % esc(src['approximation_note']))
+        if t['track']:
+            bits.append('<p class="t-small">The GPX published here is that source, kept byte for byte; the numbers above are measured from it and are approximate. It is a plan, not a recording of a trip.</p>')
+        else:
+            bits.append('<p class="t-small">No GPX is published for this goal.</p>')
+        sec('source', 'Route source', ''.join(bits))
+    if g['references']:
+        items = ''.join('<li><a href="%s" rel="noopener">%s</a>%s%s</li>'
+                        % (esc(r['url']), esc(r['label'] or r['url']), (' <span class="t-mono-s">CHECKED %s</span>' % esc(_fdate(r['checked_at']).upper())) if r['checked_at'] else '',
+                           ('<p class="t-small">%s</p>' % esc(r['note'])) if r['note'] else '') for r in g['references'])
+        sec('references', 'References', '<ul class="goal-refs">%s</ul>' % items)
+    if g['checklist']:
+        items = ''.join('<li class="%s"><span class="goal-mark" aria-hidden="true">%s</span><span class="sr">%s: </span>%s</li>'
+                        % ('is-done' if c['done'] else '', '✓' if c['done'] else '○', 'Done' if c['done'] else 'To check', esc(c['text'])) for c in g['checklist'])
+        sec('checklist', 'Still to check', '<ul class="goal-check">%s</ul>', )
+        secs[-1] = secs[-1].replace('<ul class="goal-check">%s</ul>', '<ul class="goal-check">%s</ul>' % items)
+    if g['status'] != 'completed':
+        outings()
+    if not secs:
+        return ''
+    return '<div class="wrap sec goal-body">%s</div>' % ''.join(secs)
+
+
+def goal_page(t, site):
     here = t['url']
     meta = core.render_meta(t)
-    planned = t['kind'] == 'planned'
+    has_notes = bool(t['body_md'])
+    actions = ''
+    if has_notes:
+        actions += '<a class="btn" href="#report">%sPlanning notes</a>' % icon('report', 18)
+    if t['track']:
+        actions += '<a class="btn btn--ink" href="%s" download>%sDownload planned GPX</a>' % (t['slug'] + '.gpx', icon('download', 18))
+    body = [title_block(t, here, actions), goal_strip(t), goal_map_section(t, here, meta), goal_sections(t, here, site), goal_pager(t, here)]
+    desc = core.clip_words(core.summary(t) + ((' ' + t['goal']['why']) if t['goal']['why'] else ''), 155)
+    head = core.map_preloads(t, here, [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')], t['url'] + 'map/',
+                             nowide='map-wide' not in meta['maps']) if meta['maps'] else ''
+    img = (t['url'] + t['photos'][0]['file']) if t['photos'] else None
+    return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active='goal', image=img, body_cls='p-report p-goal',
+                                         bottom=goal_bottom_bar(t, has_notes), extra_head=head, trip=t), t['title'])
+
+
+def tick_backlink(t, here, site):
+    """'On the tick list: <goal>' under a report's title block, for every goal whose outing names this report."""
+    gs = (site.get('goal_backlinks') or {}).get(t['slug'])
+    if not gs:
+        return ''
+    links = ', '.join('<a href="%s">%s</a>' % (link(here, g['url']), core.title_html(g['title'])) for g in gs)
+    return '<p class="wrap t-small rep-tick">%sOn the tick list: %s</p>' % (icon('checkbox', 16), links)
+
+
+def page(t, site):
+    if t['kind'] == 'planned':
+        return goal_page(t, site)
+    here = t['url']
+    meta = core.render_meta(t)
+    planned = False
     gpx_href = t['slug'] + '.gpx'
     has_report = bool(t['body_md'])
     actions = ''
     if has_report:
         actions += '<a class="btn" href="#report">%sRead the report</a>' % icon('report', 18)
     actions += '<a class="btn btn--ink" href="%s" download>%sDownload GPX</a>' % (gpx_href, icon('download', 18))
-    body = [title_block(t, here, actions)]
+    body = [title_block(t, here, actions), tick_backlink(t, here, site)]
     if not planned:
         body.append('<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>'
                     % (core.strip(core.strip_cells(t)), core.stats_note(t)))
@@ -355,5 +559,7 @@ def build(site):
     out = []
     for t in site['trips']:
         if not t['days'] and t['kind'] in ('trip', 'planned'):
-            out += [page(t, site), fullscreen_page(t)]
+            out.append(page(t, site))
+            if t['kind'] != 'planned' or core.render_meta(t)['maps']:   # a goal without a rendered map has no full-screen map page
+                out.append(fullscreen_page(t))
     return out

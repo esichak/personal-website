@@ -18,7 +18,7 @@ import helpers  # noqa: E402
 from helpers import Doc  # noqa: E402
 
 PCT = 'trips/pacific-crest-trail-2024/'
-SITE_LINKS = ['trips/', 'map/', PCT, 'about/', 'trips/#search']
+SITE_LINKS = ['trips/', 'tick-list/', 'map/', PCT, 'about/', 'trips/#search']
 
 
 class HeaderFixture(unittest.TestCase):
@@ -67,8 +67,8 @@ class HeaderTests(HeaderFixture):
     def test_home_nav_links_in_order_and_nothing_current(self):
         nav = self.main_nav(self.header('', None))
         self.assertEqual([h for h, _, _ in nav], SITE_LINKS)
-        self.assertEqual([t for _, _, t in nav], ['Trips', 'Map', 'PCT', 'About', 'Search'])
-        self.assertEqual([c for _, c, _ in nav], [None] * 5)
+        self.assertEqual([t for _, _, t in nav], ['Trips', 'Tick list', 'Map', 'PCT', 'About', 'Search'])
+        self.assertEqual([c for _, c, _ in nav], [None] * 6)
 
     def test_main_nav_has_no_activity_links(self):
         hrefs = [h for h, _, _ in self.main_nav(self.header('', None))]
@@ -114,8 +114,8 @@ class HeaderTests(HeaderFixture):
         helpers.make_site([self.by[s] for s in ('west-couloir', 'basin-loop', 'someday-ridge')])
         doc = self.header('', None)
         self.assertNotIn(PCT, [a['href'] for a in doc.find_all('a')])
-        self.assertEqual([h for h, _, _ in self.main_nav(doc)], ['trips/', 'map/', 'about/', 'trips/#search'])
-        self.assertEqual([a['href'] for a in self.site_column(doc)], ['trips/', 'map/', 'about/', 'trips/#search'])
+        self.assertEqual([h for h, _, _ in self.main_nav(doc)], ['trips/', 'tick-list/', 'map/', 'about/', 'trips/#search'])
+        self.assertEqual([a['href'] for a in self.site_column(doc)], ['trips/', 'tick-list/', 'map/', 'about/', 'trips/#search'])
         helpers.make_site(self.trips)
         self.assertIn(PCT, [h for h, _, _ in self.main_nav(self.header('', None))])
 
@@ -127,7 +127,7 @@ class HeaderTests(HeaderFixture):
         self.assertEqual(reports, [core.section_url(a) for a, _ in core.NAV])
         site = self.site_column(doc)
         self.assertEqual([a['href'] for a in site], SITE_LINKS)
-        self.assertEqual([a.text() for a in site], ['Trips', 'Map & archive', 'PCT', 'About', 'Search'])
+        self.assertEqual([a.text() for a in site], ['Trips', 'Tick list', 'Map & archive', 'PCT', 'About', 'Search'])
         units = menu.find(cls='menu-units')
         self.assertIsNotNone(units)
         self.assertIsNotNone(units.find(attrs={'role': 'radiogroup'}))
