@@ -140,16 +140,25 @@ def inspect_bytes(data, where):
     if _local(root.tag) != 'gpx':
         raise GpxError('%s: the root element is <%s>, not <gpx>' % (where, _local(root.tag)))
     info = {'tracks': [], 'routes': [], 'waypoints': 0, 'bytes': size, 'sha256': hashlib.sha256(data).hexdigest(),
-            'contains': {'metadata': [], 'extensions': False, 'links': 0, 'waypoint_names': [], 'times': False, 'comments': False}}
+            'contains': {'metadata': [], 'extensions': False, 'links': 0, 'waypoint_names': [], 'times': False, 'comments': False,
+                         'creator': None, 'names': [], 'descriptions': 0}}
     count = 0
     c = info['contains']
     c['comments'] = b'<!--' in data
+    c['creator'] = (root.get('creator') or '').strip() or None   # the app, sometimes an account name, that wrote the file
     for el in root.iter():
         name = _local(el.tag)
         if name == 'extensions':
             c['extensions'] = True
         elif name == 'link':
             c['links'] += 1
+        elif name in ('desc', 'cmt', 'src', 'keywords') and (el.text or '').strip():
+            c['descriptions'] += 1   # free text a person or an app wrote about the route, a point or the file
+    for el in root:
+        if _local(el.tag) in ('trk', 'rte'):
+            nm = next(((ch.text or '').strip() for ch in el if _local(ch.tag) == 'name'), '')
+            if nm:
+                c['names'].append(nm)
     for el in root:
         if _local(el.tag) == 'metadata':
             c['metadata'] = sorted({_local(ch.tag) for ch in el.iter() if ch is not el and (ch.text or '').strip() or ch.attrib})

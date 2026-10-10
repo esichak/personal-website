@@ -141,9 +141,17 @@ def published_sha256s():
 
 
 def carried(info):
-    """What a file carries besides its geometry (published as-is when the whole file is copied)."""
+    """What some GPX bytes carry besides their geometry, for the author to read before approving a public copy. Run on
+    the source file for the first look and again on the exact bytes that will be published, so nothing here is a
+    promise about data that was merely expected to be left out."""
     c = info.get('contains') or {}
     out = []
+    if c.get('creator'):
+        out.append('creator "%s"' % c['creator'])
+    if c.get('names'):
+        out.append('route / track names (%s)' % ', '.join('"%s"' % x for x in c['names'][:5]) + (', …' if len(c['names']) > 5 else ''))
+    if c.get('descriptions'):
+        out.append('%d description / comment text(s)' % c['descriptions'])
     if c.get('metadata'):
         out.append('metadata (%s)' % ', '.join(c['metadata']))
     if c.get('extensions'):
@@ -243,7 +251,7 @@ def cmd_add(a):
             % (info['bytes'], info['sha256'][:12], len(info['tracks']), len(info['routes']), info['waypoints']))
         extra = carried(info)
         if extra:
-            say('  the file also carries: %s — a published copy keeps all of it; check that none of it is private' % '; '.join(extra))
+            say('  the file also carries: %s — check that none of it is private before publishing' % '; '.join(extra))
         try:
             cand = gpxroute.select(info, a.select)
         except gpxroute.NoRoute as ex:
@@ -279,9 +287,21 @@ def cmd_add(a):
                 g['route_source']['public_copy_approved'] = True
                 whole = track_bytes == open(path, 'rb').read()
                 say('  publishing the %s (%d bytes, sha256 %s…) as track.gpx' % ('whole file' if whole else 'chosen element', len(track_bytes), sha[:12]))
+                # what the PUBLIC copy carries is read from the bytes that will be written, never inferred: a chosen
+                # element keeps its own name, descriptions, links, extensions, times and comments, and the file's opening
+                # <gpx> tag (creator) with anything before it; only the other elements of the file are left behind
+                try:
+                    kept = carried(gpxroute.inspect_bytes(track_bytes, 'track.gpx'))
+                except gpxroute.GpxError as ex:
+                    raise Fail('GPX rejected: %s' % ex)
                 if not whole:
-                    say('  the published copy holds only that %s: the file\'s other tracks and routes, its %d waypoint%s and its metadata are not copied'
-                        % ('track' if cand['type'] == 'trk' else 'route', info['waypoints'], '' if info['waypoints'] == 1 else 's'))
+                    say('  left out of the published copy: the file\'s other tracks and routes, its %d waypoint%s and its <metadata> block'
+                        % (info['waypoints'], '' if info['waypoints'] == 1 else 's'))
+                if kept:
+                    say('  the published copy carries: %s — all of it becomes public; if any of it is private, export the route '
+                        'again without it and import that file' % '; '.join(kept))
+                else:
+                    say('  the published copy carries nothing besides the geometry (no names, text, links, extensions, times or comments)')
             else:
                 say('  not published: pass --publish-track to copy this geometry into the public checkout (nothing from it is written now)')
     g = validated(g, slug)

@@ -182,10 +182,13 @@ python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity ski --gpx /ab
   --select trk:1 --dry-run
 ```
 
-Alternatives are never joined into one line. When you publish one of several, the public copy holds only that track
-or route: the file's other tracks and routes, its waypoints and its `<metadata>` are not copied, and the report says
-so. (A file with a single track or route is copied whole, waypoints included.) To publish the chosen geometry as the
-goal's public route:
+Alternatives are never joined into one line. When you publish one of several, the public copy leaves out the file's
+other tracks and routes, its waypoints and its `<metadata>` block. It still holds everything inside the track or
+route you chose (its name, description, links, device extensions, timestamps, comments) and the file's opening `<gpx>`
+tag with whatever stands before it (the `creator` text, a leading comment). A file with a single track or route is
+copied whole, waypoints and metadata included. Either way the report ends with **"the published copy carries: …"**,
+read from the exact bytes that will be written: that line, not an assumption about what was dropped, is the list to
+check before you commit. To publish the chosen geometry as the goal's public route:
 
 ```bash
 python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity ski --gpx /absolute/path/route.gpx \
@@ -376,9 +379,12 @@ publication choice, not a privacy measure; the files are still in the repository
   encoding declaration does not get past them (the declaration must say UTF-8 or nothing). When one element of a
   multi-route file is published, the new document is checked again as a whole and must hold exactly the chosen
   route. No URL inside a file is ever fetched.
-- **The report says what else the file carries** (metadata such as an author name, device extensions, links, named
-  waypoints, timestamps, comments) before you approve a copy, because `--publish-track` keeps all of it: export the
-  file again without those parts if any of it is private.
+- **The report says what the public copy carries.** Before anything is chosen it lists what the file holds besides
+  geometry: the `creator` text, track and route names, descriptions and comments, the metadata block (an author name,
+  say), device extensions, links, named waypoints, timestamps, XML comments. With `--publish-track` it lists the same
+  for the bytes about to be published, which is the list that matters: everything on it becomes public. If any of it
+  is private, export the route again without it and import that file; nothing is stripped for you, because the
+  published file is kept byte for byte.
 - **Rendering is local.** Maps, tiles and glyphs come from `tools/render.py` on your Mac, which downloads terrain
   and OpenStreetMap data; GitHub never renders. Planned routes are drawn segment by segment in the planned style, with
   no elevation profile. Until a render exists (or if it fails), the goal is still valid and its card and page show

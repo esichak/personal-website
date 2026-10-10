@@ -147,6 +147,15 @@ for _tag in ('trkseg', 'trkpt', 'trk', 'name', 'ele', 'time'):
     _PFX = _PFX.replace('<%s' % _tag, '<g:%s' % _tag).replace('</%s' % _tag, '</g:%s' % _tag)
 ROOT_PREFIXED = '<?xml version="1.0" encoding="UTF-8"?>\n<g:gpx version="1.1" xmlns:g="http://www.topografix.com/GPX/1/1">\n%s\n</g:gpx>\n' % _PFX
 ROOT_NO_DECL = '<gpx version="1.1" %s>\n%s\n</gpx>\n' % (NS, _TWO)
+# a two-track file full of things a person would not want published by accident (all invented): a comment before the
+# root, an account-like creator, an author, a named waypoint, and on the first track a description, a link and an extension
+PERSONAL = ('<?xml version="1.0" encoding="UTF-8"?>\n<!-- exported for Pat Example -->\n'
+            '<gpx version="1.1" creator="pat-account-1234" %s>\n'
+            '<metadata><author><name>Pat Example</name></author></metadata>\n'
+            '<wpt lat="38.9" lon="-120.1"><name>Pat Example front door</name></wpt>\n'
+            '<trk><name>North approach</name><desc>Park behind the blue house</desc><link href="https://example.test/n"><text>n</text></link>'
+            '<extensions><x:hr xmlns:x="urn:x-fixture">120</x:hr></extensions>%s\n%s\n</gpx>\n'
+            % (NS, trk([SEG_A])[len('<trk>'):], trk([SEG_M1], 'South approach')))
 BOM = b'\xef\xbb\xbf'   # some Windows tools write a UTF-8 byte order mark first; tests write BOM + text.encode('utf-8')
 # legitimate files other tools write, which the parsed scan must keep accepting
 GARMIN_EXTENSIONS = gpx('<trk><trkseg><trkpt lat="38.9" lon="-120.1"><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr>'

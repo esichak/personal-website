@@ -204,14 +204,59 @@ class AddReportTests(CliFixture):
         out = self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--dry-run')
         self.assertNotIn('sparse', out.lower())
 
-    def test_publishing_one_element_says_what_is_left_behind(self):
+    def test_publishing_one_element_says_what_is_left_out_and_what_still_goes_public(self):
         out = self.add('--gpx', self.gpx('alts.gpx', gf.ALTERNATIVES), '--select', 'trk:1', '--publish-track')
         self.assertIn('chosen element', out)
-        self.assertIn('not copied', out)
+        self.assertIn('left out of the published copy', out)
         self.assertIn('waypoint', out)
         whole = self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--publish-track', '--slug', 'whole-file-goal', title='Whole File Goal')
         self.assertIn('whole file', whole)
-        self.assertNotIn('not copied', whole)
+        self.assertNotIn('left out', whole)
+
+    def published_line(self, out):
+        lines = [ln for ln in out.splitlines() if 'the published copy carries' in ln]
+        self.assertEqual(len(lines), 1, out)
+        return lines[0]
+
+    def test_the_report_states_what_the_published_bytes_carry_never_what_was_meant_to_be_dropped(self):
+        # the second track of a file with personal details: the report is read from the bytes that get written
+        out = self.add('--gpx', self.gpx('personal.gpx', gf.PERSONAL), '--select', 'trk:1', '--publish-track')
+        line = self.published_line(out)
+        published = self.track().decode('utf-8')
+        # still public: the opening tag's creator, the comment before it, this track's name and its timestamps
+        for needle, said in (('pat-account-1234', 'creator "pat-account-1234"'), ('exported for Pat Example', 'XML comments'),
+                             ('South approach', 'South approach'), ('<time>', 'timestamps')):
+            self.assertIn(needle, published)
+            self.assertIn(said, line)
+        # left behind, and not claimed to be carried
+        for gone in ('Pat Example front door', '<metadata>', 'North approach', 'blue house', 'example.test/n', 'urn:x-fixture'):
+            self.assertNotIn(gone, published)
+        for not_said in ('named waypoints', 'metadata (', 'North approach', 'link(s)', 'extensions', 'description'):
+            self.assertNotIn(not_said, line)
+        self.assertNotIn('metadata are not copied', out)      # no blanket assurance about "metadata"
+        self.assertIn('becomes public', line)
+
+    def test_the_first_track_keeps_its_own_description_link_and_extension_and_the_report_says_so(self):
+        out = self.add('--gpx', self.gpx('personal.gpx', gf.PERSONAL), '--select', 'trk:0', '--publish-track')
+        line = self.published_line(out)
+        published = self.track().decode('utf-8')
+        for needle, said in (('blue house', 'description'), ('example.test/n', '1 link(s)'), ('urn:x-fixture', 'extensions'),
+                             ('North approach', 'North approach')):
+            self.assertIn(needle, published)
+            self.assertIn(said, line)
+        self.assertNotIn('Pat Example front door', published)
+
+    def test_a_whole_file_publish_lists_everything_in_it_and_a_bare_one_says_so(self):
+        only = gf.PERSONAL.replace(gf.trk([gf.SEG_M1], 'South approach'), '')     # one track left: the whole file is copied
+        out = self.add('--gpx', self.gpx('whole.gpx', only), '--publish-track')
+        line = self.published_line(out)
+        for said in ('creator "pat-account-1234"', 'named waypoints (Pat Example front door)', 'metadata (name)', 'XML comments'):
+            self.assertIn(said, line)
+        self.assertIn('Pat Example front door', self.track().decode('utf-8'))
+        bare = gf.gpx(gf.trk([gf.line(38.9, -120.1, 12, times=False)]), head=gf.HEAD.replace(' creator="synthetic fixture"', ''))
+        out = self.add('--gpx', self.gpx('bare.gpx', bare), '--publish-track', '--slug', 'bare-goal', title='Bare Goal')
+        self.assertIn('carries nothing besides the geometry', out)
+        self.assertNotIn('the published copy carries:', out)
 
     def test_duplicate_check_also_covers_a_planned_route_without_a_goal_json(self):
         # a route saved before the tick list has no recorded checksum: its file is compared as it is

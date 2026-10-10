@@ -310,6 +310,12 @@ Confirmed and fixed:
   planned routes without a `goal.json`.
 - **Tick list page.** Cards return in page order after switching sort away and back; an empty scope tab says what the
   tab holds instead of offering a dead "Clear filters"; a query of punctuation is not shown as a filter.
+- **What a published GPX carries.** An automated security review of the fix commit objected to a new report line that
+  said a chosen-element publish does not copy "its metadata": the chosen track still carries its own name,
+  description, links, extensions and timestamps, and the copy keeps the file's opening `<gpx>` tag (the `creator`
+  text) and any comment before it. The importer now reads the list from the exact bytes it is about to write ("the
+  published copy carries: …", including creator, names and description text) and says separately what was left out;
+  the guide says the same. Four tests use a synthetic file full of personal-looking details.
 - **Documentation.** `--approximation-note`, the repeatable flags, the reference date, the exact duplicate rule, the
   export field list, what stops a multi-route import, what a chosen-element publish leaves out.
 - **Tests.** The report recording's checksum is compared after `log-outing`; the build's own `site_of()` assembles the
@@ -327,7 +333,7 @@ listed as not run). The other three:
 - A copy-link action on goal pages (plan 20.9): added with the copy-link control in Phase 3.
 - The checkbox finding described the earlier commit; the switch button was already in place.
 
-Checks run for this round (2026-10-10): 480 tests OK; the ticklist.js harness 60 checks and the trips.js harness 50;
+Checks run for this round (2026-10-10): 483 tests OK (480 at the fix commit, 3 more with the published-copy report); the ticklist.js harness 60 checks and the trips.js harness 50;
 `build.py --out <scratch> --link --check` 348 pages, link check OK. On the synthetic demo site (now seven goals,
 including one completed then reopened and one whose attempt names a multi-day report) in the built-in browser: no
 horizontal overflow at 320, 390, 768, 1024 and 1440 px on the tick list, a goal page and the map page; one, two and
