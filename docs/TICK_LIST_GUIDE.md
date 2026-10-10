@@ -341,8 +341,10 @@ publication choice, not a privacy measure; the files are still in the repository
   XHTML / SVG / MathML content, a `<script>` or a `javascript:` URL anywhere in the bytes (a published GPX is served
   from the site's own address, so a browser could run such content), XML that is not well formed, a root element
   other than `gpx`, a latitude outside -90 to 90, a longitude outside -180 to 180, a non-numeric coordinate or `<ele>`,
-  a `--slug` that is not a plain slug: each stops the import with a message, before anything is written. No URL inside
-  a file is ever fetched.
+  a `--slug` that is not a plain slug: each stops the import with a message, before anything is written. The same
+  checks run again on the parsed document, so spelling a marker with character references, a namespace prefix or an
+  encoding declaration does not get past them (the declaration must say UTF-8 or nothing). No URL inside a file is
+  ever fetched.
 - **The report says what else the file carries** (metadata such as an author name, device extensions, links, named
   waypoints, timestamps, comments) before you approve a copy, because `--publish-track` keeps all of it: export the
   file again without those parts if any of it is private.

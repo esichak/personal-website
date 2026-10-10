@@ -33,6 +33,15 @@ _UNSAFE = [
 ]
 
 
+# the same checks again on the parsed document (namespaces resolved, character references decoded): the byte scan above
+# cannot see '<svg:script>', 'xmlns="…/2000/sv&#103;"' or 'href="&#106;avascript:…"', and a browser would
+_BAD_NS = ('http://www.w3.org/1999/xhtml', 'http://www.w3.org/2000/svg', 'http://www.w3.org/1998/math/mathml',
+           'http://www.w3.org/1999/xlink', 'http://www.w3.org/2001/xml-events')
+_BAD_ELEMENTS = frozenset(['script', 'iframe', 'object', 'embed', 'foreignobject', 'handler', 'listener', 'style'])
+_BAD_SCHEMES = ('javascript:', 'vbscript:', 'data:', 'blob:', 'file:')
+_CTRL = re.compile(r'[\x00-\x20\x7f\u200b-\u200f\u2028\u2029\ufeff]')
+
+
 class GpxError(ValueError):
     """The file cannot be used as a goal route; the message says why."""
 
@@ -103,6 +112,7 @@ def inspect(path):
     for rx, why in _UNSAFE:
         if rx.search(data):
             raise GpxError('%s: %s' % (where, why))
+    _scan_parsed(data, where)
     try:
         root = ET.fromstring(data)
     except ET.ParseError as ex:
@@ -157,6 +167,62 @@ def inspect(path):
     c['times'] = any(p[3] is not None for t in info['tracks'] for s_ in t['segments'] for p in s_) or \
         any(p[3] is not None for r in info['routes'] for p in r['points'])
     return info
+
+
+def _scan_parsed(data, where):
+    """Refuse what a browser's XML parser would see even though the raw bytes hide it: an encoding other than UTF-8 in the
+    XML declaration (the bytes were checked as UTF-8; a browser would decode them as declared), any DOCTYPE or processing
+    instruction, an XHTML / SVG / MathML / XLink namespace however the URI is spelled, a <script>-like element under any
+    prefix, an on* event attribute, and any attribute whose value starts with a javascript: / vbscript: / data: scheme
+    once character references are decoded and control characters dropped (browsers drop them from URLs too). A parse
+    error here, including an encoding expat does not know, is reported as not well-formed."""
+    import xml.parsers.expat as expat
+    parser = expat.ParserCreate(namespace_separator=' ')
+    bad = []
+
+    def fail(why):
+        if not bad:
+            bad.append(why)
+
+    def xmldecl(version, encoding, standalone):
+        if encoding and encoding.strip().lower().replace('_', '-') not in ('utf-8', 'utf8'):
+            fail('the XML declaration says encoding=%r; only UTF-8 files are accepted' % encoding)
+
+    def doctype(*_a):
+        fail('DOCTYPE, ENTITY and other <! declarations are not accepted')
+
+    def pi(target, _data):
+        fail('processing instructions (such as %s) are not accepted' % target)
+
+    def ns(prefix, uri):
+        u = _CTRL.sub('', uri or '').lower().rstrip('/')
+        if u in _BAD_NS or 'w3.org/1999/xhtml' in u or 'w3.org/2000/svg' in u or 'mathml' in u:
+            fail('XHTML, SVG and MathML content is not accepted (namespace %r)' % uri)
+
+    def start(name, attrs):
+        local = name.rsplit(' ', 1)[-1].lower()
+        if local in _BAD_ELEMENTS:
+            fail('<%s> is not accepted' % local)
+        for k, v in attrs.items():
+            kl = k.rsplit(' ', 1)[-1].lower()
+            if kl.startswith('on') and len(kl) > 2:
+                fail('event attributes such as %s are not accepted' % kl)
+            vv = _CTRL.sub('', v or '').lower()
+            if vv.startswith(_BAD_SCHEMES):
+                fail('%s: URLs are not accepted' % vv.split(':', 1)[0])
+    parser.XmlDeclHandler = xmldecl
+    parser.StartDoctypeDeclHandler = doctype
+    parser.ProcessingInstructionHandler = pi
+    parser.StartNamespaceDeclHandler = ns
+    parser.StartElementHandler = start
+    try:
+        parser.Parse(data, True)
+    except expat.ExpatError as ex:
+        if bad:
+            raise GpxError('%s: %s' % (where, bad[0]))
+        raise GpxError('%s: not well-formed XML (%s)' % (where, ex))
+    if bad:
+        raise GpxError('%s: %s' % (where, bad[0]))
 
 
 def candidates(info):

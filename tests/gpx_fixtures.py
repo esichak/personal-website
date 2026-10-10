@@ -111,6 +111,29 @@ DOCTYPE = ('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE gpx [<!ENTITY boom
 ENTITY_IN_COMMENT = gpx(trk([SEG_A]), '<!-- <!ENTITY boom "x"> -->')
 NOT_XML = HEAD + '<trk><trkseg><trkpt lat="38.9" lon="-120.1"></trkseg>'
 NON_GPX_ROOT = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document/></kml>\n'
+
+# content a browser would run if the file were opened as XML from the site's origin; each hides the marker from a scan
+# of the raw bytes (a character reference in the namespace URI, a prefixed element name, a decoded or control-character
+# split URL, an encoding declaration) so only a check on the parsed document can see it
+def _head_with(extra):
+    return HEAD.replace('creator="synthetic fixture"', 'creator="synthetic fixture" ' + extra)
+SVG_NS_CHARREF = gpx('<extensions><svg xmlns="http://www.w3.org/2000/sv&#103;"><a href="x"><text>x</text></a></svg></extensions>',
+                     trk([SEG_A]))
+PREFIXED_SCRIPT = gpx('<extensions><s:script>alert(1)</s:script></extensions>', trk([SEG_A]), head=_head_with('xmlns:s="urn:x-fixture"'))
+JS_HREF_CHARREF = gpx('<metadata><link href="&#106;avascript:alert(1)"><text>x</text></link></metadata>', trk([SEG_A]))
+JS_HREF_SPLIT = gpx('<metadata><link href="j&#10;ava&#9;script:alert(1)"><text>x</text></link></metadata>', trk([SEG_A]))
+DATA_HREF = gpx('<metadata><link href="data:text/html,x"><text>x</text></link></metadata>', trk([SEG_A]))
+EVENT_ATTR = gpx('<metadata><link href="https://example.org/" onload="alert(1)"><text>x</text></link></metadata>', trk([SEG_A]))
+PI_INSIDE = gpx('<?xml-stylesheet href="x.xsl" type="text/xsl"?>', trk([SEG_A]))
+DECLARED_OTHER_ENCODING = gpx(trk([SEG_A]), head=HEAD.replace('UTF-8', 'ISO-2022-JP'))
+# legitimate files other tools write, which the parsed scan must keep accepting
+GARMIN_EXTENSIONS = gpx('<trk><trkseg><trkpt lat="38.9" lon="-120.1"><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr>'
+                        '</gpxtpx:TrackPointExtension></extensions></trkpt><trkpt lat="38.901" lon="-120.1"/></trkseg></trk>',
+                        head=_head_with('xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"'))
+XSI_SCHEMA = gpx(trk([SEG_A]), head=_head_with('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                                                'xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd"'))
+CDATA_DESC = gpx('<metadata><desc><![CDATA[<b>not markup</b> & more]]></desc><link href="https://example.org/r"><text>r</text></link></metadata>',
+                 trk([SEG_A]))
 LAT_OUT = gpx(trk([[(95.0, -120.1, 2000, None), (38.9, -120.1, 2000, None)]]))
 LON_OUT = gpx(trk([[(38.9, -190.5, 2000, None), (38.9, -120.1, 2000, None)]]))
 MISSING_LAT = gpx('<trk><trkseg><trkpt lon="-120.1"><ele>2000</ele></trkpt><trkpt lat="38.9" lon="-120.1"></trkpt></trkseg></trk>')

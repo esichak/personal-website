@@ -205,6 +205,23 @@ class InspectTests(GpxFixture):
         with self.assertRaises(self.gpx.GpxError):
             self.inspect('entity.gpx', gf.ENTITY_IN_COMMENT)   # well-formed XML, the declaration is inside a comment
 
+    def test_rejects_browser_runnable_content_the_byte_scan_cannot_see(self):
+        # a goal GPX is served from the site's own origin as XML, so what a browser's parser sees is what matters
+        for name, text, word in (('svgns.gpx', gf.SVG_NS_CHARREF, 'svg'), ('pscript.gpx', gf.PREFIXED_SCRIPT, 'script'),
+                                 ('jsref.gpx', gf.JS_HREF_CHARREF, 'javascript'), ('jssplit.gpx', gf.JS_HREF_SPLIT, 'javascript'),
+                                 ('data.gpx', gf.DATA_HREF, 'data'), ('onload.gpx', gf.EVENT_ATTR, 'onload'),
+                                 ('pi.gpx', gf.PI_INSIDE, 'processing instruction'), ('enc.gpx', gf.DECLARED_OTHER_ENCODING, 'utf-8')):
+            with self.subTest(name):
+                with self.assertRaises(self.gpx.GpxError) as cm:
+                    self.inspect(name, text)
+                self.assertIn(word, str(cm.exception).lower())
+
+    def test_accepts_extensions_schema_attributes_and_cdata_from_real_tools(self):
+        for name, text in (('garmin.gpx', gf.GARMIN_EXTENSIONS), ('xsi.gpx', gf.XSI_SCHEMA), ('cdata.gpx', gf.CDATA_DESC)):
+            with self.subTest(name):
+                info = self.inspect(name, text)
+                self.assertEqual(len(info['tracks']), 1)
+
     def test_rejects_malformed_xml(self):
         with self.assertRaises(self.gpx.GpxError):
             self.inspect('broken.gpx', gf.NOT_XML)
