@@ -271,6 +271,48 @@ class InspectTests(GpxFixture):
                     got = self.gpx.candidates(self.gpx.inspect_bytes(out, name))
                     self.assertEqual([c['segments'] for c in got], [cand['segments']])
 
+    def test_printable_keeps_file_text_on_one_line_escaped_bounded_and_quoted(self):
+        p = self.gpx.printable
+        self.assertEqual(p('North approach'), '"North approach"')
+        self.assertEqual(p('a\nb\tc'), '"a b c"')
+        self.assertEqual(p('say "hi" \\ there'), '"say \\"hi\\" \\\\ there"')
+        got = p('x\x1b[31mred\x07\u202e\u200b\u2028end')
+        for ch in ('\x1b', '\x07', '\u202e', '\u200b', '\u2028'):
+            self.assertNotIn(ch, got)
+        self.assertIn('\\u001b', got)
+        self.assertIn('\\u202e', got)
+        long = p('y' * 500, 40)
+        self.assertEqual(len(long), 42)                      # 40 characters and the two quotes
+        self.assertTrue(long.endswith('…"'))
+        self.assertEqual(self.gpx.printable_name('sat'), 'sat')
+        self.assertNotIn('\u200d', self.gpx.printable_name('a\u200db'))
+
+    def test_contents_files_every_element_and_attribute_somewhere(self):
+        c = self.inspect('hostile.gpx', gf.HOSTILE)['contains']
+        self.assertEqual(c['other'], ['bar', 'trk'])         # an unknown element, and a track hidden inside a waypoint
+        self.assertEqual(c['attributes'], ['k'])
+        self.assertEqual(c['point_fields'], ['sat'])
+        self.assertEqual(c['point_names'], 1)
+        self.assertIs(c['text'], True)
+        self.assertEqual(c['waypoint_names'], [])
+        self.assertEqual(len(c['names']), 1)                 # the forged name, as text: escaping is the printer's job
+        self.assertIn('\n', c['names'][0])
+        plain = self.inspect('single.gpx', gf.SINGLE)['contains']
+        self.assertEqual((plain['other'], plain['attributes'], plain['point_fields'], plain['point_names'], plain['text']),
+                         ([], [], [], 0, False))
+        self.assertEqual(plain['creator'], 'synthetic fixture')
+        self.assertEqual(self.inspect('xsi.gpx', gf.XSI_SCHEMA)['contains']['attributes'], ['schemaLocation'])
+        personal = self.inspect('personal.gpx', gf.PERSONAL)['contains']
+        self.assertEqual(personal['metadata'], ['author', 'name'])
+        self.assertEqual((personal['links'], personal['descriptions'], personal['extensions'], personal['comments']), (1, 1, True, True))
+
+    def test_describe_escapes_a_candidates_name(self):
+        info = self.inspect('hostile.gpx', gf.HOSTILE)
+        text = self.gpx.describe(self.gpx.candidates(info)[0])
+        self.assertNotIn('\n', text)
+        self.assertNotIn('\u202e', text)
+        self.assertTrue(text.startswith('trk:0 "ok'))
+
     def test_rejects_malformed_xml(self):
         with self.assertRaises(self.gpx.GpxError):
             self.inspect('broken.gpx', gf.NOT_XML)

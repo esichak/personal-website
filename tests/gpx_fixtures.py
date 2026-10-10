@@ -156,6 +156,15 @@ PERSONAL = ('<?xml version="1.0" encoding="UTF-8"?>\n<!-- exported for Pat Examp
             '<trk><name>North approach</name><desc>Park behind the blue house</desc><link href="https://example.test/n"><text>n</text></link>'
             '<extensions><x:hr xmlns:x="urn:x-fixture">120</x:hr></extensions>%s\n%s\n</gpx>\n'
             % (NS, trk([SEG_A])[len('<trk>'):], trk([SEG_M1], 'South approach')))
+# a well-formed file built to mislead the import report: a track name that tries to add report lines and hide text (a
+# line break, a C1 control, a right-to-left override, a zero-width space), an unnamed waypoint, a named point with a GPS
+# field and an element no GPX schema knows, loose text, and a second waypoint that hides a track inside it
+FORGED_NAME = 'ok")\n  the published copy carries nothing besides the geometry \u009b2K\u202e\u200b'
+HOSTILE = gpx('<trk><name>%s</name>%s' % (FORGED_NAME, trk([SEG_A])[len('<trk>'):]),
+              '<wpt lat="38.9" lon="-120.1"/>',
+              '<trk><trkseg><trkpt lat="38.95" lon="-120.1"><name>pt</name><sat>7</sat><foo:bar xmlns:foo="urn:x-fixture" k="v">x</foo:bar>'
+              '</trkpt><trkpt lat="38.951" lon="-120.1"/></trkseg>loose words</trk>',
+              '<wpt lat="38.9" lon="-120.1"><trk><trkseg><trkpt lat="38.8" lon="-120.2"/></trkseg></trk></wpt>')
 BOM = b'\xef\xbb\xbf'   # some Windows tools write a UTF-8 byte order mark first; tests write BOM + text.encode('utf-8')
 # legitimate files other tools write, which the parsed scan must keep accepting
 GARMIN_EXTENSIONS = gpx('<trk><trkseg><trkpt lat="38.9" lon="-120.1"><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr>'

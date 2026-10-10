@@ -141,28 +141,49 @@ def published_sha256s():
 
 
 def carried(info):
-    """What some GPX bytes carry besides their geometry, for the author to read before approving a public copy. Run on
-    the source file for the first look and again on the exact bytes that will be published, so nothing here is a
-    promise about data that was merely expected to be left out."""
-    c = info.get('contains') or {}
+    """What some GPX bytes hold besides the line, as report items for the author to read before approving a public copy.
+    Run on the source file for the first look and again on the exact bytes that will be published. The list is complete
+    by construction (gpxroute._contents files every element and attribute under one of these, unknown ones included), so
+    an empty list is the only case the report may call "nothing besides the geometry"; a missing scan is an error, never
+    an empty list. Every string that comes from the file goes through gpxroute.printable, so a crafted name cannot add
+    lines to the report or hide text in it."""
+    c = info['contains']
+    P, N = gpxroute.printable, gpxroute.printable_name
+
+    def some(values, limit=5):
+        return ', '.join(P(x, 60) for x in values[:limit]) + (', … (%d in all)' % len(values) if len(values) > limit else '')
+
+    def names(values, limit=8):
+        return ', '.join(N(x) for x in values[:limit]) + (', … (%d in all)' % len(values) if len(values) > limit else '')
     out = []
-    if c.get('creator'):
-        out.append('creator "%s"' % c['creator'])
-    if c.get('names'):
-        out.append('route / track names (%s)' % ', '.join('"%s"' % x for x in c['names'][:5]) + (', …' if len(c['names']) > 5 else ''))
-    if c.get('descriptions'):
+    if c['creator']:
+        out.append('creator %s' % P(c['creator']))
+    if c['names']:
+        out.append('route / track names (%s)' % some(c['names']))
+    if c['descriptions']:
         out.append('%d description / comment text(s)' % c['descriptions'])
-    if c.get('metadata'):
-        out.append('metadata (%s)' % ', '.join(c['metadata']))
-    if c.get('extensions'):
+    if c['metadata']:
+        out.append('file information (%s)' % names(c['metadata']))
+    if info['waypoints']:
+        wn = c['waypoint_names']
+        out.append('%d waypoint(s): places that are not on the line%s' % (info['waypoints'], (', named %s' % some(wn)) if wn else ', unnamed'))
+    if c['extensions']:
         out.append('extensions (device or app data such as heart rate)')
-    if c.get('links'):
+    if c['links']:
         out.append('%d link(s)' % c['links'])
-    if c.get('waypoint_names'):
-        out.append('named waypoints (%s)' % ', '.join(c['waypoint_names'][:5]) + (', …' if len(c['waypoint_names']) > 5 else ''))
-    if c.get('times'):
+    if c['times']:
         out.append('timestamps')
-    if c.get('comments'):
+    if c['point_names']:
+        out.append('%d named point(s) on the line' % c['point_names'])
+    if c['point_fields']:
+        out.append('GPS fields on points (%s)' % names(c['point_fields']))
+    if c['other']:
+        out.append('other elements (%s)' % names(c['other']))
+    if c['attributes']:
+        out.append('attributes (%s)' % names(c['attributes']))
+    if c['text']:
+        out.append('loose text between elements')
+    if c['comments']:
         out.append('XML comments')
     return out
 

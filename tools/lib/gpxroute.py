@@ -11,6 +11,7 @@ import hashlib
 import math
 import os
 import re
+import unicodedata
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
@@ -104,10 +105,146 @@ def _point(el, where):
     return (lat, lon, ele, time)
 
 
+# ---------------------------------------------------------------- what a file holds besides its line
+
+_GEOMETRY = frozenset(['gpx', 'trk', 'trkseg', 'trkpt', 'rte', 'rtept', 'wpt', 'ele'])
+_POINTS = frozenset(['trkpt', 'rtept', 'wpt'])
+_FREE_TEXT = frozenset(['desc', 'cmt', 'src', 'keywords', 'type', 'sym', 'urlname'])
+_LINKS = frozenset(['link', 'url'])
+_FILE_INFO = frozenset(['author', 'email', 'copyright', 'bounds'])      # GPX 1.0 puts these straight under <gpx>
+_POINT_FIELDS = frozenset(['magvar', 'geoidheight', 'fix', 'sat', 'hdop', 'vdop', 'pdop', 'ageofdgpsdata', 'dgpsid', 'course',
+                           'speed', 'number'])
+_XSI_LOCATION = '{http://www.w3.org/2001/XMLSchema-instance}schemaLocation'
+# where each geometry element belongs; one found anywhere else is not the line and is reported like any unknown element
+_PLACE = {'trk': ('gpx',), 'rte': ('gpx',), 'wpt': ('gpx',), 'trkseg': ('trk',), 'trkpt': ('trkseg',), 'rtept': ('rte',),
+          'ele': ('trkpt', 'rtept', 'wpt')}
+
+
+def printable(text, limit=80):
+    """Text taken from a GPX, safe to print in a report the author relies on: one line, every control or formatting
+    character written as an escape (a track name must not be able to forge report lines, hide text or drive the
+    terminal), quotes and backslashes escaped, cut to `limit` characters, wrapped in double quotes."""
+    out = []
+    for ch in str(text):
+        cat = unicodedata.category(ch)
+        if ch in '\r\n\t\x0b\x0c' or cat in ('Zl', 'Zp', 'Zs'):
+            out.append(' ')
+        elif cat.startswith('C'):                 # control, format (bidi, zero width), private use, unassigned
+            out.append('\\u%04x' % ord(ch))
+        elif ch in '"\\':
+            out.append('\\' + ch)
+        else:
+            out.append(ch)
+    line = re.sub(r' +', ' ', ''.join(out)).strip()
+    if len(line) > limit:
+        line = line[:limit - 1] + '…'
+    return '"%s"' % line
+
+
+def printable_name(name, limit=40):
+    """An element or attribute name from a GPX, for a list in the report: the same escaping, no quotes."""
+    return printable(name, limit)[1:-1]
+
+
+def _contents(root, data):
+    """Everything the document holds that is not the line itself. Every element is either geometry (gpx, trk, trkseg,
+    trkpt, rte, rtept, wpt, ele, with lat / lon) or lands in one of these, so an empty result really means "nothing but
+    the line", and something this code has never heard of is still reported (under 'other'):
+
+    creator (the <gpx> creator text), names (tracks and routes), waypoint_names, point_names (count of named track or
+    route points), descriptions (count of desc / cmt / src / keywords / type / sym texts), metadata (the tag names
+    inside <metadata>, plus author / email / copyright / bounds / name / time found straight under <gpx>), extensions,
+    links (link and url elements), times (any <time> on a point), point_fields (GPS quality fields such as sat or
+    hdop), attributes (attribute names other than lat, lon, the root's version and creator), other (element names
+    not covered above, outside <extensions> and <metadata>), text (loose text between elements), comments."""
+    c = {'creator': (root.get('creator') or '').strip() or None, 'names': [], 'waypoint_names': [], 'point_names': 0,
+         'descriptions': 0, 'metadata': set(), 'extensions': False, 'links': 0, 'times': False, 'point_fields': set(),
+         'attributes': set(), 'other': set(), 'text': False, 'comments': b'<!--' in data}
+
+    def attrs(el, own):
+        for k in el.attrib:
+            if k not in own:
+                c['attributes'].add('schemaLocation' if k == _XSI_LOCATION else _local(k))
+
+    def loose(el):
+        if (el.text or '').strip() or any((ch.tail or '').strip() for ch in el):
+            c['text'] = True
+
+    def walk(el, parent, inside):
+        name = _local(el.tag)
+        if inside == 'extensions':
+            return                                   # everything under <extensions> is reported as one thing
+        if inside == 'metadata':
+            if (el.text or '').strip() or el.attrib or len(el):
+                c['metadata'].add(name)
+            for ch in el:
+                walk(ch, name, 'metadata')
+            return
+        if name == 'extensions':
+            c['extensions'] = True
+            return
+        if name == 'metadata':
+            for ch in el:
+                walk(ch, name, 'metadata')
+            if el.attrib:
+                attrs(el, ())
+            return
+        if name in _GEOMETRY and el is not root and parent not in _PLACE.get(name, ()):
+            c['other'].add(name)                     # e.g. a <trk> inside a <wpt>: points that are not on the line
+            return
+        if name in _GEOMETRY and name != 'ele':
+            attrs(el, ('version', 'creator') if el is root else (('lat', 'lon') if name in _POINTS else ()))
+            loose(el)
+            for ch in el:
+                walk(ch, name, None)
+            return
+        if name == 'ele':
+            attrs(el, ())
+            if len(el):
+                c['other'].add(name)
+            return
+        text = (el.text or '').strip()
+        if name == 'time':
+            if parent in _POINTS:
+                c['times'] = c['times'] or bool(text)
+            elif text:
+                c['metadata'].add(name)               # a file-level time (GPX 1.0) is file information
+        elif name == 'name':
+            if not text:
+                pass
+            elif parent in ('trk', 'rte'):
+                c['names'].append(text)
+            elif parent == 'wpt':
+                c['waypoint_names'].append(text)
+            elif parent in ('trkpt', 'rtept'):
+                c['point_names'] += 1
+            else:
+                c['metadata'].add(name)               # the file's own name, straight under <gpx>
+        elif name in _FREE_TEXT:
+            if text:
+                c['descriptions'] += 1
+        elif name in _LINKS:
+            c['links'] += 1
+        elif name in _FILE_INFO:
+            c['metadata'].add(name)
+        elif name in _POINT_FIELDS:
+            c['point_fields'].add(name)
+        else:
+            c['other'].add(name)
+        if name not in _LINKS and name not in _FILE_INFO:
+            attrs(el, ())
+        if len(el) and name not in _LINKS and name not in _FILE_INFO:
+            c['other'].add(name)                      # a simple field that holds elements is not a simple field
+    walk(root, None, None)
+    for k in ('metadata', 'point_fields', 'attributes', 'other'):
+        c[k] = sorted(c[k])
+    return c
+
+
 def inspect(path):
     """{'tracks': [{'name', 'segments': [[(lat, lon, ele|None, time|None), ...], ...]}], 'routes': [{'name', 'points'}],
     'waypoints': n, 'bytes': n, 'sha256': hex}. GpxError for anything unsafe or malformed."""
-    where = os.path.basename(str(path))
+    where = printable_name(os.path.basename(str(path)), 80)   # a file name is file text too: escaped in every message
     size = os.path.getsize(path)
     if size > MAX_BYTES:
         raise GpxError('%s: %d bytes is over the %d-byte limit' % (where, size, MAX_BYTES))
@@ -138,30 +275,10 @@ def inspect_bytes(data, where):
     except ET.ParseError as ex:
         raise GpxError('%s: not well-formed XML (%s)' % (where, ex))
     if _local(root.tag) != 'gpx':
-        raise GpxError('%s: the root element is <%s>, not <gpx>' % (where, _local(root.tag)))
+        raise GpxError('%s: the root element is <%s>, not <gpx>' % (where, printable_name(_local(root.tag))))
     info = {'tracks': [], 'routes': [], 'waypoints': 0, 'bytes': size, 'sha256': hashlib.sha256(data).hexdigest(),
-            'contains': {'metadata': [], 'extensions': False, 'links': 0, 'waypoint_names': [], 'times': False, 'comments': False,
-                         'creator': None, 'names': [], 'descriptions': 0}}
+            'contains': _contents(root, data)}
     count = 0
-    c = info['contains']
-    c['comments'] = b'<!--' in data
-    c['creator'] = (root.get('creator') or '').strip() or None   # the app, sometimes an account name, that wrote the file
-    for el in root.iter():
-        name = _local(el.tag)
-        if name == 'extensions':
-            c['extensions'] = True
-        elif name == 'link':
-            c['links'] += 1
-        elif name in ('desc', 'cmt', 'src', 'keywords') and (el.text or '').strip():
-            c['descriptions'] += 1   # free text a person or an app wrote about the route, a point or the file
-    for el in root:
-        if _local(el.tag) in ('trk', 'rte'):
-            nm = next(((ch.text or '').strip() for ch in el if _local(ch.tag) == 'name'), '')
-            if nm:
-                c['names'].append(nm)
-    for el in root:
-        if _local(el.tag) == 'metadata':
-            c['metadata'] = sorted({_local(ch.tag) for ch in el.iter() if ch is not el and (ch.text or '').strip() or ch.attrib})
 
     def name_of(el):
         for ch in el:
@@ -191,13 +308,6 @@ def inspect_bytes(data, where):
         elif kind == 'wpt':
             _point(el, where)
             info['waypoints'] += 1
-            if name_of(el):
-                c['waypoint_names'].append(name_of(el))
-    # the privacy note is about what the bytes hold, so any non-empty <time> on a point counts, readable or not
-    c['times'] = any(_local(el.tag) == 'time' and (el.text or '').strip() for pt in root.iter()
-                     if _local(pt.tag) in ('trkpt', 'rtept', 'wpt') for el in pt) or \
-        any(p[3] is not None for t in info['tracks'] for s_ in t['segments'] for p in s_) or \
-        any(p[3] is not None for r in info['routes'] for p in r['points'])
     return info
 
 
@@ -224,7 +334,7 @@ def _scan_parsed(data, where):
         fail('DOCTYPE, ENTITY and other <! declarations are not accepted')
 
     def pi(target, _data):
-        fail('processing instructions (such as %s) are not accepted' % target)
+        fail('processing instructions (such as %s) are not accepted' % printable_name(target))
 
     def ns(prefix, uri):
         u = _CTRL.sub('', uri or '').lower().rstrip('/')
@@ -234,11 +344,11 @@ def _scan_parsed(data, where):
     def start(name, attrs):
         local = name.rsplit(' ', 1)[-1].lower()
         if local in _BAD_ELEMENTS:
-            fail('<%s> is not accepted' % local)
+            fail('<%s> is not accepted' % printable_name(local))
         for k, v in attrs.items():
             kl = k.rsplit(' ', 1)[-1].lower()
             if kl.startswith('on') and len(kl) > 2:
-                fail('event attributes such as %s are not accepted' % kl)
+                fail('event attributes such as %s are not accepted' % printable_name(kl))
             vv = _CTRL.sub('', v or '').lower()
             if vv.startswith(_BAD_SCHEMES):
                 fail('%s: URLs are not accepted' % vv.split(':', 1)[0])
@@ -272,7 +382,7 @@ def candidates(info):
 
 
 def describe(c):
-    return '%s:%d%s (%d points, %d segment%s)' % (c['type'], c['index'], (' "%s"' % c['name']) if c['name'] else '', c['points'],
+    return '%s:%d%s (%d points, %d segment%s)' % (c['type'], c['index'], (' ' + printable(c['name'], 60)) if c['name'] else '', c['points'],
                                                  len(c['segments']), '' if len(c['segments']) == 1 else 's')
 
 
@@ -388,7 +498,7 @@ def extract_bytes(path, cand):
         head = b'<?xml version="1.0" encoding="UTF-8"?>\n' + head.lstrip()
     out = head + b'\n' + data[a:b] + b'\n</' + root_name + b'>\n'
     # the assembled document is checked as a whole, and must hold exactly the chosen geometry and nothing else
-    where = os.path.basename(str(path))
+    where = printable_name(os.path.basename(str(path)), 80)
     got = candidates(inspect_bytes(out, where))
     if len(got) != 1 or got[0]['segments'] != cand['segments']:
         raise GpxError('%s: the extracted %s:%d does not reproduce the chosen geometry; publish the whole file or export '

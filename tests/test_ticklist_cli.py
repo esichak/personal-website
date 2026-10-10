@@ -231,7 +231,7 @@ class AddReportTests(CliFixture):
         # left behind, and not claimed to be carried
         for gone in ('Pat Example front door', '<metadata>', 'North approach', 'blue house', 'example.test/n', 'urn:x-fixture'):
             self.assertNotIn(gone, published)
-        for not_said in ('named waypoints', 'metadata (', 'North approach', 'link(s)', 'extensions', 'description'):
+        for not_said in ('waypoint', 'file information', 'North approach', 'link(s)', 'extensions', 'description'):
             self.assertNotIn(not_said, line)
         self.assertNotIn('metadata are not copied', out)      # no blanket assurance about "metadata"
         self.assertIn('becomes public', line)
@@ -250,7 +250,8 @@ class AddReportTests(CliFixture):
         only = gf.PERSONAL.replace(gf.trk([gf.SEG_M1], 'South approach'), '')     # one track left: the whole file is copied
         out = self.add('--gpx', self.gpx('whole.gpx', only), '--publish-track')
         line = self.published_line(out)
-        for said in ('creator "pat-account-1234"', 'named waypoints (Pat Example front door)', 'metadata (name)', 'XML comments'):
+        for said in ('creator "pat-account-1234"', '1 waypoint(s)', 'named "Pat Example front door"', 'file information (author, name)',
+                     'XML comments'):
             self.assertIn(said, line)
         self.assertIn('Pat Example front door', self.track().decode('utf-8'))
         bare = gf.gpx(gf.trk([gf.line(38.9, -120.1, 12, times=False)]), head=gf.HEAD.replace(' creator="synthetic fixture"', ''))
@@ -275,6 +276,54 @@ class AddReportTests(CliFixture):
         # without --publish-track nothing is published, so there is nothing to compare: the idea is saved
         self.ok('add', '--title', 'Looked At Only', '--activity', 'hike', '--no-render', '--gpx', src)
         self.assertEqual(self.files('looked-at-only'), ['goal.json', 'index.md'])
+
+    def test_text_from_the_file_cannot_forge_or_hide_report_lines(self):
+        # the first track's name holds a line break and a ready-made 'carries nothing' sentence, with characters that
+        # reverse or hide text: the report prints it on its own item, escaped, and never as a line of its own
+        out = self.add('--gpx', self.gpx('hostile.gpx', gf.HOSTILE), '--select', 'trk:0', '--publish-track')
+        # the forged sentence shows up only inside quoted, escaped names: exactly one line STARTS with the report's phrase
+        starts = [ln.strip() for ln in out.splitlines() if ln.strip().startswith('the published copy carries')]
+        self.assertEqual(len(starts), 1, out)
+        self.assertTrue(starts[0].startswith('the published copy carries: creator'))
+        self.assertFalse(any(ln.strip().startswith('the published copy carries nothing') for ln in out.splitlines()))
+        for ch in ('\u009b', '\u202e', '\u200b', '\x1b'):
+            self.assertNotIn(ch, out)
+        self.assertIn('"ok\\")', out)                            # the quote inside the name is escaped: it cannot close the item
+        self.assertIn('…"', out)                                 # and a long name is cut, still inside its quotes
+        # the same holds where the file's tracks are listed for a choice
+        listing = self.fails('add', '--title', 'Needs A Choice', '--activity', 'hike', '--no-render', '--gpx', self.gpx('hostile2.gpx', gf.HOSTILE))
+        self.assertNotIn('\u202e', listing)
+        self.assertFalse(any(ln.strip().startswith('the published copy carries') for ln in listing.splitlines()))
+        self.assertTrue(any(ln.strip().startswith('trk:0 "ok') for ln in listing.splitlines()))
+
+    def test_everything_that_is_not_the_line_is_reported_even_what_no_schema_knows(self):
+        # the first look at the whole file (two tracks: the command stops for a choice after printing it)
+        out = self.fails('add', '--title', TITLE, '--activity', 'hike', '--no-render', '--gpx', self.gpx('hostile.gpx', gf.HOSTILE), '--dry-run')
+        first = [ln for ln in out.splitlines() if ln.strip().startswith('the file also carries')]
+        self.assertEqual(len(first), 1, out)
+        for said in ('2 waypoint(s)', 'unnamed', '1 named point(s) on the line', 'GPS fields on points (sat)', 'other elements (bar, trk)',
+                     'attributes (k)', 'loose text between elements', 'timestamps'):
+            self.assertIn(said, first[0])
+
+    def test_nothing_besides_the_geometry_is_said_only_when_the_scan_found_nothing(self):
+        carried = self.cli.carried
+        bare = self.gpxroute.inspect(self.gpx('bare.gpx', gf.gpx(gf.trk([gf.line(38.9, -120.1, 12, times=False)]),
+                                                                 head=gf.HEAD.replace(' creator="synthetic fixture"', ''))))
+        self.assertEqual(carried(bare), [])
+        # one unknown attribute, one unnamed waypoint or one comment is enough to be something
+        for name, text in (('attr.gpx', gf.gpx(gf.trk([gf.line(38.9, -120.1, 12, times=False)]).replace('<trk>', '<trk who="me">'),
+                                               head=gf.HEAD.replace(' creator="synthetic fixture"', ''))),
+                           ('wpt.gpx', gf.gpx(gf.trk([gf.line(38.9, -120.1, 12, times=False)]), '<wpt lat="38.9" lon="-120.1"/>',
+                                              head=gf.HEAD.replace(' creator="synthetic fixture"', ''))),
+                           ('comment.gpx', gf.gpx(gf.trk([gf.line(38.9, -120.1, 12, times=False)]), '<!-- note -->',
+                                                  head=gf.HEAD.replace(' creator="synthetic fixture"', '')))):
+            with self.subTest(name):
+                self.assertNotEqual(carried(self.gpxroute.inspect(self.gpx(name, text))), [])
+        # a scan that did not run is an error, never an empty (reassuring) list
+        with self.assertRaises(KeyError):
+            carried({'waypoints': 0})
+        with self.assertRaises(KeyError):
+            carried({'waypoints': 0, 'contains': {}})
 
     def test_a_title_that_gives_no_folder_name_asks_for_a_slug(self):
         msg = self.fails('add', '--title', '!!!', '--activity', 'hike', '--no-render')

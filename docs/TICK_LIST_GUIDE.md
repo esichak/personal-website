@@ -380,11 +380,18 @@ publication choice, not a privacy measure; the files are still in the repository
   multi-route file is published, the new document is checked again as a whole and must hold exactly the chosen
   route. No URL inside a file is ever fetched.
 - **The report says what the public copy carries.** Before anything is chosen it lists what the file holds besides
-  geometry: the `creator` text, track and route names, descriptions and comments, the metadata block (an author name,
-  say), device extensions, links, named waypoints, timestamps, XML comments. With `--publish-track` it lists the same
-  for the bytes about to be published, which is the list that matters: everything on it becomes public. If any of it
-  is private, export the route again without it and import that file; nothing is stripped for you, because the
-  published file is kept byte for byte.
+  the line: the `creator` text, track and route names, descriptions and comments, file information (an author name,
+  say), waypoints (places that are not on the line, named or not), device extensions, links, timestamps, named points,
+  GPS fields, XML comments. With `--publish-track` it lists the same for the bytes about to be published, which is
+  the list that matters: everything on it becomes public. If any of it is private, export the route again without it
+  and import that file; nothing is stripped for you, because the published file is kept byte for byte.
+  - The list is complete by construction: every element and attribute in the file is either the line itself
+    (points with latitude, longitude and elevation) or an item on the list. Something no GPX schema knows shows up
+    under "other elements" or "attributes"; it is never skipped. The report says "nothing besides the geometry" only
+    when that scan found nothing at all.
+  - Text taken from the file (a track name, the creator, a waypoint name) is printed in quotes, on one line, cut at
+    60 to 80 characters, with control and invisible characters written as `\uXXXX`. A name cannot add lines to the
+    report or hide part of it; if you see `\u…` in a name, the file contains characters you would not otherwise see.
 - **Rendering is local.** Maps, tiles and glyphs come from `tools/render.py` on your Mac, which downloads terrain
   and OpenStreetMap data; GitHub never renders. Planned routes are drawn segment by segment in the planned style, with
   no elevation profile. Until a render exists (or if it fails), the goal is still valid and its card and page show
