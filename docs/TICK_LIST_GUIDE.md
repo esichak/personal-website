@@ -343,8 +343,9 @@ publication choice, not a privacy measure; the files are still in the repository
   other than `gpx`, a latitude outside -90 to 90, a longitude outside -180 to 180, a non-numeric coordinate or `<ele>`,
   a `--slug` that is not a plain slug: each stops the import with a message, before anything is written. The same
   checks run again on the parsed document, so spelling a marker with character references, a namespace prefix or an
-  encoding declaration does not get past them (the declaration must say UTF-8 or nothing). No URL inside a file is
-  ever fetched.
+  encoding declaration does not get past them (the declaration must say UTF-8 or nothing). When one element of a
+  multi-route file is published, the new document is checked again as a whole and must hold exactly the chosen
+  route. No URL inside a file is ever fetched.
 - **The report says what else the file carries** (metadata such as an author name, device extensions, links, named
   waypoints, timestamps, comments) before you approve a copy, because `--publish-track` keeps all of it: export the
   file again without those parts if any of it is private.

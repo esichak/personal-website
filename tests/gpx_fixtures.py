@@ -126,6 +126,18 @@ DATA_HREF = gpx('<metadata><link href="data:text/html,x"><text>x</text></link></
 EVENT_ATTR = gpx('<metadata><link href="https://example.org/" onload="alert(1)"><text>x</text></link></metadata>', trk([SEG_A]))
 PI_INSIDE = gpx('<?xml-stylesheet href="x.xsl" type="text/xsl"?>', trk([SEG_A]))
 DECLARED_OTHER_ENCODING = gpx(trk([SEG_A]), head=HEAD.replace('UTF-8', 'ISO-2022-JP'))
+# two-track files whose root tag could mislead a byte slice: a '>' inside an attribute value, a comment holding '<gpx' and
+# '<trk' before the real root, a namespace-prefixed root, no XML declaration (extract_bytes must still publish a document
+# that parses to exactly the chosen track)
+_TWO = trk([SEG_A], 'First') + '\n' + trk([SEG_M1], 'Second')
+ROOT_GT_IN_ATTR = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="a>b" %s>\n%s\n</gpx>\n' % (NS, _TWO)
+ROOT_AFTER_COMMENT = ('<?xml version="1.0" encoding="UTF-8"?>\n<!-- <gpx version="0"> --><gpx version="1.1" %s>\n<!-- <trk> -->\n%s\n</gpx>\n'
+                      % (NS, _TWO))
+_PFX = _TWO
+for _tag in ('trkseg', 'trkpt', 'trk', 'name', 'ele', 'time'):
+    _PFX = _PFX.replace('<%s' % _tag, '<g:%s' % _tag).replace('</%s' % _tag, '</g:%s' % _tag)
+ROOT_PREFIXED = '<?xml version="1.0" encoding="UTF-8"?>\n<g:gpx version="1.1" xmlns:g="http://www.topografix.com/GPX/1/1">\n%s\n</g:gpx>\n' % _PFX
+ROOT_NO_DECL = '<gpx version="1.1" %s>\n%s\n</gpx>\n' % (NS, _TWO)
 # legitimate files other tools write, which the parsed scan must keep accepting
 GARMIN_EXTENSIONS = gpx('<trk><trkseg><trkpt lat="38.9" lon="-120.1"><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr>'
                         '</gpxtpx:TrackPointExtension></extensions></trkpt><trkpt lat="38.901" lon="-120.1"/></trkseg></trk>',

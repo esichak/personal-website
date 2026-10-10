@@ -19,7 +19,6 @@ import geo
 MAX_BYTES = 30_000_000
 MAX_POINTS = 500_000
 METHOD = 'ticklist-gpx-1'
-_ROOT = re.compile(rb'<gpx\b[^>]*>', re.I)
 # A published goal file is served from the site's own origin as XML, so it must hold nothing a browser could run or
 # fetch: no DTD or entity declarations (and no other <! markup but comments and CDATA), no processing instruction but
 # the XML declaration (an xml-stylesheet instruction loads and applies XSLT), no XHTML / SVG / MathML namespace (script
@@ -102,6 +101,15 @@ def inspect(path):
         raise GpxError('%s: %d bytes is over the %d-byte limit' % (where, size, MAX_BYTES))
     with open(path, 'rb') as fh:
         data = fh.read()
+    return inspect_bytes(data, where)
+
+
+def inspect_bytes(data, where):
+    """inspect() on bytes already read (also run on the document extract_bytes assembles, so what is published is checked
+    as a whole, not only as slices of a checked file)."""
+    size = len(data)
+    if size > MAX_BYTES:
+        raise GpxError('%s: %d bytes is over the %d-byte limit' % (where, size, MAX_BYTES))
     # the safety scan runs on the UTF-8 text; a file in another encoding (a UTF-16 BOM, NUL bytes) would slip past it
     if data.startswith((b'\xff\xfe', b'\xfe\xff')) or b'\x00' in data:
         raise GpxError('%s: only UTF-8 (or ASCII) GPX files are accepted' % where)
@@ -292,24 +300,46 @@ def measure(segments):
             'segments': len(segments), 'sparse': len(pts) < 10}
 
 
-def _spans(data):
-    """[(local name, start byte, end byte)] of every child element of the root, from the parser's own positions."""
+def _layout(data):
+    """(root start byte, byte after the root start tag, [(local name, start byte, end byte)] of every child element of
+    the root), all from the parser's own positions: the root start tag ends where the first thing after it (text,
+    comment, child) begins, so a '>' inside an attribute value or a '<gpx' inside a comment cannot mislead a slice."""
     import xml.parsers.expat as expat
-    spans, stack, out = [], [], []
+    stack, out = [], []
+    pos = {'root': None, 'after': None}
     parser = expat.ParserCreate(namespace_separator='}')
 
+    def mark():
+        if pos['root'] is not None and pos['after'] is None:
+            pos['after'] = parser.CurrentByteIndex
+
     def start(name, attrs):
+        mark()
+        if pos['root'] is None:
+            pos['root'] = parser.CurrentByteIndex
         stack.append((name, parser.CurrentByteIndex))
 
     def end(name):
+        mark()
         nm, at = stack.pop()
         if len(stack) == 1:  # a child of the root
             close = data.index(b'>', parser.CurrentByteIndex) + 1
             out.append((nm.rsplit('}', 1)[-1], at, close))
+
+    def other(*_a):
+        mark()
     parser.StartElementHandler = start
     parser.EndElementHandler = end
+    parser.CharacterDataHandler = other
+    parser.CommentHandler = other
+    parser.ProcessingInstructionHandler = other
+    parser.DefaultHandler = other
     parser.Parse(data, True)
-    return out
+    return pos['root'], pos['after'], out
+
+
+def _spans(data):
+    return _layout(data)[2]
 
 
 def extract_bytes(path, cand):
@@ -321,15 +351,23 @@ def extract_bytes(path, cand):
     if len(candidates(inspect(path))) == 1:
         return data
     kind = cand['type']
-    spans = [sp for sp in _spans(data) if sp[0] == kind]
+    root_at, after_root, spans = _layout(data)
+    spans = [sp for sp in spans if sp[0] == kind]
     if cand['index'] >= len(spans):
         raise GpxError('could not find %s:%d in the file' % (kind, cand['index']))
     _nm, a, b = spans[cand['index']]
-    root = _ROOT.search(data)
-    head = data[:root.end()] if root else b'<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">'
+    head = data[:after_root]   # the declaration, anything before the root, and the whole root start tag
+    root_name = re.match(rb'<([^\s/>]+)', data[root_at:]).group(1)
     if not head.lstrip().startswith(b'<?xml'):
         head = b'<?xml version="1.0" encoding="UTF-8"?>\n' + head
-    return head + b'\n' + data[a:b] + b'\n</gpx>\n'
+    out = head + b'\n' + data[a:b] + b'\n</' + root_name + b'>\n'
+    # the assembled document is checked as a whole, and must hold exactly the chosen geometry and nothing else
+    where = os.path.basename(str(path))
+    got = candidates(inspect_bytes(out, where))
+    if len(got) != 1 or got[0]['segments'] != cand['segments']:
+        raise GpxError('%s: the extracted %s:%d does not reproduce the chosen geometry; publish the whole file or export '
+                       'the route on its own' % (where, kind, cand['index']))
+    return out
 
 
 def as_tracks(path, key, cat):

@@ -222,6 +222,21 @@ class InspectTests(GpxFixture):
                 info = self.inspect(name, text)
                 self.assertEqual(len(info['tracks']), 1)
 
+    def test_extracted_element_reproduces_the_chosen_track_whatever_the_root_tag_looks_like(self):
+        for name, text in (('gt.gpx', gf.ROOT_GT_IN_ATTR), ('comment.gpx', gf.ROOT_AFTER_COMMENT),
+                           ('prefixed.gpx', gf.ROOT_PREFIXED), ('nodecl.gpx', gf.ROOT_NO_DECL)):
+            path = self.write(name, text)
+            info = self.gpx.inspect(path)
+            for choice in ('trk:0', 'trk:1'):
+                with self.subTest(name=name, choice=choice):
+                    cand = self.gpx.select(info, choice)
+                    out = self.gpx.extract_bytes(path, cand)
+                    # the published document passes the same inspection as a whole and holds exactly the chosen geometry
+                    got = self.gpx.candidates(self.gpx.inspect_bytes(out, name))
+                    self.assertEqual(len(got), 1)
+                    self.assertEqual(got[0]['segments'], cand['segments'])
+                    self.assertTrue(out.startswith(b'<?xml'))
+
     def test_rejects_malformed_xml(self):
         with self.assertRaises(self.gpx.GpxError):
             self.inspect('broken.gpx', gf.NOT_XML)
