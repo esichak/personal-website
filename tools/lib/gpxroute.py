@@ -19,8 +19,18 @@ import geo
 MAX_BYTES = 30_000_000
 MAX_POINTS = 500_000
 METHOD = 'ticklist-gpx-1'
-_BAD = re.compile(rb'<!\s*(DOCTYPE|ENTITY)', re.I)
 _ROOT = re.compile(rb'<gpx\b[^>]*>', re.I)
+# A published goal file is served from the site's own origin as XML, so it must hold nothing a browser could run or
+# fetch: no DTD or entity declarations (and no other <! markup but comments and CDATA), no processing instruction but
+# the XML declaration (an xml-stylesheet instruction loads and applies XSLT), no XHTML / SVG / MathML namespace (script
+# in those namespaces executes inside any XML document), no <script> and no javascript: URL anywhere.
+_UNSAFE = [
+    (re.compile(rb'<!(?!--|\[CDATA\[)', re.I), 'DOCTYPE, ENTITY and other <! declarations are not accepted'),
+    (re.compile(rb'<\?(?!xml[\s?])', re.I), 'processing instructions (such as xml-stylesheet) are not accepted'),
+    (re.compile(rb'http://www\.w3\.org/(1999/xhtml|2000/svg|1998/Math/MathML)', re.I), 'XHTML, SVG and MathML content is not accepted'),
+    (re.compile(rb'<\s*script\b', re.I), '<script> is not accepted'),
+    (re.compile(rb'javascript\s*:', re.I), 'javascript: URLs are not accepted'),
+]
 
 
 class GpxError(ValueError):
@@ -83,16 +93,36 @@ def inspect(path):
         raise GpxError('%s: %d bytes is over the %d-byte limit' % (where, size, MAX_BYTES))
     with open(path, 'rb') as fh:
         data = fh.read()
-    if _BAD.search(data):
-        raise GpxError('%s: DOCTYPE and ENTITY declarations are not accepted' % where)
+    # the safety scan runs on the UTF-8 text; a file in another encoding (a UTF-16 BOM, NUL bytes) would slip past it
+    if data.startswith((b'\xff\xfe', b'\xfe\xff')) or b'\x00' in data:
+        raise GpxError('%s: only UTF-8 (or ASCII) GPX files are accepted' % where)
+    try:
+        data.decode('utf-8')
+    except UnicodeDecodeError:
+        raise GpxError('%s: only UTF-8 (or ASCII) GPX files are accepted' % where)
+    for rx, why in _UNSAFE:
+        if rx.search(data):
+            raise GpxError('%s: %s' % (where, why))
     try:
         root = ET.fromstring(data)
     except ET.ParseError as ex:
         raise GpxError('%s: not well-formed XML (%s)' % (where, ex))
     if _local(root.tag) != 'gpx':
         raise GpxError('%s: the root element is <%s>, not <gpx>' % (where, _local(root.tag)))
-    info = {'tracks': [], 'routes': [], 'waypoints': 0, 'bytes': size, 'sha256': hashlib.sha256(data).hexdigest()}
+    info = {'tracks': [], 'routes': [], 'waypoints': 0, 'bytes': size, 'sha256': hashlib.sha256(data).hexdigest(),
+            'contains': {'metadata': [], 'extensions': False, 'links': 0, 'waypoint_names': [], 'times': False, 'comments': False}}
     count = 0
+    c = info['contains']
+    c['comments'] = b'<!--' in data
+    for el in root.iter():
+        name = _local(el.tag)
+        if name == 'extensions':
+            c['extensions'] = True
+        elif name == 'link':
+            c['links'] += 1
+    for el in root:
+        if _local(el.tag) == 'metadata':
+            c['metadata'] = sorted({_local(ch.tag) for ch in el.iter() if ch is not el and (ch.text or '').strip() or ch.attrib})
 
     def name_of(el):
         for ch in el:
@@ -122,6 +152,10 @@ def inspect(path):
         elif kind == 'wpt':
             _point(el, where)
             info['waypoints'] += 1
+            if name_of(el):
+                c['waypoint_names'].append(name_of(el))
+    c['times'] = any(p[3] is not None for t in info['tracks'] for s_ in t['segments'] for p in s_) or \
+        any(p[3] is not None for r in info['routes'] for p in r['points'])
     return info
 
 
@@ -192,23 +226,44 @@ def measure(segments):
             'segments': len(segments), 'sparse': len(pts) < 10}
 
 
+def _spans(data):
+    """[(local name, start byte, end byte)] of every child element of the root, from the parser's own positions."""
+    import xml.parsers.expat as expat
+    spans, stack, out = [], [], []
+    parser = expat.ParserCreate(namespace_separator='}')
+
+    def start(name, attrs):
+        stack.append((name, parser.CurrentByteIndex))
+
+    def end(name):
+        nm, at = stack.pop()
+        if len(stack) == 1:  # a child of the root
+            close = data.index(b'>', parser.CurrentByteIndex) + 1
+            out.append((nm.rsplit('}', 1)[-1], at, close))
+    parser.StartElementHandler = start
+    parser.EndElementHandler = end
+    parser.Parse(data, True)
+    return out
+
+
 def extract_bytes(path, cand):
     """The bytes to publish for a chosen candidate: the whole file when it is the only candidate, else a new document
-    holding the original <gpx> start tag and the chosen <trk> / <rte> element sliced out of the source byte for byte."""
+    holding the original <gpx> start tag and the chosen <trk> / <rte> element sliced out of the source byte for byte
+    (its position comes from the XML parser, so comments or text that merely contain '<trk' cannot shift the choice)."""
     with open(path, 'rb') as fh:
         data = fh.read()
     if len(candidates(inspect(path))) == 1:
         return data
-    tag = cand['type'].encode()
-    matches = list(re.finditer(rb'<' + tag + rb'\b.*?</' + tag + rb'\s*>', data, re.S))
-    # candidates() skips empty tracks / routes, so count the element among all of its kind in file order
-    if cand['index'] >= len(matches):
-        raise GpxError('could not find %s:%d in the file' % (cand['type'], cand['index']))
+    kind = cand['type']
+    spans = [sp for sp in _spans(data) if sp[0] == kind]
+    if cand['index'] >= len(spans):
+        raise GpxError('could not find %s:%d in the file' % (kind, cand['index']))
+    _nm, a, b = spans[cand['index']]
     root = _ROOT.search(data)
     head = data[:root.end()] if root else b'<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">'
     if not head.lstrip().startswith(b'<?xml'):
         head = b'<?xml version="1.0" encoding="UTF-8"?>\n' + head
-    return head + b'\n' + matches[cand['index']].group(0) + b'\n</gpx>\n'
+    return head + b'\n' + data[a:b] + b'\n</gpx>\n'
 
 
 def as_tracks(path, key, cat):

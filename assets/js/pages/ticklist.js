@@ -24,7 +24,7 @@
   }
   // records: {priority, added ('' when unknown), slug, title}
   function compare(sort) {
-    if (sort === 'name') return function (a, b) { return a.title.localeCompare(b.title) || (a.slug < b.slug ? -1 : 1); };
+    if (sort === 'name') return function (a, b) { return a.title.localeCompare(b.title) || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0); };
     var byAdded = function (a, b) {
       if (a.added && b.added && a.added !== b.added) return a.added > b.added ? -1 : 1;   // newest first
       if (a.added && !b.added) return -1;
@@ -51,7 +51,7 @@
   var viewBtns = Array.prototype.slice.call(form.querySelectorAll('.trx-view [role="radio"]'));
   var sel = { region: form.querySelector('select[name="region"]'), status: form.querySelector('select[name="status"]'),
     priority: form.querySelector('select[name="priority"]'), month: form.querySelector('select[name="month"]'), sort: form.querySelector('select[name="sort"]') };
-  var chk = form.querySelector('input[name="gpx"]');
+  var gpxBtn = form.querySelector('[data-toggle="gpx"]');   // a switch button, not a checkbox: nothing on the page persists
   var groups = Array.prototype.slice.call(results.querySelectorAll('.tkl-region'));
   var cards = Array.prototype.slice.call(results.querySelectorAll('.gcard'));
   var origin = cards.map(function (c) { return c.parentNode; });
@@ -75,7 +75,7 @@
     radio(scopeBtns, 'scope', state.scope);
     radio(viewBtns, 'view', state.view);
     ['region', 'status', 'priority', 'month', 'sort'].forEach(function (k) { if (sel[k]) sel[k].value = state[k]; });
-    if (chk) chk.checked = state.gpx;
+    if (gpxBtn) gpxBtn.setAttribute('aria-checked', String(state.gpx));
     results.classList.toggle('trx--list', state.view === 'list');
   }
   function chip(key, label) {
@@ -153,7 +153,7 @@
   scopeBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.scope === b.dataset.scope) return; state.scope = b.dataset.scope; apply(true); }); });
   viewBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.view === b.dataset.view) return; state.view = b.dataset.view; apply(true); }); });
   ['region', 'status', 'priority', 'month', 'sort'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { state[k] = sel[k].value; apply(true); }); });
-  if (chk) chk.addEventListener('change', function () { state.gpx = chk.checked; apply(true); });
+  if (gpxBtn) gpxBtn.addEventListener('click', function () { state.gpx = !state.gpx; apply(true); });
   clearBtn.addEventListener('click', clearAll);
   Array.prototype.forEach.call(noneEl.querySelectorAll('[data-clear]'), function (b) { b.addEventListener('click', clearAll); });
   window.addEventListener('popstate', function () { state = parseState(location.search, allowed); setControls(); render(); });

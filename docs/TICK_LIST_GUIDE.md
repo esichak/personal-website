@@ -336,10 +336,16 @@ publication choice, not a privacy measure; the files are still in the repository
   is a new GPX holding only the chosen track or route, its points, elevations and times unchanged and its segments
   kept. Either way `route.source_sha256` is the checksum of the published file, and a later change to the file fails
   the build.
-- **Limits and rejections.** Files over 30 MB or 500,000 points, a `<!DOCTYPE` or `<!ENTITY` anywhere in the
-  bytes, XML that is not well formed, a root element other than `gpx`, a latitude outside -90 to 90, a longitude
-  outside -180 to 180, a non-numeric coordinate or `<ele>`, a `--slug` that is not a plain slug: each stops the import
-  with a message, before anything is written. No URL inside a file is ever fetched.
+- **Limits and rejections.** Files over 30 MB or 500,000 points, a file that is not UTF-8, a `<!DOCTYPE`, `<!ENTITY`
+  or any other `<!` declaration (comments and CDATA are fine), a processing instruction such as `<?xml-stylesheet`,
+  XHTML / SVG / MathML content, a `<script>` or a `javascript:` URL anywhere in the bytes (a published GPX is served
+  from the site's own address, so a browser could run such content), XML that is not well formed, a root element
+  other than `gpx`, a latitude outside -90 to 90, a longitude outside -180 to 180, a non-numeric coordinate or `<ele>`,
+  a `--slug` that is not a plain slug: each stops the import with a message, before anything is written. No URL inside
+  a file is ever fetched.
+- **The report says what else the file carries** (metadata such as an author name, device extensions, links, named
+  waypoints, timestamps, comments) before you approve a copy, because `--publish-track` keeps all of it: export the
+  file again without those parts if any of it is private.
 - **Rendering is local.** Maps, tiles and glyphs come from `tools/render.py` on your Mac, which downloads terrain
   and OpenStreetMap data; GitHub never renders. Planned routes are drawn segment by segment in the planned style, with
   no elevation profile. Until a render exists (or if it fails), the goal is still valid and its card and page show

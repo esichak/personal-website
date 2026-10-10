@@ -91,7 +91,7 @@ def controls(site):
             '<div class="trx-filters">'
             '<div class="trx-acts" role="radiogroup" aria-label="Activity">%s</div>'
             '%s%s%s%s'
-            '<label class="trx-check"><input type="checkbox" name="gpx" value="1"> Has a route (GPX)</label>'
+            '<button type="button" class="fchip tkl-gpx" role="switch" aria-checked="false" data-toggle="gpx">Has a route (GPX)</button>'
             '</div>'
             '<div class="trx-filters tkl-row2">'
             '<div class="trx-acts tkl-scope" role="radiogroup" aria-label="Show">%s</div>%s'

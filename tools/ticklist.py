@@ -124,6 +124,25 @@ def published_sha256s():
     return out
 
 
+def carried(info):
+    """What a file carries besides its geometry (published as-is when the whole file is copied)."""
+    c = info.get('contains') or {}
+    out = []
+    if c.get('metadata'):
+        out.append('metadata (%s)' % ', '.join(c['metadata']))
+    if c.get('extensions'):
+        out.append('extensions (device or app data such as heart rate)')
+    if c.get('links'):
+        out.append('%d link(s)' % c['links'])
+    if c.get('waypoint_names'):
+        out.append('named waypoints (%s)' % ', '.join(c['waypoint_names'][:5]) + (', …' if len(c['waypoint_names']) > 5 else ''))
+    if c.get('times'):
+        out.append('timestamps')
+    if c.get('comments'):
+        out.append('XML comments')
+    return out
+
+
 def months_arg(v):
     if not v:
         return None
@@ -202,6 +221,9 @@ def cmd_add(a):
             raise Fail('GPX rejected: %s' % ex)
         say('  GPX: %d bytes, sha256 %s…, %d track(s), %d route(s), %d waypoint(s)'
             % (info['bytes'], info['sha256'][:12], len(info['tracks']), len(info['routes']), info['waypoints']))
+        extra = carried(info)
+        if extra:
+            say('  the file also carries: %s — a published copy keeps all of it; check that none of it is private' % '; '.join(extra))
         try:
             cand = gpxroute.select(info, a.select)
         except gpxroute.NoRoute as ex:
