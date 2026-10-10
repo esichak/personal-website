@@ -82,7 +82,7 @@
   // ------------------------------------------------------------ activity filters
   var bar = document.querySelector('.arc-filt');
   if (!bar) return;
-  var chips = Array.prototype.slice.call(bar.querySelectorAll('.arc-chip'));
+  var chips = Array.prototype.slice.call(bar.querySelectorAll('.fchip'));
   var groups = Array.prototype.slice.call(document.querySelectorAll('.arc-yr'));
   var live = document.getElementById('arc-live');
   function plural(k, w, pl) { return k + ' ' + (k === 1 ? w : (pl || w + 'S')); }
@@ -144,7 +144,7 @@
     });
     if (live) {
       var chip = chips.filter(function (c) { return c.dataset.filter === f; })[0];
-      var word = f === 'all' ? '' : ' ' + chip.querySelector('.arc-chip-l').textContent.toLowerCase();
+      var word = f === 'all' ? '' : ' ' + chip.querySelector('.fchip-l').textContent.toLowerCase();
       live.textContent = 'Showing ' + shown + word + (shown === 1 ? ' report' : ' reports');
     }
   }

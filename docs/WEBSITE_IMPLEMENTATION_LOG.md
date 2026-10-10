@@ -127,3 +127,96 @@ the facts sentence on the PCT card (the data lines carry the same facts; the gui
 A draft trip with a broken `cover_photo` stops the build like any other content error (documented in the guide).
 
 **Next smallest step:** Phase 2, the `trips/` explorer (section 8), reusing `core.cover_img` / `core.card_summary`.
+
+## Phase 2 — Trips explorer and discovery (2026-10-09)
+
+Starting point: Phase 1 committed as `c46949e` on `phase1-curated-homepage`; the working tree was clean apart from the
+untracked iCloud conflict copies under `rendered/`.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/trips.py` (new) | `trips/index.html`: head with counts, a static browse block (activities, regions, years), the search form (hidden until the script reveals it, with a `<noscript>` note), status row, every published report as a card grouped by year, and `trips/search.json`. |
+| `tools/sitegen/search.py` (new) | The search index: `normalize()`, one entry per published trip (title, place + region, activity label + aliases + named peaks, the write-ups capped at 4,000 characters, and the plain text the hit snippet is cut from), compact JSON with `<` escaped. No coordinates, GPX, drafts or planned routes. |
+| `assets/js/pages/trips.js` (new) | Filters from the cards' data attributes; text search over the lazily fetched index (loading and failure messages; the filters never need it); best-match / newest / oldest order; cards or list; the state in the query string (`replaceState` while typing, `pushState` for filters, `popstate` restores); chips with remove buttons, Clear all, counts, no-results state, snippets around a hit (textContent only). Pure functions exported for the Node test. |
+| `assets/css/pages/trips.css` (new), `assets/css/base.css`, `assets/css/pages/home.css`, `assets/css/pages/archive.css` | Explorer layout; the filter chip (`.fchip`, formerly `.arc-chip` on the map page) and the trip card (`.tcard`, formerly the home page's recent card) are shared components in `base.css`. |
+| `tools/sitegen/core.py` | `trip_card()` (one card for the home page and the explorer, with `data-*` facets and `aria-describedby`); main navigation Trips · Map · PCT · About + Search with the `aria-current` rules; phone menu Site column; footer. |
+| `tools/lib/content.py`, `content/trips/pacific-crest-trail-2024/index.md` | `search_aliases` → `t['aliases']` (validated); the PCT gets `search_aliases: [PCT]`. |
+| `tools/sitegen/pages/home.py`, `tools/build.py`, `tools/sitegen/pages/archive.py`, `assets/js/pages/archive.js` | Home actions and "All N reports" go to `trips/`; the recent cards use `core.trip_card`; `trips` registered; the map page's chips renamed to the shared class (behaviour unchanged). |
+| `docs/DEVELOPING.md`, `docs/CONTENT_GUIDE.md`, `README.md` | The explorer's contracts (card attributes, index fields, URL keys, history, no-JS, nav keys, adding a facet or alias); the author guide's "Search and the Trips page" section; front-matter rows. |
+| `tests/` | Phase 2 tests: 87 new methods (search index, Trips page, header navigation, trip cards, and a Node harness of 50 checks on the explorer's pure functions, skipped without `node`); 188 in all. |
+
+### Behaviour
+
+- `trips/` lists all 167 published reports once (a series counts once; the planned route is absent and stays on the map
+  and its activity page until the Tick list). Counts come from the same data as the cards.
+- Search covers title, place, region, activity, named peaks (`map: peaks`), `search_aliases` and the write-up text; every
+  typed word must match; case, accents and punctuation are ignored. Filters: activity, region, year, format (single-day /
+  multi-day / series), has a write-up; sort newest / oldest / best match; cards or list view.
+- Shareable URLs such as `trips/?q=couloir&activity=ski&region=eastern-sierra&sort=relevance&view=list`; unsupported
+  keys and values are ignored; Back and Forward restore the state; typing never creates history entries.
+- Without JavaScript: every report link, the year anchors (`#y-2026`) and the browse links (section pages,
+  `map/#region-*`) are plain HTML; the form stays hidden and a note says so. A failed index fetch shows a message and
+  leaves the list and filters working.
+- Navigation: Trips · Map · PCT · About · Search on every page (the five activity pages stay in the phone menu, the
+  footer and the home page). The map page, `map/#all-reports`, `map/#region-*`, report URLs and GPX URLs are unchanged.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests` | 188 tests, OK (1.1 s), including the Node harness (50 checks). |
+| `python3 tools/build.py --out <scratch> --link --check` | 347 pages (345 + `trips/` + `trips/search.json`), link check OK, 13 s. |
+| Browser, served under `/personal-website/` (built-in browser, 1440 and 390 px) | "matterhorn" finds Matterhorn Peak and the Chamonix–Zermatt day that mentions it, best match first; Backcountry Ski + Eastern Sierra gives 6 of 167 with two chips and per-year counts; Clear all resets; reloading `?q=couloir&activity=ski&region=eastern-sierra&sort=relevance&view=list` restores every control and the list view; changing a filter then Back restores the previous filter, Forward re-applies it; "zzzzqqq" shows the no-results block and Clear filters; with `fetch` failing the status message appears, the count stays `167 REPORTS` and all 167 cards stay; 167 title links and the `<noscript>` note are in the server-rendered HTML; no duplicate ids; no horizontal overflow at 390 px; the phone menu lists Trips, Map & archive, PCT, About, Search; after the review fixes: the header's Search link lands on the Trips page with the search box focused, the phone menu's Search closes the menu, an explicit Newest first survives typing, "hiking" finds hikes by activity, best-match results sit under their own heading. |
+| Page weight | `trips/index.html` 353 KB (167 cards with excerpts; the map page is 890 KB), `search.json` 68 KB, fetched only when a query is typed. |
+| Not run | Lighthouse, screen readers, real devices, 768/1024/320 px screenshots of the explorer (the layout reuses the home page's card grid, checked at those widths in Phase 1). |
+
+### Review
+
+A seven-lens review (plan compliance, Python, JavaScript behaviour and safety, HTML/accessibility, CSS/responsive,
+documentation, test quality; 70 agents) with three skeptics per high/medium finding. Confirmed and fixed:
+
+- The header's Search link (`trips/#search`) never focused the box: the load-time `replaceState` dropped the fragment
+  before the check ran, and year deep links lost their scroll (high). The fragment is now kept on the load-time write,
+  the box is focused after the first render and on same-page clicks.
+- The activity label was not searchable although plan 8.3 lists it (medium). The index's keyword field now opens with
+  the activity (and the Other sub-type word); the placeholder, description and guide say so.
+- The forced-colours rule still targeted the renamed map-page chip, so the checked activity chip (map/ and trips/) and
+  the new view toggle had no high-contrast cue (medium). Fixed.
+- Choosing "Newest first" explicitly was overridden by the next keystroke (medium). Any choice in the sort menu now
+  sticks.
+- The loading / unavailable message was not a live region and the count claimed `167 OF 167` while the index was
+  unavailable (medium). The message has `role="status"` and the query counts as a filter only once the index answered.
+- The phone menu's Search link on the Trips page itself left the menu open with the page inert (medium). A link in the
+  menu now closes it.
+- The active-filter remove chips were 32 px targets (medium). They keep their size with a 44 px hit area.
+- DEVELOPING's trips.css clause and "adding a facet" recipe were incomplete (medium); the page description over-claimed
+  (medium). Corrected; trips.js now keeps its facet list in one `FACETS` array.
+
+Low findings fixed as well: the unused 160-character snippet field dropped from the index (68 KB instead of 77 KB);
+Python and JavaScript normalisation now strip exactly the same combining-mark block (two parity cases added); regions
+keyed by their map-anchor slug; `map: peaks` given as one string or with non-string items handled; a trailing comma in
+`search_aliases` ignored; the loading message cleared when the query is; one retry per changed query after a failed
+fetch; the submit handler no longer pushes history for an unchanged query; astral characters truncated by code point;
+cards only re-attached when they moved (focus no longer lost while typing); all status elements guarded; the live count
+only rewritten when it changes; sorted views keep the outline with an h2 ("Best match first" / "Oldest first");
+arrow-key steps through a radio group within 600 ms share one history entry; the PCT region in the browse block links
+to the explorer's own filter; a no-op list-view rule removed; the innerHTML test also bans the other HTML sinks; snippet
+and chip-label behaviour checked in the harness; the two home-page tests no longer read `rendered/`.
+
+Rejected after verification (recorded, not changed): a Python-level test of the DOM filter predicate (covered in the
+browser and by the Node harness on the pure functions), guarding the relative `search.json` URL against a
+root-relative rewrite (links go through `core.link` and the fetch is relative to the page), the 4,000-character cap on
+the PCT's write-ups (deliberate; documented), a longer announcement delay for the live count.
+
+### Remaining issues and author inputs
+
+- Search "lovers leap" does not find Lover's Leap (the apostrophe splits the word); add `search_aliases: [Lovers Leap]`
+  to those reports if people type it that way.
+- The explorer's browse block repeats the 15 regions; once the Tick list and Phase 3 land, consider trimming it to the
+  mapped regions.
+- Planned routes have no explorer presence by design (Phase 2T).
+
+**Next smallest step:** Phase 2T, the Tick list (section 20), reusing `core.trip_card`, the `.fchip` filters and the
+explorer's URL-state code.

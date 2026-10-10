@@ -1,4 +1,4 @@
-"""Fixture helpers for the Phase 1 tests.
+"""Fixture helpers for the Phase 1 and Phase 2 tests.
 
 Synthetic trips are written as real content folders inside a temporary directory (an index.md in the front-matter
 subset tools/lib/frontmatter.py reads, empty placeholder photo and GPX files, optional days/NN.md + NN.gpx) and loaded
@@ -6,8 +6,10 @@ with content.load_trip, so every test goes through the same parser and the same 
 touches content/, rendered/ or _site/.
 """
 import os
+import re
 import sys
 from datetime import date
+from html.parser import HTMLParser
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo root, from tests/
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -151,3 +153,119 @@ def make_site(trips, register=True):
 
 def slugs(trips):
     return [t['slug'] for t in trips]
+
+
+# ---------------------------------------------------------------- a small DOM for asserting on generated HTML
+
+VOID = frozenset('area base br col embed hr img input link meta param source track wbr'.split())
+
+
+class Node:
+    """One element of a parsed page: tag, attrs (a valueless attribute such as `hidden` maps to '') and children (Nodes
+    and text strings, in document order). Queries walk the subtree in document order."""
+
+    def __init__(self, tag, attrs=None, parent=None):
+        self.tag = tag
+        self.attrs = dict(attrs or {})
+        self.children = []
+        self.parent = parent
+
+    def __getitem__(self, name):
+        return self.attrs.get(name)
+
+    def __contains__(self, name):
+        return name in self.attrs
+
+    def __repr__(self):
+        return '<%s%s>' % (self.tag, ''.join(' %s="%s"' % kv for kv in self.attrs.items()))
+
+    @property
+    def classes(self):
+        return (self.attrs.get('class') or '').split()
+
+    def walk(self):
+        for c in self.children:
+            if isinstance(c, Node):
+                yield c
+                for d in c.walk():
+                    yield d
+
+    def find_all(self, tag=None, attrs=None, cls=None):
+        """Descendants with this tag name, these exact attribute values and this class token (each optional)."""
+        out = []
+        for node in self.walk():
+            if tag and node.tag != tag:
+                continue
+            if cls and cls not in node.classes:
+                continue
+            if attrs and any(node.attrs.get(k) != v for k, v in attrs.items()):
+                continue
+            out.append(node)
+        return out
+
+    def find(self, tag=None, attrs=None, cls=None):
+        hits = self.find_all(tag, attrs, cls)
+        return hits[0] if hits else None
+
+    def by_id(self, id_):
+        return self.find(attrs={'id': id_})
+
+    def elements(self):
+        """Direct child elements (text nodes dropped)."""
+        return [c for c in self.children if isinstance(c, Node)]
+
+    def text(self, clean=True):
+        """The element's text content. clean=True turns nbsp into spaces and collapses whitespace runs."""
+        s = ''.join(c if isinstance(c, str) else c.text(clean=False) for c in self.children)
+        return plain_text(s) if clean else s
+
+
+def plain_text(s):
+    """Text as a reader sees it: nbsp -> space, whitespace runs collapsed, trimmed."""
+    return re.sub(r'\s+', ' ', s.replace('\xa0', ' ')).strip()
+
+
+class Doc(HTMLParser):
+    """html.parser-based tree of a page or fragment: Doc(html_).find('nav', attrs={'aria-label': 'Main'}).find_all('a').
+    Attribute order never matters, boolean attributes are present with value '', character references are decoded in
+    text, and void elements (img, input, ...) never swallow what follows them."""
+
+    def __init__(self, html_):
+        HTMLParser.__init__(self, convert_charrefs=True)
+        self.root = Node('#root')
+        self._stack = [self.root]
+        self.feed(html_)
+        self.close()
+
+    def _add(self, tag, attrs, push):
+        node = Node(tag, {k: ('' if v is None else v) for k, v in attrs}, self._stack[-1])
+        self._stack[-1].children.append(node)
+        if push:
+            self._stack.append(node)
+
+    def handle_starttag(self, tag, attrs):
+        self._add(tag, attrs, tag not in VOID)
+
+    def handle_startendtag(self, tag, attrs):
+        self._add(tag, attrs, False)
+
+    def handle_endtag(self, tag):
+        for i in range(len(self._stack) - 1, 0, -1):
+            if self._stack[i].tag == tag:
+                del self._stack[i:]
+                return
+
+    def handle_data(self, data):
+        self._stack[-1].children.append(data)
+
+    def find_all(self, tag=None, attrs=None, cls=None):
+        return self.root.find_all(tag, attrs, cls)
+
+    def find(self, tag=None, attrs=None, cls=None):
+        return self.root.find(tag, attrs, cls)
+
+    def by_id(self, id_):
+        return self.root.by_id(id_)
+
+    def text(self, clean=True):
+        return self.root.text(clean)

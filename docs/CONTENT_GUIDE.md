@@ -1,7 +1,7 @@
-# Content guide: homepage features, covers and summaries
+# Content guide: homepage features, covers, summaries and search
 
-How to choose what the homepage shows, which photo fronts a trip's card, and what the card says. All of it is
-done by editing two kinds of file (`content/home.json` and a trip's `index.md`) and running two commands. No
+How to choose what the homepage shows, which photo fronts a trip's card, what the card says, and what the Trips
+page finds when someone searches. All of it is done by editing two kinds of file (`content/home.json` and a trip's `index.md`) and running two commands. No
 Python edit is needed to feature, reorder or re-cover a trip.
 
 Adding a trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); how the generator works is in
@@ -39,8 +39,8 @@ git add content/home.json && git commit -m "Feature Peak Bagging SZN" && git pus
 
 **Reorder:** move the slugs around in the array. Nothing else changes.
 
-**Remove:** delete the slug from the array. The trip stays on its section page and in Recent outings if it is
-recent enough; only the homepage feature goes.
+**Remove:** delete the slug from the array. The trip stays on its section page, on the Trips page and in Recent
+outings if it is recent enough; only the homepage feature goes.
 
 **What the homepage shows**
 
@@ -147,7 +147,56 @@ A `content/trips/<slug>/index.md: front matter: …` (or `…/days/NN.md: front 
 problem in that file's front matter: an unclosed `---`, or a value that starts with a double quote but is not one
 complete quoted string.
 
-## 6. What not to do
+## 6. Search and the Trips page
+
+`/trips/` lists every published report by year, with a search box and filters (activity, region, year, format,
+has a write-up, sort, cards or list). The filters work on what is already on the page. The search box looks in:
+
+- the title;
+- the place and the region;
+- the activity ("backcountry ski", "hiking", "paddleboarding");
+- the summits in `map: peaks:`;
+- the write-up: the report body, and every day's write-up on a multi-day trip or the PCT (the first 4,000 characters
+  or so);
+- `search_aliases` (below).
+
+Every word typed has to appear somewhere in those. Case, accents and punctuation do not matter: `chamonix zermatt`
+finds `Chamonix – Zermatt`. An apostrophe counts as a word break, so `lover's leap` and `lover leap` find Lover's
+Leap but `lovers` does not; if people type it that way, add `Lovers Leap` as an alias. Not searched: party, beta rows,
+conditions, stats, photo captions. The search data is a public file, `trips/search.json`, built from exactly those
+fields: no coordinates, no GPX, never a draft.
+
+**Aliases.** When people would type a name that is not in the title or place (an abbreviation, an older name, a
+trail's nickname), add one line to the trip's `index.md`, among the front-matter lines above the closing `---`:
+
+```yaml
+search_aliases: [PCT, Pacific Crest]
+```
+
+- Square brackets, items separated by commas. Plain text needs no quotes: `[Mt. Tallac, Chamonix – Zermatt]` is fine.
+- Wrap an item in double quotes when it contains an apostrophe or a comma: `["Lover's Leap", Phantom Spires]`. An
+  unquoted apostrophe makes the parser read on to the next one, so `[Lover's Leap, Phantom Spires]` becomes a single
+  alias.
+- Quote anything that is only digits: `["2024"]`. Bare digits read as a number, and a number stops the build.
+- One alias can be written without brackets: `search_aliases: PCT`. A trailing comma (`[PCT, ]`) is ignored.
+- The line goes in `index.md`, not in a `days/NN.md`. Leave it out when there are none.
+- Aliases are only searched, never shown on any page.
+- The title, place, region and `map: peaks:` are already searched, so there is no need to repeat them.
+- A value that is not text or a list of text stops the build with a `content/trips/<slug>/index.md: …` message, like the
+  other fields in section 5.
+
+When a search matches only in the write-up, the card shows the words around the first hit instead of its opening
+(and a day excerpt's DAY label is hidden); clearing the search restores the card. A region appears as a link in the
+browse block to its map panel once the map page has one; until then (the PCT) it links to the Trips page's own filter.
+
+**Planned routes** are not on the Trips page and not in search. They stay on the map (`/map/`) and on their activity
+page until the Tick list ships.
+
+Preview with `python3 tools/build.py --serve` and open http://localhost:8000/trips/; type the alias into the search
+box. The index is rebuilt on every build, so an alias needs no `render.py` run. Run the checks from section 5 and
+commit the trip's `index.md` by path.
+
+## 7. What not to do
 
 - Do not invent summary copy, captions or stats. If a sentence cannot be checked against the report, leave
   `card_summary` out; the fallbacks in section 4 are built from the data and are truthful.

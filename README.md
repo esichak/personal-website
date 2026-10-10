@@ -29,7 +29,7 @@ with `other`). The script creates `content/trips/<slug>/` and renders its maps. 
 
 1. Edit `content/trips/<slug>/index.md`: write the report under the front matter (Markdown), check `place`,
    `region`, `party`, add `beta:` rows, and give every photo an `alt:` description.
-2. Preview: `python3 tools/build.py --serve` and open http://localhost:8000.
+2. Preview: `python3 tools/build.py --serve` and open http://localhost:8000 (the new report is also on http://localhost:8000/trips/).
 3. Publish: `git add "content/trips/<slug>" "rendered/trips/<slug>" && git commit -m "Add <trip>" && git push`. The site
    updates in about a minute. (Stage by path: `rendered/` holds untracked iCloud conflict copies such as `meta 3.json`,
    and `git add -A` would commit them all.)
@@ -39,15 +39,16 @@ Useful front-matter fields (see any existing trip for the format):
 | Field | Meaning |
 | --- | --- |
 | `title`, `activity`, `subtype`, `date`, `start_time`, `timezone` | Basics (filled in by `add_trip.py`) |
-| `place`, `region`, `party` | "Sawtooth Ridge", "Eastern Sierra", "Adam" — `region` groups trips on the map page |
+| `place`, `region`, `party` | "Sawtooth Ridge", "Eastern Sierra", "Adam" — `region` groups trips on the map page and is a filter on the Trips page |
 | `route_shape` | `loop`, `out-and-back` or `point-to-point` (detected from the track) |
 | `stats` | `distance_km`, `moving`, `elapsed`, `gain_m`, `loss_m`, `high_m`, `low_m` (Strava's numbers, or computed) |
 | `featured: true` | Eligible for the section pages' "Featured" block (single-day trips only; the home page is picked in `content/home.json`, see below) |
 | `cover_photo`, `cover_focal_x`, `cover_focal_y` | The photo the home page's cards use for this trip (a path declared under `photos`) and where to keep in the crop, 0–100 (default 50/50) |
 | `card_summary` | Optional one- or two-sentence factual summary for the home page's featured card (the report's opening is used when it is absent) |
+| `search_aliases` | Other names people might search for, as an inline list (`[PCT, Pacific Crest]`); searched on the Trips page, never shown |
 | `draft: true` | Keep it off the site |
 | `beta` | List of `label` / `value` rows shown beside the report |
-| `map` | `peaks: [Mount Tallac]` to label summits, `places: [...]`, `water_labels: [{text, x, y}]` |
+| `map` | `peaks: [Mount Tallac]` to label summits (also searchable on the Trips page), `places: [...]`, `water_labels: [{text, x, y}]` |
 | `photos` | `file`, `w`, `h`, `alt`, optional `caption` |
 
 ## Feature a trip on the home page
@@ -68,7 +69,7 @@ message when a slug is unknown, a draft, a planned route or listed twice. Detail
 python3 tools/render.py              # render anything whose track or map settings changed (needs internet)
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)
 python3 tools/build.py --check       # build _site/ and check every link and image
-python3 -m unittest discover -s tests   # the generator's unit tests (curation, covers, summaries)
+python3 -m unittest discover -s tests   # the generator's unit tests (curation, covers, summaries, search index, Trips page, header)
 ```
 
 ## Privacy

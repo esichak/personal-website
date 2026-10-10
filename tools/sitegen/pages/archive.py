@@ -239,15 +239,15 @@ def archive_section(site, here):
     if site['planned']:
         groups.append(('Planned', list(site['planned'])))
     # activity filter: a radio group (base.js gives it one tab stop and arrow / Home / End keys; archive.js applies it)
-    chips = ['<button type="button" class="arc-chip" role="radio" data-filter="all" aria-checked="true" tabindex="0">'
-             '<span class="arc-chip-l">All</span></button>']
+    chips = ['<button type="button" class="fchip" role="radio" data-filter="all" aria-checked="true" tabindex="0">'
+             '<span class="fchip-l">All</span></button>']
     for a, lab in core.NAV:
         k = sum(1 for t in site['published'] if t['activity'] == a)
         if not k:
             continue
-        chips.append('<button type="button" class="arc-chip" role="radio" data-filter="%s" aria-checked="false" tabindex="-1">'
-                     '<span class="chip-sw" style="background:%s" aria-hidden="true"></span><span class="arc-chip-l">%s</span>'
-                     '<span class="arc-chip-n">%s</span></button>' % (a, core.ACT[a][3], esc(lab), count_n(k)))
+        chips.append('<button type="button" class="fchip" role="radio" data-filter="%s" aria-checked="false" tabindex="-1">'
+                     '<span class="chip-sw" style="background:%s" aria-hidden="true"></span><span class="fchip-l">%s</span>'
+                     '<span class="fchip-n">%s</span></button>' % (a, core.ACT[a][3], esc(lab), count_n(k)))
     # rows are core.table_row (li > a): status-only tags (planned rows say PLANNED in the date cell) + filter data for archive.js
     row = lambda t: core.table_row(t, here, tags='' if t['kind'] == 'planned' else core.trip_tags(t, shape=False),  # noqa: E731
                                    attrs=' data-kind="%s"' % t['kind'])  # core.table_row emits data-act

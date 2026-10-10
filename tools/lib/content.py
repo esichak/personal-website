@@ -268,6 +268,16 @@ def load_trip(folder):
     if cs is not None and not isinstance(cs, str):
         raise ContentError('%s: card_summary must be text, got %r' % (where, cs))
     t['card_summary'] = (cs or '').strip() or None
+    # search_aliases: [PCT] -> other names the trips explorer finds the trip under (never shown as the title)
+    al = meta.get('search_aliases')
+    if al is None:
+        t['aliases'] = []
+    elif isinstance(al, str):
+        t['aliases'] = [al.strip()] if al.strip() else []
+    elif isinstance(al, list) and all(isinstance(x, str) or x is None for x in al):
+        t['aliases'] = [x.strip() for x in al if x and x.strip()]  # None: a trailing comma's empty item
+    else:
+        raise ContentError('%s: search_aliases must be a list of names such as [PCT], got %r' % (where, al))
     t['cover'] = resolve_cover(t)
     t['season'] = season_of(t['date'], act)
     t['has_writeup'] = bool(t['body_md']) or any(d['body_md'] for d in t['days'])

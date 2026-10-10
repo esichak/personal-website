@@ -53,8 +53,7 @@ def slug(s):
 
 def hero():
     h1 = ' '.join('<span class="hom-l">%s</span>' % esc(x) for x in HEADLINE)
-    # both actions stay visible on every width (they wrap on narrow phones); the archive is the trips index until a
-    # dedicated explorer exists
+    # both actions stay visible on every width (they wrap on narrow phones)
     return ('<div class="hom-hero">'
             '<p class="t-label hom-kicker">%s</p>'
             '<h1 class="t-d2 hom-h1">%s</h1>'
@@ -62,7 +61,7 @@ def hero():
             '<div class="hom-cta">'
             '<a class="btn btn--ink" href="%s">Browse all trips%s</a>'
             '<a class="btn" href="%s">%sExplore the map</a></div></div></div>'
-            % (esc(LABEL), h1, esc(LEAD), link(HERE, 'map/#all-reports'), icon('arrow-right', 18), link(HERE, 'map/'), icon('map', 18)))
+            % (esc(LABEL), h1, esc(LEAD), link(HERE, 'trips/'), icon('arrow-right', 18), link(HERE, 'map/'), icon('map', 18)))
 
 
 # ---------------------------------------------------------------- featured trips (content/home.json)
@@ -148,35 +147,16 @@ def featured(site):
 # ---------------------------------------------------------------- recent outings
 
 def recent_trips(site):
-    """The six newest published trips that are not featured above (they stay in the archive); planned routes are never
+    """The six newest published trips that are not featured above (they stay on the Trips page); planned routes are never
     in site['published']. Ordered by trip date, as the whole site is."""
     skip = {t['slug'] for t in (site.get('featured') or [])}
     return [t for t in site['published'] if t['slug'] not in skip][:RECENT_N]
 
 
 def rcard(t):
-    """A compact recent-outing card: cover photo, else the trip's route tile, else the activity disc; DATE · PLACE;
-    the H3 title link; activity + the Mono-S stats line. No summary and no 'Read' button: a track-only outing has
-    nothing to read."""
-    href = link(HERE, t['url'])
-    img = core.cover_img(t, HERE, RECENT_SIZES)
-    if img:
-        media = '<a class="hom-rcard-img" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, img)
-    else:
-        tile = core.tile(t, HERE)
-        if tile:
-            media = '<a class="hom-rcard-img hom-rcard-img--tile" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, tile)
-        else:
-            media = '<div class="hom-rcard-img hom-rcard-img--none" aria-hidden="true">%s</div>' % core.disc(t['activity'], 32, t.get('subtype'))
-    meta = meta_line([core.trip_date(t, short=True), card_place(t)])
-    stats = core.row_stats_line(t)
-    mid = 'rc-%s-m' % t['slug']
-    # repeated titles ('Tallac' twice): the title link is described by its DATE · PLACE line
-    return ('<li class="hom-rcard">%s<div class="hom-rcard-b"><p class="t-mono-s hom-rcard-meta" id="%s">%s</p>'
-            '<h3 class="hom-rcard-t"><a href="%s" aria-describedby="%s">%s</a></h3>'
-            '<div class="hom-rcard-act">%s%s</div></div></li>'
-            % (media, mid, meta, href, mid, core.title_html(t['title']), core.chip(t, variant='inline'),
-               ('<p class="t-mono-s hom-rcard-ps">%s</p>' % stats) if stats else ''))
+    """A recent-outing card: the shared core.trip_card (cover photo, else route tile, else activity disc; DATE · PLACE;
+    the H3 title link; activity + stats). No summary: a track-only outing has nothing to read."""
+    return core.trip_card(t, HERE, RECENT_SIZES, ns='rc')
 
 
 def recent(site):
@@ -184,10 +164,10 @@ def recent(site):
     if not rows:
         return ''
     total = sum(1 for t in site['published'] if is_report(t))
-    return ('<section class="wrap sec hom-recent" aria-labelledby="recent-h">%s<ul class="hom-rcards">%s</ul>'
+    return ('<section class="wrap sec hom-recent" aria-labelledby="recent-h">%s<ul class="hom-rcards tgrid">%s</ul>'
             '<a class="btn hom-all" href="%s">All %d reports%s</a></section>'
             % (core.section_head('Recent outings', 'NEWEST FIRST', id_='recent-h'), ''.join(rcard(t) for t in rows),
-               link(HERE, 'map/#all-reports'), total, icon('arrow-right', 18)))
+               link(HERE, 'trips/'), total, icon('arrow-right', 18)))
 
 
 # ---------------------------------------------------------------- by activity

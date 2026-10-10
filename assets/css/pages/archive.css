@@ -118,23 +118,9 @@
   .arc-filt { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--m)); padding-inline: var(--m);
     scroll-padding-inline: var(--m); }
   .arc-filt::-webkit-scrollbar { display: none; }
-  .arc-chip { flex-shrink: 0; }
+  .fchip { flex-shrink: 0; }
 }
-.arc-chip { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px;
-  border: 1px solid var(--rule-strong); border-radius: 2px; font: 500 15px/20px var(--sans); color: var(--ink); white-space: nowrap; }
-/* position: relative keeps the counts' spoken words (.sr, absolutely positioned) inside the chip, so they scroll and clip with
-   the chip row instead of widening the page */
-.arc-chip:hover { border-color: var(--ink); }
-.arc-chip .chip-sw { width: 10px; height: 10px; }
-.arc-chip-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
-.arc-chip[aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.arc-chip[aria-checked="true"] .arc-chip-n { color: #B9B6AD; }
-.arc-chip[aria-checked="true"] .chip-sw { outline: 1px solid var(--paper); }
-@media (max-width: 899.98px) {
-  /* compact chips: one row on tablets, two rows at 358 (the desktop size needs three / leaves "Other" alone) */
-  .arc-chip { gap: 6px; padding: 0 10px; font-size: 14px; }
-  .arc-chip .chip-sw { width: 8px; height: 8px; }
-}
+/* the activity chips are the shared .fchip component (base.css) */
 /* year index: one link per year group (the count follows the activity filter) */
 .arc-years { margin-top: 16px; }
 .arc-years ul { display: flex; flex-wrap: wrap; column-gap: 20px; }

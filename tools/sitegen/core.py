@@ -30,6 +30,8 @@ FONTS = ('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..112,40
 SUB_ICON = {'SUP': 'SUP', 'Rafting': 'RFT', 'Kayaking': 'KYK', 'Mountaineering': 'MTN'}
 SUB_WORD = {'SUP': 'Paddleboarding', 'Rafting': 'Rafting', 'Kayaking': 'Kayaking', 'Mountaineering': 'Mountaineering'}
 NAV = [('ski', 'Backcountry Ski'), ('climb', 'Climbing'), ('hike', 'Hiking'), ('mtb', 'Mountain Biking'), ('other', 'Other')]
+PCT_SLUG = 'pacific-crest-trail-2024'  # the journal the header's PCT link opens (shown only when that trip exists)
+PCT_LABEL = 'PCT'
 SEP = '\u00a0· '  # plain-text separator only (aria-labels, descriptions, RSS); Mono-S lines use meta_items()
 
 esc = html.escape
@@ -1060,6 +1062,43 @@ def phone_row(t, here):
                meta_items(bits), icon('chevron-right', 20)))
 
 
+def trip_card(t, here, sizes, ns='tc', cls='', summary=False):
+    """One trip as a card (home's recent outings, the trips/ explorer): the cover (core.cover_img), else the route tile,
+    else the activity disc; DATE · PLACE; the H3 title link, described by that line (repeated titles such as 'Tallac'
+    stay distinct); the inline activity chip, status tags and the Mono-S stats line; and, with summary=True, the card
+    summary (core.card_summary) unless it is only facts. The photo link is skipped by keyboards and readers: the title
+    link is the card's name. data-* attributes carry the facets trips.js filters on (region as its map-anchor slug)."""
+    href = link(here, t['url'])
+    img = cover_img(t, here, sizes)
+    if img:
+        media = '<a class="tcard-img" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, img)
+    else:
+        tl = tile(t, here)
+        if tl:
+            media = '<a class="tcard-img tcard-img--tile" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, tl)
+        else:
+            media = '<div class="tcard-img tcard-img--none" aria-hidden="true">%s</div>' % disc(t['activity'], 32, t.get('subtype'))
+    loc = t.get('place') or t.get('region') or ''
+    meta = meta_items([trip_date(t, short=True), nb(esc(loc).upper()) if loc else ''])
+    mid = '%s-%s-m' % (ns, t['slug'])
+    stats = row_stats_line(t)
+    ex = ''
+    if summary:
+        sm = card_summary(t)
+        if sm['text'] and sm['source_kind'] != 'facts':
+            ex = ((('<p class="t-label tcard-exl">%s</p>' % sm['source_label']) if sm['source_label'] else '')
+                  + '<p class="t-excerpt tcard-ex">%s</p>' % esc(sm['text']))
+    data = (' data-slug="%s" data-act="%s" data-kind="%s" data-region="%s" data-year="%s" data-writeup="%s" data-date="%s"'
+            % (esc(t['slug']), t['activity'], t['kind'], content.slugify(t['region']) if t.get('region') else '',
+               t['date'].year if t['date'] else '', '1' if t['has_writeup'] else '0', t['date'].isoformat() if t['date'] else ''))
+    return ('<li class="tcard%s"%s>%s<div class="tcard-b"><p class="t-mono-s tcard-meta" id="%s">%s</p>'
+            '<h3 class="tcard-t"><a href="%s" aria-describedby="%s">%s</a></h3>'
+            '<div class="tcard-act">%s%s%s</div>%s</div></li>'
+            % ((' ' + cls) if cls else '', data, media, mid, meta, href, mid, title_html(t['title']),
+               chip(t, variant='inline'), trip_tags(t, shape=False),
+               ('<p class="t-mono-s tcard-ps">%s</p>' % stats) if stats else '', ex))
+
+
 def count_items(ts, planned=0):
     """Mono-S count items for a set of trips: ['23 REPORTS', 'INCL. 1 MULTI-DAY, 1 SERIES', '+ 1 PLANNED ROUTE'] (the last
     two only when present). A multi-day trip or a series counts as one report; planned routes are never counted as
@@ -1132,6 +1171,7 @@ def units_control():
 
 _TRIPS_BY_URL = {}
 _OTHER_SUBS = []
+_HAS_PCT = [False]
 
 
 def other_subtypes(ts):
@@ -1149,21 +1189,41 @@ def register_site(site):
     glyph + title) and the header can name the Other sub-types that exist, without every page module passing them."""
     _TRIPS_BY_URL.clear()
     _TRIPS_BY_URL.update({t['url']: t for t in site['trips']})
+    _HAS_PCT[0] = any(t['slug'] == PCT_SLUG for t in site['trips'])
     _OTHER_SUBS[:] = other_subtypes(site.get('published') or [t for t in site['trips'] if t['kind'] != 'planned'])
 
 
+def main_nav():
+    """[(key, label, url)] of the primary destinations: Trips, Map, PCT (when that journal exists), About."""
+    out = [('trips', 'Trips', 'trips/'), ('map', 'Map', 'map/')]
+    if _HAS_PCT[0]:
+        out.append(('pct', PCT_LABEL, 'trips/%s/' % PCT_SLUG))
+    out.append(('about', 'About', 'about/'))
+    return out
+
+
 def header(here, active=None, trip=None):
-    """Site header + menu. aria-current="page" only on the page a link points to (a section index, map/, about/);
-    inside a section (trip, multi-day, series and full-screen map pages) the section link gets aria-current="true".
-    trip: report, multi-day and series pages get the phone compact app bar (glyph + title, shown once the H1 has
-    scrolled under the header; links back to the top)."""
+    """Site header + menu. Main nav: Trips · Map · PCT · About, then Search (the explorer's search box). active: 'trips',
+    'map', 'about', or an activity key (section, report, multi-day and full-screen-map pages: Trips is current as
+    'true', and the phone menu's activity row as before). aria-current="page" only on the page a link points to; the
+    PCT journal page marks PCT alone. The activity pages stay reachable from the phone menu's Reports column, the
+    footer and the home page. trip: report, multi-day and series pages get the phone compact app bar (glyph + title,
+    shown once the H1 has scrolled under the header; links back to the top)."""
+    pct_page = bool(trip) and trip.get('slug') == PCT_SLUG and here == trip.get('url')
+
     def cur(key, url):
-        if active != key:
-            return ''
-        return ' aria-current="%s"' % ('page' if here == url else 'true')
-    items = ['<a href="%s"%s>%s</a>' % (link(here, section_url(act)), cur(act, section_url(act)), lab) for act, lab in NAV]
-    items2 = ['<a href="%s"%s>%s</a>' % (link(here, url), cur(key, url), lab)
-              for key, lab, url in (('map', 'Map &amp; archive', 'map/'), ('about', 'About', 'about/'))]
+        if key == 'pct':
+            state = 'page' if pct_page else None
+        elif key == 'trips':
+            state = None if pct_page else ('page' if here == url else ('true' if (active == 'trips' or active in ACT) else None))
+        elif active == key:
+            state = 'page' if here == url else 'true'
+        else:
+            state = None
+        return (' aria-current="%s"' % state) if state else ''
+    main = main_nav()
+    items = ['<a href="%s"%s>%s</a>' % (link(here, url), cur(key, url), lab) for key, lab, url in main]
+    search = '<a class="nav-search" href="%s">%sSearch</a>' % (link(here, 'trips/#search'), icon('search', 18))
     menu_rows = []
     for act, lab in NAV:
         # the 'Other' row names the sub-types that have reports (other_subtypes, via register_site); .ml draws the separators
@@ -1172,6 +1232,13 @@ def header(here, active=None, trip=None):
             sub = '<span class="menu-sub">%s</span>' % meta_items([nb(esc(SUB_WORD.get(s, s))) for s in _OTHER_SUBS])
         menu_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span>%s</span>%s</a></li>'
                          % (link(here, section_url(act)), cur(act, section_url(act)), disc(act, 32), lab, sub,
+                            icon('chevron-right', 20)))
+    site_rows = []
+    menu_icons = {'trips': 'list', 'map': 'map', 'pct': 'HIK', 'about': 'info'}
+    for key, lab, url in main + [('search', 'Search', 'trips/#search')]:
+        word = 'Map &amp; archive' if key == 'map' else lab
+        site_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span></span>%s</a></li>'
+                         % (link(here, url), cur(key, url) if key != 'search' else '', icon(menu_icons.get(key, 'search'), 24), word,
                             icon('chevron-right', 20)))
     ab = ''
     if trip:
@@ -1186,20 +1253,16 @@ def header(here, active=None, trip=None):
             '</div>'
             '<div class="menu" id="menu" hidden><nav aria-label="Menu">'
             '<div class="menu-c1"><p class="t-label menu-l">Reports</p><ul class="menu-list">%s</ul></div>'
-            '<div class="menu-c2"><p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">'
-            '<li><a href="%s"%s>%s<span class="menu-w"><span>Map &amp; archive</span></span>%s</a></li>'
-            '<li><a href="%s"%s>%s<span class="menu-w"><span>About</span></span>%s</a></li></ul>'
+            '<div class="menu-c2"><p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">%s</ul>'
             '<div class="menu-units"><span class="t-label">Units</span>%s</div></div></nav></div></header>'
-            % (link(here, ''), SITE_NAME, HOME_COORDS, ab, ''.join(items), ''.join(items2), units_control(),
-               icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), ''.join(menu_rows),
-               link(here, 'map/'), cur('map', 'map/'), icon('map', 24), icon('chevron-right', 20),
-               link(here, 'about/'), cur('about', 'about/'), icon('info', 24), icon('chevron-right', 20), units_control()))
+            % (link(here, ''), SITE_NAME, HOME_COORDS, ab, ''.join(items), search, units_control(),
+               icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), ''.join(menu_rows), ''.join(site_rows), units_control()))
 
 
 def footer(here):
     reports = ''.join('<li><a href="%s">%s</a></li>' % (link(here, section_url(a)), lab) for a, lab in NAV)
-    site = ('<li><a href="%s">Map &amp; archive</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
-            % (link(here, 'map/'), link(here, 'about/'), link(here, 'feed.xml'), icon('rss', 16)))
+    site = ('<li><a href="%s">Trips</a></li><li><a href="%s">Map &amp; archive</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
+            % (link(here, 'trips/'), link(here, 'map/'), link(here, 'about/'), link(here, 'feed.xml'), icon('rss', 16)))
     return ('<footer class="site-f"><div class="site-f-in">'
             '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">%s</span></div>'
             '<nav class="f-nav" aria-labelledby="f-rep"><p class="t-label" id="f-rep">Reports</p><ul>%s</ul></nav>'

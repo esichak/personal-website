@@ -27,7 +27,7 @@ from sitegen import core  # noqa: E402
 from sitegen import curation  # noqa: E402
 
 OUT = os.path.join(ROOT, '_site')
-PAGE_MODULES = ['home', 'section', 'report', 'multiday', 'series', 'archive', 'about', 'notfound']
+PAGE_MODULES = ['home', 'trips', 'section', 'report', 'multiday', 'series', 'archive', 'about', 'notfound']
 
 
 def css_bundle():

@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 from sitegen import core  # noqa: E402
 from sitegen.pages import home  # noqa: E402
+from unittest import mock  # noqa: E402
 
 import helpers  # noqa: E402
 from helpers import photo, LANDSCAPE, PORTRAIT  # noqa: E402
@@ -80,14 +81,16 @@ class CardMediaTests(unittest.TestCase):
 
     def test_page_uses_the_lead_cover_as_share_image_and_preloads_it(self):
         self.site['featured'] = [self.by['ski-report']]
-        html_ = home.page(self.site).html
+        with mock.patch.object(home, 'where', return_value=''):   # the region maps read rendered/site/; not under test
+            html_ = home.page(self.site).html
         self.assertIn('<meta property="og:image" content="%strips/ski-report/photos/01.webp">' % core.SITE_URL, html_)
         self.assertIn('<link rel="preload" as="image" href="trips/ski-report/photos/01.webp" imagesrcset=', html_)
         self.assertIn('hom-card--lead', html_)
 
     def test_page_without_features_has_no_share_image(self):
         self.site['featured'] = []
-        html_ = home.page(self.site).html
+        with mock.patch.object(home, 'where', return_value=''):
+            html_ = home.page(self.site).html
         self.assertNotIn('og:image', html_)
         self.assertNotIn('hom-featured', html_)
 

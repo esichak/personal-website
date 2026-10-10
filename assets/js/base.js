@@ -128,6 +128,8 @@
       var f = menu.querySelector('a'); if (f) f.focus();
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(true); });
+    // a link in the menu closes it: a same-page target (trips/#search on the Trips page) would otherwise leave it open
+    menu.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a[href]')) closeMenu(false); });
     window.addEventListener('resize', function () { if (window.innerWidth >= 1140) closeMenu(false); });
   }
 

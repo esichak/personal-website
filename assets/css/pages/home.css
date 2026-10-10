@@ -94,34 +94,11 @@
   .hom-card--sub:nth-child(n+4) .hom-card-b { padding-top: 14px; }
 }
 
-/* ---------------------------------------------------------------- recent outings */
+/* ---------------------------------------------------------------- recent outings (core.trip_card: base.css .tcard) */
 .hom-rcards { margin-top: 16px; display: grid; row-gap: 20px; }
-/* phones: a 112 px thumbnail beside the text, one outing per row */
-.hom-rcard { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: 14px; align-items: start; min-width: 0; }
-.hom-rcard-img { display: block; aspect-ratio: 4 / 3; background: var(--sunk); overflow: hidden; }
-.hom-rcard-img .cover-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.hom-rcard-img:hover .cover-img { filter: brightness(1.04); }
-.hom-rcard-img--tile, .hom-rcard-img--none { display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--rule); }
-.hom-rcard-img--tile .gl { width: 64%; height: auto; }
-.hom-rcard-b { display: flex; flex-direction: column; min-width: 0; }
-.hom-rcard-meta { text-transform: uppercase; }
-.hom-rcard-t { margin-top: 4px; font: 600 17px/22px var(--sans); text-wrap: balance; }
-.hom-rcard-t a { color: var(--ink); }
-.hom-rcard-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-.hom-rcard-act { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 4px; }
-.hom-rcard-ps { text-transform: uppercase; }
 .hom-all { margin-top: 24px; }
-@media (min-width: 560px) {
-  .hom-rcards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); }
-  .hom-rcard { display: flex; flex-direction: column; align-items: stretch; }  /* the tile box fills the column too */
-  .hom-rcard-img { aspect-ratio: 3 / 2; }
-  .hom-rcard-b { padding-top: 12px; }
-}
-@media (min-width: 760px) {
-  .hom-rcards { margin-top: 24px; }
-  .hom-rcard-t { font-size: 19px; line-height: 25px; }
-  .hom-all { margin-top: 32px; }
-}
+@media (min-width: 560px) { .hom-rcards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
+@media (min-width: 760px) { .hom-rcards { margin-top: 24px; } .hom-all { margin-top: 32px; } }
 @media (min-width: 1200px) { .hom-rcards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* ---------------------------------------------------------------- by activity */
