@@ -36,6 +36,8 @@
 
 .abo-units-row { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
 .abo-units { height: 44px; }
+/* without JavaScript the switch is hidden (base.css), so the sentence that describes it is too */
+@media (scripting: none) { .abo-units-how { display: none; } }
 .abo-units button { height: 44px; margin: -1px 0; border-block: 1px solid transparent; width: 56px; font-size: 13px; }
 
 .abo-follow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px;

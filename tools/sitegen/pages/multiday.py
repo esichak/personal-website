@@ -96,7 +96,7 @@ def drawn(t, name):
     k = (t['slug'], name)
     if k not in _DRAWN:
         p = core.rendered(t, name + '.svg.html')
-        s = open(p, encoding='utf-8').read() if os.path.exists(p) else ''
+        s = core._read(p) if os.path.exists(p) else ''
         _DRAWN[k] = {
             'skin': 'stroke-dasharray: 5 3' in s, 'ghost': 'stroke-opacity: .35' in s,
             'day': 'fill: #B8300F' in s, 'hut': 'class="mk-day"' in s, 'hut_named': 'class="mk-hut"' in s,
@@ -357,6 +357,11 @@ OVERVIEW_VARIANTS = [('overview-wide', 'wide'), ('overview-col', 'col'), ('overv
 def gpx_all(t):
     """The combined all-days GPX (one <trk> per day) that build.py writes beside the page."""
     return t['slug'] + '.gpx'
+
+
+def has_gpx(t):
+    """True when at least one day has a track: only then is there a combined file to download."""
+    return any(d['track'] for d in t['days'])
 
 
 def overview_caption(t):
@@ -740,17 +745,9 @@ def chapter(t, here, meta, d):
 
 # ---------------------------------------------------------------- page
 
-def first_photo(t):
-    for d in t['days']:
-        if d['photos']:
-            return t['url'] + d['photos'][0]['file']
-    return (t['url'] + t['photos'][0]['file']) if t['photos'] else None
-
-
 def share_image(t):
-    """The photo a shared link shows: the cover the trip's cards show, else the first photo."""
-    c = t.get('cover')
-    return (t['url'] + c['photo']['file']) if c else first_photo(t)
+    """The photo a shared link shows: the cover the trip's cards show (core.share_photo), with its size and alt text."""
+    return core.share_photo(t)
 
 
 def bottom_bar(t):
@@ -760,7 +757,8 @@ def bottom_bar(t):
     rd = next((d for d in t['days'] if d['body_md']), None)
     if rd:
         items.append(('#day-%d' % rd['n'], 'report', 'Report', ''))
-    items.append((gpx_all(t), 'download', 'GPX', ' download'))
+    if has_gpx(t):
+        items.append((gpx_all(t), 'download', 'GPX', ' download'))
     return ('<nav class="bbar" aria-label="Trip sections" style="--n:%d">%s</nav>'
             % (len(items), ''.join('<a href="%s"%s>%s<span>%s</span></a>' % (h, dl, icon(ic, 24), lab) for h, ic, lab, dl in items)))
 
@@ -780,8 +778,10 @@ def description(t, limit=160):
 def page(t, site):
     here = t['url']
     meta = core.render_meta(t)
-    actions = ('<a class="btn" href="#day-1">%sDay by day</a><a class="btn btn--ink" href="%s" download>%sDownload all GPX</a>%s'
-               % (icon('list', 18), gpx_all(t), icon('download', 18), core.copy_link(core.SITE_URL + here)))
+    actions = '<a class="btn" href="#day-1">%sDay by day</a>' % icon('list', 18)
+    if has_gpx(t):
+        actions += '<a class="btn btn--ink" href="%s" download>%sDownload all GPX</a>' % (gpx_all(t), icon('download', 18))
+    actions += core.copy_link(core.SITE_URL + here)
     body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site),
             '<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note()),
             overview_map(t, here, meta)]
@@ -789,12 +789,13 @@ def page(t, site):
     body.append('<div class="mul-body">%s%s%s<section class="mul-days" aria-labelledby="days-h">'
                  '<h2 class="sr" id="days-h">Day by day</h2>%s</section></div>'
                  % (day_nav(t, here), stitched_profile(t, here, meta), overview(t, here), chapters))
+    body.append(report.published_line(t))
     body.append(report.share_row(here))   # phones hide the title actions here too (multiday.css); the copy link moves down
     body.append(core.related_block(t, here, site, skip=report.neighbours(t, site)))
     body.append(report.pager(t, here, site))
     head = core.map_preloads(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', nowide='overview-wide' not in meta.get('maps', {}))
     return core.Page(here, core.document(here, t['title'], ''.join(body), description(t), active=t['activity'], image=share_image(t),
-                                         extra_head=head, body_cls='p-multiday', bottom=bottom_bar(t), og_type='article'),
+                                         extra_head=head, body_cls='p-multiday', bottom=bottom_bar(t), og_type='article', report=t),
                      t['title'])
 
 

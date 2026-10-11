@@ -153,6 +153,43 @@ class CurationTests(unittest.TestCase):
         msg = self.assertCurationError(['secret-draft'], 'secret-draft')
         self.assertIn('draft', msg.lower())
 
+    def test_draft_is_refused_as_a_draft_whatever_its_slug_says(self):
+        # With the draft rule switched off the slug is still refused, as unknown (drafts are never in the site), so only
+        # the message tells the two apart. The slug here does not contain the word the message is checked for.
+        slug = 'quiet-ridge-walk'
+        self.assertNotIn('draft', slug)
+        helpers.make_trip(self.trips_dir, slug, title='Quiet Ridge Walk', activity='hike', date='2026-02-03', draft=True, body='Not yet.')
+        site = helpers.make_site(helpers.load_dir(self.trips_dir))       # loaded again, as a build would: the draft is left out
+        self.assertNotIn(slug, site['by_slug'])
+        self.assertEqual(sorted(site['by_slug']), sorted(self.site['by_slug']))
+        for featured in ([slug], ['peak-bagging-szn', slug]):
+            with self.subTest(featured_slugs=featured):
+                with self.assertRaises(curation.CurationError) as cm:
+                    curation.resolve_featured(site, {'featured_slugs': featured}, trips_dir=self.trips_dir)
+                msg = str(cm.exception)
+                self.assertEqual(msg, "content/home.json: 'quiet-ridge-walk' is a draft (draft: true in its index.md); "
+                                      "drafts cannot be featured")
+                self.assertNotIn('unknown', msg.lower())
+        # the day its draft line goes it is a report like any other, and can be featured
+        helpers.make_trip(self.trips_dir, slug, title='Quiet Ridge Walk', activity='hike', date='2026-02-03', body='Not yet.')
+        site = helpers.make_site(helpers.load_dir(self.trips_dir))
+        self.assertEqual(slugs(curation.resolve_featured(site, {'featured_slugs': [slug]}, trips_dir=self.trips_dir)), [slug])
+
+    def test_a_slug_with_no_folder_is_unknown_not_a_draft(self):
+        # the other side of the same rule: 'draft' in a slug does not make it one
+        for slug in ('no-such-trip', 'first-draft-of-nothing'):
+            with self.subTest(slug=slug):
+                self.assertFalse(os.path.exists(os.path.join(self.trips_dir, slug)))
+                msg = self.assertCurationError([slug], slug)
+                self.assertEqual(msg, "content/home.json: unknown slug '%s' in featured_slugs (no content/trips/%s/index.md)" % (slug, slug))
+                self.assertNotIn('is a draft', msg)
+        # nor does a folder: it is the draft line in its index.md that makes a draft. This report was written after the
+        # site was loaded, so the site does not know it, and it is not called a draft for that
+        helpers.make_trip(self.trips_dir, 'late-addition', activity='hike', date='2026-02-04', body='Written after the site was loaded.')
+        self.assertNotIn('late-addition', self.site['by_slug'])
+        msg = self.assertCurationError(['late-addition'], 'late-addition', 'unknown slug')
+        self.assertNotIn('is a draft', msg)
+
     def test_planned_slug_raises_saying_planned(self):
         self.assertIn('planned-route', self.site['by_slug'])
         msg = self.assertCurationError(['matterhorn-peak-west-couloir', 'planned-route'], 'planned-route')

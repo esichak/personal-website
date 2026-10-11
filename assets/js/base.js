@@ -169,8 +169,12 @@
     var off = function () { highlight(map, null); markRows(map, null); };
     el.addEventListener('mouseenter', on);
     el.addEventListener('mouseleave', off);
-    el.addEventListener('focusin', on);
-    el.addEventListener('focusout', off);
+    // focus listeners on the pins only (they are links). A cluster marker is an aria-hidden pointer target with no name:
+    // Chrome makes an SVG <g> that has a focus listener a Tab stop, which put 14 dead stops on the home page.
+    if (!el.classList.contains('mk-cluster')) {
+      el.addEventListener('focusin', on);
+      el.addEventListener('focusout', off);
+    }
     if (el.classList.contains('mk-cluster') && rowsFor(map).length) {
       el.classList.add('is-linked');
       el.addEventListener('click', function () {
@@ -353,9 +357,27 @@
   // hang under the button out of the flow (report.css), so nothing on the page moves; a button at the very bottom of the
   // screen (or just above the phone bottom bar) has them scrolled into view. The field is kept inside the page gutters
   // wherever its button sits, and closes on Escape, on a second press of the button, or on a press elsewhere.
+  // closeCopy may be called twice, or from a listener that runs while it is at work, and then does nothing more. Taking
+  // the focused field out of the page makes Chromium send focusout from inside removeChild, and a listener that removed
+  // the field there made that call throw: so the field gives up the focus first, and one that has already left the page
+  // is not removed again.
   var closeCopy = function (keep) {
-    Array.prototype.forEach.call(document.querySelectorAll('.copy-pop'), function (p) { if (p !== keep) p.parentNode.removeChild(p); });
+    Array.prototype.forEach.call(document.querySelectorAll('.copy-pop'), function (p) {
+      if (p === keep) return;
+      if (p.contains(document.activeElement)) document.activeElement.blur();
+      if (p.parentNode) p.parentNode.removeChild(p);
+    });
   };
+  // the field also closes when the keyboard moves on and on Escape from anywhere. Moving on is focus going to something
+  // outside the control (relatedTarget): a focusout without one is the window losing focus, the field being taken out,
+  // or a press on something that takes no focus, and the click listener below sees to a press.
+  document.addEventListener('focusout', function (e) {
+    var box = e.target.closest && e.target.closest('.copy');
+    if (box && box.querySelector('.copy-pop') && e.relatedTarget && !box.contains(e.relatedTarget)) closeCopy();
+  });
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Escape' || e.key === 'Esc') && document.querySelector('.copy-pop')) closeCopy();
+  });
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('.copy-btn');
     if (!b) { closeCopy(e.target.closest && e.target.closest('.copy-pop')); return; }
@@ -371,8 +393,8 @@
       inp.setAttribute('aria-label', 'Link to copy');
       inp.addEventListener('keydown', function (ev) {
         if (ev.key !== 'Escape' && ev.key !== 'Esc') return;
+        b.focus();      // first: the field is then closed without the focus in it, and focus never rests on <body>
         closeCopy();
-        b.focus();
       });
       pop.appendChild(inp);
       box.appendChild(pop);

@@ -54,6 +54,8 @@
 .arc-legend ul { display: flex; flex-direction: column; gap: 10px; }
 .arc-legend li { display: flex; align-items: center; gap: 10px; min-height: 20px; font: 400 14px/20px var(--sans); color: var(--ink); }
 .arc-legend li > svg, .arc-legend .disc { flex-shrink: 0; }
+/* the discs are the key to the track colours on the maps, which forced colours leave alone: keep the two in step */
+@media (forced-colors: active) { .arc-legend .disc { forced-color-adjust: none; } }
 .arc-legend li > svg { width: 28px; }
 
 /* in this region */

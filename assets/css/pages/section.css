@@ -30,6 +30,12 @@
 .sec-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper); }
 .sec-seg-a { position: relative; min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
   font: 500 15px/20px var(--sans); color: var(--ink); }
+/* 44 x 44 px to press, with no box changed: a segment is 42 px high inside the frame's 1 px lines, and its hit area, out
+   of the flow, takes in the line above and below it. 'All' is three letters, 37.6 px wide with a phone's 10 px of
+   padding each side: its area also reaches left, over the frame's line and into the page margin, until it is 44 px
+   wide; never right, where the next segment begins */
+.sec-seg-a::before { content: ""; position: absolute; inset: -1px 0; }
+.sec-seg-a:first-child::before { left: min(0px, 100% - 44px); }
 .sec-seg-a + .sec-seg-a { border-left: 1px solid var(--rule); }
 .sec-seg-a .ic { width: 20px; height: 20px; color: var(--ink-2); }
 .sec-seg-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }

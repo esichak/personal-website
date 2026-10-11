@@ -2,7 +2,7 @@
 
 How to save a route you want to do, attach a GPX, keep the research honest, publish the goal, and later record what
 happened. Everything runs in this folder on your Mac with one local tool, `tools/ticklist.py`; the public site only
-shows what you commit and push. The list lives at `tick-list/`, each goal at `trips/<slug>/`.
+shows what you commit and push to the `main` branch. The list lives at `tick-list/`, each goal at `trips/<slug>/`.
 
 Adding a finished trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); homepage features, covers and search are in
 [CONTENT_GUIDE.md](CONTENT_GUIDE.md); how the generator works is in [DEVELOPING.md](DEVELOPING.md).
@@ -83,9 +83,9 @@ A `goal.json` with every default, which is what `add` writes before applying you
 ```
 
 Every key is optional in the file; a missing one takes its default. You can edit `goal.json` by hand (plain JSON,
-double quotes, no trailing commas); the next build validates it and stops with a message naming the field if a
-value is wrong (section 9). A `goal.json` beside a report (anything that is not `kind: planned`) is an error, so a
-finished trip can never be slipped into the future list.
+double quotes, no trailing commas); `python3 tools/validate.py` and every build check it, and a build stops with a
+message naming the field if a value is wrong (section 9). A `goal.json` beside a report (anything that is not
+`kind: planned`) is an error, so a finished trip can never be slipped into the future list.
 
 ## 3. Fields
 
@@ -198,10 +198,11 @@ python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity ski --gpx /ab
 
 **`--publish-track` means one thing:** you have looked at this file and approve copying it into the public
 repository. It copies the selected geometry to `content/trips/<slug>/track.gpx`, writes the approximate `stats` into
-`index.md` and the `route` block into `goal.json`, sets `route_source.public_copy_approved` to `true`, and then runs
-`python3 tools/render.py <slug>` to draw the map (skip that with `--no-render`; a failed render is a warning and the
-goal is still valid, section 6). It does **not** commit, push or deploy anything, does not approve any other field,
-and says nothing about whether the route is safe, complete or feasible.
+`index.md` and the `route` block into `goal.json`, sets `route_source.public_copy_approved` to `true`, and then starts
+`python3 tools/render.py <slug>` (skip that with `--no-render`; a failed render is a warning and the goal is still
+valid, section 6). That run draws no map for the goal: a new goal is a draft, and `render.py` leaves drafts out. The
+command says so in its last lines, quoted at the end of this section. It does **not** commit, push or deploy
+anything, does not approve any other field, and says nothing about whether the route is safe, complete or feasible.
 
 Without `--publish-track` the file is only read: the report prints its measurements for you, and the goal is created
 metadata-only, with no `stats`, no `route` block and no copy of the file. Nothing from an unapproved file reaches the
@@ -218,12 +219,31 @@ Other `add` behaviour with a GPX:
   with every goal's published route, including the planned routes saved before the tick list. It does not look at
   report recordings, and the same line exported twice with different bytes is two different files to it.
 - `update` has no `--gpx`: a route is attached when the goal is created. If a name-only idea later gets a file,
-  move the old folder aside, re-create the goal with `add --gpx … --publish-track --slug <same-slug>` so the URL
-  stays, and copy your intent fields back into `goal.json`.
+  move the old folder out of `content/trips/` (to the Desktop, for example), re-create the goal with
+  `add --gpx … --publish-track --slug <same-slug>` so the URL stays, and copy your intent fields back into
+  `goal.json`. `add` writes a fresh `index.md`: a draft again, holding only what the command was given and the
+  distance measured anew. Compare it with the old one and carry over what it lacks, such as `route_shape` and the
+  notes. When `rendered/trips/<slug>/` still holds a `meta.json`, the map there was drawn for the folder you moved
+  out: `add` then prints no `no map was drawn` line and its `Next:` line names that folder, so run
+  `python3 tools/render.py <slug>` yourself once `draft: true` is removed. The same steps give a planned route from
+  before the tick list its `route` block (section 9); the file to give `--gpx` is then the `track.gpx` of the folder
+  you moved out. A folder that is only renamed inside `content/trips/` is still a goal there, and with that
+  `track.gpx` in it the import stops with
+  `ERROR this file is already published under content/trips/<folder>/ (same checksum); …`.
 
-The report at the end lists the files created, the source checksum, the approximate values (marked approximate),
-what the file did not have (elevation, times), the selection made, and the next steps: review, remove `draft: true`,
-`git add` by path.
+The report lists the source checksum, the selection made, the approximate values (marked approximate), what the file
+did not have (elevation, times) and the files written. A real run ends with a `Next:` line. With `--publish-track`,
+for the goal `your-route-name`, the last two lines are:
+
+```
+  no map was drawn (render.py leaves drafts out): once "draft: true" is removed, run python3 tools/render.py your-route-name and add "rendered/trips/your-route-name" as well
+Next: review content/trips/your-route-name/ (index.md, goal.json, track.gpx); remove "draft: true" to publish; python3 tools/build.py --check; git add "content/trips/your-route-name"
+```
+
+A goal saved without a published track gets only the `Next:` line, with `(index.md, goal.json)` in its brackets. The
+first of the two lines is not printed with `--no-render` either, or when `rendered/trips/<slug>/` already holds a
+`meta.json` (the last bullet above); in that last case the `git add` of the `Next:` line names
+`"rendered/trips/<slug>"` as well. A dry run prints the plan and no `Next:` line.
 
 ### 4.3 Update intent
 
@@ -322,30 +342,51 @@ so `export > file.json` stays clean JSON): that is the list to review and `updat
 3. **Preview and check:**
 
    ```bash
+   python3 tools/validate.py             # every content problem, one line each; nothing is built
    python3 tools/build.py --serve        # http://localhost:8000/tick-list/ and http://localhost:8000/trips/<slug>/
-   python3 tools/build.py --check        # full build plus every link, image and anchor
+   python3 tools/build.py --check        # full build, then the checks of the built site
    python3 -m unittest discover -s tests
    ```
 
-   Look at the card on the list, the goal page's stats strip (every value marked approximate, no gain unless the
-   file had full elevation), the "Route source" section and the map. A goal whose track has not been rendered shows
-   "Map not rendered yet"; run `python3 tools/render.py <slug>` (needs internet) and commit `rendered/trips/<slug>/`
-   with it.
-4. **Stage by explicit path, never `git add -A`.** `rendered/` holds thousands of untracked iCloud conflict copies
-   (`meta 3.json`, `map-wide 4.webp`), and `-A` would commit them all. Check `git status` for ` 2`/` 3`/` 4` names.
+   `validate.py` and every build check each goal, drafts included. What they say about a goal is in section 9; the
+   flags, the other messages and the lines `--check` prints are in CONTENT_GUIDE.md, section 5. Look at the card on
+   the list, the goal page's stats strip (every value marked approximate, no gain unless the file had full
+   elevation), the "Route source" section and the map. A goal with a track shows "Map not rendered yet" until its map
+   is drawn, and none was drawn while it was a draft: run `python3 tools/render.py <slug>` (needs internet) and stage
+   what it drew with the goal (step 4).
+4. **Stage by explicit path, and read `git status --short` before committing. Never `git add -A` or `git add .`.**
+   It is the rule of step 5 in ADDING-TRIPS.md, which gives the reasons. For a goal:
 
    ```bash
-   git add "content/trips/<slug>" "rendered/trips/<slug>"
-   git commit -m "Add goal: YOUR ROUTE NAME" && git push
+   git add "content/trips/<slug>" "rendered/trips/<slug>" rendered/site
+   git status --short
+   git commit -m "Add goal: YOUR ROUTE NAME"
+   git push
    ```
 
-   For an intent change or an outing, the only file is `content/trips/<slug>/goal.json`.
+   - Every line of `git status --short` with a letter in its first column is in the commit. A name that ends in a
+     space and a number, such as `goal 2.json`, is an iCloud conflict copy: `git restore --staged "<path>"`, then
+     delete the file. `.gitignore` hides those copies under `rendered/` and `assets/`, not under `content/`, where
+     the content validator prints a warning that names the copy (section 9).
+   - `rendered/site` holds the region maps, which `render.py <slug>` refreshes too (its usage text says so). Naming
+     it when nothing changed there does no harm.
+   - A goal without a rendered map has no `rendered/trips/<slug>/` folder. `git add` then stops with
+     `fatal: pathspec 'rendered/trips/<slug>' did not match any files` and stages nothing: give
+     `content/trips/<slug>` alone.
+   - For an intent change or an outing, the only file is `content/trips/<slug>/goal.json`.
 
-5. GitHub runs the same check and publishes within about a minute. A bad field fails the deploy instead of
-   publishing a broken list; the site just does not update until it is fixed.
+5. GitHub runs the tests and the same check on every push to the `main` branch, and publishes within about a minute.
+   A push to any other branch runs nothing. A bad field fails the deploy instead of publishing a broken list; the
+   site just does not update until it is fixed. A warning does not hold a deploy back.
 
-To take a goal off the site again, put `draft: true` back and push: the page and its GPX go away. That is a
-publication choice, not a privacy measure; the files are still in the repository's history (section 7).
+To take a goal off the site again, put `draft: true` back: a build then leaves out the page and its GPX. A region
+map that was drawn with the goal (on the home page, the Map page and the Ski page) keeps its dashed line and its
+title until `python3 tools/render.py` has been run again (needs internet). Where the goal has a pin of its own on
+such a map, the pin links to the page that is gone, and `build.py --check` fails on it with lines such as
+`BROKEN map/index.html -> ../trips/<slug>/`. So run the render before the checks of step 3, and stage `rendered`
+with the goal's folder. Until the maps are drawn again the content validator prints the `site maps` warning of
+section 9. The build also stops while another trip's write-up links to the goal's page. All of this is a publication
+choice, not a privacy measure; the files are still in the repository's history (section 7).
 
 ## 6. What the importer does with a GPX
 
@@ -368,7 +409,8 @@ publication choice, not a privacy measure; the files are still in the repository
 - **Source bytes are kept.** With one candidate, `track.gpx` is the original file byte for byte; with several, it
   is a new GPX holding only the chosen track or route, its points, elevations and times unchanged and its segments
   kept. Either way `route.source_sha256` is the checksum of the published file, and a later change to the file fails
-  the build.
+  the build. `build.py --check` also compares the copy on the built site with `track.gpx`, byte for byte, and prints
+  a `GPX …` line when they differ.
 - **Limits and rejections.** Files over 30 MB or 500,000 points, a file that is not UTF-8, a `<!DOCTYPE`, `<!ENTITY`
   or any other `<!` declaration (comments and CDATA are fine), a processing instruction such as `<?xml-stylesheet`,
   XHTML / SVG / MathML content, a `<script>` or a `javascript:` URL anywhere in the bytes (a published GPX is served
@@ -483,8 +525,9 @@ Return three clearly separated groups: facts supplied by me or computed from the
 
 ## 9. Troubleshooting
 
-A bad `goal.json` stops the build (and `update`, which validates before writing) with one line on stderr. Every
-message starts with `content/trips/<slug>/goal.json: ` and names the field.
+A bad `goal.json` stops the build, and `update`, which validates before writing. Each line reads
+`ERROR content/trips/<slug>/goal.json: …` and names the field. `python3 tools/validate.py` prints the same lines
+without building; it and the build report every broken goal in one run.
 
 | Message says | What it means | Fix |
 | --- | --- | --- |
@@ -504,6 +547,25 @@ message starts with `content/trips/<slug>/goal.json: ` and names the field.
 | `route.source_sha256` does not match `track.gpx` | The published file changed after import | Restore the original file, or re-import on purpose. The build never re-measures silently. |
 | the outing's `report_slug` is unknown or names a planned route (message names the goal and the slug) | The report does not exist, is a draft, or is itself a goal | Add the report first, publish it, and use its folder name. |
 
+From the content validator (`python3 tools/validate.py`, and the start of every build). These concern the goal's
+folder as a whole, which `goal.json`'s own rules do not look at. A line is `ERROR` or `WARNING`, the file, then the
+message; an error stops the build and a warning does not. The messages are quoted exactly, with `<slug>` standing for
+the goal's folder name; the dates and `your-report-slug` are examples.
+
+| Level, file | Message | What it means | Fix |
+| --- | --- | --- | --- |
+| `WARNING`, `index.md` | `planned route without goal.json: it is listed with the default status and priority; review it and run python3 tools/ticklist.py update <slug> to give it one` | A planned route saved before the tick list (section 1). One route has it today | Nothing has to be done: the route works with the defaults. Any `update` writes a `goal.json` and ends this warning. When the folder holds a `track.gpx`, the next two warnings then take its place, because that file was never imported. To end all three, re-create the goal from the file (section 4.2, last bullet). |
+| `WARNING`, `goal.json` | `track.gpx is published but there is no route block, so nothing records where the file came from or how it was measured` | A `track.gpx` beside a `goal.json` whose `route` is `null`: the file was copied in by hand, or a route from before the tick list got its `goal.json` from `update` | Re-create the goal with `add --gpx … --publish-track --slug <slug>` (section 4.2, last bullet); the importer writes the block. |
+| `WARNING`, `goal.json` | `track.gpx is published but route_source.public_copy_approved is false; set it to true once you approve publishing the file, or remove track.gpx` | The same two cases: nothing records that you approved publishing the file | The re-import sets it. Or set `"public_copy_approved": true` in `goal.json` by hand, once you do approve. |
+| `ERROR`, `goal.json` | `the route block is there but track.gpx is missing from the folder: the page would describe a route it can neither draw nor offer; put the file back` | `track.gpx` was deleted or moved after the import | Put the same file back. |
+| `WARNING`, `index.md` | `a planned route has a date: line (2026-09-01); a goal has no date, and an outing's date goes in goal.json` | A `date:` line in a goal's `index.md` | Delete the line. The day you went is `log-outing --date`. |
+| `ERROR`, `index.md` | `published_at is for a report; this is a planned route (kind: planned)` | `published_at:` in a goal's `index.md` (`updated_at:` is refused the same way) | Delete the line; it belongs to reports (CONTENT_GUIDE.md, section 8). |
+| `WARNING`, `goal.json` | `outings[0].date 2027-06-14 is in the future (today is 2026-10-10); an outing is something that happened` | An outing dated after today; `log-outing --date` does not refuse one. `outings[0]` is the first entry | Correct the date in `goal.json`. |
+| `WARNING`, `goal.json` | `outings[1].report_slug 'your-report-slug' is already named by outings[0]` | Two outings of one goal name the same report, for example an attempt and a completion logged with one `--report-slug` | If that is not what happened, set `report_slug` to `null` on one of them. |
+| `WARNING`, `index.md` | `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug>` | A published goal has a `track.gpx` whose map has not been drawn; its page shows "Map not rendered yet". A new goal with a track is in this state once `draft: true` is removed, because no map is drawn for a draft | Run the command it gives (needs internet), then stage `rendered/trips/<slug>` and `rendered/site` with the goal (section 5, step 4). |
+| `WARNING`, the copy itself | `looks like an iCloud conflict copy (the name ends in a space and a number): nothing reads it, but git add of the folder would stage it; delete it` | The file named, such as `content/trips/<slug>/goal 2.json`, is an iCloud conflict copy of a file in the goal's folder | Delete it (section 5, step 4). For a copy of `index.md` or `goal.json`, compare it with the original first: the copy may hold your newer text. |
+| `WARNING`, `index.md` | `the site maps under rendered/site/ still draw this trip, which is a draft: its line and title stay on the pages that show those maps (the home page, the Map page, an activity page) until python3 tools/render.py has been run and rendered/site/ committed` | A goal that a region map was drawn with is a draft again (section 5). After the goal's folder was removed the line reads `which has no folder under content/trips any more` and still names its `index.md`; after its `track.gpx` was removed, `which has no track any more`. While the goal has no page, `build.py --check` can fail as well (section 5, last paragraph) | Run `python3 tools/render.py` (needs internet), then stage `rendered` with the goal's folder, as step 5 of ADDING-TRIPS.md gives for a run with no trip name. |
+
 From `tools/ticklist.py`:
 
 | Message | Fix |
@@ -522,8 +584,8 @@ From `tools/ticklist.py`:
 | `review-packet --out` inside the repository (directly, or through a symbolic link that leads into it) | Choose a path outside the checkout, for example under `~/Desktop/`. |
 | render failed (warning) | The goal is valid. Run `python3 tools/render.py <slug>` later with internet; until then the page shows "Map not rendered yet". |
 
-A `content/trips/<slug>/index.md: front matter: …` message is a syntax problem in that file's front matter, as in
-CONTENT_GUIDE.md section 5.
+A `content/trips/<slug>/index.md: front matter: …` message is a syntax problem in that file's front matter, and an
+`unknown key …` warning is a misspelt field name in `index.md`; both are in CONTENT_GUIDE.md, section 5.
 
 ## 10. What not to do
 
@@ -532,5 +594,6 @@ CONTENT_GUIDE.md section 5.
 - Do not put a `date` on a goal, or a recorder's moving time in `time_commitment`.
 - Do not publish a grade, a season or a route description that has no approved source. Leave it blank.
 - Do not call `add_trip.py` for a goal; it assumes a recording (date, times, a rewritten track).
-- Do not `git add -A`. Stage `content/trips/<slug>` and `rendered/trips/<slug>` by path.
+- Do not `git add -A` or `git add .`. Stage `content/trips/<slug>`, `rendered/trips/<slug>` and `rendered/site` by
+  path, and read `git status --short` before committing (section 5).
 - Do not keep review packets, research notes or anyone else's files inside the checkout, even uncommitted.

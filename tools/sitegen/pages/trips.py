@@ -100,7 +100,8 @@ def select(name, label, options, blank):
 
 
 def controls(site):
-    """The search form, hidden until trips.js reveals it (without the script it could not do anything)."""
+    """The search form. It ships `hidden` (without JavaScript it could not do anything) and the inline script right
+    after it (core.reveal) shows it during parsing, so nothing below it jumps later; trips.js then wires it."""
     pub = site['published']
     chips = ['<button type="button" class="fchip" role="radio" data-filter="all" aria-checked="true" tabindex="0">'
              '<span class="fchip-l">All</span></button>']
@@ -126,14 +127,14 @@ def controls(site):
             '<label class="trx-check"><input type="checkbox" name="writeup" value="1"> Has a write-up</label>'
             '%s'
             '<div class="trx-view" role="radiogroup" aria-label="View">%s</div>'
-            '</div></form>'
+            '</div></form>%s'
             '<noscript><p class="note wrap trx-noscript">Search and filters need JavaScript. Every report is listed below by year, '
             'and the links above group them by activity and region.</p></noscript>'
             % (''.join(chips),
                select('region', 'Region', [(slug, name) for name, slug, _k in regions_of(pub)], 'All regions'),
                select('year', 'Year', [(str(y), str(y)) for y in years_of(pub)], 'All years'),
                select('format', 'Format', formats, 'Any format'),
-               sort, views))
+               sort, views, core.reveal('search')))
 
 
 def status(site):
@@ -180,7 +181,7 @@ def results(site):
 def build(site):
     body = head(site) + browse(site) + controls(site) + status(site) + results(site) + journal_block(site)
     desc = 'Every trip report, searchable by name, place, region, activity, named peak and write-up, with filters by activity, year and format.'
-    page = core.Page(HERE, core.document(HERE, 'Trips', body, desc, active='trips', body_cls='p-trips'), 'Trips')
+    page = core.Page(HERE, core.document(HERE, 'Trips', body, desc, active='trips', body_cls='p-trips', image=core.site_share()), 'Trips')
     index = core.Page('trips/search.json', search.dumps(search.build_index(site)), 'Search index', index=False)
     out = [page, index]
     days = search.build_day_index(site)

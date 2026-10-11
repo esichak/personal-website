@@ -28,6 +28,23 @@ A synthetic site in a temp dir, every slug prefixed syn- so nothing under render
 
 A test that needs a trip the fixture lacks writes it with add() (a syn- slug as well) and the site is loaded again.
 
+Phase 4 (contract-phase4.md) adds, on the same fixture: capability-driven rendering (2.1 as replaced by 10.2: a
+single-day report without track.gpx has no route at all: no GPX control and no 'View route', no Route map section, no
+Route item in the section row, no Map item in the phone bar and no bar when one item would be left, no full-screen map
+page, and a section page never features it, while a report with a track is exactly what it was, rendered or not; a
+multi-day page offers 'Download all GPX' only when a day has a track, and a day without one has no link of its own),
+what a phone is told about a photo that fills its width (5.2: core.PHONE_SLOT / PHONE_FULL, report.HERO_SIZES), the
+card-size .th copy in cover srcsets (5.3: core.thumb_width, core._cover_srcset) and the share photo (4.1:
+core.share_photo, multiday.share_image). A .th file is an empty placeholder the test writes beside the photo; nothing
+here needs cwebp or sips. core.has_track, core.summary, core.stats_note and core.photo are pinned by themselves in
+tests/test_track_rules.py. 10.3 (review round 1) on top of that: a report without a track and without stats has no Stats
+strip; a rendered folder left behind by a removed track is shown and published nowhere (core.render_meta, core.glyph and
+core.tile give nothing without core.has_track); and core.phone_sizes tells a phone 100vw, not the 55vw slot, for a
+portrait, a square, a panorama or an unsized photo (PhoneShapeTests). 10.5 (after the screenshot comparison): the .th
+copy is a candidate of no <img> and no preload (core._cover_srcset is the two candidates it was before the phase); a
+card cover that has one is wrapped in <picture class="cover-pic"> with a phone-only <source> (core._card_source:
+CardSourceTests).
+
 With no rendered folder core.render_meta returns no maps and no charts and every page still builds; the tests that need
 a map or a chart point the trip at a placeholder render folder inside the temp dir (render()). The site dict comes from
 tools/build.py's own site_of(), registered with core as build() does. The page modules are imported in setUp and the
@@ -61,7 +78,8 @@ REGION = 'Synthetic Range'
 BETA = [{'label': 'Trailhead', 'value': 'Synthetic Lot'}]
 TRACK_NOTE = 'Synthetic recorder, one synthetic gap'      # a beta row labelled Track: the stats footnote prints it
 CREDIT = ['Terrain: AWS Terrain Tiles', 'Map data © OpenStreetMap contributors', 'Not for navigation']   # every caption's end
-HERO_SIZES = '(min-width: 1200px) 1248px, 100vw'
+PHONE_FULL = '(min-width: 560px) 100vw, 55vw'             # contract-phase4.md 5.2: core.PHONE_FULL, written out
+HERO_SIZES = '(min-width: 1200px) 1248px, ' + PHONE_FULL   # ... and report.HERO_SIZES (was '... 1248px, 100vw')
 
 STORY = ['syn-story', 'syn-explicit', 'syn-one', 'syn-one-beta', 'syn-two-tall', 'syn-portrait']
 HERO = ['syn-story', 'syn-explicit', 'syn-one', 'syn-one-beta']   # stories that lead with the cover (a landscape photo)
@@ -129,6 +147,29 @@ def ancestors(node):
 def bar_items(nav):
     """[(label, href)] of a phone bottom bar, in order."""
     return [(a.find('span').text(), a['href']) for a in nav.find_all('a')]
+
+
+def gpx_title_action(slug):
+    """The 'Download GPX' title action of a single-day report, exactly as report.page writes it."""
+    return '<a class="btn btn--ink" href="%s.gpx" download>%sDownload GPX</a>' % (slug, core.icon('download', 18))
+
+
+def gpx_bar_item(href):
+    """The phone bottom bar's GPX item, exactly as report.bottom_bar writes it."""
+    return '<a href="%s" download>%s<span>GPX</span></a>' % (href, core.icon('download', 24))
+
+
+def without_gpx(html_, slug):
+    """A single-day report page (or a part of it) with its GPX controls taken out: the title action, the bottom bar's
+    item, and the bar's --n one lower. What report.bottom_bar must give without a file to offer, given the bar with one
+    (the page of a report without a track loses more than this: without_track(), further down)."""
+    out = html_.replace(gpx_title_action(slug), '').replace(gpx_bar_item(slug + '.gpx'), '')
+    return re.sub(r'(<nav class="bbar" aria-label="Report sections" style="--n:)(\d+)', lambda m: m.group(1) + str(int(m.group(2)) - 1), out)
+
+
+def gpx_links(node):
+    """Every link under node that names a .gpx file or is a download, as (text, href), in document order."""
+    return [(a.text(), a['href']) for a in node.find_all('a') if 'download' in a or '.gpx' in (a['href'] or '').lower()]
 
 
 def legacy_bar(t, gpx_href, has_beta, has_report, has_gallery, chart=''):
@@ -230,11 +271,20 @@ class ReportFixture(unittest.TestCase):
         self.load_site()
         return self.by[slug]
 
-    def render(self, slug, maps=True, chart=''):
+    def render(self, slug, maps=True, chart='', drawn=False):
         """Point the trip at a placeholder render folder in the temp dir: meta.json with the three report maps and, with
-        chart='profile' | 'speed', that chart, plus the tiny fragments core.map_block / core.chart_block inline."""
+        chart='profile' | 'speed', that chart, plus the tiny fragments core.map_block / core.chart_block inline.
+        drawn=True: also what else tools/render.py leaves there and a build publishes: the three route drawings (tile,
+        g112, g64) and the image files of the maps."""
         folder = os.path.join(self.tmp, '_rendered', slug)
         os.makedirs(folder, exist_ok=True)
+        if drawn:
+            for name, (w, h) in core.GLYPH_SIZES.items():
+                with open(os.path.join(folder, name + '.svg.html'), 'w', encoding='utf-8') as fh:
+                    fh.write('<svg class="%s" viewBox="0 0 %d %d" aria-hidden="true"><path class="gl-trk" d="M1 1L9 9"/></svg>' % (name, w, h))
+            for name in ('map-wide', 'map-col', 'map-phone') if maps else ():
+                helpers.touch(os.path.join(folder, name + '.webp'))
+                helpers.touch(os.path.join(folder, name + '.base.svg'))
         meta = {'maps': {}, 'charts': {}}
         if maps:
             for name, (w, h) in (('map-wide', (1440, 640)), ('map-col', (718, 400)), ('map-phone', (390, 336))):
@@ -824,15 +874,21 @@ class HeroTests(ReportFixture):
                 self.assertNotIn('loading', img)
 
     def test_the_hero_image_is_core_cover_img_at_the_hero_sizes(self):
-        # section 2.2: core.cover_img(t, here, HERO_SIZES, eager=True), HERO_SIZES = '(min-width: 1200px) 1248px, 100vw'
-        self.assertEqual(need(self, self.report, 'HERO_SIZES'), HERO_SIZES)
+        # section 2.2: core.cover_img(t, here, HERO_SIZES, eager=True). contract-phase4.md 5.2 and 10: HERO_SIZES is
+        # '(min-width: 1200px) 1248px, ' + core.PHONE_FULL (it ended in a bare 100vw), so below 560 px a phone is told
+        # the 55vw slot and takes the 800 px copy instead of the full file
+        self.assertEqual(need(self, self.report, 'HERO_SIZES'), '(min-width: 1200px) 1248px, ' + need(self, core, 'PHONE_FULL'))
+        self.assertEqual(self.report.HERO_SIZES, HERO_SIZES)
         for slug in HERO:
             with self.subTest(slug):
                 t = self.by[slug]
                 self.assertIn(core.cover_img(t, t['url'], HERO_SIZES, eager=True), self.page(slug).html)
         img = self.hero('syn-story').find('img')   # its cover has the .sm copy, so the srcset and sizes are written
         self.assertEqual(img['sizes'], HERO_SIZES)
+        self.assertEqual(img['sizes'], '(min-width: 1200px) 1248px, (min-width: 560px) 100vw, 55vw')
         self.assertIn('photos/02.sm.webp 800w', img['srcset'])
+        # no .th file in this fixture, so the list is the two candidates it always was (CoverSrcsetTests has the rest)
+        self.assertEqual(img['srcset'], '../../trips/syn-story/photos/02.sm.webp 800w, ../../trips/syn-story/photos/02.webp 1600w')
         self.assertEqual((img['width'], img['height'], img['alt']), ('1600', '1200', 'Synthetic photo two'))
 
     def test_the_hero_link_joins_the_photo_viewer_group(self):
@@ -1389,14 +1445,21 @@ class TitleActionTests(ReportFixture):
             self.assertNotIn('View route', self.page(slug).html, slug)
 
     def test_download_gpx_is_unchanged(self):
-        # hard rule + section 2.1: <a class="btn btn--ink" href="<slug>.gpx" download> on both layouts
+        # hard rule + section 2.1: <a class="btn btn--ink" href="<slug>.gpx" download> on both layouts. contract-phase4.md
+        # 2.1: on a report that has a track, which every report of the fixture does (NoTrackTests: the ones that do not)
         for slug in SINGLE:
             with self.subTest(slug):
+                self.assertTrue(self.by[slug]['track'], '%s: the fixture report has no track.gpx' % slug)
                 dl = [a for a in self.main(slug).find('div', cls='rep-actions').find_all('a') if a.text() == 'Download GPX']
                 self.assertEqual(len(dl), 1)
                 self.assertEqual(dl[0].classes, ['btn', 'btn--ink'])
                 self.assertEqual(dl[0]['href'], slug + '.gpx')
                 self.assertIn('download', dl[0])
+                self.assertEqual(self.page(slug).html.count(gpx_title_action(slug)), 1)
+                # the phone bar's last item is the same file, and the page links no other
+                self.assertEqual(bar_items(self.bbar(slug))[-1], ('GPX', slug + '.gpx'))
+                self.assertIn('download', self.bbar(slug).find_all('a')[-1])
+                self.assertEqual(gpx_links(self.doc(slug).root), [('Download GPX', slug + '.gpx'), ('GPX', slug + '.gpx')])
 
     def test_the_copy_link_action_is_the_button_form_of_core_copy_link(self):
         # section 4: the last title action on single-day pages is core.copy_link(core.SITE_URL + here) (cls 'btn', 'Copy link')
@@ -1636,8 +1699,10 @@ class BottomBarTests(ReportFixture):
 class HeadTests(ReportFixture):
 
     def test_a_story_with_a_hero_preloads_the_cover(self):
-        # section 2.2: the hero is the page's preloaded image (core.cover_preload(t, here, HERO_SIZES))
+        # section 2.2: the hero is the page's preloaded image (core.cover_preload(t, here, HERO_SIZES)); contract-phase4.md
+        # 5.2: 'the same string feeds the preload', so HERO_SIZES here is report.HERO_SIZES with the phone slot
         need(self, core, 'cover_preload')
+        self.assertEqual(need(self, self.report, 'HERO_SIZES'), HERO_SIZES)
         for slug in HERO:
             with self.subTest(slug):
                 self.render(slug)
@@ -1646,11 +1711,19 @@ class HeadTests(ReportFixture):
                 self.assertEqual([l['href'] for l in links], [self.photo_href(slug, t['cover']['photo']['file'])])
                 self.assertEqual(links[0]['fetchpriority'], 'high')
                 self.assertIn(core.cover_preload(t, t['url'], HERO_SIZES), self.head_html(slug))
+                # ... and it is the hero <img>'s own source, candidates and sizes (none of the last two without an .sm copy)
+                img = self.hero(slug).find('img')
+                self.assertEqual((links[0]['href'], links[0]['imagesrcset'], links[0]['imagesizes']), (img['src'], img['srcset'], img['sizes']))
+        self.assertEqual(self.preloads('syn-story')[0]['imagesizes'], HERO_SIZES)   # the one fixture cover with an .sm copy
 
     def test_the_cover_preload_carries_the_hero_sizes(self):
-        # section 2.2: the preload matches the <img> (same srcset, imagesizes = HERO_SIZES)
+        # section 2.2 and contract-phase4.md 10: the preload matches the <img>: the same srcset, and its imagesizes is
+        # the hero image's sizes exactly, '(min-width: 1200px) 1248px, ' + core.PHONE_FULL
         link = self.preloads('syn-story')[0]
         img = self.hero('syn-story').find('img')
+        self.assertIsNotNone(img['sizes'])
+        self.assertEqual(link['imagesizes'], img['sizes'])
+        self.assertEqual(link['imagesizes'], '(min-width: 1200px) 1248px, ' + core.PHONE_FULL)
         self.assertEqual(link['imagesizes'], HERO_SIZES)
         self.assertEqual(link['imagesrcset'], img['srcset'])
         self.assertEqual(link['href'], img['src'])
@@ -1712,6 +1785,56 @@ class HeadTests(ReportFixture):
         for slug in ('syn-story', 'syn-explicit'):
             self.assertNotEqual(self.by[slug]['cover']['photo']['file'], self.by[slug]['photos'][0]['file'], slug)
             self.assertNotEqual(self.og_image(slug), core.SITE_URL + self.here(slug) + self.by[slug]['photos'][0]['file'])
+
+    def share_meta(self, slug):
+        """{property or name: content} of the page's share-image tags (og:image and its properties, the twitter card)."""
+        out = {}
+        for m in self.doc(slug).find('head').find_all('meta'):
+            key = m['property'] or m['name'] or ''
+            if key.startswith(('og:image', 'twitter:')):
+                self.assertNotIn(key, out, 'two %s tags' % key)
+                out[key] = m['content']
+        return out
+
+    def test_the_share_image_is_the_share_photo_with_what_is_recorded_for_it(self):
+        # contract-phase4.md 4.1 and 4.2: both layouts pass core.share_photo(t): the cover's path, and its size and alt
+        # text only as far as index.md records them; nothing is measured or worded for the tags
+        self.assertTrue(hasattr(core, 'share_photo'), 'core.share_photo is missing (contract-phase4.md 4.1)')
+        for slug in ('syn-story', 'syn-photos'):        # a story (the cover is the second photo) and a compact page
+            with self.subTest(slug):
+                t = self.by[slug]
+                p = t['cover']['photo']
+                share = core.share_photo(t)
+                self.assertEqual(share, {'path': 'trips/%s/%s' % (slug, p['file']), 'w': p['w'], 'h': p['h'], 'alt': p['alt']})
+                self.assertEqual(self.og_image(slug), core.SITE_URL + share['path'])
+                self.assertEqual(self.share_meta(slug), {'og:image': core.SITE_URL + share['path'], 'og:image:type': 'image/webp',
+                                                         'og:image:width': str(p['w']), 'og:image:height': str(p['h']), 'og:image:alt': p['alt'],
+                                                         'twitter:card': 'summary_large_image', 'twitter:image:alt': p['alt']})
+        # a cover without alt text (syn-explicit's) is described by no tag; its size is still stated
+        self.assertEqual(self.by['syn-explicit']['cover']['photo']['alt'], '')
+        self.assertEqual(self.share_meta('syn-explicit'), {'og:image': core.SITE_URL + 'trips/syn-explicit/photos/03.webp', 'og:image:type': 'image/webp',
+                                                           'og:image:width': '1600', 'og:image:height': '1200', 'twitter:card': 'summary_large_image'})
+        # a cover without a recorded size gets no width or height (never one of the two, never a guess)
+        self.add('syn-unsized', date='2025-06-16', body=WRITEUP, photos=[photo('photos/01.jpg', None, alt='Synthetic "unsized" & <plain> photo')])
+        self.assertEqual(core.share_photo(self.by['syn-unsized']), {'path': 'trips/syn-unsized/photos/01.jpg', 'w': None, 'h': None,
+                                                                    'alt': 'Synthetic "unsized" & <plain> photo'})
+        self.assertEqual(self.share_meta('syn-unsized'), {'og:image': core.SITE_URL + 'trips/syn-unsized/photos/01.jpg', 'og:image:type': 'image/jpeg',
+                                                          'og:image:alt': 'Synthetic "unsized" & <plain> photo',
+                                                          'twitter:card': 'summary_large_image', 'twitter:image:alt': 'Synthetic "unsized" & <plain> photo'})
+        # ... and when only one of the two is recorded, neither is written (4.2: both or none)
+        self.add('syn-half-sized', date='2025-06-17', body=WRITEUP, photos=[{'file': 'photos/01.webp', 'w': 1600, 'alt': 'Synthetic half-sized photo'}])
+        self.assertEqual(core.share_photo(self.by['syn-half-sized']), {'path': 'trips/syn-half-sized/photos/01.webp', 'w': 1600, 'h': None,
+                                                                       'alt': 'Synthetic half-sized photo'})
+        self.assertEqual(self.share_meta('syn-half-sized'), {'og:image': core.SITE_URL + 'trips/syn-half-sized/photos/01.webp', 'og:image:type': 'image/webp',
+                                                             'og:image:alt': 'Synthetic half-sized photo',
+                                                             'twitter:card': 'summary_large_image', 'twitter:image:alt': 'Synthetic half-sized photo'})
+        for half in ({'w': 1600, 'h': None}, {'w': None, 'h': 1200}, {'w': 1600, 'h': 0}, {'w': '1600', 'h': '1200'}, {'w': True, 'h': True}):
+            tags = core._share_tags(dict(half, path='trips/syn-half-sized/photos/01.webp', alt=''))
+            self.assertNotIn('og:image:width', tags, half)
+            self.assertNotIn('og:image:height', tags, half)
+        # no photo, no image: the small card alone
+        self.assertIsNone(core.share_photo(self.by['syn-words']))
+        self.assertEqual(self.share_meta('syn-words'), {'twitter:card': 'summary'})
 
     def assertSharesCover(self, slug, file, story, hero=False):
         """The page's og:image is trips/<slug>/<file>, which is the trip's cover and not its first photo; one og:image."""
@@ -1853,10 +1976,14 @@ class MultiDayPageTests(ReportFixture):
         self.assertEqual(btn['data-copy'], core.SITE_URL + 'trips/syn-tour/')
 
     def test_existing_actions_and_gpx_are_unchanged(self):
-        # hard rule: every URL and GPX download unchanged
+        # hard rule: every URL and GPX download unchanged (contract-phase4.md 2.1: for a tour whose days have tracks)
+        self.assertTrue(all(d['track'] for d in self.by['syn-tour']['days']))
         box = self.mmain.find('div', cls='rep-actions')
-        dl = [a for a in box.find_all('a') if a.text() == 'Download all GPX'][0]
+        dl = [a for a in box.find_all('a') if a.text() == 'Download all GPX']
+        self.assertEqual(len(dl), 1)
+        dl = dl[0]
         self.assertEqual(dl['href'], 'syn-tour.gpx')
+        self.assertEqual(dl.classes, ['btn', 'btn--ink'])
         self.assertIn('download', dl)
         self.assertEqual(self.mpage.url, 'trips/syn-tour/')
 
@@ -1905,6 +2032,17 @@ class MultiDayPageTests(ReportFixture):
         self.assertLessEqual(len(m), 1)
         return m[0]['content'] if m else None
 
+    def share_meta(self, t):
+        """{property or name: content} of the share-image tags in the head of the trip's multi-day page."""
+        head = Doc(self.multiday.page(t, self.site).html).find('head')
+        out = {}
+        for m in head.find_all('meta'):
+            key = m['property'] or m['name'] or ''
+            if key.startswith(('og:image', 'twitter:')):
+                self.assertNotIn(key, out, 'two %s tags' % key)
+                out[key] = m['content']
+        return out
+
     def test_og_image_is_the_cover(self):
         # section 10.4: the share image of a multi-day page is its cover (multiday.share_image(t)), the photo its cards
         # show, not the first photo on the page (the first day photo)
@@ -1923,28 +2061,42 @@ class MultiDayPageTests(ReportFixture):
         self.add('syn-trek-named', kind='multi-day', activity='ski', date='2025-03-01', end_date='2025-03-02', cover_photo='photos/d02-01.webp',
                  days=[dict(day, photos=[photo('photos/d01-01.webp', LANDSCAPE, alt='Synthetic day photo one')]),
                        dict(two, photos=[photo('photos/d02-01.webp', PORTRAIT, alt='Synthetic day photo two')])])
-        want = {'syn-trek': ('parent', 'photos/01.webp'), 'syn-trek-days': ('day', 'photos/d02-01.webp'),
-                'syn-trek-named': ('explicit', 'photos/d02-01.webp')}
-        for slug, (source, file) in want.items():
+        want = {'syn-trek': ('parent', 'photos/01.webp', LANDSCAPE, 'Synthetic photo one'),
+                'syn-trek-days': ('day', 'photos/d02-01.webp', LANDSCAPE, 'Synthetic day photo two'),
+                'syn-trek-named': ('explicit', 'photos/d02-01.webp', PORTRAIT, 'Synthetic day photo two')}
+        for slug, (source, file, (w, h), alt) in want.items():
             with self.subTest(slug):
                 t = self.by[slug]
                 self.assertEqual((t['cover']['source'], t['cover']['photo']['file']), (source, file))
-                self.assertEqual(share_image(t), 'trips/%s/%s' % (slug, file))
+                # contract-phase4.md 4.1 and 10: share_image(t) is core.share_photo(t), the cover with the size and the
+                # alt text recorded for it (it was a bare path), and the page's og:image is SITE_URL + its path
+                self.assertEqual(share_image(t), core.share_photo(t))
+                self.assertEqual(share_image(t), {'path': 'trips/%s/%s' % (slug, file), 'w': w, 'h': h, 'alt': alt})
+                self.assertEqual(self.shared(t), core.SITE_URL + share_image(t)['path'])
                 self.assertEqual(self.shared(t), core.SITE_URL + 'trips/%s/%s' % (slug, file))
                 self.assertNotEqual(self.shared(t), core.SITE_URL + 'trips/%s/photos/d01-01.webp' % slug)   # the page's first photo
+                self.assertEqual(self.share_meta(t), {'og:image': core.SITE_URL + 'trips/%s/%s' % (slug, file), 'og:image:type': 'image/webp',
+                                                      'og:image:width': str(w), 'og:image:height': str(h), 'og:image:alt': alt,
+                                                      'twitter:card': 'summary_large_image', 'twitter:image:alt': alt})
 
     def test_og_image_of_the_fixture_tour_and_of_a_tour_without_photos(self):
         # section 10.4: the cover whenever the trip has one; none without photos. 'Else the first photo' cannot be
         # reached through the loader: content.resolve_cover gives a trip with any photo, its own or a day's, a cover
         share_image = need(self, self.multiday, 'share_image')
         t = self.by['syn-tour']
-        self.assertEqual(share_image(t), 'trips/syn-tour/' + t['cover']['photo']['file'])
+        # contract-phase4.md 4.1 and 10: the share photo (a dict: path, recorded size, alt), not a bare path
+        self.assertEqual(share_image(t), need(self, core, 'share_photo')(t))
+        self.assertEqual(share_image(t), {'path': 'trips/syn-tour/' + t['cover']['photo']['file'], 'w': 1600, 'h': 1200, 'alt': 'Synthetic photo one'})
+        self.assertEqual(self.shared(t), core.SITE_URL + share_image(t)['path'])
         self.assertEqual(self.shared(t), core.SITE_URL + 'trips/syn-tour/photos/01.webp')
         bare = self.add('syn-trek-bare', kind='multi-day', activity='ski', date='2025-03-01', end_date='2025-03-02',
                         days=[{'title': 'Synthetic Day One', 'date': '2025-03-01'}, {'title': 'Synthetic Day Two', 'date': '2025-03-02'}])
         self.assertIsNone(bare['cover'])
+        self.assertIsNone(core.share_photo(bare))
         self.assertIsNone(share_image(bare))
         self.assertIsNone(self.shared(bare))
+        # a photo-less tour shares no image at all: the small card, and none of the image's tags
+        self.assertEqual(self.share_meta(bare), {'twitter:card': 'summary'})
 
     def test_share_row_sits_before_the_related_block(self):
         # section 9: multi-day pages also carry the phone share row (report.share_row) before the related block, because
@@ -1961,6 +2113,2165 @@ class MultiDayPageTests(ReportFixture):
         self.assertEqual(self.mdoc.find('body').classes, ['p-multiday'])
         self.assertIsNone(self.mmain.find(cls='rep-hero'))
         self.assertIsNone(self.mmain.find('nav', cls='rep-toc'))
+
+    # ------------------------------------------------------------ contract-phase4.md 2.1: downloads only where a track is
+
+    DAY_GPX = ('<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="synthetic" xmlns="http://www.topografix.com/GPX/1/1">'
+               '<trk><name>Synthetic day %s</name><trkseg><trkpt lat="1.0" lon="2.0"></trkpt></trkseg></trk></gpx>\n')
+
+    def trek(self, slug, tracks, written=None):
+        """A three-day (or len(tracks)-day) ski tour whose day k has a GPX when tracks[k-1] is true; day `written` has a
+        write-up. Each day GPX holds one synthetic <trk>, so the build has something to put in the combined file."""
+        days = [{'title': 'Synthetic Day %d' % (i + 1), 'date': '2025-03-%02d' % (i + 1), 'track': bool(has)} for i, has in enumerate(tracks)]
+        if written:
+            days[written - 1]['body'] = WRITEUP
+        t = self.add(slug, kind='multi-day', activity='ski', date='2025-03-01', end_date='2025-03-%02d' % len(tracks), days=days)
+        for d in t['days']:
+            if d['track']:
+                with open(d['track'], 'w', encoding='utf-8') as fh:
+                    fh.write(self.DAY_GPX % d['id'])
+        return t
+
+    def mdoc_of(self, t):
+        return Doc(self.multiday.page(t, self.site).html)
+
+    def stage_links(self, doc):
+        """Per row of the stage table, the day's GPX link as (href, aria-label, download?) or None."""
+        out = []
+        for tr in doc.by_id('stages').find('tbody').find_all('tr'):
+            cell = tr.find('td', cls='c-gpx')
+            self.assertIsNotNone(cell, 'a stage row has no GPX cell')
+            links = cell.find_all('a')
+            self.assertLessEqual(len(links), 1)
+            out.append((links[0]['href'], links[0]['aria-label'], 'download' in links[0]) if links else None)
+        return out
+
+    def chapter_links(self, doc):
+        """Per day chapter, its 'Day N GPX' button as (text, href, download?) or None."""
+        out = []
+        for sec in doc.by_id('main').find_all('section', cls='mul-day'):
+            links = sec.find_all('a', cls='mul-dgpx')
+            self.assertLessEqual(len(links), 1)
+            out.append((links[0].text(), links[0]['href'], 'download' in links[0]) if links else None)
+        return out
+
+    def test_the_fixture_tour_has_tracks_so_it_offers_them(self):
+        # 2.1: 'Download all GPX' is there because a day has a track; the fixture tour's two days both do
+        t = self.by['syn-tour']
+        self.assertEqual([bool(d['track']) for d in t['days']], [True, True])
+        self.assertIs(need(self, self.multiday, 'has_gpx')(t), True)
+        self.assertEqual(gpx_links(self.mmain.find('div', cls='rep-actions')), [('Download all GPX', 'syn-tour.gpx')])
+        bar = self.mdoc.find('nav', cls='bbar')
+        self.assertEqual(bar_items(bar), [MAP, ('Days', '#overview'), ('GPX', 'syn-tour.gpx')])
+        self.assertEqual(bar['style'], '--n:3')
+        self.assertEqual(self.stage_links(self.mdoc), [('gpx/syn-tour-day-01.gpx', 'Download Day 1 GPX', True),
+                                                      ('gpx/syn-tour-day-02.gpx', 'Download Day 2 GPX', True)])
+        self.assertEqual(self.chapter_links(self.mdoc), [('Day 1 GPX', 'gpx/syn-tour-day-01.gpx', True), ('Day 2 GPX', 'gpx/syn-tour-day-02.gpx', True)])
+
+    def test_a_day_without_a_track_has_no_link_and_the_tour_keeps_download_all(self):
+        # 2.1: one trackless day among three: 'Download all GPX' stays (two days have tracks), and that day has no link
+        # of its own, in the stage table or in its chapter, while the days on either side keep theirs
+        t = self.trek('syn-trek-gap', (True, False, True), written=2)
+        self.assertEqual([bool(d['track']) for d in t['days']], [True, False, True])
+        self.assertIs(need(self, self.multiday, 'has_gpx')(t), True)
+        gpx_href = need(self, self.multiday, 'gpx_href')
+        self.assertEqual([gpx_href(t, d) for d in t['days']], ['gpx/syn-trek-gap-day-01.gpx', '', 'gpx/syn-trek-gap-day-03.gpx'])
+        doc = self.mdoc_of(t)
+        main = doc.by_id('main')
+        actions = main.find('div', cls='rep-actions')
+        self.assertEqual([(e.tag, e.text()) for e in actions.elements()], [('a', 'Day by day'), ('a', 'Download all GPX'), ('span', 'Copy link')])
+        dl = actions.find_all('a')[1]
+        self.assertEqual((dl['href'], dl.classes, 'download' in dl), ('syn-trek-gap.gpx', ['btn', 'btn--ink'], True))
+        self.assertEqual(self.stage_links(doc), [('gpx/syn-trek-gap-day-01.gpx', 'Download Day 1 GPX', True), None,
+                                                 ('gpx/syn-trek-gap-day-03.gpx', 'Download Day 3 GPX', True)])
+        self.assertEqual(self.chapter_links(doc), [('Day 1 GPX', 'gpx/syn-trek-gap-day-01.gpx', True), None,
+                                                   ('Day 3 GPX', 'gpx/syn-trek-gap-day-03.gpx', True)])
+        # the day itself is still on the page, with its row, its chapter and its write-up
+        self.assertEqual(len(doc.by_id('stages').find('tbody').find_all('tr')), 3)
+        self.assertIsNotNone(main.by_id('day-2'))
+        self.assertIn('Second synthetic paragraph', main.by_id('day-2').text())
+        # every download on the page, in order: all days, the two rows, the two chapters, the phone bar
+        self.assertEqual(gpx_links(doc.root), [('Download all GPX', 'syn-trek-gap.gpx'), ('', 'gpx/syn-trek-gap-day-01.gpx'),
+                                               ('', 'gpx/syn-trek-gap-day-03.gpx'), ('Day 1 GPX', 'gpx/syn-trek-gap-day-01.gpx'),
+                                               ('Day 3 GPX', 'gpx/syn-trek-gap-day-03.gpx'), ('GPX', 'syn-trek-gap.gpx')])
+        self.assertNotIn('day-02.gpx', self.multiday.page(t, self.site).html)
+        bar = doc.find('nav', cls='bbar')
+        self.assertEqual(bar_items(bar), [MAP, ('Days', '#overview'), ('Report', '#day-2'), ('GPX', 'syn-trek-gap.gpx')])
+        self.assertEqual(bar['style'], '--n:4')
+        self.assertEqual(['download' in a for a in bar.find_all('a')], [False, False, False, True])
+
+    def test_a_tour_without_any_day_track_offers_no_gpx_at_all(self):
+        # 2.1: 'Download all GPX' only when at least one day has a track: with none there is no title action, no GPX item
+        # in the phone bar (whose --n counts what it shows) and no .gpx link anywhere on the page
+        t = self.trek('syn-trek-none', (False, False), written=1)
+        self.assertEqual([d['track'] for d in t['days']], [None, None])
+        self.assertIs(need(self, self.multiday, 'has_gpx')(t), False)
+        page = self.multiday.page(t, self.site)
+        doc = Doc(page.html)
+        main = doc.by_id('main')
+        self.assertEqual(page.url, 'trips/syn-trek-none/')
+        actions = main.find('div', cls='rep-actions')
+        self.assertEqual([(e.tag, e.text()) for e in actions.elements()], [('a', 'Day by day'), ('span', 'Copy link')])
+        self.assertNotIn('Download all GPX', page.html)
+        self.assertEqual(gpx_links(doc.root), [])
+        self.assertNotIn('.gpx', page.html.lower())
+        self.assertEqual([n for n in doc.root.walk() if 'download' in n], [])
+        bar = doc.find('nav', cls='bbar')
+        self.assertEqual(bar_items(bar), [MAP, ('Days', '#overview'), ('Report', '#day-1')])
+        self.assertEqual(bar['style'], '--n:%d' % len(bar.find_all('a')))
+        self.assertEqual(bar['style'], '--n:3')
+        self.assertEqual(self.stage_links(doc), [None, None])
+        self.assertEqual(self.chapter_links(doc), [None, None])
+        # the page is otherwise whole: both days, the stage table with its (empty) GPX column, the share row
+        self.assertEqual([s['data-day'] for s in main.find_all('section', cls='mul-day')], ['1', '2'])
+        self.assertEqual(len(doc.by_id('stages').find('thead').find_all('th', cls='c-gpx')), 1)
+        self.assertEqual(page.html.count(need(self, self.report, 'share_row')('trips/syn-trek-none/')), 1)
+        # without a written day either, the bar is Map and Days alone
+        bare = self.trek('syn-trek-bare-none', (False, False))
+        bar = self.mdoc_of(bare).find('nav', cls='bbar')
+        self.assertEqual((bar_items(bar), bar['style']), ([MAP, ('Days', '#overview')], '--n:2'))
+
+    def test_the_bar_counts_its_items_with_and_without_the_gpx(self):
+        # 2.1: multiday.bottom_bar's --n is the number of items it shows, whichever of Report and GPX the tour has
+        bottom_bar = need(self, self.multiday, 'bottom_bar')
+        cases = [('syn-bar-a', (True, True), 1, 4), ('syn-bar-b', (True, True), None, 3), ('syn-bar-c', (False, False), 2, 3),
+                 ('syn-bar-d', (False, False), None, 2), ('syn-bar-e', (False, True), None, 3)]
+        for slug, tracks, written, want in cases:
+            with self.subTest(slug):
+                t = self.trek(slug, tracks, written=written)
+                nav = Doc(bottom_bar(t)).find('nav')
+                links = nav.find_all('a')
+                self.assertEqual(len(links), want)
+                self.assertEqual(nav['style'], '--n:%d' % want)
+                self.assertEqual([a['href'] for a in links if 'download' in a], [slug + '.gpx'] if any(tracks) else [])
+
+    def test_the_build_writes_exactly_the_gpx_files_the_page_links_to(self):
+        # 2.1 and 10: build.py writes no combined file when no day has a track, so a download is offered exactly when
+        # its file is published: per day, and for 'Download all GPX'
+        build = load_module(self, 'build')
+        out = os.path.join(self.tmp, '_out')
+        cases = {'syn-trek-gap': (True, False, True), 'syn-trek-none': (False, False), 'syn-trek-all': (True, True)}
+        for slug, tracks in cases.items():
+            self.trek(slug, tracks)
+        with mock.patch.object(build, 'OUT', out), mock.patch.object(build, 'LINK', False):
+            for slug in cases:   # a copy of the trip whose render folder is in the temp dir: the real rendered/ is not looked at
+                build.copy_trip_assets(dict(self.by[slug], rendered=os.path.join(self.tmp, '_rendered', slug)))
+        for slug, tracks in cases.items():
+            with self.subTest(slug):
+                t = self.by[slug]
+                folder = os.path.join(out, 'trips', slug)
+                written = sorted(os.path.relpath(os.path.join(d, f), folder).replace(os.sep, '/')
+                                 for d, _dirs, files in os.walk(folder) for f in files if f.endswith('.gpx'))
+                linked = sorted({href for _text, href in gpx_links(self.mdoc_of(t).root)})
+                self.assertEqual(written, linked)
+                self.assertEqual(slug + '.gpx' in written, any(tracks))
+                if any(tracks):
+                    with open(os.path.join(folder, slug + '.gpx'), encoding='utf-8') as fh:
+                        combined = fh.read()
+                    self.assertEqual(re.findall(r'<name>Synthetic day (\d+)</name>', combined), [d['id'] for d in t['days'] if d['track']])
+
+
+# ---------------------------------------------------------------- Phase 4: no track, no route (contract-phase4.md 10.2, 10.3)
+
+RECORDING = 'Stats from the GPS recording via Strava.'                                    # core.stats_note, sentence by sentence
+GPS_MAX = 'GPS max is the highest point in the GPX file, not a surveyed summit height.'
+AVG_SPEED = 'Average speed is distance divided by moving time.'
+PACE = 'Pace is moving time divided by distance.'
+ROUTE_ROW_ITEM = '<li><a class="rep-toc-a" href="#map">Route</a></li>'                    # the story section row's Route item
+STATS_ROW_ITEM = '<li><a class="rep-toc-a" href="#stats">Trip details</a></li>'           # ... and its Trip details item, without beta
+MAP_SECTION = re.compile(r'<section class="rep-map" id="map" aria-label="Route map">.*?</section>', re.S)
+STRIP_SECTION = re.compile(r'<section class="wrap rep-strip" id="stats" aria-label="Stats">.*?</section>', re.S)
+DRAWING = re.compile(r'(?:^|/)trips/([^/]+)/(tile|g112|g64)\.svg$')                        # a trip's route drawing, as an <img> src
+BBAR = re.compile(r'<nav class="bbar" aria-label="Report sections" style="--n:(\d+)">(.*?)</nav>', re.S)
+# what a single-day report without a track neither says nor links (10.2): the two title actions, the map key's route
+# symbol, the map caption's 'full track, not trimmed', and the two sentences of the stats note that speak of a recording
+ROUTE_WORDS = ('View route', 'Download GPX', 'Route (GPX)', 'full track', 'GPS recording', 'GPX file')
+DETAILS_BETA, DETAILS_STATS = ('Trip details', '#beta'), ('Trip details', '#stats')
+ROUTE = ('Route', '#map')
+REPORT_ROW, PHOTOS_ROW = REPORT, PHOTOS      # the section row names these two as the phone bar does
+
+
+def view_route_action():
+    """The story layout's 'View route' title action, exactly as report.page writes it."""
+    return '<a class="btn" href="#map">%sView route</a>' % core.icon('map', 18)
+
+
+def map_bar_item():
+    """The phone bottom bar's Map item, exactly as report.bottom_bar writes it."""
+    return '<a href="#map">%s<span>Map</span></a>' % core.icon('map', 24)
+
+
+def stats_bar_item():
+    """The phone bottom bar's Stats item, exactly as report.bottom_bar writes it."""
+    return '<a href="#stats">%s<span>Stats</span></a>' % core.icon('beta', 24)
+
+
+def strip_note(sentences, cls=''):
+    """The stats note of these sentences as core.stats_note writes it; '' for none (there is never an empty paragraph)."""
+    return ('<p class="strip-note%s">%s</p>' % ((' ' + cls) if cls else '', ' '.join(sentences))) if sentences else ''
+
+
+def drawings(node, slug=None):
+    """The route drawings (tile.svg / g112.svg / g64.svg) a page or fragment shows as <img>, as (slug, name), in order;
+    with slug, only that trip's."""
+    found = [DRAWING.search(i['src'] or '') for i in node.find_all('img')]
+    return [m.groups() for m in found if m and (slug is None or m.group(1) == slug)]
+
+
+def without_track(body, slug, note, note_left, stats=True):
+    """A single-day report page from <body> on with everything that needs a track taken out, and nothing else: the 'View
+    route' and 'Download GPX' title actions, the whole Route map section (map, key rows, caption, the phones' copy of
+    the stats note), the sentences of the stats note under the strip that speak of the recording (note -> note_left,
+    lists of sentences), the section row's Route item, and the phone bar's Map and GPX items with its --n two lower;
+    the bar itself when fewer than two items are left. stats=False (10.3): the report has no stats cells either, so
+    the whole Stats strip goes as well, with the section row's 'Trip details' item that led to it and the bar's Stats
+    item. What the page of a report without a track must be, given the page of the same report with one."""
+    out = body.replace(view_route_action(), '').replace(gpx_title_action(slug), '')
+    out = MAP_SECTION.sub('', out)
+    if stats:
+        out = out.replace(strip_note(note), strip_note(note_left))
+    else:
+        out = STRIP_SECTION.sub('', out).replace(STATS_ROW_ITEM, '')
+    out = out.replace(ROUTE_ROW_ITEM, '')
+
+    def bar(m):
+        k, items = int(m.group(1)), m.group(2)
+        for gone in [map_bar_item(), gpx_bar_item(slug + '.gpx')] + ([] if stats else [stats_bar_item()]):
+            k -= items.count(gone)
+            items = items.replace(gone, '')
+        return ('<nav class="bbar" aria-label="Report sections" style="--n:%d">%s</nav>' % (k, items)) if k >= 2 else ''
+    return BBAR.sub(bar, out)
+
+
+def expected_bar(t, gpx_href, has_beta, has_report, has_gallery, chart='', story=False, has_map=True, has_stats=True):
+    """The phone bottom bar as contract-phase4.md 10.2 and 10.3 word it, written out independently of report.bottom_bar:
+    the items in page order for the layout, the Map item only with a map, the Stats item (which stands in for a chart)
+    only with a stats strip, the GPX item only with a file, --n the number shown, and no bar at all when fewer than
+    two items are left."""
+    chart_item = [('#profile', 'profile', 'Speed' if chart == 'speed' else 'Profile')] if chart else \
+        ([('#stats', 'beta', 'Stats')] if has_stats else [])
+    the_map = [('#map', 'map', 'Map')] if has_map else []
+    if story:
+        if has_gallery:
+            items = [('#report', 'report', 'Report')] + the_map + [('#photos', 'photo', 'Photos')]
+        elif has_beta:
+            items = [('#beta', 'beta', 'Beta'), ('#report', 'report', 'Report')] + the_map
+        else:
+            items = [('#report', 'report', 'Report')] + the_map + chart_item
+    else:
+        items = the_map + ([('#beta', 'beta', 'Beta')] if has_beta else chart_item)
+        if has_report:
+            items.append(('#report', 'report', 'Report'))
+        elif has_gallery:
+            items.append(('#photos', 'photo', 'Photos'))
+    out = ['<a href="%s">%s<span>%s</span></a>' % (h, core.icon(ic, 24), lab) for h, ic, lab in items]
+    if gpx_href:
+        out.append('<a href="%s" download>%s<span>GPX</span></a>' % (gpx_href, core.icon('download', 24)))
+    if len(out) < 2:
+        return ''
+    return '<nav class="bbar" aria-label="Report sections" style="--n:%d">%s</nav>' % (len(out), ''.join(out))
+
+
+class NoTrackTests(ReportFixture):
+    """contract-phase4.md 10.2 as amended by 10.3: a single-day report without track.gpx has no route. Its page has no
+    'Download GPX' and no 'View route' title action, no Route map section at all, no Route item in the story section
+    row, no Map and no GPX item in the phone bar (and no bar when a single item would be left), a stats note and a
+    description that say nothing of a recording, a GPX file or a map, and no full-screen map page; a section page never
+    features it. 10.3: when it has no stats cells either it has no Stats strip, no 'Trip details' item unless it has
+    beta rows, and no Stats item in the bar; and a rendered folder its track left behind is not shown anywhere (no
+    map, chart, key, preload or route drawing). A report WITH a track is exactly what it was, rendered or not.
+
+    both() builds the page of a fixture report, takes its track.gpx away, loads the site again and builds the page once
+    more, so the two pages differ in the track alone. The render folder is the same on both sides."""
+
+    # slug, its render folder (None: none; {}: the three maps), then for the page WITH its track the section row (None:
+    # the compact layout has none) and the phone bar before its GPX item, and for the page WITHOUT it the title actions
+    # before the copy link, the section row and the phone bar (None: no bar, fewer than two items would be left). Only
+    # syn-story has stats (STATS_CELLS); the others lose their Stats strip with the track (10.3)
+    CASES = (
+        ('syn-story', {}, [REPORT_ROW, PHOTOS_ROW, ROUTE, DETAILS_BETA], [REPORT, MAP, PHOTOS],
+         [], [REPORT_ROW, PHOTOS_ROW, DETAILS_BETA], [REPORT, PHOTOS]),
+        ('syn-one', None, [REPORT_ROW, ROUTE, DETAILS_STATS], [REPORT, MAP, STATS],
+         [], [REPORT_ROW], None),
+        ('syn-one-beta', {}, [REPORT_ROW, ROUTE, DETAILS_BETA], [BETA_ITEM, REPORT, MAP],
+         [], [REPORT_ROW, DETAILS_BETA], [BETA_ITEM, REPORT]),
+        ('syn-two-tall', None, [REPORT_ROW, PHOTOS_ROW, ROUTE, DETAILS_STATS], [REPORT, MAP, PHOTOS],
+         [], [REPORT_ROW, PHOTOS_ROW], [REPORT, PHOTOS]),
+        ('syn-portrait', None, [REPORT_ROW, ROUTE, DETAILS_STATS], [REPORT, MAP, STATS],
+         [], [REPORT_ROW], None),
+        ('syn-words', None, None, [MAP, BETA_ITEM, REPORT], [('Read the report', '#report')], None, [BETA_ITEM, REPORT]),
+        ('syn-photos', None, None, [MAP, STATS, PHOTOS], [], None, None),
+        ('syn-tall-only', None, None, [MAP, STATS], [], None, None),
+        ('syn-track', None, None, [MAP, STATS], [], None, None),
+        ('syn-undated', None, None, [MAP, STATS], [], None, None),
+    )
+    STATS_CELLS = ('syn-story',)       # the fixture reports whose index.md states stats: the strip has cells
+    # core.summary of each case: its first sentence (without the full stop) and its facts before the closing one. With a
+    # track the closing fact is 'with map and GPX'; without, the summary ends where these end
+    SUMMARY = {
+        'syn-story': ('Hiking trip report: Synthetic Story, Synthetic Basin, Synthetic Range, Mon, Jun 1, 2026',
+                      '7.5 mi, 2,625 ft gain, GPS max 9,514 ft'),
+        'syn-one': ('Hiking trip report: Synthetic One Photo, Synthetic Range, Sun, May 10, 2026', ''),
+        'syn-one-beta': ('Hiking trip report: Synthetic One Photo With Beta, Synthetic Range, Tue, May 5, 2026', ''),
+        'syn-two-tall': ('Climbing trip report: Synthetic Two Portraits, Synthetic Range, Mon, Apr 20, 2026', ''),
+        'syn-portrait': ('Hiking trip report: Synthetic Lone Portrait, Synthetic Range, Fri, Apr 10, 2026', ''),
+        'syn-words': ('Hiking trip report: Synthetic Words Only, Synthetic Range, Sun, Mar 1, 2026', ''),
+        'syn-photos': ('Mountain biking trip report: Synthetic Photos Only, Synthetic Range, Sun, Feb 1, 2026', ''),
+        'syn-tall-only': ('Hiking trip report: Synthetic Portrait Only, Synthetic Range, Tue, Jan 20, 2026', ''),
+        'syn-track': ('Hiking trip report: Synthetic Track Only, Synthetic Range, Mon, Dec 1, 2025', ''),
+        'syn-undated': ('Hiking trip report: Synthetic Undated Track, Synthetic Range', ''),
+    }
+
+    def both(self, slug, render=None):
+        """(the page with its track, the page without it), for one report folder."""
+        if render is not None:
+            self.render(slug, **render)
+        self.assertTrue(self.by[slug]['track'], '%s: the fixture report has no track to take away' % slug)
+        with_ = self.page(slug).html
+        os.remove(os.path.join(self.tmp, slug, 'track.gpx'))
+        self.load_site()
+        self.assertIsNone(self.by[slug]['track'], slug)
+        if render is not None:
+            self.render(slug, **render)
+        return with_, self.page(slug).html
+
+    @staticmethod
+    def head_but_descriptions(html_):
+        """The head's elements in order, the description tags left out (test_a_page_without_a_track_lacks_exactly_this
+        compares those word for word)."""
+        skip = ({'name': 'description'}, {'property': 'og:description'}, {'type': 'application/ld+json'})
+        return [(n.tag, sorted(n.attrs.items()), n.text(clean=False)) for n in Doc(html_).find('head').elements()
+                if not any(all(n[k] == v for k, v in s.items()) for s in skip)]
+
+    @staticmethod
+    def descriptions(html_):
+        """(meta description, og:description) of a page."""
+        head = Doc(html_).find('head')
+        return (head.find('meta', attrs={'name': 'description'})['content'],
+                head.find('meta', attrs={'property': 'og:description'})['content'])
+
+    def note_of(self, slug):
+        """(the stats note's sentences with a track, the ones left without) for a fixture report: none of them has a beta
+        row labelled Track, is flat water or states a distance and a moving time, so the note is the two sentences about
+        the recording and nothing is left of it without one (10.3: a mountain bike report gets the average-speed
+        sentence only with both values; syn-photos has neither)."""
+        st = self.by[slug]['stats']
+        self.assertFalse(st.get('distance_km') and st.get('moving_s'), slug)
+        return [RECORDING, GPS_MAX], []
+
+    def assertNoRoute(self, slug):
+        """Item by item, what contract 10.2 and 10.3 say the page of a single-day report without a track does not have,
+        whatever its rendered folder holds, and that what it does link to on itself is there."""
+        html_, doc = self.page(slug).html, self.doc(slug)
+        main = self.main(slug)
+        self.assertIsNone(doc.by_id('map'), '%s has an element with id="map"' % slug)
+        self.assertNotIn('id="map"', html_)
+        self.assertEqual(doc.find_all(cls='rep-map'), [])
+        self.assertEqual(doc.find_all(cls='mapcap'), [])
+        self.assertEqual(doc.find_all(cls='rep-note-ph'), [])
+        self.assertEqual(doc.find('body').find_all(cls='map'), [])
+        self.assertEqual(doc.find('body').find_all(cls='mv'), [])
+        # 10.3: nothing a render folder holds: no chart section, no key of any kind, no preload of a map image, and
+        # no drawing of the route (the phone app bar would carry its glyph)
+        self.assertIsNone(doc.by_id('profile'), '%s has an element with id="profile"' % slug)
+        self.assertEqual(doc.find_all(cls='rep-prof'), [])
+        self.assertEqual(doc.find_all(cls='chart'), [])
+        self.assertEqual(doc.find_all(cls='keyrow'), [])
+        self.assertEqual([ln['href'] for ln in doc.find('head').find_all('link', attrs={'rel': 'preload'}) if '/map/' in (ln['href'] or '')], [])
+        self.assertEqual(drawings(doc, slug), [])
+        self.assertEqual([i['src'] for i in doc.find_all('img') if '/%s/map/' % slug in (i['src'] or '')], [])
+        # 10.3: the Stats strip is there exactly when the report states a stat, and is linked only then
+        strips = doc.find_all('section', cls='rep-strip')
+        self.assertEqual(len(strips), 1 if core.strip_cells(self.by[slug]) else 0)
+        self.assertEqual(doc.by_id('stats') is not None, bool(strips))
+        if not strips:
+            self.assertNotIn('#stats', html_)
+            self.assertNotIn('id="stats"', html_)
+            self.assertEqual(doc.find_all(cls='strip') + doc.find_all(cls='strip-note'), [])
+            self.assertNotIn('Trip stats', html_)
+            self.assertNotIn('<span>Stats</span>', html_)
+        else:
+            self.assertTrue(strips[0].find_all('div', cls='strip-c'), '%s has a stats strip without a cell' % slug)
+        hrefs = [n['href'] for n in doc.root.walk() if 'href' in n]
+        self.assertNotIn('#map', hrefs)
+        self.assertNotIn('href="#map"', html_)
+        # no link ends in 'map/' but the header's and the footer's to the site's own Map page; none leads to the
+        # report's full-screen map page (trips/<slug>/map/), which is not built
+        self.assertEqual([h for h in (a['href'] or '' for a in main.find_all('a')) if h.endswith('map/')], [])
+        self.assertEqual(sorted(set(h for h in hrefs if h.endswith('map/'))), ['../../map/'])
+        here = 'trips/%s/' % slug
+        resolved = [os.path.normpath(os.path.join(here, h.split('#')[0])).replace(os.sep, '/') for h in hrefs
+                    if '://' not in h and not h.startswith('#')]
+        self.assertEqual([r for r in resolved if r.startswith('trips/%s/map' % slug)], [])
+        self.assertNotIn('.gpx', html_.lower())
+        self.assertEqual(gpx_links(doc.root), [])
+        self.assertEqual([n for n in doc.root.walk() if 'download' in n], [])
+        for words in ROUTE_WORDS:
+            self.assertNotIn(words, html_, '%s says %r' % (slug, words))
+            self.assertNotIn(words, doc.text(), '%s says %r' % (slug, words))
+        ids = [n['id'] for n in doc.root.walk() if n['id']]
+        self.assertEqual(len(ids), len(set(ids)))
+        for h in hrefs:
+            if h.startswith('#'):
+                self.assertIn(h[1:], ids, '%s links %s, which is not an id on the page' % (slug, h))
+        # the stats note is a paragraph with something to say, or not there
+        for p in doc.find_all('p', cls='strip-note'):
+            self.assertTrue(p.text(), '%s has an empty stats note' % slug)
+        self.assertNotRegex(html_, r'<p class="strip-note[^"]*">\s*</p>')
+        self.assertLessEqual(len(doc.find_all('p', cls='strip-note')), 1)
+        for text in self.descriptions(html_):
+            self.assertNotIn('GPX', text)
+            self.assertNotIn('map', text.lower())
+
+    def test_the_cases_cover_both_layouts(self):
+        narrative = need(self, self.report, 'narrative')
+        self.assertEqual([narrative(self.by[c[0]]) for c in self.CASES], [True] * 5 + [False] * 5)
+        self.assertEqual(sorted(c[0] for c in self.CASES), sorted(set(SINGLE) - {'syn-explicit'}))
+        self.assertEqual(sorted(self.SUMMARY), sorted(c[0] for c in self.CASES))
+
+    def test_no_download_gpx_and_no_view_route_title_action(self):
+        # 10.2: no 'Download GPX' and no 'View route' title action; 'Read the report' (compact, with a write-up) and the
+        # copy link stay
+        for slug, render, _row, _bar, actions, _row2, _bar2 in self.CASES:
+            with self.subTest(slug):
+                with_, without = self.both(slug, render)
+                gpx, route = ('Download GPX', slug + '.gpx'), ('View route', '#map')
+                before = [(a.text(), a['href']) for a in Doc(with_).by_id('main').find('div', cls='rep-actions').find_all('a')]
+                self.assertEqual(before.count(gpx), 1)            # the controls are there because the track is ...
+                self.assertEqual(before.count(route), 1 if need(self, self.report, 'narrative')(self.by[slug]) else 0)
+                after = self.actions(slug)
+                self.assertNotIn(gpx, after)                      # ... and gone with it
+                self.assertNotIn(route, after)
+                self.assertEqual([text for text, _v in after if text in ('Download GPX', 'View route')], [])
+                self.assertEqual(after, actions + [('copy', core.SITE_URL + 'trips/%s/' % slug)])
+                self.assertEqual([x for x in after if x[0] != 'copy'], [x for x in before if x not in (gpx, route)])
+                self.assertNotIn('Download GPX', without)
+                self.assertNotIn('View route', without)
+
+    def test_no_map_and_no_gpx_item_in_the_phone_bar_and_the_bar_counts_what_it_shows(self):
+        # 10.2: no Map item and no GPX item in the phone bottom bar; --n counts only what is shown; with fewer than two
+        # items left there is no bar at all (one link is not navigation). 10.3: and no Stats item for a report that
+        # states no stats, since it has no strip to go to
+        for slug, render, _row, bar_with, _actions, _row2, bar in self.CASES:
+            with self.subTest(slug):
+                with_, without = self.both(slug, render)
+                gpx = ('GPX', slug + '.gpx')
+                before = Doc(with_).find('nav', cls='bbar')
+                self.assertEqual(bar_items(before), bar_with + [gpx])
+                self.assertEqual(before['style'], '--n:%d' % len(before.find_all('a')))
+                gone = (MAP, gpx) + (() if slug in self.STATS_CELLS else (STATS,))
+                left = [x for x in bar_items(before) if x not in gone]
+                self.assertEqual(len(left), len(bar_items(before)) - 2 - (1 if STATS in bar_with and STATS in gone else 0))
+                navs = self.doc(slug).find_all('nav', cls='bbar')
+                if len(left) < 2:
+                    self.assertIsNone(bar)
+                    self.assertEqual(navs, [])
+                    self.assertNotIn('bbar', without)
+                    self.assertNotIn('Report sections', without)
+                    continue
+                self.assertEqual(len(navs), 1)
+                after = navs[0]
+                self.assertEqual(bar_items(after), bar)
+                self.assertEqual(bar_items(after), left)
+                self.assertNotIn('GPX', [lab for lab, _h in bar_items(after)])
+                self.assertNotIn('Map', [lab for lab, _h in bar_items(after)])
+                self.assertEqual(after['style'], '--n:%d' % len(after.find_all('a')))
+                self.assertEqual(after['style'], '--n:%d' % len(left))
+                self.assertEqual([a for a in after.find_all('a') if 'download' in a], [])
+                ids = {n['id'] for n in self.doc(slug).root.walk() if n['id']}
+                for a in after.find_all('a'):
+                    self.assertTrue((a['href'] or '').startswith('#'))
+                    self.assertIn(a['href'][1:], ids)
+
+    def test_no_route_item_in_the_section_row(self):
+        # 10.2: the story section row lists exactly the sections the page has: Report · Photos · Trip details, no Route.
+        # 10.3: 'Trip details' is the Beta block, else the Stats strip; a report with neither has no such item
+        for slug, render, row_with, _bar, _actions, row, _bar2 in self.CASES:
+            with self.subTest(slug):
+                with_, without = self.both(slug, render)
+                before = Doc(with_).by_id('main').find_all('nav', cls='rep-toc')
+                after = self.main(slug).find_all('nav', cls='rep-toc')
+                if row is None:                                   # the compact layout never had a section row
+                    self.assertEqual((before, after), ([], []))
+                    self.assertNotIn('rep-toc', without)
+                    continue
+                self.assertEqual([(a.text(), a['href']) for a in before[0].find_all('a')], row_with)
+                self.assertEqual(self.toc(slug), row)
+                gone = (ROUTE,) + (() if slug in self.STATS_CELLS else (DETAILS_STATS,))
+                self.assertEqual(self.toc(slug), [x for x in row_with if x not in gone])
+                self.assertEqual(DETAILS_STATS in row, slug in self.STATS_CELLS and DETAILS_BETA not in row)
+                self.assertEqual(len(after), 1)
+                ids = {n['id'] for n in self.doc(slug).root.walk() if n['id']}
+                self.assertEqual([h[1:] for _t, h in self.toc(slug) if h[1:] not in ids], [])
+                section_nav = need(self, self.report, 'section_nav')
+                self.assertEqual(without.count(section_nav(True, PHOTOS_ROW in row, DETAILS_BETA in row, False, slug in self.STATS_CELLS)), 1)
+
+    def test_no_gpx_link_anywhere_on_the_page(self):
+        # 2.1 / 10.2: no GPX control anywhere: no .gpx href and no download attribute in the whole document; no map either
+        for slug, render, _row, _bar, _actions, _row2, _bar2 in self.CASES:
+            with self.subTest(slug):
+                with_, without = self.both(slug, render)
+                self.assertEqual(gpx_links(Doc(with_).root), [('Download GPX', slug + '.gpx'), ('GPX', slug + '.gpx')])
+                doc = self.doc(slug)
+                self.assertEqual(gpx_links(doc.root), [])
+                self.assertEqual([n for n in doc.root.walk() if 'download' in n], [])
+                self.assertNotIn('.gpx', without.lower())
+                self.assertNoRoute(slug)
+                # ... all of which the page with the track has: the list is what the track brings, not what no page has
+                for needle in ('id="map"', 'href="#map"', 'Download GPX', 'Route (GPX)', 'full track', 'GPS recording', 'GPX file'):
+                    self.assertIn(needle, with_)
+                # ... and, once rendered, the phone map's link to the full-screen map page
+                self.assertEqual('href="../../trips/%s/map/"' % slug in with_, render is not None)
+
+    def test_a_page_without_a_track_lacks_exactly_this(self):
+        # 10.2: 'a report WITH a track is exactly as before', and what the same report lacks without it is a list: from
+        # <body> on, the page without a track is the page with one minus that list (without_track), byte for byte. The
+        # head differs in nothing but the description, which loses its closing fact 'with map and GPX'. 10.3 adds to
+        # the list, for a report that states no stats: the Stats strip and the two links that led to it
+        for slug, render, _row, _bar, _actions, _row2, _bar2 in self.CASES:
+            with self.subTest(slug):
+                with_, without = self.both(slug, render)
+                story = need(self, self.report, 'narrative')(self.by[slug])
+                note, left = self.note_of(slug)
+                body_with, body = with_.split('</head>', 1)[1], without.split('</head>', 1)[1]
+                # everything on the list is on the page with a track, once (the note twice: its phone copy sits under the map)
+                self.assertEqual(body_with.count(view_route_action()), 1 if story else 0)
+                self.assertEqual(body_with.count(gpx_title_action(slug)), 1)
+                self.assertEqual(body_with.count(ROUTE_ROW_ITEM), 1 if story else 0)
+                self.assertEqual(body_with.count(map_bar_item()), 1)
+                self.assertEqual(body_with.count(gpx_bar_item(slug + '.gpx')), 1)
+                self.assertEqual(body_with.count(strip_note(note)), 1)
+                sections = MAP_SECTION.findall(body_with)
+                self.assertEqual(len(sections), 1)
+                self.assertEqual(sections[0].count('<section'), 1)
+                self.assertEqual(sections[0].count(strip_note(note, 'rep-note-ph')), 1)
+                self.assertEqual(len(BBAR.findall(body_with)), 1)
+                # the Stats strip is on the page with a track whether or not the report states a stat, as it always was:
+                # without cells it is the empty list and the note
+                stats = slug in self.STATS_CELLS
+                self.assertEqual(bool(core.strip_cells(self.by[slug])), stats)
+                strips = STRIP_SECTION.findall(body_with)
+                self.assertEqual(len(strips), 1)
+                self.assertEqual(strips[0].count('<section'), 1)
+                if not stats:
+                    self.assertEqual(strips[0], '<section class="wrap rep-strip" id="stats" aria-label="Stats">'
+                                                '<dl class="strip" style="--cells:1" aria-label="Trip stats"></dl>%s</section>' % strip_note(note))
+                self.assertEqual(body_with.count(STATS_ROW_ITEM), 1 if (story and DETAILS_STATS in _row) else 0)
+                self.assertEqual(body_with.count(stats_bar_item()), 1 if STATS in _bar else 0)
+                self.assertEqual(body, without_track(body_with, slug, note, left, stats=stats))
+                self.assertNotEqual(body, without_track(body_with, slug, note, left, stats=not stats))
+                self.assertNotEqual(without, with_)
+                # the sections that do not need the track are all still there, under the same ids and in the same order
+                ids = lambda html_: [n['id'] for n in Doc(html_).root.walk() if n['id']]   # noqa: E731
+                gone = set(n['id'] for n in Doc(sections[0]).root.walk() if n['id']) | {'map'} | (set() if stats else {'stats'})
+                self.assertEqual(ids(without), [i for i in ids(with_) if i not in gone])
+                self.assertIn('map', ids(with_))
+                self.assertIn('stats', ids(with_))
+                # the head: the same elements, and the description without its closing fact
+                self.assertEqual(self.head_but_descriptions(without), self.head_but_descriptions(with_))
+                self.assertNotIn('ld+json', with_)
+                first, facts = self.SUMMARY[slug]
+                ex = core.excerpt(self.by[slug], 400)
+                tail = (' ' + ex) if ex else ''
+                closing = (facts + ', ' if facts else '') + 'with map and GPX'
+                want_with = core.clip_words('%s. %s.%s' % (first, closing, tail), 155)
+                want = core.clip_words('%s.%s%s' % (first, (' %s.' % facts) if facts else '', tail), 155)
+                self.assertEqual(self.descriptions(with_), (want_with, want_with))
+                self.assertEqual(self.descriptions(without), (want, want))
+                self.assertIn('with map and GPX.', want_with)
+                self.assertNotIn('GPX', want)
+                self.assertNotIn('map', want)
+
+    def test_the_map_section_of_a_report_with_a_track_is_what_it_was(self):
+        # 10.2: a report with a track is exactly as before, rendered or not: the Route map section is the map block (empty
+        # while the track is not rendered), the two key rows, the caption and the phones' copy of the stats note, in
+        # the place its layout gives it, and the map is the page's eager image only when no photo leads
+        variants = [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]
+        for slug, rendered in (('syn-story', True), ('syn-story', False), ('syn-portrait', False), ('syn-words', True), ('syn-words', False),
+                               ('syn-photos', True), ('syn-track', False), ('syn-undated', True)):
+            with self.subTest(slug, rendered=rendered):
+                if rendered:
+                    self.render(slug)
+                else:
+                    self.by[slug]['rendered'] = os.path.join(self.tmp, '_rendered', 'never-' + slug)
+                    self.pages.pop(slug, None)
+                    self.docs.pop(slug, None)
+                t = self.by[slug]
+                self.assertTrue(t['track'])
+                meta = core.render_meta(t)
+                self.assertEqual(sorted(meta['maps']), ['map-col', 'map-phone', 'map-wide'] if rendered else [])
+                hero = self.hero(slug) is not None
+                block = core.map_block(t, t['url'], variants, t['url'] + 'map/', 'm', eager=not hero,
+                                       cls='map--report' + ('' if rendered else ' map--nowide'),
+                                       fullscreen_href='../../trips/%s/map/' % slug)
+                self.assertEqual('href="../../trips/%s/map/"' % slug in block, rendered)
+                if not rendered:
+                    self.assertEqual(block, '<div class="map map--report map--nowide"></div>')
+                want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
+                        % (block, core.key_rows(self.report.key_items(t, meta), self.report.key_items(t, meta, phone=True)),
+                           self.report.map_caption(t), strip_note(self.note_of(slug)[0], 'rep-note-ph')))
+                html_ = self.page(slug).html
+                self.assertEqual(MAP_SECTION.findall(html_), [want])
+                self.assertEqual('fetchpriority="high"' in want, rendered and not hero)
+                story = need(self, self.report, 'narrative')(t)
+                self.assertInOrder(marks(self.main(slug)), ['stats', 'report', 'map'] if story else ['stats', 'map'])
+                self.assertEqual(self.caption(slug)[-len(CREDIT) - 2:-len(CREDIT)], ['full track, not trimmed', 'North up'])
+                self.assertEqual(self.actions(slug)[-2], ('Download GPX', slug + '.gpx'))
+
+    def test_reports_written_without_a_track(self):
+        # plan 12.5: fixtures of the missing case, in both layouts, written without a track from the start: a story
+        # with a lead photo, a story without one, a compact report with a write-up, a bare one, and a bare mountain
+        # bike report whose beta has a Track row (the one sentence its stats note keeps company with)
+        mk = helpers.make_trip
+        mk(self.tmp, 'syn-nt-lead', title='Synthetic Trackless Story', date='2025-06-19', region=REGION, body=WRITEUP, beta=BETA,
+           stats={'distance_km': 12.0, 'gain_m': 800, 'high_m': 2900, 'low_m': 2100},
+           photos=[photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo one'), photo('photos/02.webp', LANDSCAPE, alt='Synthetic photo two')])
+        mk(self.tmp, 'syn-nt-tall', title='Synthetic Trackless Portrait', date='2025-06-18', region=REGION, body=WRITEUP,
+           photos=[photo('photos/01.webp', PORTRAIT, alt='Synthetic photo one')])
+        mk(self.tmp, 'syn-nt-words', title='Synthetic Trackless Words', date='2025-06-17', region=REGION, body=WRITEUP)
+        mk(self.tmp, 'syn-nt-bare', title='Synthetic Trackless Bare', date='2025-06-16', region=REGION)
+        mk(self.tmp, 'syn-nt-ride', title='Synthetic Trackless Ride', activity='mtb', date='2025-06-15', region=REGION,
+           beta=[{'label': 'Track', 'value': TRACK_NOTE}], stats={'distance_km': 20.0, 'moving': '1:00'})
+        self.load_site()
+        slugs = ['syn-nt-lead', 'syn-nt-tall', 'syn-nt-words', 'syn-nt-bare', 'syn-nt-ride']
+        self.assertEqual([self.by[s]['track'] for s in slugs], [None] * 5)
+        self.assertEqual([need(self, self.report, 'narrative')(self.by[s]) for s in slugs], [True, True, False, False, False])
+        self.assertEqual([self.hero(s) is not None for s in slugs], [True, False, False, False, False])
+        # slug: title actions before the copy link, the section row, the phone bar, the ids of its sections, its stats
+        # note. 10.3: only the first and the last state stats; the other three have no Stats strip, so no 'Trip
+        # details' item and no Stats bar item led there, and a bar of Report alone is no bar
+        want = {'syn-nt-lead': ([], [REPORT_ROW, PHOTOS_ROW, DETAILS_BETA], [REPORT, PHOTOS], ['title', 'hero', 'stats', 'beta', 'report', 'photos'], ''),
+                'syn-nt-tall': ([], [REPORT_ROW], None, ['title', 'report'], ''),
+                'syn-nt-words': ([('Read the report', '#report')], None, None, ['title', 'report'], ''),
+                'syn-nt-bare': ([], None, None, ['title'], ''),
+                'syn-nt-ride': ([], None, None, ['title', 'stats'], 'Track: %s. %s' % (TRACK_NOTE, AVG_SPEED))}
+        self.assertEqual([bool(core.strip_cells(self.by[s])) for s in slugs], [True, False, False, False, True])
+        for slug, (actions, row, bar, sections, note) in want.items():
+            with self.subTest(slug):
+                html_ = self.page(slug).html
+                self.assertEqual(self.page(slug).url, 'trips/%s/' % slug)
+                self.assertNoRoute(slug)
+                self.assertEqual(self.actions(slug), actions + [('copy', core.SITE_URL + 'trips/%s/' % slug)])
+                if row is None:
+                    self.assertEqual(self.main(slug).find_all('nav', cls='rep-toc'), [])
+                else:
+                    self.assertEqual(self.toc(slug), row)
+                navs = self.doc(slug).find_all('nav', cls='bbar')
+                if bar is None:
+                    self.assertEqual(navs, [])
+                    self.assertNotIn('class="bbar"', html_)
+                else:
+                    self.assertEqual([(bar_items(n), n['style']) for n in navs], [(bar, '--n:%d' % len(bar))])
+                self.assertEqual([m for m in marks(self.main(slug)) if m in LEGACY_IDS + ('hero',)], sections)
+                notes = self.doc(slug).find_all('p', cls='strip-note')
+                self.assertEqual([p.text() for p in notes], [note] if note else [])
+                self.assertEqual(html_.count('strip-note'), 1 if note else 0)
+                if note:
+                    self.assertIs(notes[0].parent, self.doc(slug).by_id('stats'))
+        # their descriptions: the summary's first sentence and the facts the content has, then the write-up; nothing else
+        ex = core.excerpt(self.by['syn-nt-words'], 400)
+        self.assertEqual(self.descriptions(self.page('syn-nt-lead').html)[0],
+                         core.clip_words('Hiking trip report: Synthetic Trackless Story, Synthetic Range, Thu, Jun 19, 2025. '
+                                         '7.5 mi, 2,625 ft gain, GPS max 9,514 ft. ' + ex, 155))
+        self.assertEqual(self.descriptions(self.page('syn-nt-words').html)[0],
+                         core.clip_words('Hiking trip report: Synthetic Trackless Words, Synthetic Range, Tue, Jun 17, 2025. ' + ex, 155))
+        self.assertEqual(self.descriptions(self.page('syn-nt-bare').html),
+                         ('Hiking trip report: Synthetic Trackless Bare, Synthetic Range, Mon, Jun 16, 2025.',) * 2)
+        self.assertEqual(self.descriptions(self.page('syn-nt-ride').html),
+                         ('Mountain biking trip report: Synthetic Trackless Ride, Synthetic Range, Sun, Jun 15, 2025. 12.4 mi.',) * 2)
+        # their neighbours with tracks keep everything (the pager and 'More like this' link reports, never files)
+        self.assertEqual(gpx_links(self.doc('syn-track').root), [('Download GPX', 'syn-track.gpx'), ('GPX', 'syn-track.gpx')])
+        self.assertIsNotNone(self.doc('syn-track').by_id('map'))
+        self.assertEqual(bar_items(self.bbar('syn-track')), [MAP, STATS, ('GPX', 'syn-track.gpx')])
+
+    def test_the_stats_strip_of_a_report_without_a_track(self):
+        # 10.3: a report without a track has the Stats strip exactly when it states a stat. (no stats, a distance, a
+        # distance and a moving time) x (story, compact) x (beta rows or not), on mountain bike reports, whose note
+        # carries the one sentence that needs both values: the strip section, the note, the section row and the bar
+        mk = helpers.make_trip
+        stats_of = {'none': None, 'dist': {'distance_km': 20.0}, 'both': {'distance_km': 20.0, 'moving': '2:00'}}
+        labels_of = {'none': [], 'dist': ['Distance'], 'both': ['Distance', 'Moving', 'Avg speed']}
+        cases = []
+        for k, (stats, story, beta) in enumerate(itertools.product(('none', 'dist', 'both'), (True, False), (True, False))):
+            slug = 'syn-st-%s-%s-%s' % (stats, 'story' if story else 'compact', 'beta' if beta else 'plain')
+            meta = dict(title='Synthetic %s' % slug[7:].replace('-', ' ').title(), activity='mtb', date='2025-07-%02d' % (k + 1),
+                        region=REGION, body=WRITEUP)
+            if stats_of[stats]:
+                meta['stats'] = stats_of[stats]
+            if beta:
+                meta['beta'] = BETA
+            if story:
+                meta['photos'] = [photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo one')]
+            mk(self.tmp, slug, **meta)
+            cases.append((slug, stats, story, beta))
+        self.load_site()
+        self.assertEqual(len(cases), 12)
+        for slug, stats, story, beta in cases:
+            with self.subTest(slug):
+                t = self.by[slug]
+                self.assertIsNone(t['track'])
+                self.assertEqual(need(self, self.report, 'narrative')(t), story)
+                html_, doc = self.page(slug).html, self.doc(slug)
+                self.assertNoRoute(slug)
+                # the strip section: not there without a stat; else the cells the content has and, only with a
+                # distance and a moving time, the sentence about the value derived from them
+                note = [AVG_SPEED] if stats == 'both' else []
+                found = STRIP_SECTION.findall(html_)
+                if stats == 'none':
+                    self.assertEqual(found, [])
+                    self.assertIsNone(doc.by_id('stats'))
+                    self.assertNotIn('strip', [c for n in doc.find('body').walk() for c in n.classes])
+                else:
+                    self.assertEqual(found, ['<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>'
+                                             % (core.strip(core.strip_cells(t)), strip_note(note))])
+                    self.assertEqual([dt.text() for dt in doc.by_id('stats').find_all('dt')], labels_of[stats])
+                    self.assertEqual(doc.by_id('stats').find('dl')['style'], '--cells:%d' % len(labels_of[stats]))
+                self.assertEqual([p.text() for p in doc.find_all('p', cls='strip-note')], note)
+                self.assertEqual(html_.count('Average speed is'), len(note))
+                # the section row (story): Report, then Trip details at the Beta block, else at the strip, else not at all
+                if story:
+                    details = [DETAILS_BETA] if beta else ([DETAILS_STATS] if stats != 'none' else [])
+                    self.assertEqual(self.toc(slug), [REPORT_ROW] + details)
+                else:
+                    self.assertEqual(self.main(slug).find_all('nav', cls='rep-toc'), [])
+                # the bar: Beta, else Stats when there is a strip, with Report; one item is no bar
+                if story:
+                    bar = [BETA_ITEM, REPORT] if beta else ([REPORT, STATS] if stats != 'none' else [REPORT])
+                else:
+                    bar = ([BETA_ITEM] if beta else ([STATS] if stats != 'none' else [])) + [REPORT]
+                navs = doc.find_all('nav', cls='bbar')
+                if len(bar) < 2:
+                    self.assertEqual(navs, [])
+                else:
+                    self.assertEqual([(bar_items(n), n['style']) for n in navs], [(bar, '--n:%d' % len(bar))])
+                self.assertEqual('<span>Stats</span>' in html_, STATS in bar and len(bar) > 1)
+        # the same three sets of stats on flat water (the pace sentence) and on a hike (no derived value, so no sentence)
+        for act, extra, both_labels, sentence in (('other', {'subtype': 'SUP'}, ['Distance', 'Moving', 'Avg pace'], [PACE]),
+                                                  ('hike', {}, ['Distance', 'Moving'], [])):
+            for k, stats in enumerate(('none', 'dist', 'both')):
+                slug = 'syn-st-%s-%s' % (act, stats)
+                meta = dict(title='Synthetic %s %s' % (act, stats), activity=act, date='2025-08-%02d' % (k + 1), region=REGION, **extra)
+                if stats_of[stats]:
+                    meta['stats'] = stats_of[stats]
+                mk(self.tmp, slug, **meta)
+            self.load_site()
+            for stats in ('none', 'dist', 'both'):
+                with self.subTest(act=act, stats=stats):
+                    slug = 'syn-st-%s-%s' % (act, stats)
+                    doc = self.doc(slug)
+                    self.assertNoRoute(slug)
+                    labels = {'none': None, 'dist': ['Distance'], 'both': both_labels}[stats]
+                    if labels is None:
+                        self.assertIsNone(doc.by_id('stats'))
+                    else:
+                        self.assertEqual([dt.text() for dt in doc.by_id('stats').find_all('dt')], labels)
+                    self.assertEqual([p.text() for p in doc.find_all('p', cls='strip-note')], sentence if stats == 'both' else [])
+                    self.assertEqual(doc.find_all('nav', cls='bbar'), [])          # Stats alone, or nothing, is no bar
+
+    def test_a_tracked_report_without_stats_keeps_its_strip(self):
+        # 10.3: a report WITH a track always has the Stats strip, even with no cell: byte for byte the section it was,
+        # with its 'Trip details' item and its Stats bar item. (Every fixture report but syn-story is one: the layout,
+        # bar and section-row tests above this class pin the rest of those pages.)
+        note = strip_note([RECORDING, GPS_MAX])
+        self.assertEqual(note, '<p class="strip-note">Stats from the GPS recording via Strava. GPS max is the highest point in the GPX '
+                               'file, not a surveyed summit height.</p>')
+        empty = '<section class="wrap rep-strip" id="stats" aria-label="Stats"><dl class="strip" style="--cells:1" aria-label="Trip stats"></dl>%s</section>'
+        for slug in ('syn-one', 'syn-portrait', 'syn-words', 'syn-tall-only', 'syn-track', 'syn-undated', 'syn-two-tall'):
+            with self.subTest(slug):
+                t = self.by[slug]
+                self.assertTrue(t['track'])
+                self.assertEqual(core.strip_cells(t), [])
+                self.assertEqual(STRIP_SECTION.findall(self.page(slug).html), [empty % note])
+                self.assertEqual(self.page(slug).html.count(note), 1)
+        self.assertEqual(self.toc('syn-one'), [REPORT_ROW, ROUTE, DETAILS_STATS])
+        self.assertEqual(bar_items(self.bbar('syn-one')), [REPORT, MAP, STATS, ('GPX', 'syn-one.gpx')])
+        self.assertEqual(bar_items(self.bbar('syn-track')), [MAP, STATS, ('GPX', 'syn-track.gpx')])
+        # the one change 10.3 makes to a tracked report: the sentence about a derived value is written only when the
+        # strip shows that value, so a mountain bike or flat-water report without a distance and a moving time no
+        # longer explains an average speed or a pace it does not state
+        self.assertEqual(self.by['syn-photos']['activity'], 'mtb')
+        self.assertEqual(STRIP_SECTION.findall(self.page('syn-photos').html), [empty % note])
+        ride = self.add('syn-ride-stats', activity='mtb', date='2025-09-01', stats={'distance_km': 20.0, 'moving': '2:00'})
+        self.assertEqual(self.doc('syn-ride-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, AVG_SPEED, GPS_MAX]))
+        self.assertEqual([dt.text() for dt in self.doc('syn-ride-stats').by_id('stats').find_all('dt')], ['Distance', 'Moving', 'Avg speed'])
+        self.assertTrue(ride['track'])
+        half = self.add('syn-ride-half', activity='mtb', date='2025-09-02', stats={'distance_km': 20.0})
+        self.assertEqual(self.doc('syn-ride-half').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, GPS_MAX]))
+        self.assertTrue(half['track'])
+        paddle = self.add('syn-paddle-bare', activity='other', subtype='SUP', date='2025-09-03')
+        self.assertTrue(paddle['track'])
+        self.assertEqual(STRIP_SECTION.findall(self.page('syn-paddle-bare').html), [empty % strip_note([RECORDING])])
+        self.add('syn-paddle-stats', activity='other', subtype='SUP', date='2025-09-04', stats={'distance_km': 5.0, 'moving': '1:00'})
+        self.assertEqual(self.doc('syn-paddle-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, PACE]))
+
+    def rendered_files(self, slug):
+        """What the render folder of the temp dir holds for a trip, on disk."""
+        folder = os.path.join(self.tmp, '_rendered', slug)
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+    def test_a_stale_render_folder_shows_nothing(self):
+        # 10.3: renders belong to a track. A report whose track.gpx was removed while its rendered folder (maps, a
+        # chart, the route drawings) is still there is, byte for byte, the page of a report that was never rendered:
+        # no map, no chart section, no key, no map preload, no drawing in the phone app bar. With the track back the
+        # page is again what it was
+        charts = {}
+
+        def reload():
+            """Load the site again and give every report rendered so far its folder back (a reload forgets them)."""
+            self.load_site()
+            for done, kind in charts.items():
+                self.render(done, chart=kind, drawn=True)
+
+        for slug, chart in (('syn-story', 'profile'), ('syn-one', 'profile'), ('syn-words', 'profile'), ('syn-photos', 'speed'),
+                            ('syn-track', 'profile')):
+            with self.subTest(slug):
+                track = os.path.join(self.tmp, slug, 'track.gpx')
+                self.render(slug, chart=chart, drawn=True)
+                with_, doc = self.page(slug).html, self.doc(slug)
+                hero = self.hero(slug) is not None
+                # with its track everything rendered is on the page ...
+                self.assertIsNotNone(doc.by_id('map'))
+                self.assertIsNotNone(doc.by_id('profile'))
+                self.assertEqual(doc.by_id('profile').find('h2').text(), 'Speed' if chart == 'speed' else 'Elevation')
+                self.assertTrue(doc.find_all(cls='keyrow'))
+                self.assertEqual(len([i for i in doc.find_all('img') if '/%s/map/' % slug in (i['src'] or '')]), 6)
+                self.assertEqual(len([ln for ln in self.preloads(slug) if '/map/' in ln['href']]), 0 if hero else 6)
+                self.assertEqual(drawings(doc, slug), [(slug, 'g64')])
+                self.assertEqual(drawings(doc.find('a', cls='ab-trip'), slug), [(slug, 'g64')])        # the phone app bar
+                # ... the report without its track and without a render folder ...
+                os.remove(track)
+                reload()
+                self.assertEqual(self.rendered_files(slug)[:3], ['g112.svg.html', 'g64.svg.html', 'map-col.base.svg'])
+                t = self.by[slug]
+                self.assertFalse(os.path.exists(t['rendered']))        # after a reload the trip points at no folder
+                bare = self.page(slug).html
+                # ... is the report without its track whose folder is still there
+                self.render(slug, chart=chart, drawn=True)
+                t = self.by[slug]
+                with open(os.path.join(t['rendered'], 'meta.json'), encoding='utf-8') as fh:
+                    on_disk = json.load(fh)
+                self.assertEqual((sorted(on_disk['maps']), len(on_disk['charts'])), (['map-col', 'map-phone', 'map-wide'], 3))
+                self.assertEqual(core.render_meta(t), {'maps': {}, 'charts': {}})
+                self.assertEqual(need(self, self.report, 'has_chart')(core.render_meta(t)), '')
+                self.assertEqual(self.page(slug).html, bare)
+                self.assertNoRoute(slug)
+                self.assertEqual(len(self.preloads(slug)), 1 if hero else 0)
+                self.assertEqual([ln['href'] for ln in self.preloads(slug) if '/map/' in ln['href']], [])
+                self.assertNotIn('class="map', bare)
+                self.assertNotIn('mv-hs', bare)
+                self.assertNotIn('.svg"', bare.split('<main', 1)[0].split('</head>', 1)[1])            # the app bar's glyph
+                # with the track back, all of it again
+                helpers.touch(track)
+                charts[slug] = chart
+                reload()
+                self.assertEqual(self.page(slug).html, with_)
+                self.assertEqual(drawings(self.doc(slug), slug), [(slug, 'g64')])
+
+    def test_a_stale_render_folder_draws_the_route_on_no_page(self):
+        # 10.3: ... nor is its route drawn where other pages list the report: a card (the tile, for a report without a
+        # photo), a section row, a table row, a phone row, a pager cell, the section page
+        section = load_module(self, 'sitegen.pages.section')
+        slug = 'syn-track'                                  # no photo: its cards and rows show the route tile
+        track = os.path.join(self.tmp, slug, 'track.gpx')
+
+        def seen():
+            """{where: the drawings of syn-track there} for every place that lists it."""
+            t = self.by[slug]
+            newer, older = need(self, self.report, 'neighbours')(t, self.site)
+            self.assertEqual((newer['slug'], older['slug']), ('syn-tall-only', 'syn-journal'))      # the hikes on either side
+            out = {'own page': drawings(self.doc(slug), slug),
+                   'pager, newer': drawings(Doc(self.report.pager(newer, newer['url'], self.site)), slug),
+                   'pager, older': drawings(Doc(self.report.pager(older, older['url'], self.site)), slug),
+                   'newer page': drawings(Doc(self.report.page(newer, self.site).html), slug),
+                   'card': drawings(Doc(core.trip_card(t, 'trips/', core.RELATED_SIZES)), slug),
+                   'row': drawings(Doc(core.trip_row(t, 'hiking/')), slug),
+                   'table row': drawings(Doc('<table>%s</table>' % core.table_row(t, 'map/')), slug),
+                   'phone row': drawings(Doc(core.phone_row(t, 'map/')), slug),
+                   'section page': drawings(Doc(section.page('hike', self.site).html), slug)}
+            related = [x['slug'] for x in self.site['published']
+                       if x is not t and slug in [c['slug'] for c in core.related(x, self.site, skip=self.report.neighbours(x, self.site))]]
+            self.assertTrue(related, 'no report lists syn-track under More like this')
+            out['related card'] = drawings(Doc(core.related_block(self.by[related[0]], self.by[related[0]]['url'], self.site,
+                                                                  skip=self.report.neighbours(self.by[related[0]], self.site))), slug)
+            return out
+
+        self.render(slug, chart='profile', drawn=True)
+        want = {'own page': [(slug, 'g64')], 'pager, newer': [(slug, 'g112')], 'pager, older': [(slug, 'g112')],
+                'newer page': [(slug, 'g112')], 'card': [(slug, 'tile')], 'row': [(slug, 'tile')], 'table row': [(slug, 'g112')],
+                'phone row': [(slug, 'g64')], 'section page': [(slug, 'tile')], 'related card': [(slug, 'tile')]}
+        self.assertEqual(seen(), want)
+        os.remove(track)
+        self.load_site()
+        self.render(slug, chart='profile', drawn=True)
+        t = self.by[slug]
+        self.assertEqual(self.rendered_files(slug)[:2], ['g112.svg.html', 'g64.svg.html'])
+        self.assertEqual(seen(), {k: [] for k in want})
+        for name, size in (('tile', None), ('g112', 'g112'), ('g64', 'g64')):
+            self.assertTrue(os.path.isfile(os.path.join(t['rendered'], name + '.svg.html')))
+            self.assertEqual(core.tile(t, 'trips/') if size is None else core.glyph(t, 'trips/', size), '')
+        # the card falls back to what a report that was never rendered shows: the activity disc
+        card = Doc(core.trip_card(t, 'trips/', core.RELATED_SIZES))
+        self.assertEqual(card.find_all('img'), [])
+        self.assertIsNotNone(card.find('div', cls='tcard-img--none'))
+        # ... while the other reports' drawings are untouched: syn-undated has its own folder and its track
+        self.render('syn-undated', drawn=True)
+        self.assertEqual(drawings(Doc(core.trip_row(self.by['syn-undated'], 'hiking/'))), [('syn-undated', 'tile')])
+        helpers.touch(track)
+        self.load_site()
+        self.render(slug, chart='profile', drawn=True)
+        self.assertEqual(seen(), want)
+
+    def test_the_build_publishes_no_render_of_a_trip_without_a_track(self):
+        # 10.3: build.copy_trip_assets writes tile.svg / g112.svg / g64.svg and the map/ renders only for a trip that
+        # has a track (its own, or a day's); the photos are copied either way
+        build = load_module(self, 'build')
+        out = os.path.join(self.tmp, '_out')
+
+        def published(slug, name):
+            """The files a build writes for the trip, relative to its folder, sorted."""
+            with mock.patch.object(build, 'OUT', os.path.join(out, name)), mock.patch.object(build, 'LINK', False):
+                build.copy_trip_assets(self.by[slug])
+            folder = os.path.join(out, name, 'trips', slug)
+            return sorted(os.path.relpath(os.path.join(d, f), folder).replace(os.sep, '/') for d, _dirs, files in os.walk(folder) for f in files)
+
+        slug = 'syn-photos'
+        photos = ['photos/01.webp', 'photos/02.webp', 'photos/03.webp']
+        renders = ['g112.svg', 'g64.svg'] + ['map/map-%s.%s' % (n, e) for n in ('col', 'phone', 'wide') for e in ('base.svg', 'webp')]
+        self.render(slug, chart='speed', drawn=True)
+        self.assertEqual(published(slug, 'with'), sorted(renders + photos + [slug + '.gpx', 'tile.svg']))
+        os.remove(os.path.join(self.tmp, slug, 'track.gpx'))
+        self.load_site()
+        self.render(slug, chart='speed', drawn=True)
+        self.assertEqual(self.rendered_files(slug)[:2], ['g112.svg.html', 'g64.svg.html'])     # the folder is all there
+        self.assertEqual(published(slug, 'without'), photos)
+        self.assertFalse(os.path.exists(os.path.join(out, 'without', 'trips', slug, 'map')))
+        helpers.touch(os.path.join(self.tmp, slug, 'track.gpx'))
+        self.load_site()
+        self.render(slug, chart='speed', drawn=True)
+        self.assertEqual(published(slug, 'back'), sorted(renders + photos + [slug + '.gpx', 'tile.svg']))
+        # a multi-day trip: no day track, no drawings and no map renders; one day track is enough for all of them
+        days = [{'title': 'Synthetic Day One', 'date': '2025-02-01', 'track': False}, {'title': 'Synthetic Day Two', 'date': '2025-02-02', 'track': False}]
+        self.add('syn-trek-stale', kind='multi-day', activity='ski', date='2025-02-01', end_date='2025-02-02', days=days,
+                 photos=[photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo one')])
+        self.render('syn-trek-stale', drawn=True)
+        self.assertIs(core.has_track(self.by['syn-trek-stale']), False)
+        self.assertEqual(core.render_meta(self.by['syn-trek-stale']), {'maps': {}, 'charts': {}})
+        self.assertEqual(published('syn-trek-stale', 'tour-without'), ['photos/01.webp'])
+        helpers.touch(os.path.join(self.tmp, 'syn-trek-stale', 'days', '02.gpx'))
+        self.load_site()
+        self.render('syn-trek-stale', drawn=True)
+        self.assertIs(core.has_track(self.by['syn-trek-stale']), True)
+        self.assertEqual(sorted(core.render_meta(self.by['syn-trek-stale'])['maps']), ['map-col', 'map-phone', 'map-wide'])
+        self.assertEqual(published('syn-trek-stale', 'tour-with'),
+                         sorted(renders + ['photos/01.webp', 'tile.svg', 'gpx/syn-trek-stale-day-02.gpx', 'syn-trek-stale.gpx']))
+
+    def test_bottom_bar_without_a_gpx_href(self):
+        # 10: report.bottom_bar(..., gpx_href='') has no GPX item and --n counts only what is shown, for every
+        # combination of beta, report, gallery, chart and layout; with an href the item is the last one, as before
+        t = self.by['syn-story']
+        for has_beta, has_report, has_gallery in itertools.product((True, False), repeat=3):
+            for chart in ('', 'profile', 'speed'):
+                for story in (False, True):
+                    with self.subTest(beta=has_beta, report=has_report, gallery=has_gallery, chart=chart, story=story):
+                        with_ = self.report.bottom_bar(t, t['url'], 'syn-story.gpx', has_beta, has_report, has_gallery, chart, story=story)
+                        without = self.report.bottom_bar(t, t['url'], '', has_beta, has_report, has_gallery, chart, story=story)
+                        self.assertEqual(without, without_gpx(with_, 'syn-story'))
+                        nav = Doc(without).find('nav')
+                        links = nav.find_all('a')
+                        self.assertEqual(nav['style'], '--n:%d' % len(links))
+                        self.assertGreaterEqual(len(links), 2)
+                        self.assertEqual([a for a in links if 'download' in a], [])
+                        self.assertEqual(Doc(with_).find('nav')['style'], '--n:%d' % (len(links) + 1))
+                        self.assertEqual(bar_items(Doc(with_).find('nav')), bar_items(nav) + [('GPX', 'syn-story.gpx')])
+
+    def test_bottom_bar_without_a_map(self):
+        # 10.2: report.bottom_bar(..., story=False, has_map=True): has_map=False leaves the Map item out, whatever the
+        # layout; the bar is '' when fewer than two items would be left; has_map defaults to True, where nothing changed.
+        # 10.3: ... has_stats=True: has_stats=False leaves the Stats item out (the item that stands in for a chart)
+        t = self.by['syn-story']
+        bottom_bar = need(self, self.report, 'bottom_bar')
+        gpx = ('GPX', 'syn-story.gpx')
+        empty = []
+        for has_beta, has_report, has_gallery in itertools.product((True, False), repeat=3):
+            for chart, story in itertools.product(('', 'profile', 'speed'), (False, True)):
+                args = (has_beta, has_report, has_gallery, chart)
+                full = bottom_bar(t, t['url'], 'syn-story.gpx', *args, story=story)
+                for gpx_href, has_map, has_stats in itertools.product(('syn-story.gpx', ''), (True, False), (True, False)):
+                    with self.subTest(beta=has_beta, report=has_report, gallery=has_gallery, chart=chart, story=story, gpx=gpx_href,
+                                      has_map=has_map, has_stats=has_stats):
+                        got = bottom_bar(t, t['url'], gpx_href, *args, story=story, has_map=has_map, has_stats=has_stats)
+                        self.assertEqual(got, expected_bar(t, gpx_href, *args, story=story, has_map=has_map, has_stats=has_stats))
+                        left = [x for x in bar_items(Doc(full).find('nav'))
+                                if (has_map or x != MAP) and (gpx_href or x != gpx) and (has_stats or x != STATS)]
+                        if len(left) < 2:
+                            self.assertEqual(got, '')
+                            empty.append((args, story, gpx_href, has_map, has_stats))
+                            continue
+                        nav = Doc(got).find('nav')
+                        self.assertEqual(bar_items(nav), left)
+                        self.assertEqual(nav['style'], '--n:%d' % len(left))
+                        self.assertEqual((nav.classes, nav['aria-label']), (['bbar'], 'Report sections'))
+                        self.assertEqual(MAP in left, has_map)
+                        self.assertEqual(gpx in left, bool(gpx_href))
+                        if not has_stats:
+                            self.assertNotIn('#stats', got)
+                        if has_map and has_stats:
+                            self.assertEqual(got, bottom_bar(t, t['url'], gpx_href, *args, story=story))      # the defaults
+                            self.assertEqual(got, bottom_bar(t, t['url'], gpx_href, has_beta, has_report, has_gallery, chart, story, True, True))
+                        if has_stats:
+                            self.assertEqual(got, bottom_bar(t, t['url'], gpx_href, *args, story=story, has_map=has_map))
+        # no bar: never with a file and a map (those two are a bar by themselves). With a strip (has_stats), only without
+        # a map and a file on a compact page with neither a write-up nor a gallery, whose one item would be Beta, the
+        # chart or Stats; a story always keeps Report and one more
+        self.assertTrue(empty)
+        for (has_beta, has_report, has_gallery, chart), story, gpx_href, has_map, has_stats in empty:
+            self.assertFalse(gpx_href and has_map)
+            if has_stats:
+                self.assertEqual((has_report, has_gallery, story, gpx_href, has_map), (False, False, False, '', False))
+        self.assertEqual(len([e for e in empty if e[4]]), 6)
+        # without a strip, and without a map and a file: a story of Report alone, a compact page of Report or Photos alone
+        # or of nothing at all, are no bar; a chart still counts as an item
+        bare = [(e[0], e[1]) for e in empty if not e[4] and not e[3] and not e[2]]
+        self.assertIn(((False, True, False, ''), True), bare)             # story: Report alone
+        self.assertIn(((False, True, False, ''), False), bare)            # compact: Report alone
+        self.assertIn(((False, False, True, ''), False), bare)            # compact: Photos alone
+        self.assertIn(((False, False, False, ''), False), bare)           # compact: nothing
+        self.assertNotIn(((False, True, False, 'profile'), True), bare)   # story: Report and Profile
+        self.assertNotIn(((True, True, False, ''), False), bare)          # compact: Beta and Report
+        nav = Doc(bottom_bar(t, t['url'], '', False, True, False, 'profile', story=True, has_map=False, has_stats=False)).find('nav')
+        self.assertEqual((bar_items(nav), nav['style']), ([REPORT, PROFILE], '--n:2'))
+        self.assertEqual(bottom_bar(t, t['url'], '', False, True, False, '', story=True, has_map=False, has_stats=False), '')
+        self.assertEqual(bottom_bar(t, t['url'], '', False, True, False, '', has_map=False, has_stats=False), '')
+        # one item and a file is two items: the bar stays
+        nav = Doc(bottom_bar(t, t['url'], 'syn-story.gpx', False, False, False, '', has_map=False)).find('nav')
+        self.assertEqual((bar_items(nav), nav['style']), ([STATS, gpx], '--n:2'))
+        # and exactly two items without either is still a bar
+        nav = Doc(bottom_bar(t, t['url'], '', False, True, False, '', has_map=False)).find('nav')
+        self.assertEqual((bar_items(nav), nav['style']), ([STATS, REPORT], '--n:2'))
+
+    def test_section_nav_without_a_map(self):
+        # 10.2: report.section_nav(has_report, has_gallery, has_beta, has_map=True): has_map=False drops the Route item
+        # and nothing else; the default is the row as it was. 10.3: ... has_stats=True: 'Trip details' is listed when the
+        # page has a Beta block (#beta) or a Stats strip (#stats), so has_stats=False drops it only without beta
+        section_nav = need(self, self.report, 'section_nav')
+        for has_report, has_gallery, has_beta in itertools.product((True, False), repeat=3):
+            with self.subTest(report=has_report, gallery=has_gallery, beta=has_beta):
+                with_ = section_nav(has_report, has_gallery, has_beta)
+                self.assertEqual(section_nav(has_report, has_gallery, has_beta, True), with_)
+                self.assertEqual(section_nav(has_report, has_gallery, has_beta, has_map=True), with_)
+                self.assertEqual(section_nav(has_report, has_gallery, has_beta, True, True), with_)
+                self.assertEqual(section_nav(has_report, has_gallery, has_beta, has_map=True, has_stats=True), with_)
+                self.assertEqual(with_.count(ROUTE_ROW_ITEM), 1)
+                without = section_nav(has_report, has_gallery, has_beta, False)
+                self.assertEqual(without, section_nav(has_report, has_gallery, has_beta, has_map=False))
+                self.assertEqual(without, with_.replace(ROUTE_ROW_ITEM, ''))
+                items = [(a.text(), a['href']) for a in Doc(without).find_all('a')]
+                want = ([REPORT_ROW] if has_report else []) + ([PHOTOS_ROW] if has_gallery else [])
+                self.assertEqual(items, want + [DETAILS_BETA if has_beta else DETAILS_STATS])
+                self.assertNotIn('Route', without)
+                self.assertNotIn('#map', without)
+                # without a strip
+                for has_map in (True, False):
+                    got = section_nav(has_report, has_gallery, has_beta, has_map, False)
+                    self.assertEqual(got, section_nav(has_report, has_gallery, has_beta, has_map=has_map, has_stats=False))
+                    base = section_nav(has_report, has_gallery, has_beta, has_map)
+                    self.assertEqual(got, base if has_beta else base.replace(STATS_ROW_ITEM, ''))
+                    self.assertEqual(base.count(STATS_ROW_ITEM), 0 if has_beta else 1)
+                    self.assertNotIn('#stats', got)
+                    self.assertEqual([(a.text(), a['href']) for a in Doc(got).find_all('a')],
+                                     want + ([ROUTE] if has_map else []) + ([DETAILS_BETA] if has_beta else []))
+        self.assertEqual([(a.text(), a['href']) for a in Doc(section_nav(True, True, True)).find_all('a')],
+                         [REPORT_ROW, PHOTOS_ROW, ROUTE, DETAILS_BETA])
+        self.assertEqual([(a.text(), a['href']) for a in Doc(section_nav(True, False, False, False, False)).find_all('a')], [REPORT_ROW])
+
+    def test_build_makes_a_map_page_exactly_for_the_reports_with_a_track(self):
+        # 10.2: report.build builds trips/<slug>/map/ for a single-day report with a track, rendered or not, and for no
+        # report without one, whatever a stale render folder holds. (A goal gets one only with a rendered map:
+        # tests/test_metadata.py pins that on its built site; the fixture goal here has a track and no render)
+        mk = helpers.make_trip
+        mk(self.tmp, 'syn-nt-words', title='Synthetic Trackless Words', date='2025-06-17', region=REGION, body=WRITEUP)
+        mk(self.tmp, 'syn-nt-bare', title='Synthetic Trackless Bare', date='2025-06-16', region=REGION)
+        mk(self.tmp, 'syn-nt-stale', title='Synthetic Trackless Stale', date='2025-06-15', region=REGION)
+        self.load_site()
+        self.render('syn-story')
+        self.render('syn-words', chart='profile')
+        self.render('syn-nt-stale', chart='profile')
+        no_track = ['syn-nt-words', 'syn-nt-bare', 'syn-nt-stale']
+        self.assertEqual([self.by[s]['track'] for s in no_track], [None] * 3)
+        with open(os.path.join(self.by['syn-nt-stale']['rendered'], 'meta.json'), encoding='utf-8') as fh:
+            self.assertEqual(sorted(json.load(fh)['maps']), ['map-col', 'map-phone', 'map-wide'])     # the folder is there ...
+        self.assertEqual(core.render_meta(self.by['syn-nt-stale']), {'maps': {}, 'charts': {}})          # ... and is not read (10.3)
+        pages = need(self, self.report, 'build')(self.site)
+        urls = [p.url for p in pages]
+        self.assertEqual(len(urls), len(set(urls)))
+        want = []
+        for t in self.site['trips']:                          # in site order: each report, then its map page
+            if t['slug'] in SINGLE:
+                want += [t['url'], t['url'] + 'map/']
+            elif t['slug'] in no_track:
+                want.append(t['url'])
+        self.assertEqual([u for u in urls if not u.startswith('trips/syn-goal/')], want)
+        self.assertEqual(len(want), 2 * len(SINGLE) + 3)
+        for slug in no_track:
+            self.assertIn('trips/%s/' % slug, urls)
+            self.assertNotIn('trips/%s/map/' % slug, urls)
+        by_url = {p.url: p for p in pages}
+        for slug in SINGLE:
+            with self.subTest(slug):
+                self.assertTrue(self.by[slug]['track'])
+                helper = by_url['trips/%s/map/' % slug]
+                self.assertIs(helper.index, False)
+                self.assertIn('<meta name="robots" content="noindex">', helper.html)
+                self.assertEqual(helper.html, self.report.fullscreen_page(self.by[slug]).html)
+                # its way back lands on the section the report page has
+                back = Doc(helper.html).find('a', attrs={'href': '../#map'})
+                self.assertIsNotNone(back)
+                self.assertEqual(back.text(), 'Back to report')
+                self.assertIsNotNone(Doc(by_url['trips/%s/' % slug].html).by_id('map'))
+                self.assertEqual(by_url['trips/%s/' % slug].html, self.report.page(self.by[slug], self.site).html)
+        # the multi-day trip and the journal are other modules' pages
+        self.assertEqual([u for u in urls if 'syn-tour' in u or 'syn-journal' in u], [])
+
+    # ------------------------------------------------------------ section pages: the featured block
+
+    def featured_page(self, section):
+        return section.page('hike', self.site).html
+
+    def test_a_section_pages_featured_block_offers_the_gpx_only_with_a_track(self):
+        # 10.2: a report without a track is never a section's featured report; section.featured keeps its own guard (no
+        # 'Download GPX' button without a track) for a direct call
+        section = load_module(self, 'sitegen.pages.section')
+        self.add('syn-featured', featured=True, date='2026-02-10', body=WRITEUP, photos=[photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo one')])
+        self.render('syn-featured')
+        button = ('<a class="btn btn--ink sec-feat-gpx" href="../trips/syn-featured/syn-featured.gpx" download>%sDownload GPX</a>'
+                  % core.icon('download', 18))
+        with_ = self.featured_page(section)
+        feat = Doc(with_).by_id('main').by_id('featured')
+        self.assertEqual(feat.find('h2').text(), 'Synthetic Featured')      # the block is this report's
+        self.assertEqual([(a.text(), a['href'], a.classes, 'download' in a) for a in feat.find_all('a', cls='sec-feat-gpx')],
+                         [('Download GPX', '../trips/syn-featured/syn-featured.gpx', ['btn', 'btn--ink', 'sec-feat-gpx'], True)])
+        self.assertEqual(gpx_links(Doc(with_).root), [('Download GPX', '../trips/syn-featured/syn-featured.gpx')])
+        self.assertEqual(with_.count(button), 1)
+        block_with = need(self, section, 'featured')(self.by['syn-featured'], 'hiking/')
+        self.assertIn(button, block_with)
+        self.assertIn(block_with, with_)
+        self.assertIn('mv--col', block_with)                                 # its rendered map is in the block
+        # the same block before the report was rendered: the empty map (what 10.3 makes of a folder without a track)
+        unrendered = section.featured(dict(self.by['syn-featured'], rendered=os.path.join(self.tmp, '_rendered', 'never')), 'hiking/')
+        self.assertIn(button, unrendered)
+        self.assertIn('<div class="map map--nowide sec-feat-mapv"></div>', unrendered)
+        os.remove(os.path.join(self.tmp, 'syn-featured', 'track.gpx'))
+        self.load_site()
+        self.render('syn-featured')
+        self.assertIsNone(self.by['syn-featured']['track'])
+        self.assertIs(self.by['syn-featured']['featured'], True)             # still flagged, and no longer the one
+        without = self.featured_page(section)
+        doc = Doc(without)
+        feat = doc.by_id('main').by_id('featured')
+        self.assertEqual(feat.find('h2').text(), 'Synthetic Story')          # the newest hike that has a track
+        self.assertEqual(feat.find('h2').find('a')['href'], '../trips/syn-story/')
+        self.assertEqual(gpx_links(doc.root), [('Download GPX', '../trips/syn-story/syn-story.gpx')])
+        self.assertNotIn('syn-featured.gpx', without)
+        self.assertNotIn('trips/syn-featured/map/', without)
+        self.assertNotIn('../trips/syn-featured/', [a['href'] for a in feat.find_all('a')])
+        # the report is a row of the list now, where the newest hike with a track was, and that one is not listed twice
+        rows = [a['href'] for a in doc.by_id('main').by_id('reports').find_all('a') if a not in feat.find_all('a')]
+        self.assertIn('../trips/syn-featured/', rows)
+        self.assertNotIn('../trips/syn-story/', rows)
+        self.assertIn('../trips/syn-story/', [a['href'] for a in Doc(with_).by_id('main').by_id('reports').find_all('a')])
+        # a direct call: the block of a report without a track has no button and names no file. 10.3: the folder its
+        # track left behind is not drawn either, so the rest of it is the block of the unrendered report with its
+        # track, minus the sentences of the stats note that speak of the recording
+        block = section.featured(self.by['syn-featured'], 'hiking/')
+        self.assertTrue(os.path.isfile(os.path.join(self.by['syn-featured']['rendered'], 'map-col.svg.html')))
+        self.assertNotIn('sec-feat-gpx', block)
+        self.assertNotIn('.gpx', block)
+        self.assertNotIn('Download GPX', block)
+        self.assertEqual([n for n in Doc(block).root.walk() if 'download' in n], [])
+        self.assertNotIn('mv--col', block)
+        self.assertEqual(Doc(block).find_all('img', cls='mv-hs'), [])
+        self.assertEqual(unrendered.count(strip_note([RECORDING, GPS_MAX])), 1)
+        self.assertEqual(block, unrendered.replace(button, '').replace(strip_note([RECORDING, GPS_MAX]), ''))
+        self.assertNotEqual(block, block_with.replace(button, '').replace(strip_note([RECORDING, GPS_MAX]), ''))
+        self.assertEqual([a['href'] for a in Doc(block).find_all('a')], ['../trips/syn-featured/', 'https://example.test/', '../trips/syn-featured/'])
+
+    def test_pick_featured_takes_only_reports_with_a_track(self):
+        # 10.2: section.pick_featured(ts): only single-day reports with a track are candidates: the first one marked
+        # featured: true, else the newest; None when there is none
+        section = load_module(self, 'sitegen.pages.section')
+        pick = need(self, section, 'pick_featured')
+        hikes = lambda: need(self, section, 'reports_of')(self.site, 'hike')   # noqa: E731
+        self.assertEqual(pick(hikes())['slug'], 'syn-story')                  # nothing flagged: the newest (with a track)
+        mk = helpers.make_trip
+        mk(self.tmp, 'syn-pf-new', title='Synthetic Newest', date='2026-12-01', region=REGION, featured=True, body=WRITEUP)   # no track
+        mk(self.tmp, 'syn-pf-next', title='Synthetic Next', date='2026-11-01', region=REGION)                               # no track
+        self.load_site()
+        ts = hikes()
+        self.assertEqual([t['slug'] for t in ts[:3]], ['syn-pf-new', 'syn-pf-next', 'syn-story'])
+        self.assertEqual([(bool(t['track']), t['featured']) for t in ts[:3]], [(False, True), (False, False), (True, False)])
+        self.assertEqual(pick(ts)['slug'], 'syn-story')         # skips the flagged report and the newer one: neither has a track
+        self.assertIs(pick(ts), self.by['syn-story'])
+        mk(self.tmp, 'syn-pf-flag', title='Synthetic Flagged', date='2024-01-01', region=REGION, featured=True, track=True)
+        mk(self.tmp, 'syn-pf-flag-old', title='Synthetic Flagged Earlier', date='2023-01-01', region=REGION, featured=True, track=True)
+        self.load_site()
+        ts = hikes()
+        self.assertEqual(pick(ts)['slug'], 'syn-pf-flag')       # featured: true wins among the reports with a track, the newest such
+        self.assertEqual(pick([t for t in ts if t['slug'] != 'syn-pf-flag'])['slug'], 'syn-pf-flag-old')
+        self.assertEqual(pick([t for t in ts if not t['slug'].startswith('syn-pf-flag')])['slug'], 'syn-story')
+        # None: nothing, only reports without a track (flagged or not), only trips of other kinds
+        no_track = [t for t in ts if t['kind'] == 'trip' and not t['track']]
+        self.assertEqual(sorted(t['slug'] for t in no_track), ['syn-pf-new', 'syn-pf-next'])
+        self.assertIsNone(pick([]))
+        self.assertIsNone(pick(no_track))
+        self.assertIsNone(pick([self.by['syn-pf-new']]))
+        tour, journal = self.by['syn-tour'], self.by['syn-journal']
+        self.assertTrue(core.has_track(tour) and core.has_track(journal))
+        self.assertIsNone(pick([tour, journal]))                # a multi-day trip or a journal is never the featured report
+        self.assertEqual(pick([tour, self.by['syn-pf-new'], journal, self.by['syn-track']])['slug'], 'syn-track')
+        # ... not even one that carries a track.gpx of its own beside its day files, flagged or not; nor is a planned route
+        mk(self.tmp, 'syn-pf-tour', title='Synthetic Tour With Its Own Track', kind='multi-day', date='2026-10-01', end_date='2026-10-02',
+           region=REGION, featured=True, track=True, days=[{'title': 'Synthetic Day One', 'date': '2026-10-01'},
+                                                           {'title': 'Synthetic Day Two', 'date': '2026-10-02'}])
+        self.load_site()
+        own = self.by['syn-pf-tour']
+        self.assertTrue(own['track'] and own['featured'] and own['kind'] == 'multi-day')
+        self.assertIsNone(pick([own]))
+        self.assertIsNone(pick([own, self.by['syn-goal']]))
+        self.assertTrue(self.by['syn-goal']['track'])
+        self.assertEqual(pick(hikes())['slug'], 'syn-pf-flag')
+        self.assertEqual(pick([own, self.by['syn-track']])['slug'], 'syn-track')
+        # every pick has a track, whatever the list
+        for k in range(len(ts)):
+            got = pick(ts[k:])
+            self.assertTrue(got is None or got['track'])
+
+    def test_a_section_whose_newest_report_has_no_track_features_the_newest_that_has_one(self):
+        # 10.2 on the built page: climbing's newest report has no track, so the block is the next one's, complete with its
+        # map section link and its download; the trackless report is a row of the list
+        section = load_module(self, 'sitegen.pages.section')
+        mk = helpers.make_trip
+        mk(self.tmp, 'syn-crag-new', title='Synthetic Newest Crag', activity='climb', date='2026-09-01', region=REGION, body=WRITEUP)
+        mk(self.tmp, 'syn-crag-old', title='Synthetic Older Crag', activity='climb', date='2026-01-05', region=REGION, track=True)
+        self.load_site()
+        climbs = need(self, section, 'reports_of')(self.site, 'climb')
+        self.assertEqual([(t['slug'], bool(t['track'])) for t in climbs],
+                         [('syn-crag-new', False), ('syn-two-tall', True), ('syn-crag-old', True)])
+        html_ = section.page('climb', self.site).html
+        doc = Doc(html_)
+        feat = doc.by_id('main').by_id('featured')
+        self.assertEqual(feat.find('h2').text(), 'Synthetic Two Portraits')
+        self.assertEqual(gpx_links(doc.root), [('Download GPX', '../trips/syn-two-tall/syn-two-tall.gpx')])
+        rows = [a['href'] for a in doc.by_id('main').by_id('reports').find_all('a') if a not in feat.find_all('a')]
+        self.assertEqual([h for h in rows if h.startswith('../trips/')], ['../trips/syn-crag-new/', '../trips/syn-crag-old/'])
+        self.assertNotIn('syn-crag-new.gpx', html_)
+        self.assertNotIn('trips/syn-crag-new/map/', html_)
+        self.assertIn(section.featured(self.by['syn-two-tall'], 'climbing/'), html_)
+
+    def test_a_section_of_reports_without_a_track_has_no_featured_block(self):
+        # 10.2: a section whose single-day reports all lack a track has no featured block: every report is a row, no
+        # link names a file or a map page, and every link the page keeps to itself has its target
+        section = load_module(self, 'sitegen.pages.section')
+        for slug in ('syn-photos', 'syn-two-tall'):          # the one mountain bike report and the one climbing report
+            os.remove(os.path.join(self.tmp, slug, 'track.gpx'))
+        helpers.make_trip(self.tmp, 'syn-ride-two', title='Synthetic Second Ride', activity='mtb', date='2025-10-01', region=REGION)
+        self.load_site()
+        for act, here, slugs in (('mtb', 'mountain-biking/', ['syn-photos', 'syn-ride-two']), ('climb', 'climbing/', ['syn-two-tall'])):
+            with self.subTest(act):
+                ts = need(self, section, 'reports_of')(self.site, act)
+                self.assertEqual([(t['slug'], t['track']) for t in ts], [(s, None) for s in slugs])
+                self.assertIsNone(need(self, section, 'pick_featured')(ts))
+                page = section.page(act, self.site)
+                doc = Doc(page.html)
+                self.assertEqual(page.url, here)
+                self.assertIsNone(doc.by_id('featured'))
+                self.assertNotIn('sec-feat', page.html)
+                self.assertNotIn('Featured', doc.by_id('main').text())
+                self.assertEqual(gpx_links(doc.root), [])
+                self.assertNotIn('.gpx', page.html.lower())
+                self.assertNotIn('Download GPX', page.html)
+                hrefs = [a['href'] or '' for a in doc.by_id('main').find_all('a')]
+                self.assertEqual([h for h in hrefs if h.startswith('../trips/')], ['../trips/%s/' % s for s in slugs])
+                self.assertEqual([h for h in hrefs if '/map/' in h and not h.startswith('../map/')], [])
+                ids = {n['id'] for n in doc.root.walk() if n['id']}
+                for h in [a['href'] or '' for a in doc.find_all('a')]:
+                    if h.startswith('#'):
+                        self.assertIn(h[1:], ids, '%s links %s, which is not an id on the page' % (here, h))
+                self.assertEqual(doc.find('head').find_all('link', attrs={'rel': 'preload', 'as': 'image'}), [])
+        # the hiking page, whose reports have tracks, still has its block
+        self.assertIsNotNone(Doc(section.page('hike', self.site).html).by_id('featured'))
+
+    def test_the_other_pages_type_segments_link_the_featured_block_only_when_there_is_one(self):
+        # 10.3: on other/, the segment of a sub-type that has reports is a link into the page for readers without
+        # JavaScript: to #featured when the page has a featured block, else to #reports (it was #featured either way,
+        # a dead link on a page whose reports all lack a track). A sub-type without reports is a disabled link
+        section = load_module(self, 'sitegen.pages.section')
+
+        def segments():
+            doc = Doc(section.page('other', self.site).html)
+            nav = doc.find('nav', attrs={'data-filter-nav': 'reports'})
+            self.assertIsNotNone(nav, 'other/ has no type filter')
+            ids = {n['id'] for n in doc.root.walk() if n['id']}
+            for a in doc.find_all('a'):
+                if (a['href'] or '').startswith('#'):
+                    self.assertIn(a['href'][1:], ids, 'other/ links %s, which is not an id on the page' % a['href'])
+            return [(a.find('span').text(), a['href'], a['aria-disabled']) for a in nav.find_all('a')], doc.by_id('featured')
+
+        mk = helpers.make_trip
+        mk(self.tmp, 'syn-paddle', title='Synthetic Paddle', activity='other', subtype='SUP', date='2025-05-01', region=REGION, track=True)
+        mk(self.tmp, 'syn-raft', title='Synthetic Raft', activity='other', subtype='Rafting', date='2025-04-01', region=REGION)
+        self.load_site()
+        segs, feat = segments()
+        self.assertIsNotNone(feat)                       # the paddle has a track: it is the featured report
+        self.assertEqual(feat.find('h2').text(), 'Synthetic Paddle')
+        self.assertEqual(segs, [('All', '#reports', None), ('Paddleboarding', '#featured', None), ('Rafting', '#featured', None),
+                                ('Kayaking', None, 'true'), ('Mountaineering', None, 'true')])
+        # without the paddle's track nothing can be featured: both segments lead to the list
+        os.remove(os.path.join(self.tmp, 'syn-paddle', 'track.gpx'))
+        self.load_site()
+        segs, feat = segments()
+        self.assertIsNone(feat)
+        self.assertEqual(segs, [('All', '#reports', None), ('Paddleboarding', '#reports', None), ('Rafting', '#reports', None),
+                                ('Kayaking', None, 'true'), ('Mountaineering', None, 'true')])
+        self.assertNotIn('#featured', section.page('other', self.site).html)
+        # and with a track on the raft instead, the block is the raft's and the segments point at it again
+        helpers.touch(os.path.join(self.tmp, 'syn-raft', 'track.gpx'))
+        self.load_site()
+        segs, feat = segments()
+        self.assertEqual(feat.find('h2').text(), 'Synthetic Raft')
+        self.assertEqual([href for _lab, href, _dis in segs], ['#reports', '#featured', '#featured', None, None])
+
+    def test_the_build_copies_the_gpx_exactly_when_the_page_links_it(self):
+        # 2.1: the download is offered when the file is published, and only then
+        build = load_module(self, 'build')
+        out = os.path.join(self.tmp, '_out')
+        self.add('syn-notrack-bare', track=False, date='2025-06-18')
+        with mock.patch.object(build, 'OUT', out), mock.patch.object(build, 'LINK', False):
+            for slug in ('syn-track', 'syn-notrack-bare'):   # the render folder in the temp dir: the real rendered/ is not looked at
+                build.copy_trip_assets(dict(self.by[slug], rendered=os.path.join(self.tmp, '_rendered', slug)))
+        for slug, has in (('syn-track', True), ('syn-notrack-bare', False)):
+            with self.subTest(slug):
+                self.assertEqual(os.path.exists(os.path.join(out, 'trips', slug, slug + '.gpx')), has)
+                self.assertEqual(sorted({href for _text, href in gpx_links(self.doc(slug).root)}), [slug + '.gpx'] if has else [])
+
+
+# ---------------------------------------------------------------- Phase 4: what a phone is told (contract-phase4.md 5.2)
+
+class PhoneSlotTests(ReportFixture):
+    """contract-phase4.md 5.2: below 560 px a photo that fills the screen is declared as core.PHONE_SLOT (55vw), so a 3x
+    phone takes the 800 px copy; the same string ends the hero's sizes, core.photo's default and the gallery rows'
+    strings for a photo drawn at full width. A portrait drawn two to a row keeps 50vw. 10.3: the slot is for an
+    ordinary landscape photo (core.PHONE_SHAPES); a portrait, a square, a panorama or an unsized photo shown at full
+    width is told the real width, 100vw (core.phone_sizes: PhoneShapeTests). Fixture photos here have their .sm copy,
+    because srcset and sizes are only written for a photo that has one."""
+
+    def sized(self, html_):
+        """{photo file name: sizes} of every <img> with a srcset in a fragment."""
+        return {os.path.basename(i['src']): i['sizes'] for i in Doc(html_).find_all('img') if i['srcset']}
+
+    def test_the_phone_slot_strings(self):
+        self.assertEqual(need(self, core, 'PHONE_SLOT'), '55vw')
+        self.assertEqual(need(self, core, 'PHONE_FULL'), '(min-width: 560px) 100vw, 55vw')
+        self.assertEqual(core.PHONE_FULL, PHONE_FULL)
+        self.assertEqual(core.PHONE_FULL, '(min-width: 560px) 100vw, ' + core.PHONE_SLOT)
+
+    def test_hero_sizes_end_with_the_phone_slot(self):
+        # 10: report.HERO_SIZES = '(min-width: 1200px) 1248px, ' + core.PHONE_FULL; no bare 100vw is left as the phone
+        # fallback: every 100vw has a min-width before it and the last, unconditional entry is the slot
+        sizes = need(self, self.report, 'HERO_SIZES')
+        self.assertEqual(sizes, '(min-width: 1200px) 1248px, (min-width: 560px) 100vw, 55vw')
+        self.assertTrue(sizes.endswith(', ' + core.PHONE_FULL))
+        entries = sizes.split(', ')
+        self.assertEqual(entries[-1], core.PHONE_SLOT)
+        self.assertNotIn('100vw', entries)
+        self.assertTrue(all(e.startswith('(min-width: ') for e in entries[:-1]), entries)
+
+    def test_core_photo_tells_a_phone_the_slot_by_default(self):
+        # 10: core.photo's default sizes end with core.PHONE_FULL in place of 100vw
+        t = self.add('syn-sized', body=WRITEUP, photos=[photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo one', sm=True)])
+        img = Doc(core.photo(t, t['photos'][0], t['url'])).find('img')
+        self.assertEqual(img['sizes'], '(min-width: 1200px) 1248px, (min-width: 560px) 100vw, 55vw')
+        self.assertEqual(img['srcset'], '../../trips/syn-sized/photos/01.sm.webp 800w, ../../trips/syn-sized/photos/01.webp 1600w')
+        # a photo in the viewer or the gallery is never given the card-size copy
+        helpers.touch(os.path.join(self.tmp, 'syn-sized', 'photos', '01.th.webp'))
+        self.load_site()
+        t = self.by['syn-sized']
+        self.assertEqual(t['photos'][0]['th'], 'photos/01.th.webp')
+        self.assertEqual(Doc(core.photo(t, t['photos'][0], t['url'])).find('img')['srcset'], img['srcset'])
+
+    def test_gallery_rows_tell_a_phone_the_width_each_photo_fills(self):
+        # 10: the three core.photo_rows strings end with core.PHONE_FULL for a photo a phone shows at full width (a
+        # landscape, a portrait alone in its row, the odd portrait of a row); a portrait paired two-up keeps 50vw.
+        # 10.3: of those, only the landscape keeps PHONE_FULL: a portrait at full width is told 100vw (its 800 px copy
+        # is 600 px wide, too small for the 55vw slot's arithmetic)
+        ph = lambda n, size: photo('photos/%02d.webp' % n, size, alt='Synthetic photo %d' % n, sm=True)   # noqa: E731
+        t = self.add('syn-rows', photos=[ph(1, LANDSCAPE),                                  # a row of its own
+                                         ph(2, PORTRAIT), ph(3, PORTRAIT), ph(4, PORTRAIT),   # a row of three: a pair and one
+                                         ph(5, LANDSCAPE), ph(6, LANDSCAPE)])
+        rows = core.photo_partition(t['photos'])
+        self.assertEqual([[os.path.basename(p['file']) for p in r] for r in rows],
+                         [['01.webp'], ['02.webp', '03.webp', '04.webp'], ['05.webp'], ['06.webp']])
+        got = self.sized(core.photo_rows(t, t['url'], t['photos']))
+        self.assertEqual(got['01.webp'], '(min-width: 1200px) 1248px, ' + PHONE_FULL)
+        self.assertEqual(got['05.webp'], got['01.webp'])
+        for name in ('02.webp', '03.webp'):                                    # two-up on a phone
+            self.assertTrue(got[name].endswith(', 50vw'), got[name])
+            self.assertNotIn('55vw', got[name])
+            self.assertEqual(got[name], '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 80px) * 0.333), 50vw')
+        self.assertEqual(got['04.webp'], '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 80px) * 0.333), 100vw')
+        # a landscape that shares its row with a pair of portraits is still full width on a phone; the pair is not
+        t = self.add('syn-rows-mixed', date='2025-06-16', photos=[ph(1, LANDSCAPE), ph(2, PORTRAIT), ph(3, PORTRAIT)])
+        self.assertEqual(len(core.photo_partition(t['photos'])), 1)
+        got = self.sized(core.photo_rows(t, t['url'], t['photos']))
+        self.assertTrue(got['01.webp'].endswith(', ' + PHONE_FULL), got['01.webp'])
+        self.assertTrue(got['02.webp'].endswith(', 50vw') and got['03.webp'].endswith(', 50vw'), got)
+        # a single portrait in the grid has a row to itself (.jrow--one): min(column, ar x 624) wide from 760, the full
+        # width below
+        t = self.add('syn-rows-one', date='2025-06-17', photos=[ph(1, PORTRAIT)])
+        got = self.sized(core.photo_rows(t, t['url'], t['photos']))
+        self.assertEqual(got, {'01.webp': '(min-width: 760px) 468px, 100vw'})
+        # the last, unconditional entry of every string in the rows: the slot for a landscape, half the screen for a
+        # paired portrait, the whole screen for a portrait shown alone
+        for slug in ('syn-rows', 'syn-rows-mixed', 'syn-rows-one'):
+            x = self.by[slug]
+            got = self.sized(core.photo_rows(x, x['url'], x['photos']))
+            self.assertEqual(len(got), len(x['photos']))
+            for p in x['photos']:
+                last = got[os.path.basename(p['file'])].split(', ')[-1]
+                if p['w'] > p['h']:
+                    self.assertEqual(last, core.PHONE_SLOT)
+                    self.assertTrue(got[os.path.basename(p['file'])].endswith(', ' + PHONE_FULL))
+                else:
+                    self.assertIn(last, ('50vw', '100vw'))
+                    self.assertNotIn(core.PHONE_SLOT, got[os.path.basename(p['file'])])
+        self.assertEqual(sorted(v.split(', ')[-1] for v in self.sized(core.photo_rows(self.by['syn-rows'], 'trips/syn-rows/',
+                                                                                   self.by['syn-rows']['photos'])).values()),
+                         ['100vw', '50vw', '50vw', '55vw', '55vw', '55vw'])
+
+    def test_the_gallery_on_a_page_uses_those_strings(self):
+        # on a built story page: the lead photo at HERO_SIZES, the gallery's landscape at the full-width string, its two
+        # portraits two-up
+        ph = lambda n, size: photo('photos/%02d.webp' % n, size, alt='Synthetic photo %d' % n, sm=True)   # noqa: E731
+        slug = 'syn-rows-page'
+        self.add(slug, body=WRITEUP, photos=[ph(1, LANDSCAPE), ph(2, LANDSCAPE), ph(3, PORTRAIT), ph(4, PORTRAIT)])
+        self.assertEqual(self.hero(slug).find('img')['sizes'], HERO_SIZES)
+        sec = self.main(slug).by_id('photos')
+        got = {os.path.basename(i['src']): i['sizes'] for i in sec.find_all('img')}
+        self.assertEqual(sorted(got), ['02.webp', '03.webp', '04.webp'])
+        self.assertTrue(got['02.webp'].endswith(', ' + PHONE_FULL), got['02.webp'])
+        self.assertTrue(got['03.webp'].endswith(', 50vw') and got['04.webp'].endswith(', 50vw'), got)
+
+    def test_the_lone_portrait_beside_the_writeup_is_full_width_on_a_phone(self):
+        # the aside photo of a lone-portrait story fills the phone's width as well. 10.3: and, being a portrait, is told
+        # so: 100vw where the string ended with the 55vw slot
+        slug = 'syn-aside-sized'
+        self.add(slug, body=WRITEUP, photos=[photo('photos/01.webp', PORTRAIT, alt='Synthetic photo one', sm=True)])
+        img = self.main(slug).find('figure', cls='rep-aside-ph').find('img')
+        self.assertEqual(img['sizes'], '(min-width: 1200px) 294px, (min-width: 1000px) 22vw, (min-width: 760px) 240px, 100vw')
+        self.assertNotIn(core.PHONE_SLOT, img['sizes'])
+        self.assertEqual(img['srcset'], '../../trips/%s/photos/01.sm.webp 600w, ../../trips/%s/photos/01.webp 1200w' % (slug, slug))
+
+
+# ---------------------------------------------------------------- Phase 4: the phone slot by photo shape (contract-phase4.md 10.3)
+
+class PhoneShapeTests(ReportFixture):
+    """contract-phase4.md 10.3: core.PHONE_SHAPES = (1.2, 1.6) and core.phone_sizes(sizes, p). The 55vw slot of
+    core.PHONE_FULL is right for an ordinary landscape photo, whose .sm copy is 800 px wide; a portrait, a square, a
+    panorama wider than 1.6 or a photo without a recorded size is told 100vw instead. core.photo, core.cover_img and
+    core.cover_preload pass their sizes through it first. 10.5: the card-size .th copy is in no <img> srcset and no
+    preload, whatever the shape and the string; a card cover that has one gets it from a phone-only <source>
+    (CardSourceTests). A .th or .sm file is an empty placeholder beside the photo."""
+
+    FULL = '(min-width: 1200px) 1248px, (min-width: 560px) 100vw, 55vw'       # report.HERO_SIZES, core.photo's default
+    WIDE = '(min-width: 1200px) 1248px, 100vw'                                # ... with PHONE_FULL replaced
+    # name: (w, h), inside PHONE_SHAPES?, the widths of its .th and .sm copies
+    SHAPES = {'landscape': ((1600, 1200), True, 427, 800), 'three-two': ((1600, 1067), True, 480, 800),
+              'six-five': ((1200, 1000), True, 384, 800), 'eight-five': ((1600, 1000), True, 512, 800),
+              'portrait': ((1200, 1600), False, 320, 600), 'square': ((1000, 1000), False, 320, 800),
+              'panorama': ((3810, 1600), False, 762, 800), 'sixteen-nine': ((1600, 900), False, 569, 800)}
+
+    def cover(self, name, size, th=True, sm=True, **meta):
+        """A report whose one photo (photos/01.webp, of this size; None: unsized) has its .sm and .th copies."""
+        slug = 'syn-shape-' + name
+        meta.setdefault('date', '2025-06-20')
+        helpers.make_trip(self.tmp, slug, title='Synthetic ' + name, region=REGION, track=True,
+                          photos=[photo('photos/01.webp', size, alt='Synthetic photo one', sm=sm)], **meta)
+        if th:
+            helpers.touch(os.path.join(self.tmp, slug, 'photos', '01.th.webp'))
+        self.load_site()
+        return self.by[slug]
+
+    def test_the_shapes(self):
+        self.assertEqual(need(self, core, 'PHONE_SHAPES'), (1.2, 1.6))
+        self.assertEqual(core.PHONE_FULL, '(min-width: 560px) 100vw, 55vw')
+        self.assertEqual(self.report.HERO_SIZES, self.FULL)
+        self.assertEqual(self.FULL.replace(core.PHONE_FULL, '100vw'), self.WIDE)
+
+    def test_phone_sizes_at_the_boundaries(self):
+        phone_sizes = need(self, core, 'phone_sizes')
+        cases = [((1200, 1000), self.FULL),      # 1.2 exactly: inside
+                 ((1199, 1000), self.WIDE),      # just under
+                 ((6, 5), self.FULL), ((1600, 1000), self.FULL),      # 1.6 exactly: inside
+                 ((1601, 1000), self.WIDE),      # just over
+                 ((8, 5), self.FULL), ((1600, 1200), self.FULL), ((1500, 1000), self.FULL), ((1600, 1067), self.FULL),
+                 ((1200, 1001), self.WIDE), ((1599, 1000), self.FULL), ((1201, 1000), self.FULL)]
+        for (w, h), want in cases:
+            with self.subTest(w=w, h=h):
+                self.assertEqual(phone_sizes(self.FULL, {'w': w, 'h': h}), want)
+
+    def test_phone_sizes_by_shape(self):
+        phone_sizes = need(self, core, 'phone_sizes')
+        for name, ((w, h), inside, _th, _sm) in self.SHAPES.items():
+            with self.subTest(name):
+                self.assertEqual(phone_sizes(self.FULL, {'w': w, 'h': h}), self.FULL if inside else self.WIDE)
+                self.assertEqual(core.PHONE_SHAPES[0] <= w / float(h) <= core.PHONE_SHAPES[1], inside)
+        # a photo whose size is not recorded (or only half of it, or a zero) is told the real width too
+        for p in ({}, {'w': None, 'h': None}, {'w': 1600}, {'h': 1200}, {'w': 1600, 'h': None}, {'w': 0, 'h': 1200}, {'w': 1600, 'h': 0}):
+            with self.subTest(p=p):
+                self.assertEqual(phone_sizes(self.FULL, p), self.WIDE)
+        # every PHONE_FULL in the string is replaced, and nothing else of it
+        for sizes in (core.PHONE_FULL, '(min-width: 760px) 468px, ' + core.PHONE_FULL,
+                      '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 80px) * 0.333), ' + core.PHONE_FULL):
+            self.assertEqual(phone_sizes(sizes, {'w': 1200, 'h': 1600}), sizes[:-len(core.PHONE_FULL)] + '100vw')
+            self.assertEqual(phone_sizes(sizes, {'w': 1600, 'h': 1200}), sizes)
+
+    def test_a_string_without_the_full_width_slot_is_untouched(self):
+        phone_sizes = need(self, core, 'phone_sizes')
+        home, trips = load_module(self, 'sitegen.pages.home'), load_module(self, 'sitegen.pages.trips')
+        for sizes in (core.RELATED_SIZES, trips.TRX_SIZES, home.RECENT_SIZES, '50vw', '100vw', '', core.PHONE_SLOT,
+                      '(min-width: 760px) 50vw, 55vw', '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 80px) * 0.333), 50vw'):
+            self.assertNotIn(core.PHONE_FULL, sizes)
+            for p in ({'w': 1600, 'h': 1200}, {'w': 1200, 'h': 1600}, {'w': 1000, 'h': 1000}, {'w': 3810, 'h': 1600}, {}):
+                with self.subTest(sizes=sizes, p=p):
+                    self.assertEqual(phone_sizes(sizes, p), sizes)
+        for sizes in (self.report.HERO_SIZES, home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES):      # ... and these are not
+            self.assertIn(core.PHONE_FULL, sizes)
+            self.assertEqual(phone_sizes(sizes, {'w': 1200, 'h': 1600}), sizes.replace(core.PHONE_FULL, '100vw'))
+            self.assertTrue(phone_sizes(sizes, {'w': 1200, 'h': 1600}).endswith(', 100vw'))
+
+    def test_photo_cover_img_and_cover_preload_apply_it(self):
+        # each of the three writes phone_sizes(sizes, the photo) where it wrote sizes; the cover's <img> and its preload
+        # therefore carry the same srcset and the same sizes, whatever the shape. 10.5: that srcset is the two
+        # candidates it was before Phase 4 for every shape (a cover outside the shapes listed its .th copy under 10.3);
+        # the .th copy is only in the phone <source> of a card
+        for k, (name, (size, inside, th_w, sm_w)) in enumerate(sorted(self.SHAPES.items())):
+            with self.subTest(name):
+                t = self.cover(name, size, date='2025-06-%02d' % (k + 1))
+                p = t['cover']['photo']
+                self.assertEqual(p['th'], 'photos/01.th.webp')
+                base = '../../trips/%s/photos/' % t['slug']
+                two = '%s01.sm.webp %dw, %s01.webp %dw' % (base, sm_w, base, size[0])
+                three = '%s01.th.webp %dw, %s' % (base, th_w, two)
+                sizes = self.FULL if inside else self.WIDE
+                self.assertEqual(sizes, core.phone_sizes(self.FULL, p))
+                # core.photo: its default string, and one handed to it (a gallery photo is never given the .th copy)
+                img = Doc(core.photo(t, p, t['url'])).find('img')
+                self.assertEqual((img['sizes'], img['srcset']), (sizes, two))
+                img = Doc(core.photo(t, p, t['url'], sizes='(min-width: 760px) 468px, ' + core.PHONE_FULL)).find('img')
+                self.assertEqual(img['sizes'], '(min-width: 760px) 468px, ' + (core.PHONE_FULL if inside else '100vw'))
+                # core.cover_img and core.cover_preload at the lead photo's string: the bare <img>, two candidates
+                lead = core.cover_img(t, t['url'], self.report.HERO_SIZES, eager=True)
+                self.assertTrue(lead.startswith('<img class="cover-img" '), lead)
+                img = Doc(lead).find('img')
+                link_ = Doc(core.cover_preload(t, t['url'], self.report.HERO_SIZES)).find('link')
+                self.assertEqual(img['sizes'], sizes)
+                self.assertEqual(img['srcset'], two)
+                self.assertEqual((link_['imagesizes'], link_['imagesrcset'], link_['href']), (img['sizes'], img['srcset'], img['src']))
+                self.assertNotIn('.th.', lead + core.cover_img(t, t['url'], self.report.HERO_SIZES) + core.cover_preload(t, t['url'], self.report.HERO_SIZES))
+                # a card's string holds no PHONE_FULL: untouched. Its <img> has the same two candidates for every shape,
+                # and so has a preload asked for at that string; the three-candidate list is the <source>'s
+                card = Doc(core.cover_img(t, t['url'], core.RELATED_SIZES))
+                img = card.find('img')
+                self.assertEqual((img['sizes'], img['srcset']), (core.RELATED_SIZES, two))
+                self.assertEqual([(s_['srcset'], s_['sizes'], s_['media']) for s_ in card.find_all('source')],
+                                 [(three, '112px', '(max-width: 559.98px)')])
+                link_ = Doc(core.cover_preload(t, t['url'], core.RELATED_SIZES)).find('link')
+                self.assertEqual((link_['imagesizes'], link_['imagesrcset']), (core.RELATED_SIZES, two))
+
+    def test_a_cover_without_a_th_copy_keeps_its_two_candidates_at_either_width(self):
+        for name, size, sm_w in (('portrait', PORTRAIT, 600), ('landscape', LANDSCAPE, 800)):
+            with self.subTest(name):
+                t = self.cover(name + '-two', size, th=False, date='2025-06-21')
+                base = '../../trips/%s/photos/' % t['slug']
+                img = Doc(core.cover_img(t, t['url'], self.report.HERO_SIZES)).find('img')
+                self.assertEqual(img['srcset'], '%s01.sm.webp %dw, %s01.webp %dw' % (base, sm_w, base, size[0]))
+                self.assertEqual(img['sizes'], self.WIDE if name == 'portrait' else self.FULL)
+
+    def test_an_unsized_cover_has_no_srcset_and_no_sizes(self):
+        # nothing to choose between, so nothing is said about a width; the preload is the plain file as well
+        t = self.cover('unsized', None)
+        img = Doc(core.cover_img(t, t['url'], self.report.HERO_SIZES, eager=True)).find('img')
+        self.assertEqual((img['srcset'], img['sizes']), (None, None))
+        self.assertEqual(core.cover_preload(t, t['url'], self.report.HERO_SIZES),
+                         '<link rel="preload" as="image" href="../../trips/syn-shape-unsized/photos/01.webp" fetchpriority="high">')
+        self.assertNotIn('sizes', core.photo(t, t['cover']['photo'], t['url']))
+        self.assertEqual(core.phone_sizes(self.FULL, t['cover']['photo']), self.WIDE)
+
+    def test_the_lead_photo_of_a_story_and_its_preload_agree_for_every_shape_that_leads(self):
+        # on a built page: a panorama and a 16:9 photo lead the page (wide enough for the frame) and are told 100vw; an
+        # ordinary landscape keeps the slot. The head's preload repeats the <img> exactly, so the browser preloads the
+        # file it then shows. 10.5: two candidates for every shape (the wide ones listed their .th copy under 10.3), and
+        # the lead photo is never wrapped in a <picture>
+        want = {'landscape': self.FULL, 'three-two': self.FULL, 'six-five': self.FULL, 'eight-five': self.FULL,
+                'panorama': self.WIDE, 'sixteen-nine': self.WIDE}
+        for k, (name, sizes) in enumerate(sorted(want.items())):
+            with self.subTest(name):
+                t = self.cover(name + '-lead', self.SHAPES[name][0], body=WRITEUP, date='2025-07-%02d' % (k + 1))
+                slug = t['slug']
+                self.assertEqual(t['cover']['photo']['th'], 'photos/01.th.webp')
+                links = self.preloads(slug)
+                self.assertEqual(len(links), 1)
+                img = self.hero(slug).find('img')
+                self.assertEqual(img['sizes'], sizes)
+                base = '../../trips/%s/photos/' % slug
+                self.assertEqual(img['srcset'], '%s01.sm.webp 800w, %s01.webp %dw' % (base, base, self.SHAPES[name][0][0]))
+                self.assertEqual((links[0]['href'], links[0]['imagesrcset'], links[0]['imagesizes']), (img['src'], img['srcset'], img['sizes']))
+                self.assertIs(img.parent, self.hero(slug).find('a'))                 # straight in its link: no <picture>
+                self.assertEqual(self.hero(slug).find_all('picture') + self.hero(slug).find_all('source'), [])
+                self.assertNotIn('.th.', self.head_html(slug))
+                self.assertNotIn('.th.', self.page(slug).html.split('<main', 1)[1].split('rep-related', 1)[0])
+        # a portrait or a square cover does not lead a page: no lead photo, no cover preload
+        for name in ('portrait', 'square'):
+            slug = self.cover(name + '-lead', self.SHAPES[name][0], body=WRITEUP, date='2025-08-01')['slug']
+            self.assertIsNone(self.hero(slug))
+            self.assertEqual([ln for ln in self.preloads(slug) if '/photos/' in ln['href']], [])
+
+    def test_the_home_page_strings_follow_the_cover_too(self):
+        # the home page's featured cards go through core.cover_img: a portrait cover there is told 100vw, a landscape the
+        # slot. 10.5: neither lists its .th copy and neither is wrapped: these are full-width strings, not a card's
+        home = load_module(self, 'sitegen.pages.home')
+        tall, wide = self.cover('portrait-home', PORTRAIT), self.cover('landscape-home', LANDSCAPE, date='2025-06-21')
+        tall = self.by[tall['slug']]
+        self.assertEqual((tall['cover']['photo']['th'], wide['cover']['photo']['th']), ('photos/01.th.webp', 'photos/01.th.webp'))
+        for sizes in (home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES):
+            with self.subTest(sizes=sizes):
+                self.assertEqual(Doc(core.cover_img(tall, '', sizes)).find('img')['sizes'], sizes.replace(core.PHONE_FULL, '100vw'))
+                self.assertEqual(Doc(core.cover_img(wide, '', sizes)).find('img')['sizes'], sizes)
+                for t in (tall, wide):
+                    for eager in (False, True):
+                        got = core.cover_img(t, '', sizes, eager=eager)
+                        self.assertNotIn('.th.', got)
+                        self.assertTrue(got.startswith('<img class="cover-img" ') and got.endswith('>') and got.count('<') == 1, got)
+        base = 'trips/%s/photos/' % tall['slug']
+        self.assertEqual(Doc(core.cover_img(tall, '', home.LEAD_SIZES)).find('img')['srcset'], '%s01.sm.webp 600w, %s01.webp 1200w' % (base, base))
+
+
+# ---------------------------------------------------------------- Phase 4: the card-size copy (contract-phase4.md 5.3, 10.5)
+
+PICTURE = re.compile(r'<picture class="cover-pic">(<source [^>]*>)(<img [^>]*>)</picture>')
+
+
+def unwrap(html_):
+    """A page or fragment with every card cover's <picture class="cover-pic"> taken off: the <img> it holds, alone. What
+    the markup was before a .th copy existed (contract 10.5: the <img> itself is not changed by the wrapper)."""
+    return PICTURE.sub(lambda m: m.group(2), html_)
+
+
+class CoverSrcsetTests(ReportFixture):
+    """contract-phase4.md 5.3 as replaced by 10.5: content.load_trip records a photo's card-size copy (320 px on the
+    short edge) as p['th'] when the file exists, and core.thumb_width gives its width. That copy is a candidate in no
+    <img> srcset and no preload: core._cover_srcset is the two candidates it was before Phase 4, whatever is on disk.
+    A card cover offers it to phones in a <source> of its own (CardSourceTests). A .th file is an empty placeholder
+    written beside the photo by the test: the loader only looks whether it is there."""
+
+    def with_copies(self, slug, size, th=True, sm=True, **meta):
+        """A report whose one photo (photos/01.webp, `size`) has an .sm copy and, with th=True, a .th copy."""
+        meta.setdefault('date', '2025-06-20')
+        self.add(slug, photos=[photo('photos/01.webp', size, alt='Synthetic photo one', sm=sm)], **meta)
+        if th:
+            helpers.touch(os.path.join(self.tmp, slug, 'photos', '01.th.webp'))
+            self.load_site()
+        return self.by[slug]
+
+    def srcset(self, t):
+        return need(self, core, '_cover_srcset')(t, t['cover']['photo'], t['url'])
+
+    def test_thumb_width_is_320_on_the_short_edge(self):
+        thumb_width = need(self, core, 'thumb_width')
+        self.assertEqual(need(self, core, 'THUMB_EDGE'), 320)
+        for (w, h), want in (((1600, 1200), 427), ((1200, 1600), 320), ((3810, 1600), 762), ((1000, 1000), 320),
+                             ((738, 1600), 320), ((1600, 900), 569), ((1600, 1067), 480)):
+            with self.subTest(w=w, h=h):
+                got = thumb_width({'w': w, 'h': h})
+                self.assertEqual(got, want)
+                self.assertIs(type(got), int)
+
+    def test_thumb_width_is_the_width_the_copy_is_written_at(self):
+        # the srcset states the file's real width: core.thumb_width and tools/lib/photos.thumb_size agree to the pixel
+        photos = load_module(self, 'photos')
+        self.assertEqual(need(self, photos, 'THUMB_EDGE'), core.THUMB_EDGE)
+        for w in list(range(601, 1700, 37)) + [738, 1200, 1600, 3810, 4032]:
+            for h in list(range(599, 1700, 41)) + [738, 1200, 1600, 3024]:
+                tw, th = photos.thumb_size(w, h)
+                self.assertEqual(core.thumb_width({'w': w, 'h': h}), tw, (w, h))
+                self.assertEqual(min(tw, th), 320, (w, h))
+
+    def test_load_trip_records_the_th_copy_only_when_the_file_exists(self):
+        with_th = self.with_copies('syn-th', LANDSCAPE)
+        without = self.with_copies('syn-no-th', LANDSCAPE, th=False)
+        self.assertEqual(with_th['photos'][0]['th'], 'photos/01.th.webp')
+        self.assertEqual(with_th['photos'][0]['sm'], 'photos/01.sm.webp')
+        self.assertIn('th', without['photos'][0])
+        self.assertIsNone(without['photos'][0]['th'])
+        self.assertIs(with_th['cover']['photo'], with_th['photos'][0])
+        # day photos too (a multi-day cover is often a day's photo)
+        t = self.add('syn-th-days', kind='multi-day', activity='ski', date='2025-03-01', end_date='2025-03-02',
+                     days=[{'title': 'Synthetic Day One', 'date': '2025-03-01',
+                            'photos': [photo('photos/d01-01.webp', LANDSCAPE, alt='Synthetic day photo one', sm=True)]},
+                           {'title': 'Synthetic Day Two', 'date': '2025-03-02',
+                            'photos': [photo('photos/d02-01.webp', LANDSCAPE, alt='Synthetic day photo two', sm=True)]}])
+        self.assertEqual([d['photos'][0]['th'] for d in t['days']], [None, None])
+        helpers.touch(os.path.join(self.tmp, 'syn-th-days', 'photos', 'd01-01.th.webp'))
+        self.load_site()
+        self.assertEqual([d['photos'][0]['th'] for d in self.by['syn-th-days']['days']], ['photos/d01-01.th.webp', None])
+
+    def test_a_cover_with_a_th_copy_still_lists_two_candidates(self):
+        # 10.5: core._cover_srcset(t, p, here) -> '<sm> <w>w, <full> <w>w', whatever copies are on disk: the .th copy
+        # (which 10 listed first, at core.thumb_width) is not a candidate of the <img>
+        cases = (('syn-th-land', LANDSCAPE, (800, 1600)), ('syn-th-port', PORTRAIT, (600, 1200)), ('syn-th-pano', (3810, 1600), (800, 3810)))
+        for slug, size, widths in cases:
+            with self.subTest(slug):
+                bare = self.with_copies(slug + '-bare', size, th=False, date='2025-06-19')
+                t = self.with_copies(slug, size)
+                self.assertEqual((bare['cover']['photo']['th'], t['cover']['photo']['th']), (None, 'photos/01.th.webp'))
+                base = '../../trips/%s/photos/' % slug
+                src, srcset = self.srcset(t)
+                self.assertEqual(src, base + '01.webp')
+                self.assertEqual(srcset, '%s01.sm.webp %dw, %s01.webp %dw' % (base, widths[0], base, widths[1]))
+                self.assertNotIn('.th.', srcset)
+                # the same list as for the same photo without the copy
+                self.assertEqual(srcset.replace(slug, slug + '-bare'), self.srcset(bare)[1])
+                got = [int(c.rsplit(' ', 1)[1][:-1]) for c in srcset.split(', ')]
+                self.assertEqual(got, sorted(got))
+                self.assertEqual(len(got), 2)
+
+    def test_cover_srcset_takes_no_sizes(self):
+        # 10.5: the list no longer depends on the slot, so the function has no sizes parameter: a caller that still
+        # passes one is told so at once
+        t = self.with_copies('syn-th-args', LANDSCAPE)
+        cover_srcset = need(self, core, '_cover_srcset')
+        p = t['cover']['photo']
+        self.assertEqual(cover_srcset(t, p, t['url']), cover_srcset(t=t, p=p, here=t['url']))
+        for extra in (core.RELATED_SIZES, self.report.HERO_SIZES, ''):
+            with self.assertRaises(TypeError):
+                cover_srcset(t, p, t['url'], extra)
+        with self.assertRaises(TypeError):
+            cover_srcset(t, p, t['url'], sizes=core.RELATED_SIZES)
+
+    def test_a_cover_without_a_th_copy_keeps_the_two_candidates(self):
+        # 5.3: 'Missing .th: today's srcset'
+        t = self.with_copies('syn-two', LANDSCAPE, th=False)
+        self.assertEqual(self.srcset(t), ('../../trips/syn-two/photos/01.webp',
+                                          '../../trips/syn-two/photos/01.sm.webp 800w, ../../trips/syn-two/photos/01.webp 1600w'))
+        t = self.with_copies('syn-two-tall', PORTRAIT, th=False, date='2025-06-21')
+        self.assertEqual(self.srcset(t)[1], '../../trips/syn-two-tall/photos/01.sm.webp 600w, ../../trips/syn-two-tall/photos/01.webp 1200w')
+
+    def test_no_srcset_without_the_sm_copy_or_the_size(self):
+        # as before: a photo without its .sm copy, or without a recorded size, is a plain src, .th file or not
+        t = self.with_copies('syn-th-only', LANDSCAPE, sm=False)
+        self.assertEqual(t['cover']['photo']['th'], 'photos/01.th.webp')
+        self.assertEqual(self.srcset(t), ('../../trips/syn-th-only/photos/01.webp', ''))
+        t = self.with_copies('syn-th-unsized', None, date='2025-06-21')
+        self.assertEqual(self.srcset(t), ('../../trips/syn-th-unsized/photos/01.webp', ''))
+        self.assertNotIn('srcset', core.cover_img(t, t['url'], core.RELATED_SIZES))
+
+    def test_no_img_and_no_preload_lists_the_th_copy(self):
+        # 10.5: at a full-width string and at a card string alike, the <img> and the preload of a cover that has a .th
+        # copy carry the two candidates they carried before Phase 4. (10.2 kept the copy out of the full-width
+        # strings only: with 427w in a card's list a 1x desktop screen took it for the card's 400 px slot.)
+        t = self.with_copies('syn-th-lead', LANDSCAPE)
+        p = t['cover']['photo']
+        self.assertEqual(p['th'], 'photos/01.th.webp')
+        base = '../../trips/syn-th-lead/photos/'
+        two = '%s01.sm.webp 800w, %s01.webp 1600w' % (base, base)
+        self.assertEqual(need(self, core, '_cover_srcset')(t, p, t['url']), (base + '01.webp', two))
+        home, trips = load_module(self, 'sitegen.pages.home'), load_module(self, 'sitegen.pages.trips')
+        full = (self.report.HERO_SIZES, home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES, core.PHONE_FULL, core.PHONE_SLOT)
+        cards = (core.RELATED_SIZES, trips.TRX_SIZES, home.RECENT_SIZES)
+        for sizes in full + cards:
+            for eager in (False, True):
+                with self.subTest(sizes=sizes, eager=eager):
+                    got = core.cover_img(t, t['url'], sizes, eager=eager)
+                    imgs = Doc(got).find_all('img')
+                    self.assertEqual([(i['srcset'], i['sizes']) for i in imgs], [(two, sizes)])
+                    self.assertIn('<img class="cover-img" src="%s01.webp" srcset="%s" sizes="%s" width="1600" height="1200" ' % (base, two, sizes), got)
+                    # the copy is named at most once in the whole fragment: in the phone <source> of a card that is not
+                    # the page's lead image
+                    self.assertEqual(got.count('.th.'), 1 if (sizes in cards and not eager) else 0)
+            with self.subTest(sizes=sizes, preload=True):
+                self.assertEqual(core.cover_preload(t, t['url'], sizes),
+                                 '<link rel="preload" as="image" href="%s01.webp" imagesrcset="%s" imagesizes="%s" fetchpriority="high">'
+                                 % (base, two, sizes))
+        for sizes in full:
+            self.assertIn(core.PHONE_SLOT, sizes)
+        for sizes in cards:
+            self.assertNotIn(core.PHONE_SLOT, sizes)
+            self.assertTrue(sizes.endswith(', 112px'))
+
+    def test_the_phone_slot_picks_the_800_px_copy_on_every_phone_up_to_1440_device_pixels_wide(self):
+        # the arithmetic behind PHONE_SLOT, as a browser does it: the first candidate at least slot x DPR wide. With
+        # the two candidates of a full-width landscape photo (800 and 1600), a phone 320 to 440 px wide takes the
+        # 800 px copy at any DPR, as long as its screen is at most 1440 device pixels wide (the widest phone panels).
+        # With a 427 px candidate in the list the small 2x phones would be handed that one.
+        self.assertTrue(core.PHONE_SLOT.endswith('vw'))
+        share = float(core.PHONE_SLOT[:-2]) / 100
+
+        def pick(widths, vw, dpr):
+            need_px = vw * share * dpr
+            return next((w for w in widths if w >= need_px), widths[-1])
+
+        seen = 0
+        for vw in range(320, 441):
+            for dpr in (1, 1.5, 2, 2.625, 2.75, 3, 3.5, 3.75, 4):
+                if vw * dpr <= 1440:
+                    seen += 1
+                    self.assertEqual(pick((800, 1600), vw, dpr), 800, (vw, dpr))
+        self.assertGreater(seen, 800)
+        self.assertEqual(pick((800, 1600), 440, 3), 800)        # the widest 3x phone
+        self.assertEqual(pick((800, 1600), 412, 3.5), 800)
+        self.assertEqual(pick((800, 1600), 384, 3.75), 800)
+        self.assertEqual(pick((427, 800, 1600), 375, 2), 427)   # what leaving .th in the list would do
+        self.assertEqual(pick((427, 800, 1600), 390, 3), 800)
+
+    def test_the_card_slots_pick_the_th_copy_on_a_phone_and_never_on_a_desktop(self):
+        # the arithmetic behind 10.5, as a browser does it: the first candidate at least slot x DPR wide, else the
+        # largest. Below 560 px a card's cover is 112 px wide and the <source> applies: its list is the .th copy, the
+        # 800 px copy and the full file, and 427 px is enough for that slot at any pixel density a phone has.
+        def pick(widths, slot_px, dpr):
+            need_px = slot_px * dpr
+            return next((w for w in widths if w >= need_px), widths[-1])
+
+        self.assertEqual(need(self, core, 'CARD_PHONE_SLOT'), '112px')
+        slot = int(core.CARD_PHONE_SLOT[:-2])
+        for dpr in (1, 1.25, 1.5, 2, 2.25, 2.5, 2.625, 2.75, 3, 3.5, 3.75):
+            with self.subTest(dpr=dpr):
+                self.assertEqual(pick((427, 800, 1600), slot, dpr), 427)
+        self.assertLessEqual(slot * 3.75, 427)
+        self.assertEqual(pick((427, 800, 1600), slot, 4), 800)                  # past 427 / 112 = 3.8 the next copy up
+        # a portrait cover's copy is 320 px wide (the short edge): enough up to 2.85x; a 3x phone takes the 600 px copy,
+        # which is what it took before the phase
+        self.assertEqual([pick((320, 600, 1200), slot, dpr) for dpr in (1, 2, 2.75, 3, 3.75)], [320, 320, 320, 600, 600])
+        # From 560 px up the <source> does not apply and the <img> decides. Its slot grows to 400 px on a desktop
+        # (RELATED_SIZES / TRX_SIZES / RECENT_SIZES: '(min-width: 1200px) 400px'), and its list is the 800 px copy and the
+        # full file: 800 at 1x and at 2x, the full file at 3x, as before Phase 4.
+        self.assertIn('(min-width: 1200px) 400px, ', core.RELATED_SIZES)
+        self.assertEqual([pick((800, 1600), 400, dpr) for dpr in (1, 2, 3)], [800, 800, 1600])
+        # With 427 in that second list a 1x screen would pick 427 for the 400 px slot (1.07 source pixels per screen
+        # pixel, visibly softer than the 800 px copy it had before the phase): what this rule prevents.
+        self.assertEqual(pick((427, 800, 1600), 400, 1), 427)
+        self.assertEqual([pick((427, 800, 1600), 400, dpr) for dpr in (2, 3)], [800, 1600])
+
+    def test_more_like_this_cards_offer_the_th_copy_to_phones_only(self):
+        # 10.5: a card cover on a report page ('More like this', core.RELATED_SIZES: unchanged) whose report has a .th
+        # copy is wrapped in <picture class="cover-pic"> with one phone-only <source> that lists the copy first; its
+        # <img> keeps the two candidates (under 5.3 the copy was the first candidate of the <img> itself). A card
+        # without the copy is the bare <img> it always was
+        self.with_copies('syn-rel-th', LANDSCAPE, region='Synthetic Other Range', activity='mtb', date='2025-01-10')
+        self.with_copies('syn-rel-plain', LANDSCAPE, th=False, region='Synthetic Other Range', activity='mtb', date='2025-01-11')
+        self.with_copies('syn-rel-none', LANDSCAPE, th=False, sm=False, region='Synthetic Other Range', activity='mtb', date='2025-01-12')
+        self.add('syn-rel-page', region='Synthetic Other Range', activity='climb', date='2025-01-13')
+        items = {c['data-slug']: c for c in self.main('syn-rel-page').find('ul', cls='rep-rel').find_all('li', cls='tcard')}
+        cards = {slug: c.find('img') for slug, c in items.items()}
+        self.assertEqual(sorted(cards), ['syn-rel-none', 'syn-rel-plain', 'syn-rel-th'])
+        base = '../../trips/%s/photos/'
+        two = ', '.join([base % 'syn-rel-th' + '01.sm.webp 800w', base % 'syn-rel-th' + '01.webp 1600w'])
+        self.assertEqual(cards['syn-rel-th']['srcset'], two)
+        self.assertEqual(cards['syn-rel-plain']['srcset'], ', '.join([base % 'syn-rel-plain' + '01.sm.webp 800w', base % 'syn-rel-plain' + '01.webp 1600w']))
+        self.assertNotIn('srcset', cards['syn-rel-none'])
+        sizes = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+        self.assertEqual(need(self, core, 'RELATED_SIZES'), sizes)                 # the card strings are unchanged
+        self.assertEqual((cards['syn-rel-th']['sizes'], cards['syn-rel-plain']['sizes']), (sizes, sizes))
+        for slug, img in cards.items():
+            self.assertEqual(img['src'], base % slug + '01.webp')                  # the fallback src is still the full file
+            self.assertEqual(img['loading'], 'lazy')
+        # the wrapper: only around the cover that has the copy, inside the card's photo link, holding the source and the img
+        self.assertEqual({slug: [n.tag for n in c.find('a', cls='tcard-img').elements()] for slug, c in items.items()},
+                         {'syn-rel-th': ['picture'], 'syn-rel-plain': ['img'], 'syn-rel-none': ['img']})
+        pic = items['syn-rel-th'].find('picture')
+        self.assertEqual((pic.classes, [n.tag for n in pic.elements()]), (['cover-pic'], ['source', 'img']))
+        src = pic.find('source')
+        self.assertEqual(sorted(src.attrs), ['media', 'sizes', 'srcset'])
+        self.assertEqual((src['media'], src['sizes']), ('(max-width: 559.98px)', '112px'))
+        self.assertEqual(src['srcset'], base % 'syn-rel-th' + '01.th.webp 427w, ' + two)
+        html_ = self.page('syn-rel-page').html
+        self.assertEqual((html_.count('<picture'), html_.count('</picture>'), html_.count('<source'), html_.count('.th.')), (1, 1, 1, 1))
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp, 'syn-rel-th', 'photos', '01.th.webp')))      # the file the source names
+        # without the .th file the page is the same page minus that wrapper
+        os.remove(os.path.join(self.tmp, 'syn-rel-th', 'photos', '01.th.webp'))
+        self.load_site()
+        before = self.page('syn-rel-page').html
+        self.assertNotIn('<picture', before)
+        self.assertNotIn('.th.', before)
+        self.assertEqual(unwrap(html_), before)
+        self.assertNotEqual(html_, before)
+
+    def test_the_preload_and_the_lead_image_always_agree(self):
+        # 5.2 / 5.3: whatever copies the cover has, the head's preload names the candidates and the sizes of the hero
+        # <img> exactly, so the browser preloads the file it then shows
+        cases = (('syn-lead-th', True, True), ('syn-lead-sm', False, True), ('syn-lead-plain', False, False), ('syn-lead-th-only', True, False))
+        for k, (slug, th, sm) in enumerate(cases):
+            with self.subTest(slug):
+                self.with_copies(slug, LANDSCAPE, th=th, sm=sm, body=WRITEUP, date='2025-07-%02d' % (k + 1))
+                links = self.preloads(slug)
+                self.assertEqual(len(links), 1)
+                img = self.hero(slug).find('img')
+                self.assertEqual(links[0]['href'], img['src'])
+                self.assertEqual(links[0]['imagesrcset'], img['srcset'])
+                self.assertEqual(links[0]['imagesizes'], img['sizes'])
+                self.assertEqual(img['srcset'] is not None, sm)
+                self.assertEqual(img['sizes'], HERO_SIZES if sm else None)
+                self.assertEqual((links[0]['fetchpriority'], img['fetchpriority']), ('high', 'high'))
+
+
+# ---------------------------------------------------------------- Phase 4: the phone-only source of a card cover (contract-phase4.md 10.5)
+
+class CardSourceTests(ReportFixture):
+    """contract-phase4.md 10.5: the card-size .th copy is offered to phones only. core.CARD_PHONE_SLOT ('112px') and
+    core.CARD_PHONE_MEDIA ('(max-width: 559.98px)'); core._card_source(t, p, here, sizes) is the <source> for a card
+    sizes string (one that ends ', 112px') when the photo has its .th and .sm copies and a recorded size, else '';
+    core.cover_img wraps a card cover that is not the page's lead image in <picture class="cover-pic"> with that
+    source in front of the <img> it has always written. Reason: with 427w in the <img>'s own list a 1x desktop screen
+    took the .th copy for the card's 400 px slot, and the photo looked softer than before the phase."""
+
+    CARD = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+
+    def cover(self, name, size, th=True, sm=True, **meta):
+        """A report whose one photo (photos/01.webp, `size`; None: unsized) has its .sm copy and, with th, its .th copy."""
+        slug = 'syn-card-' + name
+        meta.setdefault('date', '2025-06-20')
+        helpers.make_trip(self.tmp, slug, title='Synthetic ' + name, region=REGION, track=True,
+                          photos=[photo('photos/01.webp', size, alt='Synthetic "photo" one', sm=sm)], **meta)
+        if th:
+            helpers.touch(os.path.join(self.tmp, slug, 'photos', '01.th.webp'))
+        self.load_site()
+        return self.by[slug]
+
+    def strings(self):
+        """(the card strings, strings that are not a card's)."""
+        home, trips = load_module(self, 'sitegen.pages.home'), load_module(self, 'sitegen.pages.trips')
+        cards = (core.RELATED_SIZES, trips.TRX_SIZES, home.RECENT_SIZES)
+        others = (self.report.HERO_SIZES, home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES, core.PHONE_FULL, '100vw', '',
+                  '(min-width: 1200px) 400px, 100vw', '112px', '(min-width: 560px) 50vw,112px', '(min-width: 560px) 50vw, 112px ',
+                  '112px, 100vw', '(min-width: 560px) 50vw, 1112px', '(min-width: 560px) 50vw, 112PX')
+        return cards, others
+
+    def test_the_two_constants(self):
+        self.assertEqual(need(self, core, 'CARD_PHONE_SLOT'), '112px')
+        self.assertEqual(need(self, core, 'CARD_PHONE_MEDIA'), '(max-width: 559.98px)')
+        cards, others = self.strings()
+        for sizes in cards:
+            # a card's phone slot is the last, unconditional item of its string, and its first breakpoint is where the
+            # source's media query ends
+            self.assertEqual(sizes, self.CARD)
+            self.assertTrue(sizes.endswith(', ' + core.CARD_PHONE_SLOT))
+            self.assertIn('(min-width: 560px) ', sizes)
+        for sizes in others:
+            self.assertFalse(sizes.endswith(', ' + core.CARD_PHONE_SLOT), sizes)
+
+    def test_card_source_for_a_landscape_a_portrait_and_a_panorama(self):
+        # '<source media="(max-width: 559.98px)" srcset="<th> <thumb_width>w, <sm> <w>w, <full> <w>w" sizes="112px">'
+        card_source = need(self, core, '_card_source')
+        want = '<source media="(max-width: 559.98px)" srcset="%s01.th.webp %dw, %s01.sm.webp %dw, %s01.webp %dw" sizes="112px">'
+        cases = (('landscape', LANDSCAPE, (427, 800, 1600)), ('portrait', PORTRAIT, (320, 600, 1200)), ('panorama', (3810, 1600), (762, 800, 3810)),
+                 ('square', (1000, 1000), (320, 800, 1000)), ('sixteen-nine', (1600, 900), (569, 800, 1600)))
+        for k, (name, size, widths) in enumerate(cases):
+            with self.subTest(name):
+                t = self.cover(name, size, date='2025-06-%02d' % (k + 1))
+                p = t['cover']['photo']
+                base = '../../trips/%s/photos/' % t['slug']
+                got = card_source(t, p, t['url'], self.CARD)
+                self.assertEqual(got, want % (base, widths[0], base, widths[1], base, widths[2]))
+                self.assertEqual(widths[0], core.thumb_width(p))
+                self.assertEqual(sorted(widths), list(widths))               # for these shapes the list ascends
+                src = Doc(got).find('source')
+                self.assertEqual((src['media'], src['sizes']), (core.CARD_PHONE_MEDIA, core.CARD_PHONE_SLOT))
+                # from another folder depth the three candidates move together
+                self.assertEqual(card_source(t, p, 'trips/', self.CARD), got.replace('../../trips/', '../trips/'))
+                self.assertEqual(card_source(t, p, '', self.CARD), got.replace('../../trips/', 'trips/'))
+                # ... and they are the <img>'s two candidates with the .th copy put in front
+                self.assertEqual(src['srcset'], '%s01.th.webp %dw, %s' % (base, widths[0], core._cover_srcset(t, p, t['url'])[1]))
+
+    def test_the_candidates_of_a_very_wide_panorama_do_not_ascend(self):
+        # .th is 320 px on the SHORT edge and .sm 800 px on the LONG one: past 2.5 : 1 the .th copy is the wider file. The
+        # source lists them in the same order all the same (a browser picks by width, not by position)
+        t = self.cover('strip', (4000, 1500))
+        p = t['cover']['photo']
+        base = '../../trips/%s/photos/' % t['slug']
+        self.assertEqual(core.thumb_width(p), 853)
+        self.assertEqual(need(self, core, '_card_source')(t, p, t['url'], self.CARD),
+                         '<source media="(max-width: 559.98px)" srcset="%s01.th.webp 853w, %s01.sm.webp 800w, %s01.webp 4000w" sizes="112px">'
+                         % (base, base, base))
+
+    def test_no_source_without_both_copies_and_a_recorded_size(self):
+        card_source = need(self, core, '_card_source')
+        t = self.cover('all', LANDSCAPE)
+        p = t['cover']['photo']
+        self.assertTrue(card_source(t, p, t['url'], self.CARD).startswith('<source '))
+        for lacking in ({'th': None}, {'sm': None}, {'w': None}, {'h': None}, {'w': None, 'h': None}, {'w': 0}, {'h': 0}, {'th': ''}, {'sm': ''}):
+            with self.subTest(lacking=lacking):
+                self.assertEqual(card_source(t, dict(p, **lacking), t['url'], self.CARD), '')
+        # as loaded from disk: no .th file, no .sm file, no size in index.md
+        for name, kw in (('no-th', dict(th=False)), ('no-sm', dict(sm=False)), ('no-size', dict(size=None))):
+            with self.subTest(name):
+                x = self.cover(name, kw.pop('size', LANDSCAPE), **kw)
+                self.assertEqual(card_source(x, x['cover']['photo'], x['url'], self.CARD), '')
+                self.assertNotIn('<picture', core.cover_img(x, x['url'], self.CARD))
+                self.assertNotIn('<source', core.cover_img(x, x['url'], self.CARD))
+
+    def test_no_source_for_a_string_that_is_not_a_cards(self):
+        card_source = need(self, core, '_card_source')
+        t = self.cover('strings', LANDSCAPE)
+        p = t['cover']['photo']
+        cards, others = self.strings()
+        for sizes in cards + ('50vw, 112px', '(min-width: 560px) 300px, 112px'):
+            with self.subTest(sizes=sizes):
+                self.assertTrue(card_source(t, p, t['url'], sizes).startswith('<source media="(max-width: 559.98px)" srcset="'), sizes)
+                self.assertTrue(card_source(t, p, t['url'], sizes).endswith(' sizes="112px">'))      # the slot, not the string it was handed
+        for sizes in others:
+            with self.subTest(sizes=sizes):
+                self.assertEqual(card_source(t, p, t['url'], sizes), '')
+                got = core.cover_img(t, t['url'], sizes)
+                self.assertNotIn('<picture', got)
+                self.assertNotIn('<source', got)
+                self.assertNotIn('.th.', got)
+
+    def test_the_media_and_the_slot_come_from_the_two_constants(self):
+        t = self.cover('constants', LANDSCAPE)
+        p = t['cover']['photo']
+        base = '../../trips/%s/photos/' % t['slug']
+        with mock.patch.object(core, 'CARD_PHONE_MEDIA', '(max-width: 479.98px)'), mock.patch.object(core, 'CARD_PHONE_SLOT', '96px'):
+            self.assertEqual(core._card_source(t, p, t['url'], self.CARD), '')                       # no longer ends with the slot
+            self.assertEqual(core._card_source(t, p, t['url'], '(min-width: 480px) 300px, 96px'),
+                             '<source media="(max-width: 479.98px)" srcset="%s01.th.webp 427w, %s01.sm.webp 800w, %s01.webp 1600w" sizes="96px">'
+                             % (base, base, base))
+        self.assertIn(' sizes="112px">', core._card_source(t, p, t['url'], self.CARD))
+
+    def test_cover_img_wraps_a_card_cover_and_leaves_the_img_as_it_was(self):
+        # for each card string: <picture class="cover-pic"> + the source + the <img>, and that <img> is character for
+        # character what cover_img gives for the same report before its .th file exists
+        cards, _others = self.strings()
+        for k, (name, size) in enumerate((('landscape', LANDSCAPE), ('portrait', PORTRAIT), ('panorama', (3810, 1600)))):
+            before = self.cover('wrap-' + name, size, th=False, date='2025-06-%02d' % (k + 1))
+            plain = {(sizes, here): core.cover_img(before, here, sizes) for sizes in cards for here in (before['url'], 'trips/', '')}
+            helpers.touch(os.path.join(self.tmp, before['slug'], 'photos', '01.th.webp'))
+            self.load_site()
+            t = self.by[before['slug']]
+            self.assertEqual(t['cover']['photo']['th'], 'photos/01.th.webp')
+            for (sizes, here), img in sorted(plain.items()):
+                with self.subTest(name, sizes=sizes, here=here):
+                    self.assertTrue(img.startswith('<img class="cover-img" src="') and img.endswith(' loading="lazy">') and img.count('<') == 1, img)
+                    self.assertNotIn('.th.', img)
+                    got = core.cover_img(t, here, sizes)
+                    source = core._card_source(t, t['cover']['photo'], here, sizes)
+                    self.assertTrue(source)
+                    self.assertEqual(got, '<picture class="cover-pic">' + source + img + '</picture>')
+                    self.assertEqual(unwrap(got), img)
+                    doc = Doc(got)
+                    self.assertEqual([n.tag for n in doc.root.elements()], ['picture'])
+                    pic = doc.find('picture')
+                    self.assertEqual((sorted(pic.attrs), pic.classes), (['class'], ['cover-pic']))
+                    self.assertEqual([n.tag for n in pic.elements()], ['source', 'img'])           # the source first: a browser takes the first that matches
+                    self.assertEqual(got.count('.th.'), 1)
+
+    def test_a_lead_image_is_never_wrapped(self):
+        # eager=True is the page's lead image (preloaded, fetchpriority high): the bare <img>, even at a card string
+        t = self.cover('eager', LANDSCAPE)
+        cards, others = self.strings()
+        for sizes in cards + others[:4]:
+            with self.subTest(sizes=sizes):
+                got = core.cover_img(t, t['url'], sizes, eager=True)
+                self.assertTrue(got.startswith('<img class="cover-img" src="'), got)
+                self.assertTrue(got.endswith(' fetchpriority="high">'), got)
+                self.assertEqual(got.count('<'), 1)
+                self.assertNotIn('.th.', got)
+                self.assertNotIn('loading', got)
+                # the same <img> as the lazy one, but for how it loads
+                lazy = unwrap(core.cover_img(t, t['url'], sizes))
+                self.assertEqual(got.replace(' fetchpriority="high"', ' loading="lazy"'), lazy)
+                # ... and its preload names what it names
+                link_ = Doc(core.cover_preload(t, t['url'], sizes)).find('link')
+                img = Doc(got).find('img')
+                self.assertEqual((link_['href'], link_['imagesrcset'], link_['imagesizes']), (img['src'], img['srcset'], img['sizes']))
+        self.assertIn('<picture class="cover-pic">', core.cover_img(t, t['url'], self.CARD, eager=False))
+
+    def test_the_class_and_the_focal_point_stay_on_the_img(self):
+        t = self.cover('focal', LANDSCAPE, cover_focal_x=30, cover_focal_y=62.5)
+        got = core.cover_img(t, t['url'], self.CARD, cls='tcard-cover extra')
+        doc = Doc(got)
+        pic, img = doc.find('picture'), doc.find('img')
+        self.assertEqual(pic.classes, ['cover-pic'])
+        self.assertEqual(sorted(pic.attrs), ['class'])
+        self.assertEqual(img.classes, ['cover-img', 'tcard-cover', 'extra'])
+        self.assertEqual(img['style'], 'object-position:30% 62.5%')
+        self.assertEqual((img['alt'], img['width'], img['height'], img['loading'], img['decoding']), ('Synthetic "photo" one', '1600', '1200', 'lazy', 'async'))
+        self.assertEqual(sorted(doc.find('source').attrs), ['media', 'sizes', 'srcset'])
+        self.assertTrue(got.endswith(' loading="lazy" style="object-position:30% 62.5%"></picture>'), got)
+        self.assertIn('<img class="cover-img tcard-cover extra" src="', got)
+        # the same <img> as without the wrapper: the bare one a full-width string gives, at the card's string
+        bare = core.cover_img(t, t['url'], self.report.HERO_SIZES, cls='tcard-cover extra')
+        self.assertTrue(bare.startswith('<img ') and bare.count('<') == 1)
+        self.assertEqual(unwrap(got), bare.replace(HERO_SIZES, self.CARD))
+
+    def test_a_trip_without_a_photo_has_neither(self):
+        self.assertEqual(core.cover_img(self.by['syn-track'], 'trips/', self.CARD), '')
+        self.assertEqual(core.cover_preload(self.by['syn-track'], 'trips/', self.CARD), '')
+
+    def test_on_a_report_page_every_card_with_a_copy_is_wrapped_and_nothing_else_names_it(self):
+        # 'More like this' on built pages: every card whose report has a .th copy is wrapped and its source names the
+        # file that exists; the lead photo and its preload are not touched; no <img srcset> and no imagesrcset names a
+        # .th file; and the pages are, wrapper apart, the pages of the same site without any .th file
+        with_th = ['syn-story', 'syn-explicit', 'syn-one', 'syn-two-tall']
+        for slug in STORY:
+            for p in self.by[slug]['photos']:
+                base, ext = os.path.splitext(p['file'])
+                helpers.touch(os.path.join(self.tmp, slug, base + '.sm' + ext))
+                if slug in with_th:
+                    helpers.touch(os.path.join(self.tmp, slug, base + '.th' + ext))
+        self.load_site()
+        self.assertEqual({slug: bool(self.by[slug]['cover']['photo']['th']) for slug in STORY},
+                         {slug: slug in with_th for slug in STORY})
+        pages = {slug: self.page(slug).html for slug in SINGLE}
+        wrapped = 0
+        for slug, html_ in sorted(pages.items()):
+            with self.subTest(slug):
+                doc = Doc(html_)
+                # nothing but a <source> names a .th file
+                for img in doc.find_all('img'):
+                    self.assertNotIn('.th.', (img['srcset'] or '') + (img['src'] or ''))
+                for ln in doc.find_all('link'):
+                    self.assertNotIn('.th.', (ln['imagesrcset'] or '') + (ln['href'] or ''))
+                self.assertEqual(html_.count('.th.'), len(doc.find_all('source')))
+                self.assertEqual(len(doc.find_all('picture')), len(doc.find_all('source')))
+                for card in doc.find_all('li', cls='tcard'):
+                    t = self.by[card['data-slug']]
+                    pics = card.find_all('picture')
+                    has = bool(t.get('cover') and t['cover']['photo']['th'])
+                    self.assertEqual(len(pics), 1 if has else 0, card['data-slug'])
+                    for pic in pics:
+                        wrapped += 1
+                        first = pic.find('source')['srcset'].split(', ')[0].split(' ')[0]
+                        self.assertEqual(first, '../../%s%s' % (t['url'], t['cover']['photo']['th']))
+                        self.assertTrue(os.path.isfile(os.path.join(self.tmp, t['slug'], t['cover']['photo']['th'])))
+                        # the card's cover is core.cover_img at the card string, to the character
+                        self.assertEqual(html_.count(core.cover_img(t, 'trips/%s/' % slug, core.RELATED_SIZES)), 1)
+                # the lead photo (a story with a landscape cover) is the bare <img>, and the preload repeats it
+                hero = doc.find('figure', cls='rep-hero')
+                if hero is not None:
+                    self.assertEqual(hero.find_all('picture'), [])
+                    img = hero.find('img')
+                    preloads = doc.find('head').find_all('link', attrs={'rel': 'preload', 'as': 'image'})
+                    self.assertEqual([(ln['href'], ln['imagesrcset'], ln['imagesizes']) for ln in preloads], [(img['src'], img['srcset'], img['sizes'])])
+        self.assertGreater(wrapped, 5)
+        # the same site without any .th file: the same pages, wrapper apart
+        for slug in with_th:
+            for p in self.by[slug]['photos']:
+                os.remove(os.path.join(self.tmp, slug, p['th']))
+        self.load_site()
+        for slug in SINGLE:
+            with self.subTest(slug, th=False):
+                bare = self.page(slug).html
+                self.assertNotIn('<picture', bare)
+                self.assertNotIn('.th.', bare)
+                self.assertEqual(unwrap(pages[slug]), bare)
 
 
 if __name__ == '__main__':

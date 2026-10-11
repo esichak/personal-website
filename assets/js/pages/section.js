@@ -5,7 +5,17 @@
   if (!document.body.classList.contains('p-section')) return;
 
   // ------------------------------------------------------------ filter bands: links that jump without JS, a radio group with it
-  document.querySelectorAll('[data-filter-nav]').forEach(function (nav) {
+  document.querySelectorAll('[data-filter-nav]').forEach(function (el) {
+    // Without the script the band is a <nav> of links; with it, it is a radio group, and that role may not sit on a
+    // <nav> element. The links move into a <div> that takes over the nav's class, label and data attributes.
+    // The band is an early Tab stop and this script is deferred, so one of its links may have the keyboard's focus by
+    // now. Moving a focused link takes the focus off it: `had` is that link, and it gets the focus back at the end,
+    // in its new place and with its new role.
+    var nav = document.createElement('div');
+    var had = el.contains(document.activeElement) ? document.activeElement : null;
+    Array.prototype.forEach.call(el.attributes, function (a) { nav.setAttribute(a.name, a.value); });
+    while (el.firstChild) nav.appendChild(el.firstChild);
+    el.parentNode.replaceChild(nav, el);
     var scope = document.getElementById(nav.dataset.filterNav) || document.body;
     var links = Array.prototype.slice.call(nav.querySelectorAll('a[data-filter]'));
     var live = nav.parentNode.querySelector('[data-filter-live]');
@@ -73,6 +83,7 @@
       });
     }
     apply(key, false);
+    if (had) had.focus({ preventScroll: true });   // nothing scrolls: the page is where the visitor has it
   });
 
   // ------------------------------------------------------------ ski region tablist

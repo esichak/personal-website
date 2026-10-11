@@ -3,3 +3,17 @@ _site/
 __pycache__/
 *.pyc
 .DS_Store
+
+# iCloud Drive conflict copies of rendered files ("meta 3.json", "map-wide 4.webp", a folder "first-tallac-lap 2/").
+# The renderer never writes a name that ends in a space and a number, so these are never part of the site.
+rendered/**/* [0-9].*
+rendered/**/* [0-9][0-9].*
+rendered/**/* [0-9][0-9][0-9].*
+rendered/**/* [0-9]
+rendered/**/* [0-9][0-9]
+rendered/**/* [0-9][0-9][0-9]
+
+# The same copies of the stylesheets, scripts and icons (a copy of a page script would be bundled and run twice).
+assets/**/* [0-9].*
+assets/**/* [0-9][0-9].*
+assets/**/* [0-9][0-9][0-9].*

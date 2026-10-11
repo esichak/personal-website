@@ -565,3 +565,122 @@ removed, 351 GPX files byte-identical, no write-up changed, no legacy anchor los
 
 **Next smallest step:** Phase 4 (hardening, performance measurements, share metadata, structured data where the
 content supports it, the remaining manual checks).
+
+## Phase 4 — Hardening, performance, metadata and handoff (2026-10-10)
+
+Starting point: Phases 1, 2, 2T and 3 committed on `phase1-curated-homepage`; `HEAD` was `6f6091d`. Baseline before
+this phase: 930 tests OK and `build.py --check` OK. No copy was written for any page, no trip fact was added, and no
+tracked file under `content/` or `rendered/` changed. The 105 new `content/trips/*/photos/*.th.webp` files are
+derivatives of existing photos. `tools/render.py` was not run. Nothing was pushed or deployed. The final
+report is `docs/IMPLEMENTATION_REPORT.md`; this entry records what changed and what was run.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/checks.py`, `tools/validate.py` (new) | The content validator. `checks.run()` returns findings (`error`, `warning`, `note`) for every trip folder, `content/home.json`, goal outings, write-up links and the pre-rendered site maps, and never raises on content. `validate.py` prints them (`--strict`, `--json`, `-q`, `-v`, `--content DIR`, `--site DIR`, `--today`); exit 0, 1 or 2. |
+| `tools/sitegen/sitecheck.py` (new) | The built-site checks behind `build.py --check`: the old link, anchor and duplicate-id rules with their exact lines, plus `META`, `SITEMAP`, `FEED`, `INDEX` and `GPX` lines. Reads a build once (about 1 s for the real site); hostile or malformed files give lines, not exceptions. |
+| `tools/build.py` | `main(argv)`; content is validated before the output folder is touched (errors stop the build, the first 10 warnings print); `check()` wraps `sitecheck`; `--only` rejects unknown modules; `unsafe_out()` refuses an `--out` that is the checkout, inside its source folders, a file, or a non-empty folder that is not an earlier build; `.nojekyll` is written first; `strip_css_comments()`; conflict copies under `rendered/` and `assets/` are left out; drawings and map renders are copied only for a trip with a track; the combined multi-day GPX is written exactly when the page offers it, keeps line endings and `xmlns:` prefixes (`gpx_root_tag()`), and is never written through a `--link` symlink. |
+| `tools/lib/content.py` | `published_at` / `updated_at` (`_publication`): a date or a date-time with an offset, kept as written; refused when malformed, in the future (except on a draft), before the trip's first day, on a planned route, or when `updated_at` stands alone or precedes `published_at`. Photo dicts gain `th`. |
+| `tools/lib/frontmatter.py` | Numbers are ASCII digits only. |
+| `tools/lib/photos.py`, `tools/thumbs.py` (new) | The card-size `.th` copy (320 px on the short edge, colour profile kept): `thumb_size`, `thumb_copy`, written by `web_copies` for new photos and by `thumbs.py` for existing covers. `thumbs.py` only adds files beside photos in `photos/`, skips what it cannot read and says so. |
+| `tools/sitegen/core.py` | Share tags (`share_photo`, `site_share`, `_share_tags`), `written_report`, `blog_posting`, `document(report=, canonical=)`; `has_track`, with `render_meta` and `_drawing` answering "nothing" for a trip without a track; `summary` and `stats_note` claim a recording only when there is one; `PHONE_SLOT`, `PHONE_FULL`, `PHONE_SHAPES`, `phone_sizes`; the `.th` copy offered to phones only, in a `<picture class="cover-pic">` source around a card cover whose `<img>` is unchanged (`_cover_srcset`, `_card_source`, `cover_img`); `photo` sized only with both dimensions; `reveal`; `read_json`; "Multi-day · 1 day". |
+| `tools/sitegen/pages/report.py` | `published_line`; the GPX action and bar item only with a track; a report without a track has no map section, no "View route", no Route or Map item, no full-screen map page, and no stats strip when it has no stats; the bar is omitted below two items; the beta Track row stays when there is no stats note. |
+| `tools/sitegen/pages/multiday.py`, `series.py`, `section.py`, `home.py`, `about.py`, `archive.py`, `trips.py`, `ticklist.py`, `notfound.py` | Share image and `report=` where they apply; "Download all GPX" only with a day track; the journal description says "for every day" only when true; the section page features only a report with a track, links `#featured` only when the block exists, and promises a track only when every report has one; the search forms are revealed inline; the 404 page passes `canonical=False`; the About page's sentence about the units switch is its own element. |
+| `tools/render.py` | `no_track()`: a report without a track is skipped, its stale render folder removed, and it is left out of the region maps while its region stays listed. Not run; covered by `tests/test_render_goals.py` with the drawing code stubbed. |
+| `tools/add_trip.py`, `tools/ticklist.py` | `add_trip.py`: a placeholder Strava id in the help, a usage error for a wrong export folder or unknown id, clearer next steps after `--day-of`. `ticklist.py add`: the closing line names the render folder only when it exists, and says when no map was drawn. |
+| `tools/privacy_audit.py` (new), `docs/PRIVACY_NOTES.md` (new) | A read-only audit of what the published tracks, photos and repository files add up to. The default report prints counts only and nothing about a single track or place; `--list` is for the author and refuses to print anywhere but a terminal. The notes state the observations and the decisions that are the author's. |
+| `assets/js/base.js`, `pages/section.js`, `pages/trips.js`, `pages/ticklist.js` | Cluster markers take no focus; the copy-link fallback closes on focus leaving or Escape and returns focus to its button; the section filter band becomes a `div` radiogroup without losing focus; the explorers adopt what was typed or chosen before the script ran (`adoptForm`, `ownSort`) and ask for a failed search index again (`stillFailed`, `mayLoad`); `facetOk` and `goalShown` exported. |
+| `assets/css/base.css`, `pages/*.css` | The no-JavaScript header (dead controls hidden, links wrap, not sticky on a phone); 44 px targets (the filter chips as boxes, the rest as hit areas that change no box); `picture.cover-pic` has no box; scroll margins under the second sticky bar; the multi-day day bar is static in a short window; the footer reserves bar space only when there is a bar; forced-colours rules for the units switch and the Map legend; `.rep-pub`. |
+| `.gitignore` | iCloud conflict copies under `rendered/` and `assets/`. No tracked file is ignored. |
+| `README.md`, `ADDING-TRIPS.md`, `docs/CONTENT_GUIDE.md`, `docs/TICK_LIST_GUIDE.md`, `docs/DEVELOPING.md` | Corrected by following them literally on scratch content; see the report, section 5.4. |
+| `docs/IMPLEMENTATION_REPORT.md` (new) | The final report. |
+| `content/trips/*/photos/*.th.webp` (105 new files, 2.3 MB) | Card-size copies of the covers that had none, made by `tools/thumbs.py`. |
+| Tests | 16 new test files; 11 changed ones and the two Node harnesses; see Checks. |
+
+### Behaviour
+
+- **Validation.** `python3 tools/validate.py` lists every content problem, one line each, and the build runs the same
+  rules first: an error stops it before the output folder is touched, a warning does not. Errors are broken explicit
+  values and values the generator cannot read (wrong types, missing files, bad dates, a day file's iCloud copy,
+  day files with no recorded track). Warnings are incomplete optional metadata and things the author should look
+  at (a report without a track, a trip the pre-rendered maps still draw after it was drafted or removed, an unknown
+  key, a key written twice). Notes count absent optional fields.
+- **Site check.** `build.py --check` prints `BROKEN`, `BROKEN ANCHOR` and `DUPLICATE IDS` lines as before, and `META`,
+  `SITEMAP`, `FEED`, `INDEX` and `GPX` lines for the new rules, then the same `link check:` summary.
+- **Share metadata.** A page that shows a trip shares the trip's cover with its recorded size and description; Home,
+  About, Map, Trips and the Tick list share the first featured trip's cover; a report without a photo shares none.
+  A published report with at least 100 characters of write-up carries one `BlogPosting` block. `published_at` and
+  `updated_at` are shown and written only when the author sets them. The feed and the sitemap are unchanged.
+- **Photos.** On phones a full-width landscape photo of ordinary shape loads its 800 px copy; portraits, squares and
+  panoramas are told the real width. On phones a card loads a 320 px copy where one exists; from 560 px up a card
+  loads exactly what it loaded before the phase. A lead image and its preload always
+  name the same candidates.
+- **Search forms.** On Trips and the Tick list the form is in place at first paint, and what a visitor types or
+  chooses before the script arrives is kept. With JavaScript off the form stays hidden behind the existing note.
+- **A report without a track** (none exists) has no map, profile, route drawing, download or route link, promises
+  none in its description, and has no stats strip when it has no stats. A track that is removed takes its renders
+  off the site at the next build; the shared region maps keep its line until `tools/render.py` is run, and the
+  validator says so.
+- **Accessibility.** Focus never lands under a sticky bar; hidden map markers take no focus; the copy-link fallback
+  behaves under Tab and Escape; with JavaScript off the header shows only working links, all of them; the targets
+  the walks found small are 44 px.
+- **Tools.** `--out` cannot empty the checkout or a folder that is not a build; `--only` rejects unknown modules;
+  `add_trip.py` and `ticklist.py` say plainly what to do next and what was not drawn.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests` | 2,021 tests in 36 files, OK (930 before the phase), on Python 3.9.6 and 3.12 with `-W error`. |
+| Node harnesses | `trips_js_harness.js` 125 checks, `series_js_harness.js` 43, `ticklist_js_harness.js` 85. All pass. |
+| `python3 tools/validate.py` on the real content | 0 errors, 1 warning (the planned route without `goal.json`), 467 notes; 168 trips, 398 declared photos, 341 GPX files. |
+| The 187 malformed inputs of the groundwork | Before: 31 tracebacks, 52 clear errors, 18 caught only by the link check, 86 accepted. Now: 133 errors, 32 warnings, 2 left to the site check, 20 accepted as legitimate. Kept as a test table. |
+| `python3 tools/build.py --out <scratch> --link --check` | OK: 349 pages, 168 trips, about 4 s. |
+| A copying build (no `--link`) with `--check`, and `validate.py --site` on it | OK, `site: 0 problems`. All 341 published single and day GPX files are byte for byte their sources; the 10 combined files hold every day's tracks unchanged. |
+| Builds under Python 3.9 and 3.12 compared file by file | Identical. |
+| CI rehearsal: a copy of exactly the 5,198 files the commit holds (taken from the staged index), on a case-sensitive volume, Python 3.12, `TZ=UTC`, `LANG=C`, with nothing on the path but Python (no `node`, `git`, `cwebp` or `sips`) | 2,021 tests OK (25 skipped, the Node-dependent ones); `build.py --check` OK; the 3,403 files of the output are identical, file for file, to the build that was measured. It ran on macOS, not Linux, and the CI job itself has not run, since nothing was pushed. |
+| The final build against the build of `6f6091d` | No path removed; 105 added (the `.th` copies). All 351 GPX files, the feed, the sitemap, `robots.txt` and both search indexes identical. Titles, canonicals, descriptions and write-up text identical on all 347 pages; no id lost. 163 pages differ in their HTML (share tags, structured data, photo `sizes`, the phone-only `<picture>` source around card covers, the inline reveal). Every `<img>` of a card cover is what it was. |
+| The final build against the original site (`a9baab9`) | See the report, section 5.3. |
+| Page-load measurement, three builds, nine pages, phone and desktop profiles | See the report, section 2. The after build was measured three times (36 cold loads each); the last set, on the final code, is the one reported. |
+| Lighthouse, 12 pages, mobile and desktop, before and after | Accessibility, best practices and SEO 100 throughout; see the report, 2.7. |
+| Before and after screenshots, 36 views (12 pages at 1440 px, 390 px and 390 px at the bottom), compared pixel by pixel | Final build against the build before the phase: 29 identical; 2 differ where intended (the `All` chip 6 px wider on phones, the Trips placeholder ending in an ellipsis); 4 only in photo pixel values; 1 in 13 pixels of an icon edge. See the report, 5.2. |
+| Browser walks with real key presses | Two full walks (before the phase and after its first round), then targeted re-checks of the later fixes; see the report, 5.2. |
+| Author docs followed literally in scratch copies | Three writers, three independent readers, three fix passes, then a final pass against the frozen code; see the report, 5.4. |
+| Mutants | Most new test groups were checked by applying single-line changes to the rule on a scratch copy: validator 166 (165 killed, 1 equivalent), site check 110 (109, 1 equivalent), privacy tool 120 and later 50 (all killed), page and metadata tests 130 (all killed), thumbs, filters and static accessibility 120 (119, 1 equivalent), the no-track rules 41 and 49 (all killed but 1 equivalent), JavaScript and CSS fixes 58 (all killed), the phone-only card copy 19 (all killed), the hit areas 28 and 3 (all killed). |
+| Rendering | Not run. `tools/render.py` needs the internet and rewrites committed assets. No tracked file under `rendered/` changed. |
+| Not run | Safari and Firefox; real phones; screen readers; true forced-colours themes; a real share preview; field performance. See the report, section 4. |
+
+### Review
+
+- **Groundwork before any change**: five read-only audits (validation, metadata, loading, privacy, author docs) and
+  four measurement and browser passes on the builds before the phase. Each proposed change had to cite what was
+  observed.
+- **Round 1: eight reviewers by lens** (metadata truth, capability and compatibility, loading, accessibility, site
+  check, privacy, hostile input, Python versions and CI). Seven reported 36 findings, each with a reproduced failing
+  example: 1 high (the missing Git index, an incident and not a code defect), 9 medium, 26 low. The eighth and the
+  planned skeptic stage were stopped to free disk space (see below), so the coordinator reproduced or read each
+  finding instead. Fixed: all 9 medium and 23 of the 26 low ones. The three left concern pages for content that
+  does not exist (a multi-day trip or a journal with no day track at all, a report whose track is not rendered
+  yet); they are in the report's section 10.
+- **The docs readers** found a further set of tool gaps by following the guides literally (a day file's iCloud copy
+  published as a day, `--out` able to empty any folder, a traceback on a wrong Strava export, the tick-list tool
+  naming a folder that did not exist). All fixed.
+- **Comparing screenshots found what the tests could not.** The first after-set, laid beside the before-set, showed card
+  photos softer on a 1x desktop screen (the 320 px copy drawn in a 400 px slot) and five 44 px target fixes that had
+  moved layout by 2 to 20 px. The card copy became phone-only (`<picture>`), the targets became hit areas that change
+  no box, each hit area was probed pixel by pixel in Chrome at three widths, and the final set was compared again.
+- **Test authors found production bugs while writing tests**: the no-JavaScript rules that did not apply, the
+  comment stripper that was not idempotent, the "Download all GPX" link without a file, the card copy handed to
+  small 2x phones for a full-width photo, a dead `#featured` link, a multi-day trip's own `track.gpx` overwritten by
+  a `--link` build. All fixed and pinned.
+- **Incident.** While about fifteen scratch copies of the checkout existed, free disk fell to 13 GB and iCloud Drive
+  offloaded files in use; `.git/index` disappeared. It was rebuilt from `HEAD` after the tree had been verified
+  against it; the report's section 11 has the details. After that, agents were limited to scratch copies of
+  `tools/`, `tests/` and `assets/`.
+
+### Remaining issues and author inputs
+
+Listed in `docs/IMPLEMENTATION_REPORT.md`, sections 10 and 12. The ones that most need the author: the phone photo
+size, the font-loading choice, the privacy decisions in `docs/PRIVACY_NOTES.md`, `published_at` for existing
+reports, and whether to start Phase 5.

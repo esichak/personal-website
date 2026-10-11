@@ -439,12 +439,18 @@ def no_route(t):
     return t['kind'] == 'planned' and not t['track']
 
 
+def no_track(t):
+    """A report without a recording: no track.gpx of its own and no day with one. There is nothing to draw, and the site
+    does not show a render left from when it had a track (sitegen.core.has_track)."""
+    return t['kind'] != 'planned' and not (t['track'] or any(d['track'] for d in t['days']))
+
+
 def render_trip(t, force=False):
-    if no_route(t):
-        # a render left over from when the goal had a route would show a line that no longer exists
+    if no_route(t) or no_track(t):
+        # a render left over from when the goal had a route, or the report a track, would show a line that no longer exists
         if os.path.exists(t['rendered']):
             shutil.rmtree(t['rendered'])
-            print('removed render of %s (the goal has no route now)' % t['slug'])
+            print('removed render of %s (%s)' % (t['slug'], 'the goal has no route now' if no_route(t) else 'the report has no track now'))
         return False
     mf = os.path.join(t['rendered'], 'meta.json')
     h = trip_inputs(t)
@@ -522,6 +528,9 @@ def render_site(trips, force=False):
     jobs = []
     mapped = []
     for region, ts in groups.items():
+        # a report without a track has no line and no start to pin: it stays in the region's list (all_regions below) and
+        # out of the maps
+        ts = [t for t in ts if not no_track(t)]
         # overview maps only where there is something to overview; one-off trips elsewhere are listed without a map
         if len(ts) >= MIN_REGION_TRIPS:
             mapped.append(region)
@@ -583,7 +592,7 @@ def main():
     trips = content.load_all()
     if a.charts:
         for t in trips:
-            if (a.slugs and t['slug'] not in a.slugs) or t['kind'] in ('series', 'planned'):
+            if (a.slugs and t['slug'] not in a.slugs) or t['kind'] in ('series', 'planned') or no_track(t):
                 continue
             mf = os.path.join(t['rendered'], 'meta.json')
             if not os.path.exists(mf):
@@ -600,9 +609,9 @@ def main():
     if not a.site:
         t_start = time.time()
         for t in trips:
-            if no_route(t) and (not a.slugs or t['slug'] in a.slugs):
-                render_trip(t)   # nothing to draw: only clears a render left from when the goal had a route
-        pending = [t for t in trips if (not a.slugs or t['slug'] in a.slugs) and t['kind'] != 'series' and not no_route(t)
+            if (no_route(t) or no_track(t)) and (not a.slugs or t['slug'] in a.slugs):
+                render_trip(t)   # nothing to draw: only clears a render left from when the goal had a route, or the report a track
+        pending = [t for t in trips if (not a.slugs or t['slug'] in a.slugs) and t['kind'] != 'series' and not no_route(t) and not no_track(t)
                    and (a.force or not os.path.exists(os.path.join(t['rendered'], 'meta.json'))
                         or json.load(open(os.path.join(t['rendered'], 'meta.json'))).get('hash') != trip_inputs(t))]
         if len(pending) > 3:

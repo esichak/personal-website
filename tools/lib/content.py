@@ -2,7 +2,7 @@
 import glob
 import os
 import re
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 import frontmatter
 import goals
@@ -43,6 +43,83 @@ def _date(v):
         return None
 
 
+def _today():
+    """The day the build runs (a function, so tests can fix it)."""
+    return date.today()
+
+
+# re.ASCII: \d is 0-9 only (int() would also take full-width digits, and the value is published as written)
+_PUB = re.compile(r'^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?(Z|[+-]\d{2}:\d{2}))?$', re.ASCII)
+
+
+def _pub_value(meta, key, where):
+    """published_at / updated_at of index.md: (the text exactly as written, its moment as an aware datetime or a date) or
+    (None, None) when the line is absent or empty. A date is `YYYY-MM-DD`; a date and time needs an explicit offset
+    (`2026-10-03T18:30:00-07:00`, or `Z`), because the site never adds a time or a zone of its own. Anything else, and
+    an impossible date or time, is a ContentError: a new explicit field is never guessed at."""
+    v = meta.get(key)
+    if v is None or v == '':
+        return None, None
+    if isinstance(v, date) and not isinstance(v, datetime):
+        v = v.isoformat()
+    m = _PUB.match(v.strip()) if isinstance(v, str) else None
+    if not m:
+        raise ContentError('%s: %s must be a date written YYYY-MM-DD, or a date and time with an offset such as '
+                           '2026-10-03T18:30:00-07:00, got %r' % (where, key, v))
+    text = v.strip()
+    y, mo, d, hh, mm, ss, off = m.groups()
+    try:
+        if hh is None:
+            return text, date(int(y), int(mo), int(d))
+        if off == 'Z':
+            tz = timezone.utc
+        else:
+            oh, om = int(off[1:3]), int(off[4:6])
+            if oh > 14 or om > 59 or (oh == 14 and om):   # no clock on earth is more than 14 hours from UTC
+                raise ValueError('offset')
+            tz = timezone((1 if off[0] == '+' else -1) * timedelta(hours=oh, minutes=om))
+        return text, datetime(int(y), int(mo), int(d), int(hh), int(mm), int(ss or 0), tzinfo=tz)
+    except ValueError:
+        raise ContentError('%s: %s %r is not a real date or time' % (where, key, v))
+
+
+def _day_of(moment):
+    return moment.date() if isinstance(moment, datetime) else moment
+
+
+def _publication(meta, t, where):
+    """(published_at, updated_at) as written, validated against each other, the trip and today. published_at is the day
+    the report first went online on this site and updated_at the day its content last changed materially: neither is
+    the trip date, and neither is ever filled in by the build. Absent -> (None, None), and nothing about publication is
+    shown or written into the page's metadata."""
+    pub, pub_m = _pub_value(meta, 'published_at', where)
+    upd, upd_m = _pub_value(meta, 'updated_at', where)
+    if not pub and not upd:
+        return None, None
+    if t['kind'] == 'planned':
+        raise ContentError('%s: %s is for a report; this is a planned route (kind: planned)'
+                           % (where, 'published_at' if pub else 'updated_at'))
+    if upd and not pub:
+        raise ContentError('%s: updated_at needs published_at (the day the report first went online)' % where)
+    limit = _today() + timedelta(days=1)
+    for key, text, moment in (('published_at', pub, pub_m), ('updated_at', upd, upd_m)):
+        # a draft is not online, so the day it is planned to go online may lie ahead; the check applies again the
+        # moment the draft flag comes off
+        if text and not t['draft'] and _day_of(moment) > limit:
+            raise ContentError('%s: %s %s is in the future' % (where, key, text))
+    # the first day, not the last: a journal or a multi-day page can go online while the trip is still under way, and
+    # days added later must not turn a true date into an error
+    trip_day = t['date'] or t['end_date']
+    if trip_day and _day_of(pub_m) < trip_day:
+        raise ContentError('%s: published_at %s is before the trip itself (%s); it is the day the report went online, '
+                           'not the trip date' % (where, pub, trip_day.isoformat()))
+    if upd:
+        both_times = isinstance(pub_m, datetime) and isinstance(upd_m, datetime)
+        if (upd_m < pub_m) if both_times else (_day_of(upd_m) < _day_of(pub_m)):
+            raise ContentError('%s: updated_at %s is before published_at %s' % (where, upd, pub))
+    return pub, upd
+
+
 def _hm_to_s(v):
     if not v:
         return None
@@ -68,8 +145,9 @@ def _photos(entries, folder):
         if not f:
             continue
         base, ext = os.path.splitext(f)
-        sm = base + '.sm' + ext
+        sm, th = base + '.sm' + ext, base + '.th' + ext   # the 800 px copy and the card-size copy, when they exist
         out.append({'file': f, 'sm': sm if os.path.exists(os.path.join(folder, sm)) else None,
+                    'th': th if os.path.exists(os.path.join(folder, th)) else None,
                     'w': p.get('w'), 'h': p.get('h'), 'alt': p.get('alt') or '', 'caption': p.get('caption') or ''})
     return out
 
@@ -387,6 +465,8 @@ def load_trip(folder):
     else:
         raise ContentError('%s: search_aliases must be a list of names such as [PCT], got %r' % (where, al))
     t['cover'] = resolve_cover(t)
+    # optional, never invented: when the report went online and when it last changed (docs/CONTENT_GUIDE.md)
+    t['published_at'], t['updated_at'] = _publication(meta, t, where)
     t['journal_highlights'] = _highlights(meta.get('journal_highlights'), t, where)
     # kind: planned trips are tick-list goals: goal.json (or the defaults for a legacy planned route)
     t['goal'] = goals.load_goal(folder, slug, kind)

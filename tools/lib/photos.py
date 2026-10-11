@@ -111,14 +111,51 @@ def have_cwebp():
     return which('cwebp') is not None
 
 
+THUMB_EDGE = 320   # short edge of the card-size .th copy (sitegen core.THUMB_EDGE reads the same number)
+
+
+def thumb_size(w, h, edge=THUMB_EDGE):
+    """(width, height) of a photo's card-size copy: `edge` px on the short side, the other side in proportion, rounded.
+    sitegen writes this width into the srcset (core.thumb_width), so the two must agree to the pixel."""
+    s = float(edge) / min(w, h)
+    return int(round(w * s)), int(round(h * s))
+
+
+def thumb_copy(src, dst, w, h, quality=72):
+    """Write the card-size copy `dst` (<name>.th.webp or .th.jpg) of a published photo `src` whose size is w x h px, at
+    exactly thumb_size(w, h). A trip card shows its cover in a slot 112 px wide on a phone, and this copy is what that
+    slot loads instead of the 800 px one (wider screens keep the 800 px copy: sitegen.core._card_source). Like the other two copies it keeps the colour
+    profile and no other metadata. Returns (tw, th)."""
+    tw, th = thumb_size(w, h)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if dst.lower().endswith('.webp'):
+        if not have_cwebp():
+            raise RuntimeError('cwebp is not installed (brew install webp)')
+        with tempfile.TemporaryDirectory() as td:
+            tmp = os.path.join(td, 't.webp')
+            subprocess.run(['cwebp', '-quiet', '-q', str(quality), '-m', '5', '-metadata', 'icc', '-resize', str(tw), str(th),
+                            src, '-o', tmp], check=True, capture_output=True)
+            os.replace(tmp, dst)
+    else:
+        with tempfile.TemporaryDirectory() as td:
+            tmp = os.path.join(td, 't.jpg')
+            subprocess.run(['sips', '-s', 'format', 'jpeg', '-s', 'formatOptions', '74', '-z', str(th), str(tw), src, '--out', tmp],
+                           check=True, capture_output=True)
+            strip_metadata(tmp)
+            os.replace(tmp, dst)
+    return tw, th
+
+
 def web_copies(src, dst_base, big=1600, small=800, quality=72):
-    """Write dst_base.webp (long edge <= big) and dst_base.sm.webp (<= small); JPEG fallback without cwebp.
+    """Write dst_base.webp (long edge <= big), dst_base.sm.webp (<= small) and dst_base.th.webp (the card-size copy,
+    thumb_size); JPEG fallback without cwebp.
 
     Returns (extension, w, h) of the large copy. Only the ICC colour profile is kept (no EXIF/GPS/XMP)."""
     os.makedirs(os.path.dirname(dst_base), exist_ok=True)
     if not have_cwebp():
         w, h = web_copy(src, dst_base + '.jpg', big, quality=78)
         web_copy(src, dst_base + '.sm.jpg', small, quality=74)
+        thumb_copy(dst_base + '.jpg', dst_base + '.th.jpg', w, h)
         return 'jpg', w, h
     with tempfile.TemporaryDirectory() as td:
         mid = os.path.join(td, 'm.jpg')
@@ -128,4 +165,5 @@ def web_copies(src, dst_base, big=1600, small=800, quality=72):
         rs = ['-resize', str(small), '0'] if w >= h else ['-resize', '0', str(small)]
         subprocess.run(['cwebp', '-quiet', '-q', str(quality), '-m', '5', '-metadata', 'icc'] + rs + [mid, '-o', dst_base + '.sm.webp'],
                        check=True, capture_output=True)
+    thumb_copy(dst_base + '.webp', dst_base + '.th.webp', w, h, quality=quality)
     return 'webp', w, h

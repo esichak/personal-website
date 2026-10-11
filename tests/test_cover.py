@@ -1,7 +1,8 @@
 """Phase 1: cover resolution and the optional presentation fields in the trip dict (tools/lib/content.py), with the
 automatic pick as contract-phase3.md section 10.4 left it: the first photo wide enough to lead a page (w >= 1.2 * h),
 else the first at least as wide as tall, else the first photo; the same three steps over the day photos of a trip that
-has only those; never applied to an explicit cover_photo."""
+has only those; never applied to an explicit cover_photo. Phase 4 (contract-phase4.md 5.3): a photo's card-size copy
+(<name>.th.<ext>) is recorded on the photo when the file exists and changes nothing about which photo is the cover."""
 import os
 import sys
 import tempfile
@@ -299,6 +300,101 @@ class CoverTests(unittest.TestCase):
         half = {'file': 'photos/01.webp', 'w': 1600, 'alt': 'Width only'}
         t = self.trip(photos=[half, photo('photos/02.webp', LANDSCAPE)])
         self.assertEqual((t['cover']['source'], t['cover']['photo']['file']), ('parent', 'photos/02.webp'))
+
+    def test_photo_without_dimensions_is_not_taken_for_one_at_least_as_wide_as_tall(self):
+        # the second step of the pick (nothing is wide enough to lead: 1100 x 1000 is under 6:5): a photo with no
+        # recorded size is not 'at least as wide as tall', so the near-square photo after it is the cover
+        t = self.trip(slug='nodim-near-square', photos=[photo('photos/01.webp', None), photo('photos/02.webp', (1100, 1000))])
+        self.assertIsNone(t['cover_photo'])
+        self.assertEqual((t['cover']['source'], t['cover']['photo']['file'], t['cover']['day']), ('parent', 'photos/02.webp', None))
+        self.assertEqual((t['photos'][0]['w'], t['photos'][0]['h']), (None, None))
+        t = self.trip(slug='nodim-square', photos=[photo('photos/01.webp', None), photo('photos/02.webp', SQUARE)])
+        self.assertEqual(t['cover']['photo']['file'], 'photos/02.webp')
+        # half a size is no size either
+        t = self.trip(slug='half-near-square', photos=[{'file': 'photos/01.webp', 'h': 1000, 'alt': 'Height only'},
+                                                       {'file': 'photos/02.webp', 'w': 1600, 'alt': 'Width only'},
+                                                       photo('photos/03.webp', (1100, 1000))])
+        self.assertEqual(t['cover']['photo']['file'], 'photos/03.webp')
+        # the same over day photos, in day order
+        days = [{'photos': [photo('photos/d01-01.webp', None)]}, {'photos': [photo('photos/d02-01.webp', (1100, 1000))]}]
+        t = self.trip(slug='nodim-days', kind='multi-day', days=days)
+        self.assertEqual((t['cover']['source'], t['cover']['photo']['file']), ('day', 'photos/d02-01.webp'))
+        self.assertIs(t['cover']['day'], t['days'][1])
+        # with nothing but portraits after it, the photo without a size is still the first photo
+        t = self.trip(slug='nodim-portrait', photos=[photo('photos/01.webp', None), photo('photos/02.webp', PORTRAIT)])
+        self.assertEqual(t['cover']['photo']['file'], 'photos/01.webp')
+
+    # ------------------------------------------------------------ the card-size copy (.th, contract-phase4.md 5.3)
+
+    def with_th(self, slug, sizes, th=(), days=None):
+        """A trip whose photos have these (w, h) in this order, with a .th copy on disk beside the photos numbered in
+        `th` (1 = the first). days: the same per day, th then holding (day, photo) pairs."""
+        if days is None:
+            folder = helpers.make_trip(self.tmp, slug, photos=[photo('photos/%02d.webp' % i, size) for i, size in enumerate(sizes, 1)])
+            for i in th:
+                helpers.touch(os.path.join(folder, 'photos', '%02d.th.webp' % i))
+        else:
+            folder = helpers.make_trip(self.tmp, slug, kind='multi-day', days=[
+                {'photos': [photo('photos/d%02d-%02d.webp' % (i, j), size) for j, size in enumerate(day, 1)]} for i, day in enumerate(days, 1)])
+            for i, j in th:
+                helpers.touch(os.path.join(folder, 'photos', 'd%02d-%02d.th.webp' % (i, j)))
+        return helpers.load(self.tmp, slug)
+
+    def test_a_card_size_copy_on_disk_does_not_change_the_automatic_pick(self):
+        # each list of photos is loaded bare, then with a .th copy beside every one of its photos alone, then beside all
+        cases = [('wide', [(800, 1200), (1000, 1000), (1600, 1200), (1600, 900)], 'photos/03.webp'),
+                 ('step-two', [(800, 1200), (1100, 1000), (1000, 1000)], 'photos/02.webp'),
+                 ('portraits', [(800, 1200), (900, 1200)], 'photos/01.webp'),
+                 ('nodim', [None, (1100, 1000)], 'photos/02.webp')]
+        for name, sizes, want in cases:
+            n = len(sizes)
+            for k, th in enumerate([()] + [(i,) for i in range(1, n + 1)] + [tuple(range(1, n + 1))]):
+                with self.subTest(photos=name, th=th):
+                    t = self.with_th('th-%s-%d' % (name, k), sizes, th)
+                    self.assertIsNone(t['cover_photo'])
+                    self.assertEqual((t['cover']['source'], t['cover']['photo']['file'], t['cover']['day']), ('parent', want, None))
+                    # the copies are recorded on their photos and are not photos themselves
+                    self.assertEqual([p['file'] for p in t['photos']], ['photos/%02d.webp' % i for i in range(1, n + 1)])
+                    self.assertEqual([p['th'] for p in t['photos']],
+                                     ['photos/%02d.th.webp' % i if i in th else None for i in range(1, n + 1)])
+
+    def test_a_card_size_copy_on_disk_does_not_change_the_pick_among_day_photos(self):
+        days = [[(800, 1200), (1000, 1000)], [(1100, 1000)], [(900, 1200), (1600, 900)]]
+        everywhere = [(i, j) for i, day in enumerate(days, 1) for j in range(1, len(day) + 1)]
+        for k, th in enumerate([()] + [(x,) for x in everywhere] + [tuple(everywhere)]):
+            with self.subTest(th=th):
+                t = self.with_th('th-days-%d' % k, None, th, days=days)
+                self.assertEqual((t['cover']['source'], t['cover']['photo']['file']), ('day', 'photos/d03-02.webp'))
+                self.assertIs(t['cover']['day'], t['days'][2])
+                got = [(d['n'], j) for d in t['days'] for j, p in enumerate(d['photos'], 1) if p['th']]
+                self.assertEqual(got, list(th))
+
+    def test_the_cover_carries_its_card_size_copy_when_the_file_exists(self):
+        t = self.with_th('th-cover', [(800, 1200), (1600, 1200)], th=(2,))
+        self.assertEqual(t['cover']['photo']['th'], 'photos/02.th.webp')
+        self.assertIs(t['cover']['photo'], t['photos'][1])
+        t = self.with_th('th-no-cover-copy', [(800, 1200), (1600, 1200)], th=(1,))
+        self.assertIsNone(t['cover']['photo']['th'])
+        # an explicit cover is found the same way, with its copy or without
+        for slug, th in (('th-named', (1,)), ('th-named-bare', ())):
+            folder = helpers.make_trip(self.tmp, slug, cover_photo='photos/01.webp',
+                                       photos=[photo('photos/01.webp', PORTRAIT), photo('photos/02.webp', LANDSCAPE)])
+            for i in th:
+                helpers.touch(os.path.join(folder, 'photos', '%02d.th.webp' % i))
+            t = helpers.load(self.tmp, slug)
+            self.assertEqual((t['cover']['source'], t['cover']['photo']['file']), ('explicit', 'photos/01.webp'))
+            self.assertEqual(t['cover']['photo']['th'], 'photos/01.th.webp' if th else None)
+
+    def test_a_card_size_copy_is_never_a_cover_itself(self):
+        # the .th file is a derivative beside a declared photo, not a declared photo: naming it is the usual error
+        folder = helpers.make_trip(self.tmp, 'th-as-cover', photos=[photo('photos/01.webp', LANDSCAPE)], cover_photo='photos/01.th.webp')
+        helpers.touch(os.path.join(folder, 'photos', '01.th.webp'))
+        with self.assertRaises(content.ContentError) as cm:
+            helpers.load(self.tmp, 'th-as-cover')
+        msg = str(cm.exception)
+        self.assertTrue(msg.startswith('content/trips/th-as-cover/index.md: cover_photo '), msg)
+        self.assertIn('photos/01.th.webp', msg)
+        self.assertIn('not a photo declared', msg)
 
     # ------------------------------------------------------------ focal point
 

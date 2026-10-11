@@ -138,7 +138,11 @@ html.km .u-mi { display: none; }
 .crumbs { display: flex; flex-wrap: wrap; gap: 8px; font: 400 12px/16px var(--mono); letter-spacing: .04em; text-transform: uppercase;
   color: var(--ink-3); }
 .crumbs a { color: var(--ink-3); position: relative; }
-.crumbs a::before { content: ""; position: absolute; inset: -12px -4px; }  /* 44px hit area, no layout change */
+/* a 44 px high hit area, no layout change: a 16 px line (18 px from 760, so 46) with 21 px above it and 7 px below. Not
+   the same both ways: on a report the chip link sits 16 px under the crumbs and reaches 9 px up for its own hit area
+   (a.chip--title), and where two areas overlap the later link takes the press. Above the crumbs there are 24 px or
+   more of padding (.rep-title, .sec-head). 4 px each side is half the 8 px gap, so two crumbs' areas only touch */
+.crumbs a::before { content: ""; position: absolute; inset: -21px -4px -7px; }
 .crumbs a:hover { color: var(--route-ink); }
 @media (min-width: 760px) { .crumbs { font-size: 13px; line-height: 18px; } }
 
@@ -165,6 +169,26 @@ html.km .u-mi { display: none; }
 .menu-btn[aria-expanded="true"] .i-open { display: none; }
 @media (min-width: 760px) { .brand-n { font-size: 20px; line-height: 22px; } .brand-c { display: block; } }
 @media (min-width: 1140px) { .nav { display: flex; } .menu-btn { display: none; } }
+/* without JavaScript the menu button, the units switches (the header's, the menu's and the About page's) and the Search
+   link could do nothing, so they are not shown; below 1140 px the primary links take the menu's place as a row that
+   wraps where they do not all fit beside the name (under about 450 px), so every link shows and nothing scrolls
+   sideways or clips a focus ring. The two-part selectors are needed: `.nav a` and the later `.units` and `.nav-l` rules
+   would otherwise win over a bare class here */
+@media (scripting: none) {
+  .menu-btn, .site-h .units, .units.abo-units, .nav .nav-search, .nav-sep, .nav-sep + .nav-l { display: none; }
+  .nav { display: flex; min-width: 0; }
+  .nav-l { min-width: 0; flex-wrap: wrap; row-gap: 0; }
+  .site-h-in { height: auto; min-height: var(--header-h); }
+  .site-h .brand { flex: none; }   /* the name stays on one line; the links give way and wrap */
+}
+/* a phone: the header may then be two rows of links, too tall to follow the page down, so it stays at the top. Nothing
+   sticks under it any more, so the height the page reserves for it (scroll padding, the day and month bars' `top`) is
+   0; 6 px above and below the rows keep the focus ring of a link in the first or last row whole (2 px, 2 px away) */
+@media (scripting: none) and (max-width: 479.98px) {
+  :root { --header-h: 0px; }
+  .site-h { position: static; }
+  .site-h-in { min-height: 56px; padding-block: 6px; }
+}
 @media (min-width: 1280px) { .brand-n { font-size: 22px; line-height: 24px; } }
 
 /* phones: once the H1 has scrolled under the header, the bar names the trip (glyph + title, back to top) — Phone-Report-B */
@@ -210,6 +234,11 @@ body.menu-open { overflow: hidden; }
 .site-f-in { width: min(1248px, 100% - 2 * var(--m)); margin-inline: auto; padding: 40px 0 48px; display: grid; gap: 32px;
   grid-template-columns: 1fr 1fr; }
 .f-brand { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+/* the name is one 24 px line and answers over 44 px: 12 px above it (the footer's own padding) and 8 px under it, which
+   is the gap to the next line, so a press on that line is never the link's. The hit area is a block of the link whose
+   margins take back its whole height (-12 + 44 - 32 = 0), so no box moves or grows. It is not a positioned box as
+   the other hit areas are: position: relative on this link redraws the edges of the name at 1x */
+.f-brand a.brand-n::before { content: ""; display: block; height: 44px; margin: -12px 0 -32px; }
 .f-brand .brand-n { font-size: 22px; line-height: 24px; }
 .f-nav .t-label { margin-bottom: 8px; }
 .f-nav a { min-height: 44px; display: flex; align-items: center; gap: 8px; font: 500 15px/20px var(--sans); }
@@ -243,7 +272,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
    A radio-group button (role="radio", aria-checked; base.js gives the group one tab stop and arrow keys). position:
    relative keeps the counts' spoken words (.sr, absolutely positioned) inside the chip, so a scrolling chip row never
    widens the page. */
-.fchip { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px;
+.fchip { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; min-width: 44px; padding: 0 14px;
   border: 1px solid var(--rule-strong); border-radius: 2px; font: 500 15px/20px var(--sans); color: var(--ink); white-space: nowrap; }
 .fchip:hover { border-color: var(--ink); }
 .fchip .chip-sw { width: 10px; height: 10px; }
@@ -263,6 +292,8 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
    activity disc; the title link is the card's name and is described by its DATE · PLACE line. */
 .tcard { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: 14px; align-items: start; min-width: 0; }
 .tcard-img { display: block; aspect-ratio: 4 / 3; background: var(--sunk); overflow: hidden; }
+/* a card cover may come inside <picture class="cover-pic"> (core.cover_img: a phone-only source): the picture has no box */
+picture.cover-pic { display: contents; }
 .tcard-img .cover-img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .tcard-img:hover .cover-img { filter: brightness(1.04); }
 .tcard-img--tile, .tcard-img--none { display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--rule); }
@@ -702,6 +733,10 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
   .ser-mnav a[aria-current]::after, .bbar a[aria-current]::before { forced-color-adjust: none; background: Highlight; }
   /* radios (aria-checked) and the no-JS section band's 'All' (aria-current) */
   .sec-seg-a:is([aria-checked="true"], [aria-current="true"]), .fchip[aria-checked="true"], .trx-view button[aria-checked="true"], .units button[aria-checked="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  /* the header's and the menu's units switch: the 6 px transparent borders that make each button 44 px high are drawn in
+     a system colour here, as bars above and below the unselected one (the selected one opts out just above). Canvas is
+     the colour of what they lie on. Not the About page's switch: its 1 px borders lie on the frame's own lines */
+  .site-h .units button:not([aria-checked="true"]) { border-block-color: Canvas; }
   .menu-list a[aria-current] { border-left: 3px solid Highlight; box-shadow: none; }
   .mk-pin:focus-visible > circle:nth-of-type(2) { stroke: Highlight; }
 }

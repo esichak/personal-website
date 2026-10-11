@@ -154,7 +154,9 @@ def featured(t, here, full_row='', fkey=None):
     (data-f; the year on MTB / Hiking), default the sub-type (Other)."""
     act = t['activity']
     href = link(here, t['url'])
-    gpx = link(here, t['url'] + t['slug'] + '.gpx')
+    # the download is offered only when the report has a track file (as on the report itself)
+    gpx_btn = (('<a class="btn btn--ink sec-feat-gpx" href="%s" download>%sDownload GPX</a>'
+                % (link(here, t['url'] + t['slug'] + '.gpx'), icon('download', 18))) if t['track'] else '')
     meta = core.render_meta(t)
     date = core.trip_date(t)
     # phones: chips-only chip row, the date leads the place line instead (as on the report title block)
@@ -173,7 +175,7 @@ def featured(t, here, full_row='', fkey=None):
         chart += speed_block(t, here)
     text_left = not chart and bool(t['photos'])
     photos = t['photos'][:2 if text_left else 1]
-    pics = ''.join(core.photo(t, p, here, sizes='(min-width: 1200px) 506px, (min-width: 760px) 50vw, 100vw',
+    pics = ''.join(core.photo(t, p, here, sizes='(min-width: 1200px) 506px, (min-width: 760px) 50vw, ' + core.PHONE_FULL,
                               cls='sec-feat-photo' + (' sec-feat-photo--p' if core.photo_ar(p) < 1 else ''))
                    for p in photos)
     body = writeup(t)
@@ -185,12 +187,12 @@ def featured(t, here, full_row='', fkey=None):
             '<p class="t-label sec-feat-l">Featured</p>'
             '<div class="chips sec-feat-chips">%s</div>'
             '<div class="sec-feat-h"><h2 class="t-h2 sec-feat-t" id="feat-title"><a href="%s">%s</a></h2>%s'
-            '<a class="btn btn--ink sec-feat-gpx" href="%s" download>%sDownload GPX</a></div>'
+            '%s</div>'
             '<div class="sec-feat-strip">%s%s</div>'
             '<div class="sec-feat-grid%s"><div class="sec-feat-map">%s%s%s%s</div>'
             '<div class="sec-feat-side">%s%s</div></div>%s</section>'
             % (esc(fkey if fkey is not None else (t.get('subtype') or '')), chips, href, core.title_html(t['title']), place_html,
-               gpx, icon('download', 18), core.strip(core.strip_cells(t)), core.stats_note(t), grid_cls,
+               gpx_btn, core.strip(core.strip_cells(t)), core.stats_note(t), grid_cls,
                map_, key, map_caption(t), chart, ('<div class="sec-feat-pics">%s</div>' % pics) if pics else '', txt, full_row))
 
 
@@ -219,7 +221,9 @@ def speed_block(t, here):
 
 
 def pick_featured(ts):
-    singles = [t for t in ts if t['kind'] == 'trip']
+    """The section's featured report: the first single-day report marked featured, else the newest one. The block is
+    built around the map, so a report without a track is never the one."""
+    singles = [t for t in ts if t['kind'] == 'trip' and t['track']]
     return next((t for t in singles if t['featured']), singles[0] if singles else None)
 
 
@@ -348,7 +352,7 @@ def ski_regions(ts):
             regions.append(t['region'])
     regions.sort(key=lambda r: -sum(1 for t in ts if t.get('region') == r))
     meta_p = os.path.join(core.ROOT, 'rendered', 'site', 'meta.json')
-    have = json.load(open(meta_p))['maps'] if os.path.exists(meta_p) else {}
+    have = core.read_json(meta_p, {'maps': {}})['maps']
     return [r for r in regions if ('ski-%s-desktop' % slug(r)) in have]
 
 
@@ -446,16 +450,16 @@ def description(act, ts):
     elif regions:
         where = ' (%s)' % words_list(regions, 'and')
     word = act_words(act, ts)
+    # the promise of a track and a map is made only when every report listed has a track
+    tracked = bool(ts) and all(core.has_track(t) for t in ts)
     if len(ts) == 1:
-        return '1 %s trip report%s, with the full GPX track and map.' % (word, where)
-    return '%d %s trip reports%s, each with the full GPX track and map.' % (len(ts), word, where)
+        return '1 %s trip report%s%s.' % (word, where, ', with the full GPX track and map' if tracked else '')
+    return '%d %s trip reports%s%s.' % (len(ts), word, where, ', each with the full GPX track and map' if tracked else '')
 
 
 def og_image(ts):
-    for t in ts:
-        if t['photos']:
-            return t['url'] + t['photos'][0]['file']
-    return None
+    """The section's share image: the cover of its first trip that has one (the featured trip leads the list)."""
+    return next((core.share_photo(t) for t in ts if t.get('cover')), None)
 
 
 def year_segs(years, shown, feat, ser, rest):
@@ -503,7 +507,9 @@ def page(act, site):
             counts = {s: len([t for t in ts if t.get('subtype') == s]) for s in content.OTHER_SUBTYPES}
             segs = [('all', 'All', None, '#reports', 'OTH')]
             for s in content.OTHER_SUBTYPES:
-                segs.append((s, core.SUB_WORD[s], counts[s] or None, ('#featured' if counts[s] else None), core.SUB_ICON[s]))
+                # without JavaScript a segment is a link into the page: to the featured block when there is one
+                segs.append((s, core.SUB_WORD[s], counts[s] or None,
+                             (('#featured' if feat else '#reports') if counts[s] else None), core.SUB_ICON[s]))
             body.append(band('Filter by type', segs, 'reports'))
             body.append(none_line([s for s in content.OTHER_SUBTYPES if not counts[s]]))
         if by_year:

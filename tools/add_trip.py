@@ -7,7 +7,7 @@ Examples
       --place "Mount Rose" --region "Lake Tahoe" --photos ~/Desktop/rose/
 
   # from a Strava bulk export (uses Strava's title, stats, description and photos)
-  python3 tools/add_trip.py --strava-export "~/Documents/Outdoors/Strava Export 4:14:26" --strava-id 17094418552
+  python3 tools/add_trip.py --strava-export "/path/to/Strava export folder" --strava-id 1234567890
 
   # add day 3 to an existing multi-day trip
   python3 tools/add_trip.py day3.fit --day-of chamonix-zermatt-haute-route --title "Le Châble → Cabane de Prafleuri"
@@ -80,6 +80,31 @@ def add_photos(folder, files, prefix='', start=1):
     return entries
 
 
+def day_notes(folder, day):
+    """What the author still has to type after a day was added to a trip, as plain sentences: the build would stop on
+    either (python3 tools/validate.py says the same), so say it now. A trip with day files needs `kind: multi-day` (or
+    `series`) in its index.md; and in a trip whose other days carry a `day:` label (the PCT: its labels do not follow
+    the file order) the new day needs one no other day has, or it takes its position and may collide."""
+    notes = []
+    try:
+        with open(os.path.join(folder, 'index.md'), encoding='utf-8') as fh:
+            meta, _body = frontmatter.split(fh.read())
+        if meta.get('kind') not in ('multi-day', 'series'):
+            notes.append('index.md has no `kind: multi-day` line; a trip with day files needs it (and `end_date:` for its last day)')
+        labelled = 0
+        for f in glob.glob(os.path.join(folder, 'days', '*.md')):
+            if os.path.basename(f) == day + '.md':
+                continue
+            with open(f, encoding='utf-8') as fh:
+                dm, _db = frontmatter.split(fh.read())
+            labelled += 1 if dm.get('day') not in (None, '') else 0
+        if labelled:
+            notes.append('the other days carry a `day:` label; add one to days/%s.md that no other day has' % day)
+    except (OSError, ValueError):
+        pass   # unreadable front matter is the build's to report, with the file named
+    return notes
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('track', nargs='?', help='.fit, .fit.gz or .gpx file')
@@ -105,7 +130,12 @@ def main():
     if a.strava_export:
         if not a.strava_id:
             ap.error('--strava-id is required with --strava-export')
-        rec = strava.Export(a.strava_export).by_id(a.strava_id)
+        try:
+            rec = strava.Export(a.strava_export).by_id(a.strava_id)
+        except FileNotFoundError:
+            ap.error('--strava-export %s: no activities.csv in that folder (give the unzipped Strava export folder)' % a.strava_export)
+        except KeyError:
+            ap.error('--strava-id %s: no such activity in %s/activities.csv' % (a.strava_id, a.strava_export))
         track_path = rec['file']
     else:
         track_path = a.track
@@ -141,6 +171,9 @@ def main():
             fh.write(frontmatter.render(meta, body))
         print('added day %d to %s (%d photos, %d existing)' % (n, a.day_of, len(ph), existing))
         slug = a.day_of
+        for note in day_notes(folder, day):
+            print('note: ' + note)
+        edit = 'days/%s.md' % day
     else:
         if not act:
             ap.error('--activity is required (ski, climb, hike, mtb or other)')
@@ -164,9 +197,10 @@ def main():
         with open(os.path.join(folder, 'index.md'), 'w') as fh:
             fh.write(frontmatter.render(meta, body))
         print('created content/trips/%s/ (%d points kept of %d, %d photos)' % (slug, len(simple), len(pts), len(meta['photos'])))
+        edit = 'index.md'
     if not a.no_render:
         subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'render.py'), slug], check=False)
-    print('next: edit content/trips/%s/index.md, then python3 tools/build.py --serve' % slug)
+    print('next: edit content/trips/%s/%s, then python3 tools/build.py --serve' % (slug, edit))
 
 
 if __name__ == '__main__':

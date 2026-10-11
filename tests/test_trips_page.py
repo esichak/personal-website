@@ -8,6 +8,11 @@ and one draft. sitegen.pages.trips is imported in setUp, so a missing module fai
 breaking discovery. core.region_map_href reads rendered/site/meta.json; the fixture regions are patched into core's
 in-memory copy so the map anchors resolve without reading rendered/. Fixture slugs match no real trip, so nothing under
 rendered/trips/ is ever consulted.
+
+Phase 4 (contract-phase4.md): the inline script that shows the search form before first paint (5.1: core.reveal), the
+card-size .th copy, which a card offers to phones in a <source> of its own and never in its <img> (5.3 as replaced by
+10.5; a .th file here is an empty placeholder written beside the photo) and the page's share image (4.1:
+core.site_share).
 """
 import importlib
 import json
@@ -32,6 +37,12 @@ DAY_PROSE = 'Crossed the Col du Chardonnet in a cold wind and reached the hut by
 REGIONS = ['Eastern Sierra', 'Alps', 'Pacific Crest Trail']   # most reports first: 4, 2, 1
 HERE = 'trips/'
 SIZES = '(min-width: 1200px) 400px, 100vw'
+PICTURE = re.compile(r'<picture class="cover-pic">(<source [^>]*>)(<img [^>]*>)</picture>')   # a card cover with a .th copy
+
+
+def unwrap(html_):
+    """A page or fragment with every card cover's <picture class="cover-pic"> taken off: the <img> it holds, alone."""
+    return PICTURE.sub(lambda m: m.group(2), html_)
 BY_YEAR = {'2026': ['west-couloir'],
            '2025': ['basin-loop', 'lovers-leap', 'haute-route'],
            '2024': ['dana-couloir', 'pacific-crest-trail-2024', 'vallee-blanche']}
@@ -65,6 +76,18 @@ def option_values(select):
 
 def pages_by_url(pages):
     return {p.url: p for p in pages}
+
+
+def share_meta(doc):
+    """{property or name: content} of a page's share-image tags (og:image and its properties, the twitter card)."""
+    out = {}
+    for m in doc.find('head').find_all('meta'):
+        key = m['property'] or m['name'] or ''
+        if key.startswith(('og:image', 'twitter:')):
+            if key in out:
+                raise AssertionError('two %s tags' % key)
+            out[key] = m['content']
+    return out
 
 
 class ExplorerFixture(unittest.TestCase):
@@ -333,6 +356,145 @@ class ExplorerPageTests(ExplorerFixture):
         labelled = (labels and 'Search trips' in labels[0].text()) or q['aria-label'] == 'Search trips'
         self.assertTrue(labelled, 'the search input must be labelled "Search trips"')
 
+    def test_the_form_is_shown_by_an_inline_script_right_after_it(self):
+        # contract-phase4.md 5.1 and 10: the form still ships hidden (without JavaScript it stays so); core.reveal('search')
+        # is the element right after </form> and before the noscript note, so with JavaScript the form is in place at
+        # first paint and the results below it do not jump when the deferred bundle arrives
+        form = self.form
+        self.assertIn('hidden', form)
+        siblings = form.parent.elements()
+        at = [k for k, n in enumerate(siblings) if n is form]
+        self.assertEqual(len(at), 1)
+        script, note = siblings[at[0] + 1], siblings[at[0] + 2]
+        self.assertEqual((script.tag, script.attrs), ('script', {}))      # inline and classic: it runs as the parser passes it
+        self.assertEqual(script.children, ['document.getElementById("search").hidden=false'])
+        self.assertEqual(note.tag, 'noscript')
+        self.assertIn('JavaScript', note.text())
+        self.assertTrue(hasattr(core, 'reveal'), 'core.reveal is missing (contract-phase4.md 10)')
+        self.assertIn('</form>' + core.reveal('search') + '<noscript>', self.page.html)
+        self.assertEqual(self.page.html.count(core.reveal('search')), 1)
+        # the script finds the form by its id: one element has it, and it is the form (the header's Search link, #search)
+        self.assertEqual(len(self.doc.find_all(attrs={'id': 'search'})), 1)
+        self.assertIs(self.doc.by_id('search'), form)
+        # the body's other script is the deferred bundle, at the very end
+        scripts = self.doc.find('body').find_all('script')
+        self.assertEqual([('src' in s, 'defer' in s) for s in scripts], [(False, False), (True, True)])
+        self.assertIs(scripts[0], script)
+        # nothing else on the page is revealed this way: the status parts and the journal block wait for trips.js
+        for id_ in ('trx-clear', 'trx-msg', 'trx-none', 'trx-sorted-sec', 'trx-days'):
+            self.assertIn('hidden', self.doc.by_id(id_), id_)
+
+    def test_core_reveal_is_one_statement_on_the_named_element(self):
+        # contract-phase4.md 10: reveal(el_id) -> <script>document.getElementById("<id>").hidden=false</script>
+        self.assertEqual(core.reveal('search'), '<script>document.getElementById("search").hidden=false</script>')
+        self.assertEqual(core.reveal('trx-form'), '<script>document.getElementById("trx-form").hidden=false</script>')
+
+    def test_the_page_shares_the_site_image_when_a_trip_is_featured(self):
+        # contract-phase4.md 4.1: trips/ passes image=core.site_share(), the share photo of the first featured trip;
+        # none when nothing is featured (the fixture's own site has no 'featured')
+        self.assertEqual(share_meta(self.doc), {'twitter:card': 'summary'})
+        self.assertNotIn('og:image', self.page.html)
+        self.site['featured'] = [self.by['west-couloir'], self.by['basin-loop']]
+        with mock.patch.object(core, '_SITE_SHARE', [None]):
+            core.register_site(self.site)
+            self.assertTrue(hasattr(core, 'site_share'), 'core.site_share is missing (contract-phase4.md 4.1)')
+            self.assertEqual(core.site_share(), core.share_photo(self.by['west-couloir']))
+            self.assertEqual(core.site_share(), {'path': 'trips/west-couloir/photos/02.webp', 'w': 1600, 'h': 1200, 'alt': 'The couloir'})
+            doc = Doc(self.build(self.site)['trips/'].html)
+            self.assertEqual(share_meta(doc), {'og:image': core.SITE_URL + 'trips/west-couloir/photos/02.webp', 'og:image:type': 'image/webp',
+                                               'og:image:width': '1600', 'og:image:height': '1200', 'og:image:alt': 'The couloir',
+                                               'twitter:card': 'summary_large_image', 'twitter:image:alt': 'The couloir'})
+            # the JSON indexes are data, not pages: no head, no image
+            self.assertNotIn('og:image', self.build(self.site)['trips/search.json'].html)
+        del self.site['featured']
+        core.register_site(self.site)
+        self.assertIsNone(core.site_share())
+
+    def test_a_card_offers_the_card_size_copy_to_phones_only(self):
+        # contract-phase4.md 10.5 (it replaces 5.3, under which the copy led the <img>'s own srcset and a 1x desktop
+        # screen took it for the 400 px slot): on trips/ a cover with a .th copy is wrapped in <picture class="cover-pic">
+        # whose one <source> applies below 560 px and lists the copy first, at its real width (427 px for a 1600 x 1200
+        # photo), for the 112 px slot; the <img> keeps its two candidates and TRX_SIZES
+        sizes = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+        self.assertEqual(self.trips_mod.TRX_SIZES, sizes)
+        base = '../trips/west-couloir/photos/'
+        two = '%s02.sm.webp 800w, %s02.webp 1600w' % (base, base)
+        img = self.card('west-couloir').find('img')
+        self.assertEqual(img['srcset'], two)                                                      # no .th file yet: as before
+        self.assertNotIn('<picture', self.page.html)
+        self.assertNotIn('<source', self.page.html)
+        helpers.touch(os.path.join(self.tmp, 'west-couloir', 'photos', '02.th.webp'))
+        site = helpers.make_site(helpers.load_dir(self.tmp))
+        self.assertEqual([p['th'] for p in site['by_slug']['west-couloir']['photos']], [None, 'photos/02.th.webp'])
+        html_ = self.build(site)['trips/'].html
+        card = Doc(html_).find('li', attrs={'data-slug': 'west-couloir'})
+        img = card.find('img')
+        self.assertEqual(img['srcset'], two)                                                      # with the file: the same <img>
+        self.assertEqual(img['sizes'], sizes)
+        self.assertEqual((img['src'], img['width'], img['height'], img['loading']), (base + '02.webp', '1600', '1200', 'lazy'))
+        link_ = card.find('a', cls='tcard-img')
+        self.assertEqual([n.tag for n in link_.elements()], ['picture'])
+        pic = link_.find('picture')
+        self.assertEqual((pic.classes, [n.tag for n in pic.elements()]), (['cover-pic'], ['source', 'img']))
+        source = pic.find('source')
+        self.assertEqual((source['media'], source['sizes']), ('(max-width: 559.98px)', '112px'))
+        self.assertEqual(source['srcset'], '%s02.th.webp 427w, %s' % (base, two))
+        self.assertEqual(sorted(source.attrs), ['media', 'sizes', 'srcset'])
+        # it is the page's only wrapper (no other report has the copy), and nothing else on the page names the file
+        self.assertEqual((html_.count('<picture'), html_.count('<source'), html_.count('.th.')), (1, 1, 1))
+        for i in Doc(html_).find_all('img'):
+            self.assertNotIn('.th.', (i['srcset'] or '') + (i['src'] or ''))
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp, 'west-couloir', 'photos', '02.th.webp')))
+        # wrapper apart, the page is the page of the site without the .th file
+        self.assertEqual(unwrap(html_), self.page.html)
+        self.assertNotEqual(html_, self.page.html)
+
+    def test_every_card_with_a_copy_is_wrapped_and_the_page_is_otherwise_the_same(self):
+        # 10.5 on the whole page: give every photo that has an .sm copy a .th copy as well, and one more report a cover
+        # with both; then each card whose cover has the copy is wrapped, each other card is not, every source names a
+        # file that exists, and the page without its wrappers is the page built before any .th file was written
+        helpers.make_trip(self.tmp, 'tall-cover', title='Tall Cover', activity='hike', date='2023-02-02', region='Alps', track=True,
+                          photos=[photo('photos/01.webp', PORTRAIT, alt='Tall', sm=True)])
+        before = self.build(helpers.make_site(helpers.load_dir(self.tmp)))['trips/'].html
+        self.assertNotIn('<picture', before)
+        self.assertNotIn('.th.', before)
+        made = []
+        for t in helpers.load_dir(self.tmp, include_drafts=True):
+            for ph in t['photos'] + [x for d in t['days'] for x in d['photos']]:
+                if ph['sm']:
+                    base, ext = os.path.splitext(ph['file'])
+                    helpers.touch(os.path.join(self.tmp, t['slug'], base + '.th' + ext))
+                    made.append((t['slug'], base + '.th' + ext))
+        self.assertIn(('west-couloir', 'photos/02.th.webp'), made)
+        self.assertIn(('tall-cover', 'photos/01.th.webp'), made)
+        site = helpers.make_site(helpers.load_dir(self.tmp))
+        html_ = self.build(site)['trips/'].html
+        doc = Doc(html_)
+        wrapped = []
+        for card in doc.find_all('li', cls='tcard'):
+            t = site['by_slug'][card['data-slug']]
+            cover = t.get('cover')
+            has = bool(cover and cover['photo']['th'] and cover['photo']['sm'] and cover['photo']['w'])
+            pics = card.find_all('picture')
+            self.assertEqual(len(pics), 1 if has else 0, card['data-slug'])
+            if has:
+                wrapped.append(card['data-slug'])
+                first = pics[0].find('source')['srcset'].split(', ')[0]
+                self.assertEqual(first, '../%s%s %dw' % (t['url'], cover['photo']['th'], core.thumb_width(cover['photo'])))
+                self.assertTrue(os.path.isfile(os.path.join(self.tmp, t['slug'], cover['photo']['th'])))
+                self.assertEqual(pics[0].find('img')['srcset'].count('.th.'), 0)
+                self.assertEqual(html_.count(core.cover_img(t, HERE, self.trips_mod.TRX_SIZES)), 1)
+        self.assertIn('west-couloir', wrapped)
+        self.assertIn('tall-cover', wrapped)
+        self.assertEqual(len(doc.find_all('picture')), len(wrapped))
+        self.assertEqual(html_.count('.th.'), len(wrapped))
+        self.assertEqual(doc.find('li', attrs={'data-slug': 'tall-cover'}).find('source')['srcset'],
+                         ', '.join('../trips/tall-cover/photos/' + c for c in ('01.th.webp 320w', '01.sm.webp 600w', '01.webp 1200w')))
+        for i in doc.find_all('img'):
+            self.assertNotIn('.th.', (i['srcset'] or '') + (i['src'] or ''))
+        self.assertEqual(doc.find('head').find_all('link', attrs={'rel': 'preload', 'as': 'image'}), [])      # trips/ preloads no image
+        self.assertEqual(unwrap(html_), before)
+
     def test_activity_radios_only_for_activities_with_a_report(self):
         radios = [b for b in self.form.find_all('button', attrs={'role': 'radio'}) if b['data-filter'] is not None]
         self.assertEqual(radios[0]['data-filter'], 'all')
@@ -572,6 +734,79 @@ class TripCardTests(ExplorerFixture):
         self.assertEqual(img['sizes'], SIZES)
         self.assertEqual(len(li.find_all('img')), 1)
         self.assertIsNone(li.find(cls='tcard-img--none'))
+
+    def test_cover_srcset_with_and_without_the_card_size_copy(self):
+        # contract-phase4.md 5.3: content.load_trip records p['th'] when <name>.th.<ext> exists beside the photo. 10.5:
+        # the <img>'s srcset is the two candidates it always was, with the file or without it (under 5.3 it started
+        # with the copy); a card whose sizes string is a card's (it ends ', 112px') wraps the <img> in a <picture> whose
+        # phone-only <source> lists the copy first, and any other string leaves the <img> bare
+        card_sizes = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+        base = '../trips/west-couloir/photos/'
+        two = '%s02.sm.webp 800w, %s02.webp 1600w' % (base, base)
+        self.assertEqual([p['th'] for p in self.by['west-couloir']['photos']], [None, None])
+        self.assertEqual(self.card('west-couloir').find('img')['srcset'], two)
+        without = {sizes: core.trip_card(self.by['west-couloir'], HERE, sizes) for sizes in (SIZES, card_sizes)}
+        helpers.touch(os.path.join(self.tmp, 'west-couloir', 'photos', '02.th.webp'))
+        t = helpers.load(self.tmp, 'west-couloir')
+        self.assertEqual([(p['file'], p['sm'], p['th']) for p in t['photos']],
+                         [('photos/01.webp', None, None), ('photos/02.webp', 'photos/02.sm.webp', 'photos/02.th.webp')])
+        self.assertEqual(t['cover']['photo']['th'], 'photos/02.th.webp')
+        # SIZES ('..., 100vw') is not a card's string: the card is what it was, and names no .th file
+        plain = core.trip_card(t, HERE, SIZES)
+        self.assertEqual(plain, without[SIZES])
+        img = Doc(plain).find('img')
+        self.assertEqual(img['srcset'], two)
+        self.assertEqual((img['src'], img['sizes'], img['alt']), (base + '02.webp', SIZES, 'The couloir'))
+        self.assertEqual((img['width'], img['height']), ('1600', '1200'))     # the full file's size, whichever copy loads
+        self.assertNotIn('.th.', plain)
+        self.assertNotIn('<picture', plain)
+        # at a card's string the same <img> sits in the wrapper, behind the source
+        card = core.trip_card(t, HERE, card_sizes)
+        doc = Doc(card)
+        self.assertEqual([n.tag for n in doc.find('a', cls='tcard-img').elements()], ['picture'])
+        self.assertEqual(doc.find('picture').classes, ['cover-pic'])
+        self.assertEqual(doc.find('source')['srcset'], '%s02.th.webp 427w, %s' % (base, two))
+        self.assertEqual((doc.find('source')['media'], doc.find('source')['sizes']), ('(max-width: 559.98px)', '112px'))
+        self.assertEqual((doc.find('img')['srcset'], doc.find('img')['sizes']), (two, card_sizes))
+        self.assertEqual(unwrap(card), without[card_sizes])
+        self.assertEqual(card.count('.th.'), 1)
+        # from another folder depth the three candidates of the source move together, and the two of the <img>
+        doc = Doc(core.trip_card(t, 'trips/dana-couloir/', card_sizes))
+        self.assertEqual(doc.find('source')['srcset'], ', '.join('../../trips/west-couloir/photos/' + c for c in ('02.th.webp 427w', '02.sm.webp 800w', '02.webp 1600w')))
+        self.assertEqual(doc.find('img')['srcset'], ', '.join('../../trips/west-couloir/photos/' + c for c in ('02.sm.webp 800w', '02.webp 1600w')))
+        # a portrait cover's copy is 320 px wide (the short edge)
+        helpers.make_trip(self.tmp, 'tall-cover', title='Tall Cover', activity='hike', date='2023-02-02', track=True,
+                          photos=[photo('photos/01.webp', PORTRAIT, alt='Tall', sm=True)])
+        helpers.touch(os.path.join(self.tmp, 'tall-cover', 'photos', '01.th.webp'))
+        tall = helpers.load(self.tmp, 'tall-cover')
+        doc = Doc(core.trip_card(tall, HERE, card_sizes))
+        self.assertEqual(doc.find('source')['srcset'], ', '.join('../trips/tall-cover/photos/' + c for c in ('01.th.webp 320w', '01.sm.webp 600w', '01.webp 1200w')))
+        self.assertEqual(doc.find('img')['srcset'], ', '.join('../trips/tall-cover/photos/' + c for c in ('01.sm.webp 600w', '01.webp 1200w')))
+        self.assertEqual(Doc(core.trip_card(tall, HERE, SIZES)).find_all('source'), [])
+
+    def test_the_wrapper_changes_nothing_a_reader_or_a_keyboard_meets(self):
+        # 10.5: <picture> and <source> are not interactive and carry no name, role or tab stop; they sit inside the card's
+        # photo link, which was already hidden from assistive technology and skipped by the Tab key (the title link is
+        # the card's name); the <img> keeps its alt text. So the card reads and tabs exactly as it did
+        card_sizes = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+        plain = Doc(core.trip_card(self.by['west-couloir'], HERE, card_sizes)).find('li')
+        helpers.touch(os.path.join(self.tmp, 'west-couloir', 'photos', '02.th.webp'))
+        li = Doc(core.trip_card(helpers.load(self.tmp, 'west-couloir'), HERE, card_sizes)).find('li')
+        pic = li.find('picture')
+        self.assertIsNotNone(pic)
+        link_ = pic.parent
+        self.assertEqual((link_.tag, link_.classes, link_['tabindex'], link_['aria-hidden']), ('a', ['tcard-img'], '-1', 'true'))
+        for node in [pic] + list(pic.walk()):
+            self.assertIn(node.tag, ('picture', 'source', 'img'))
+            for attr in ('tabindex', 'role', 'href', 'onclick', 'aria-label', 'aria-hidden', 'id'):
+                self.assertNotIn(attr, node, '%r carries %s' % (node, attr))
+        self.assertEqual([i['alt'] for i in pic.find_all('img')], ['The couloir'])
+        self.assertNotIn('alt', pic.find('source'))
+        # what a reader and the Tab key meet: the same links, in the same order, with the same names
+        links = lambda root: [(a['href'], a['tabindex'], a['aria-hidden'], a['aria-describedby'], a.text()) for a in root.find_all('a')]   # noqa: E731
+        self.assertEqual(links(li), links(plain))
+        self.assertEqual(li.find('h3').text(), plain.find('h3').text())
+        self.assertEqual([n.tag for n in li.walk() if n.tag not in ('picture', 'source')], [n.tag for n in plain.walk()])
 
     def test_media_falls_back_to_the_route_tile(self):
         t = dict(self.by['dana-couloir'])   # a copy whose rendered folder is a temp dir holding a tile

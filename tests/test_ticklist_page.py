@@ -9,11 +9,19 @@ without a track; two published reports; one draft goal that must never appear. s
 site['goal_backlinks'] come from tools/build.py's own site_of(), so the build's wiring is what runs. Page modules are imported in
 setUp, so a missing module fails each test clearly instead of breaking discovery. core.region_map_href reads
 rendered/site/meta.json; the fixture regions are patched into core's in-memory copy. Fixture slugs match no real trip.
+
+Phase 4 (contract-phase4.md) adds: the inline script that shows the search form before first paint (5.1: core.reveal),
+the goal page's phone bar without a GPX item when the goal has no route (2.1), the tick-list page's share image (4.1),
+the rule that nothing completes a goal but a logged outing (a report with the goal's title and the very same track
+bytes changes nothing), and one scan of everything the build would publish as text (every page of every page module
+for the fixture, the feed, the sitemap and the bundled site.css / site.js) for absolute local paths and
+credential-shaped strings.
 """
 import hashlib
 import importlib
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -26,7 +34,7 @@ import content  # noqa: E402
 from sitegen import core  # noqa: E402
 
 import helpers  # noqa: E402
-from helpers import Doc  # noqa: E402
+from helpers import Doc, photo, LANDSCAPE, PORTRAIT  # noqa: E402
 
 HERE = 'tick-list/'
 REGIONS = ['Alps', 'Boise', 'Eastern Sierra', 'Lake Tahoe']
@@ -51,6 +59,65 @@ def option_values(select):
 def write_json(folder, name, data):
     with open(os.path.join(folder, name), 'w', encoding='utf-8') as fh:
         json.dump(data, fh)
+
+
+def share_meta(doc):
+    """{property or name: content} of a page's share-image tags (og:image and its properties, the twitter card)."""
+    out = {}
+    for m in doc.find('head').find_all('meta'):
+        key = m['property'] or m['name'] or ''
+        if key.startswith(('og:image', 'twitter:')):
+            if key in out:
+                raise AssertionError('two %s tags' % key)
+            out[key] = m['content']
+    return out
+
+
+def bar_items(nav):
+    """[(label, href, is a download)] of a phone bottom bar, in order."""
+    return [(a.find('span').text(), a['href'], 'download' in a) for a in nav.find_all('a')]
+
+
+# What must never be in a published file: a path on the machine that built it ...
+LOCAL_PATHS = [('a macOS home folder', r'/Users/'), ('a macOS private folder', r'/private/'), ('a Linux home folder', r'/home/'),
+               ('a Windows drive path', r'[A-Za-z]:\\'), ('a macOS temp folder', r'/var/folders/'), ('a mounted volume', r'/Volumes/'),
+               ('a temp folder', r'/tmp/'), ('a file: URL', r'file:///')]
+# ... or anything shaped like a credential. Shapes, not words: 'tokens' and 'credentials: same-origin' are ordinary
+# JavaScript in site.js.
+CREDENTIALS = [('an AWS access key id', r'\b(?:AKIA|ASIA)[0-9A-Z]{16}\b'),
+               ('a GitHub token', r'\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,})'),
+               ('a Slack token', r'\bxox[abprs]-[A-Za-z0-9-]{10,}'),
+               ('a Google API key', r'\bAIza[0-9A-Za-z_-]{35}'),
+               ('a secret key (sk-...)', r'\bsk-[A-Za-z0-9_-]{20,}'),
+               ('a live or test API key', r'\b[rs]k_(?:live|test)_[A-Za-z0-9]{16,}'),
+               ('a private key block', r'-----BEGIN [A-Z ]*PRIVATE KEY-----'),
+               ('a JSON web token', r'\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}'),
+               ('a bearer token', r'(?i)\bbearer\s+[A-Za-z0-9._~+/-]{16,}'),
+               ('a URL with a user and password', r'https?://[^/\s:@"\'<>]+:[^/\s:@"\'<>]+@'),
+               ('a named secret', r'(?i)\b(?:pass(?:word|wd)?|secret|api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|private[_-]?key)'
+                                  r'\b\s*[=:]\s*["\']?[A-Za-z0-9+/_-]{8,}')]
+# One string each pattern must find (so a pattern that can match nothing fails the scan's own test). They are put
+# together here from pieces: this file itself holds nothing shaped like a secret.
+SAMPLES = {'a macOS home folder': '/Us' + 'ers/someone/Documents/x.gpx', 'a macOS private folder': '/pri' + 'vate/tmp/x', 'a Linux home folder': '/ho' + 'me/someone/x',
+           'a Windows drive path': 'C:' + '\\Users\\someone', 'a macOS temp folder': '/var/' + 'folders/ab/T/x', 'a mounted volume': '/Vol' + 'umes/Disk/x',
+           'a temp folder': '/t' + 'mp/x', 'a file: URL': 'file:' + '///x/y',
+           'an AWS access key id': 'AK' + 'IA' + 'A' * 16, 'a GitHub token': 'gh' + 'p_' + 'a1' * 18, 'a Slack token': 'xo' + 'xb-' + '1' * 12,
+           'a Google API key': 'AI' + 'za' + 'a' * 35, 'a secret key (sk-...)': 's' + 'k-' + 'a1' * 12, 'a live or test API key': 's' + 'k_live_' + 'a1' * 8,
+           'a private key block': '-----BEGIN ' + 'RSA PRIVATE KEY-----', 'a JSON web token': 'ey' + 'J' + 'a' * 10 + '.ey' + 'J' + 'b' * 10 + '.' + 'c' * 10,
+           'a bearer token': 'Bear' + 'er ' + 'a1' * 10, 'a URL with a user and password': 'https://us' + 'er:pw@example.test/',
+           'a named secret': 'api_' + 'key = "' + 'a1' * 6 + '"'}
+
+
+def findings(texts, extra=()):
+    """['<file>: <what> "...context..."'] for every LOCAL_PATHS / CREDENTIALS match and every literal string of `extra`
+    ([(what, string)]) in texts ({file: text}); [] when the texts are clean."""
+    checks = [(what, re.compile(rx)) for what, rx in LOCAL_PATHS + CREDENTIALS] + [(what, re.compile(re.escape(s))) for what, s in extra if s]
+    out = []
+    for name in sorted(texts):
+        for what, rx in checks:
+            for m in rx.finditer(texts[name]):
+                out.append('%s: %s %r' % (name, what, texts[name][max(0, m.start() - 30):m.end() + 30]))
+    return out
 
 
 def goal_site(trips, goals_mod=None):
@@ -221,6 +288,55 @@ class TickListPageTests(TickListFixture):
         self.assertIn(q['type'] or 'text', ('text', 'search'))
         labels = [l for l in self.doc.find_all('label') if l['for'] == 'tkl-q']
         self.assertTrue(labels or q['aria-label'], 'the search input must be labelled')
+
+    def test_the_form_is_shown_by_an_inline_script_right_after_it(self):
+        # contract-phase4.md 5.1 and 10: the form still ships hidden (without JavaScript it stays so); core.reveal('search')
+        # is the element right after </form> and before the noscript note, so with JavaScript the form is in place at
+        # first paint and nothing below it moves when the deferred bundle arrives
+        form = self.form
+        self.assertIn('hidden', form)
+        siblings = form.parent.elements()
+        at = [k for k, n in enumerate(siblings) if n is form]
+        self.assertEqual(len(at), 1)
+        script, note = siblings[at[0] + 1], siblings[at[0] + 2]
+        self.assertEqual((script.tag, script.attrs), ('script', {}))      # inline and classic: it runs as the parser passes it
+        self.assertEqual(script.children, ['document.getElementById("search").hidden=false'])
+        self.assertEqual(note.tag, 'noscript')
+        self.assertIn('JavaScript', note.text())
+        self.assertTrue(hasattr(core, 'reveal'), 'core.reveal is missing (contract-phase4.md 10)')
+        self.assertIn('</form>' + core.reveal('search') + '<noscript>', self.page.html)
+        self.assertEqual(self.page.html.count(core.reveal('search')), 1)
+        # the script finds the form by its id: one element has it, and it is the form
+        self.assertEqual(len(self.doc.find_all(attrs={'id': 'search'})), 1)
+        self.assertIs(self.doc.by_id('search'), form)
+        # the body's other script is the deferred bundle, at the very end
+        scripts = self.doc.find('body').find_all('script')
+        self.assertEqual([('src' in s, 'defer' in s) for s in scripts], [(False, False), (True, True)])
+        self.assertIs(scripts[0], script)
+
+    def test_core_reveal_is_one_statement_on_the_named_element(self):
+        # contract-phase4.md 10: reveal(el_id) -> <script>document.getElementById("<id>").hidden=false</script>
+        self.assertEqual(core.reveal('search'), '<script>document.getElementById("search").hidden=false</script>')
+        self.assertEqual(core.reveal('tkl-form'), '<script>document.getElementById("tkl-form").hidden=false</script>')
+
+    def test_the_page_shares_the_site_image_when_a_trip_is_featured(self):
+        # contract-phase4.md 4.1: tick-list/ passes image=core.site_share(), the share photo of the first featured trip;
+        # none when nothing is featured (the fixture's own site: no 'featured' at all)
+        self.assertEqual(share_meta(self.doc), {'twitter:card': 'summary'})
+        self.assertNotIn('og:image', self.page.html)
+        helpers.make_trip(self.tmp, 'photo-report', title='Photo Report', activity='hike', date='2026-07-01', region='Alps', track=True,
+                          photos=[photo('photos/01.webp', LANDSCAPE, alt='A synthetic view')])
+        trips = helpers.load_dir(self.tmp)
+        site = load_module(self, 'build').site_of(helpers.newest_first(trips))
+        site['featured'] = [site['by_slug']['photo-report'], site['by_slug']['real-report']]
+        with mock.patch.object(core, '_SITE_SHARE', [None]):
+            core.register_site(site)
+            self.assertEqual(core.site_share(), {'path': 'trips/photo-report/photos/01.webp', 'w': 1600, 'h': 1200, 'alt': 'A synthetic view'})
+            doc = Doc({p.url: p for p in self.mod.build(site)}[HERE].html)
+            self.assertEqual(share_meta(doc), {'og:image': core.SITE_URL + 'trips/photo-report/photos/01.webp', 'og:image:type': 'image/webp',
+                                               'og:image:width': '1600', 'og:image:height': '1200', 'og:image:alt': 'A synthetic view',
+                                               'twitter:card': 'summary_large_image', 'twitter:image:alt': 'A synthetic view'})
+        core.register_site(self.site)
 
     def test_activity_chips_only_for_activities_with_a_goal(self):
         radios = self.radios('data-filter')
@@ -530,6 +646,52 @@ class GoalPageTests(TickListFixture):
         idea = [a.text() for a in self.doc('alps-someday').find(cls='rep-actions').find_all('a')]
         self.assertNotIn('Download planned GPX', idea)   # no track, no download
         self.assertNotIn('Planning notes', idea)         # no body
+
+    def test_phone_bar_has_a_gpx_item_only_when_the_goal_has_a_route(self):
+        # contract-phase4.md 2.1: no track, no download. report.goal_bottom_bar: Map · Notes · GPX, each only when the
+        # page has it; --n counts what is shown; no bar at all for a single item
+        want = {'couloir-short': [('Map', '#map', False), ('Notes', '#report', False), ('GPX', 'couloir-short.gpx', True)],   # route and notes
+                'legacy-ridge': [('Map', '#map', False), ('GPX', 'legacy-ridge.gpx', True)],                                 # a route, no notes
+                'ridge-idea': [('Map', '#map', False), ('Notes', '#report', False)],                                         # notes, no route
+                'done-traverse': [('Map', '#map', False), ('Notes', '#report', False)],
+                'alps-someday': None, 'old-archived': None}                                                                  # neither: no bar
+        for slug, items in want.items():
+            with self.subTest(slug):
+                t = self.by[slug]
+                self.assertEqual(bool(t['track']), bool(items) and items[-1][0] == 'GPX')
+                doc = self.doc(slug)
+                navs = doc.find_all('nav', cls='bbar')
+                if items is None:
+                    self.assertEqual(navs, [])
+                else:
+                    self.assertEqual(len(navs), 1)
+                    self.assertEqual(navs[0]['aria-label'], 'Goal sections')
+                    self.assertEqual(bar_items(navs[0]), items)
+                    self.assertEqual(navs[0]['style'], '--n:%d' % len(items))
+                    for a in navs[0].find_all('a'):
+                        if a['href'].startswith('#'):
+                            self.assertIsNotNone(doc.by_id(a['href'][1:]), a['href'])
+                # the bar's item and the title action go together, and without a route nothing on the page is a download
+                downloads = [(a.text(), a['href']) for a in doc.find_all('a') if 'download' in a or '.gpx' in (a['href'] or '')]
+                if t['track']:
+                    self.assertEqual(downloads, [('Download planned GPX', slug + '.gpx'), ('GPX', slug + '.gpx')])
+                else:
+                    self.assertEqual(downloads, [])
+                    self.assertNotIn('.gpx', self.page(slug).html)
+
+    def test_goal_bottom_bar_cases(self):
+        # the function itself, for each mix of notes and route
+        bar = self.report.goal_bottom_bar
+        routed, idea = self.by['legacy-ridge'], self.by['alps-someday']
+        self.assertEqual(bar(idea, False), '')
+        cases = [((idea, True), [('Map', '#map', False), ('Notes', '#report', False)]),
+                 ((routed, False), [('Map', '#map', False), ('GPX', 'legacy-ridge.gpx', True)]),
+                 ((routed, True), [('Map', '#map', False), ('Notes', '#report', False), ('GPX', 'legacy-ridge.gpx', True)])]
+        for args, items in cases:
+            with self.subTest(track=bool(args[0]['track']), notes=args[1]):
+                nav = Doc(bar(*args)).find('nav')
+                self.assertEqual(bar_items(nav), items)
+                self.assertEqual(nav['style'], '--n:%d' % len(items))
 
     def test_stats_strip_shows_only_known_approximate_values(self):
         doc = self.doc('couloir-short')
@@ -900,6 +1062,155 @@ class BoundaryTests(TickListFixture):
         self.assertIn('2 PLANNED ROUTES', text)
         self.assertNotIn('3 PLANNED', text)
         self.assertIn('1 REPORT', text)
+
+    def twin(self, status='idea'):
+        """An idea goal and a published report that could be mistaken for its completion: the same title, the same
+        region and activity, and a track.gpx with the very same bytes. Returns (trips, site) loaded from the temp dir."""
+        track = b'<gpx version="1.1"><trk><trkseg><trkpt lat="45.9" lon="7.6"><ele>2000</ele></trkpt></trkseg></trk></gpx>\n'
+        sha = hashlib.sha256(track).hexdigest()
+        goal = helpers.make_trip(self.tmp, 'twin-goal', title='Twin Line', activity='hike', kind='planned', region='Alps', track=True)
+        rep = helpers.make_trip(self.tmp, 'twin-report', title='Twin Line', activity='hike', date='2026-09-01', region='Alps', track=True,
+                                body='Walked the twin line in a day.')
+        for folder in (goal, rep):
+            with open(os.path.join(folder, 'track.gpx'), 'wb') as fh:
+                fh.write(track)
+        g = self.goals_mod.defaults()
+        g.update(status=status, added_at='2026-01-01', route_scope='full-intended-route',
+                 route_source={'kind': 'own-prior-recording', 'url': None, 'label': None, 'checked_at': None, 'public_copy_approved': True,
+                               'approximation_note': None},
+                 route={'source_sha256': sha, 'method': 'ticklist-gpx-1', 'selected': {'type': 'trk', 'index': 0, 'name': None},
+                        'alternatives': 1, 'segments': 1, 'points': 1, 'elevation': 'full', 'times': False, 'waypoints': 0})
+        write_json(goal, 'goal.json', g)
+        trips = helpers.load_dir(self.tmp)
+        return trips, goal_site(trips, self.goals_mod)
+
+    def test_a_report_that_matches_a_goal_never_completes_it(self):
+        # plan 16, goal lifecycle: no auto-completion. Completion exists only as an outing logged with tools/ticklist.py;
+        # the build infers nothing from a report with the goal's title and the same track bytes
+        trips, site = self.twin()
+        by = site['by_slug']
+        goal, rep = by['twin-goal'], by['twin-report']
+        self.assertEqual(goal['title'], rep['title'])
+        with open(goal['track'], 'rb') as a, open(rep['track'], 'rb') as b:
+            self.assertEqual(a.read(), b.read())
+        with open(os.path.join(goal['dir'], 'goal.json'), 'rb') as fh:
+            sidecar = fh.read()
+        # the goal is what its sidecar says: an idea, with no outing, still active, not a report
+        self.assertEqual(goal['goal']['status'], 'idea')
+        self.assertEqual(goal['goal']['outings'], [])
+        self.assertTrue(self.goals_mod.is_active(goal['goal']))
+        self.assertIn('twin-goal', helpers.slugs(site['active_goals']))
+        self.assertNotIn('twin-goal', helpers.slugs(site['published']))
+        self.assertIn('twin-report', helpers.slugs(site['published']))
+        # the report gets no backlink: only an outing that names it makes one
+        self.assertEqual({k: helpers.slugs(v) for k, v in site['goal_backlinks'].items()}, {'real-report': ['done-traverse']})
+        self.assertEqual({k: helpers.slugs(v) for k, v in self.goals_mod.backlinks(site).items()}, {'real-report': ['done-traverse']})
+        report = load_module(self, 'sitegen.pages.report')
+        self.assertEqual(report.tick_backlink(rep, rep['url'], site), '')
+        rep_html = report.page(rep, site).html
+        self.assertNotIn('On the tick list', rep_html)
+        self.assertNotIn('trips/twin-goal/', rep_html)
+        # the goal page: still an idea, no Outings section, no link to the report
+        goal_doc = Doc(report.page(goal, site).html)
+        tags = [x.text() for x in goal_doc.find(cls='rep-chips').find_all(cls='tag')]
+        self.assertIn('Idea', tags)
+        self.assertNotIn('Completed', tags)
+        self.assertNotIn('Attempted', tags)
+        self.assertIsNone(goal_doc.by_id('outings'))
+        self.assertNotIn('trips/twin-report/', report.page(goal, site).html)
+        # the tick list: an idea among the active goals, one completed goal as before
+        ticklist = load_module(self, 'sitegen.pages.ticklist')
+        tl = Doc({p.url: p for p in ticklist.build(site)}[HERE].html)
+        card = tl.find('li', attrs={'data-slug': 'twin-goal'})
+        self.assertEqual((card['data-status'], card['data-archived'], card['data-gpx']), ('idea', '0', '1'))
+        self.assertNotIn('Completed', [x.text() for x in card.find(cls='gcard-tags').find_all(cls='tag')])
+        text = tl.by_id('main').text()
+        self.assertIn('6 ACTIVE', text)
+        self.assertIn('1 COMPLETED', text)
+        # nothing was written back: the sidecar on disk is byte for byte what the author left
+        with open(os.path.join(goal['dir'], 'goal.json'), 'rb') as fh:
+            self.assertEqual(fh.read(), sidecar)
+
+    def test_only_a_logged_outing_links_the_two(self):
+        # the other way round, so the test above cannot pass by accident: the same pair with an outing in goal.json is
+        # completed, and the report then carries the backlink
+        trips, _site = self.twin()
+        folder = os.path.join(self.tmp, 'twin-goal')
+        with open(os.path.join(folder, 'goal.json'), encoding='utf-8') as fh:
+            g = json.load(fh)
+        g.update(status='completed', outings=[{'outcome': 'completed', 'date': '2026-09-01', 'report_slug': 'twin-report', 'note': ''}])
+        write_json(folder, 'goal.json', g)
+        site = goal_site(helpers.load_dir(self.tmp), self.goals_mod)
+        self.assertEqual(site['by_slug']['twin-goal']['goal']['status'], 'completed')
+        self.assertEqual({k: helpers.slugs(v) for k, v in site['goal_backlinks'].items()},
+                         {'real-report': ['done-traverse'], 'twin-report': ['twin-goal']})
+        report = load_module(self, 'sitegen.pages.report')
+        self.assertIn('On the tick list', report.page(site['by_slug']['twin-report'], site).html)
+        self.assertNotIn('twin-goal', helpers.slugs(site['active_goals']))
+
+    def published_texts(self):
+        """Every text file the build would publish for the fixture plus a report with photos, a multi-day trip and a
+        journal: each page of each page module in tools/build.py's PAGE_MODULES (the two JSON search indexes among
+        them), feed.xml, sitemap.xml, and the bundled assets/site.css and assets/site.js. The trips are loaded again
+        with content.RENDERED and core.ROOT inside the temp dir, so no page module looks at the real rendered/."""
+        build = load_module(self, 'build')
+        # report.py keeps a per-build title cache keyed by id(): start from an empty one and leave an empty one behind
+        title_counts = getattr(load_module(self, 'sitegen.pages.report'), '_TITLE_COUNTS', {})
+        title_counts.clear()
+        self.addCleanup(title_counts.clear)
+        helpers.make_trip(self.tmp, 'photo-report', title='Photo Report', activity='hike', date='2026-07-01', region='Alps', track=True,
+                          body='Synthetic words for a test. ' * 8,
+                          photos=[photo('photos/01.webp', LANDSCAPE, alt='A synthetic view', caption='A synthetic caption', sm=True),
+                                  photo('photos/02.webp', PORTRAIT, alt='A second synthetic view')])
+        helpers.touch(os.path.join(self.tmp, 'photo-report', 'photos', '01.th.webp'))
+        helpers.make_trip(self.tmp, 'hut-report', title='Hut Report', activity='ski', kind='multi-day', date='2026-03-01', end_date='2026-03-02',
+                          region='Alps', days=[{'title': 'Up', 'date': '2026-03-01', 'body': 'Synthetic day words.'}, {'title': 'Down', 'date': '2026-03-02'}])
+        helpers.make_series(self.tmp, slug='long-walk', title='Long Walk')
+        with mock.patch.object(content, 'RENDERED', os.path.join(self.tmp, '_rendered')), mock.patch.object(core, 'ROOT', self.tmp), \
+                mock.patch.object(core, '_SITE_SHARE', [None]):
+            site = build.site_of(helpers.newest_first(helpers.load_dir(self.tmp)))
+            site['featured'] = [site['by_slug']['photo-report']]
+            core.register_site(site)
+            pages = []
+            for name in build.PAGE_MODULES:
+                pages += load_module(self, 'sitegen.pages.' + name).build(site)
+            texts = {p.url or 'index.html': p.html for p in pages}
+            texts['feed.xml'] = build.feed(site['published'])
+            texts['sitemap.xml'] = build.sitemap(pages)
+        core.register_site(self.site)
+        texts['assets/site.css'] = build.css_bundle()
+        texts['assets/site.js'] = build.js_bundle()
+        return texts
+
+    def test_nothing_published_names_a_local_path_or_looks_like_a_credential(self):
+        # plan 16, tick-list publication: no raw private paths or credentials in the output. Scanned: every file of the
+        # fixture site (pages of every kind, both JSON indexes, the feed, the sitemap) and the real CSS and JS bundles
+        texts = self.published_texts()
+        self.assertGreaterEqual(len(texts), 30)
+        for name in ('index.html', 'trips/', 'trips/search.json', 'trips/journal.json', 'tick-list/', 'map/', 'about/', '404.html', 'hiking/', 'ski/',
+                     'trips/couloir-short/', 'trips/photo-report/', 'trips/photo-report/map/', 'trips/hut-report/', 'trips/long-walk/',
+                     'feed.xml', 'sitemap.xml', 'assets/site.css', 'assets/site.js'):
+            self.assertIn(name, texts)
+            self.assertTrue(texts[name].strip(), name)
+        self.assertGreater(len(texts['assets/site.css']), 20000)
+        self.assertGreater(len(texts['assets/site.js']), 20000)
+        # the folders this very build read from, wherever the machine keeps them
+        here = [('the fixture folder', self.tmp), ('the fixture folder', os.path.realpath(self.tmp)), ('the repository folder', ROOT),
+                ('the repository folder', os.path.realpath(ROOT)), ('the home folder', os.path.expanduser('~')),
+                ('the temp folder', tempfile.gettempdir()), ('the temp folder', os.path.realpath(tempfile.gettempdir()))]
+        self.assertEqual(findings(texts, extra=here), [])
+
+    def test_the_scan_finds_what_it_looks_for(self):
+        # every pattern matches its sample, in any of the files, and a leaked fixture path is reported with its file
+        self.assertEqual(sorted(SAMPLES), sorted(what for what, _rx in LOCAL_PATHS + CREDENTIALS))
+        for what, _rx in LOCAL_PATHS + CREDENTIALS:
+            with self.subTest(what):
+                got = findings({'trips/x/index.html': '<p>clean</p>', 'assets/site.js': 'var a = 1; // %s\n' % SAMPLES[what]})
+                self.assertTrue(got and all(f.startswith('assets/site.js: ') for f in got), got)
+                self.assertIn(what, ' '.join(got))
+        self.assertEqual(findings({'a.html': '<a href="../trips/x/x.gpx" download>GPX</a> tokens credentials: same-origin'}), [])
+        leak = findings({'trips/x/index.html': '<!-- %s -->' % os.path.join(self.tmp, 'x', 'track.gpx')}, extra=[('the fixture folder', self.tmp)])
+        self.assertTrue(any(f.startswith('trips/x/index.html: the fixture folder') for f in leak), leak)
 
     def test_goal_backlinks_shape(self):
         links = self.site['goal_backlinks']

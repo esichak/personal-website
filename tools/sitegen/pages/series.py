@@ -221,7 +221,7 @@ def month_key(key):
 
 def overview_svg(t, name):
     p = core.rendered(t, name + '.svg.html')
-    return open(p, encoding='utf-8').read() if os.path.exists(p) else ''
+    return core._read(p) if os.path.exists(p) else ''
 
 
 _KEY = re.compile(r'\bdata-key="(m-[^"]+)"')
@@ -507,20 +507,23 @@ def page(t, site):
     lead = bool(cover) and report.lead_photo(t) is not None   # a portrait cover fronts the cards but does not lead the page
     if lead:
         body.append(report.hero(t, here))
-    body += [strip(t), intro(t, here, months), highlights(t, here), day_log(t, here, months), report.pager(t, here, site)]
+    body += [strip(t), intro(t, here, months), highlights(t, here), day_log(t, here, months), report.published_line(t),
+             report.pager(t, here, site)]
     n_wu = sum(1 for d in t['days'] if written(d))
+    n_gpx = sum(1 for d in t['days'] if d['track'])
+    # "for every day" only when every day has one; a journal with some says how many, one with none says nothing
+    gpx = ('with a GPX track for every day' if n_gpx == len(t['days'])
+           else ('with a GPX track for %s of them' % n(n_gpx)) if n_gpx else '')
     desc = '%s.' % ', '.join(x for x in (
         '%s: %s recorded day%s' % (t['title'], n(len(t['days'])), '' if len(t['days']) == 1 else 's'),
         core.frange(t['date'], t['end_date']),
-        'with a GPX track for every day%s' % ((' and %s written up' % n(n_wu)) if n_wu else '')) if x)
-    first_photo = next((d['photos'][0] for d in t['days'] if d['photos']), None)
-    img = (t['url'] + cover['photo']['file']) if cover else (
-        (t['url'] + first_photo['file']) if first_photo else ((t['url'] + t['photos'][0]['file']) if t['photos'] else None))
+        ' and '.join(y for y in (gpx, ('%s written up' % n(n_wu)) if n_wu else '') if y)) if x)
+    img = core.share_photo(t)   # the cover: content.resolve_cover finds one whenever the journal or a day has a photo
     # the lead photo is the page's first image; without one the overview map's hillshade (and base layer) load at once at
     # every width, each band fetching the render it shows
     head = core.cover_preload(t, here, report.HERO_SIZES) if lead else ov_preloads(t, here)
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img,
-                                         body_cls='p-series', og_type='article', extra_head=head), t['title'])
+                                         body_cls='p-series', og_type='article', extra_head=head, report=t), t['title'])
 
 
 def build(site):

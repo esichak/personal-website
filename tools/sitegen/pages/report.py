@@ -17,7 +17,7 @@ from sitegen import core
 from sitegen.core import esc, U, U_sub, n, link, icon, FT, MI
 
 
-HERO_SIZES = '(min-width: 1200px) 1248px, 100vw'
+HERO_SIZES = '(min-width: 1200px) 1248px, ' + core.PHONE_FULL   # phones take the 800 px copy (core.PHONE_SLOT)
 
 
 def narrative(t):
@@ -54,23 +54,40 @@ def hero(t, here, photos_anchor=False):
             % (anchor, link(here, t['url']), p['file'], cap, name, core.cover_img(t, here, HERO_SIZES, eager=True), fc))
 
 
+def published_line(t):
+    """'Published Oct 3, 2026 · Updated Oct 5, 2026', only when index.md states published_at (and updated_at): the visible,
+    labelled date the page's structured data must agree with. '' otherwise: the trip date is not a publication date."""
+    def when(text):
+        return '<time datetime="%s">%s</time>' % (esc(text), core.fdate(date.fromisoformat(text[:10]), 'short'))
+    if not t.get('published_at'):
+        return ''
+    bits = ['Published ' + when(t['published_at'])]
+    if t.get('updated_at'):
+        bits.append('Updated ' + when(t['updated_at']))
+    return '<p class="wrap rep-pub t-mono-s">%s</p>' % ' · '.join(bits)
+
+
 def share_row(here):
     """Phones hide the title block's actions (the bottom bar carries the sections and the GPX), so the copy-link control
     sits at the end of the page there, before what to read next. Hidden from 760 up, where the title actions hold it."""
     return '<div class="wrap rep-share">%s</div>' % core.copy_link(core.SITE_URL + here, 'Copy link to this page', cls='alink')
 
 
-def section_nav(has_report, has_gallery, has_beta):
+def section_nav(has_report, has_gallery, has_beta, has_map=True, has_stats=True):
     """The story layout's section row under the strip: only the sections the page has, in the plan's fixed order (9.2),
     which is not the page's: Report · Photos · Route · Trip details (the Beta block, else the stats strip). No link is
-    marked current: the row scrolls away with the header, so it is on screen only above the sections it lists."""
+    marked current: the row scrolls away with the header, so it is on screen only above the sections it lists.
+    has_map=False: a report without a track has no Route section. has_stats=False: one without stats has no strip, so
+    Trip details is listed only when the page has a Beta block."""
     items = []
     if has_report:
         items.append(('#report', 'Report'))
     if has_gallery:
         items.append(('#photos', 'Photos'))
-    items.append(('#map', 'Route'))
-    items.append(('#beta' if has_beta else '#stats', 'Trip details'))
+    if has_map:
+        items.append(('#map', 'Route'))
+    if has_beta or has_stats:
+        items.append(('#beta' if has_beta else '#stats', 'Trip details'))
     return ('<nav class="rep-toc wrap" aria-label="Sections"><ul>%s</ul></nav>'
             % ''.join('<li><a class="rep-toc-a" href="%s">%s</a></li>' % (h, lab) for h, lab in items))
 
@@ -210,16 +227,17 @@ def profile_section(t, here, meta, ns='pf'):
                elevation_table(t, t['track'], st)))
 
 
-def beta_rows(t):
+def beta_rows(t, noted=True):
     """Beta rows from the front matter, minus what the page already shows: 'Track' (the stats footnote prints it) and, for
-    climbing, 'Pitches' (the data strip leads with it). Route shape lives in the chip row, party in the place line."""
-    skip = {'track'} | ({'pitches'} if t['activity'] == 'climb' else set())
+    climbing, 'Pitches' (the data strip leads with it). Route shape lives in the chip row, party in the place line.
+    noted=False: the page has no stats strip, so no footnote either, and the Track row stays in the block."""
+    skip = ({'track'} if noted else set()) | ({'pitches'} if t['activity'] == 'climb' else set())
     return [r for r in t['beta'] if r.get('label') and str(r['label']).strip().lower() not in skip]
 
 
-def beta_list(t):
+def beta_list(t, noted=True):
     """The rail's Beta block: dotted leaders drawn by the dt (base.css .dl-leader), values right-aligned and balanced."""
-    rows = beta_rows(t)
+    rows = beta_rows(t, noted)
     if not rows:
         return ''
     def value(v):
@@ -245,7 +263,7 @@ def aside_photo(t, here, p):
     fc = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if p.get('caption') else ''
     return ('<figure class="rep-aside-ph"><a class="jph jph--p" href="%s%s"%s>%s</a>%s</figure>'
             % (link(here, t['url']), p['file'], cap,
-               core.photo(t, p, here, sizes='(min-width: 1200px) 294px, (min-width: 1000px) 22vw, (min-width: 760px) 240px, 100vw',
+               core.photo(t, p, here, sizes='(min-width: 1200px) 294px, (min-width: 1000px) 22vw, (min-width: 760px) 240px, ' + core.PHONE_FULL,
                           caption=False), fc))
 
 
@@ -304,34 +322,42 @@ def planned_pager(t, here, site):
     return '<nav class="pager wrap sec" aria-label="More %s">%s</nav>' % (esc(word.lower()), ''.join(cells))
 
 
-def bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery, chart='', story=False):
+def bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery, chart='', story=False, has_map=True, has_stats=True):
     """Phone bottom bar, in page order. Compact layout: Map · Beta (or the Profile / Speed chart when there is no beta, or
     Stats when there is neither) · Report (or Photos) · GPX. Story layout: Report · Map · Photos · GPX; without a Photos
     grid, Beta · Report · Map · GPX when there is beta, else Report · Map · Profile / Speed (or Stats) · GPX.
-    chart: has_chart(meta)."""
-    chart_item = ('#profile', 'profile', 'Speed' if chart == 'speed' else 'Profile') if chart else ('#stats', 'beta', 'Stats')
+    chart: has_chart(meta). gpx_href: '' for a report without a track, which then has no GPX item and, with
+    has_map=False, no Map item either; has_stats=False: no Stats item (the page has no strip). '' when a single item
+    would be left: one link is not navigation."""
+    chart_item = [('#profile', 'profile', 'Speed' if chart == 'speed' else 'Profile')] if chart else \
+        ([('#stats', 'beta', 'Stats')] if has_stats else [])
+    map_item = [('#map', 'map', 'Map')] if has_map else []
     if story:
         items = []
         if has_beta and not has_gallery:
             items.append(('#beta', 'beta', 'Beta'))
-        items += [('#report', 'report', 'Report'), ('#map', 'map', 'Map')]
+        items += [('#report', 'report', 'Report')] + map_item
         if has_gallery:
             items.append(('#photos', 'photo', 'Photos'))
         elif not has_beta:
-            items.append(chart_item)
+            items += chart_item
     else:
-        items = [('#map', 'map', 'Map')]
+        items = list(map_item)
         if has_beta:
             items.append(('#beta', 'beta', 'Beta'))
         elif t['kind'] != 'planned':
-            items.append(chart_item)
+            items += chart_item
         if has_report:
             items.append(('#report', 'report', 'Report'))
         elif has_gallery:
             items.append(('#photos', 'photo', 'Photos'))
+    k = len(items) + (1 if gpx_href else 0)
+    if k < 2:
+        return ''
     out = ''.join('<a href="%s">%s<span>%s</span></a>' % (h, icon(ic, 24), lab) for h, ic, lab in items)
-    out += '<a href="%s" download>%s<span>GPX</span></a>' % (gpx_href, icon('download', 24))
-    return '<nav class="bbar" aria-label="Report sections" style="--n:%d">%s</nav>' % (len(items) + 1, out)
+    if gpx_href:
+        out += '<a href="%s" download>%s<span>GPX</span></a>' % (gpx_href, icon('download', 24))
+    return '<nav class="bbar" aria-label="Report sections" style="--n:%d">%s</nav>' % (k, out)
 
 
 # ---------------------------------------------------------------- tick-list goal pages (kind: planned)
@@ -530,8 +556,8 @@ def goal_page(t, site):
     desc = core.clip_words(core.summary(t) + ((' ' + t['goal']['why']) if t['goal']['why'] else ''), 155)
     head = core.map_preloads(t, here, [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')], t['url'] + 'map/',
                              nowide='map-wide' not in meta['maps']) if meta['maps'] else ''
-    img = (t['url'] + t['photos'][0]['file']) if t['photos'] else None
-    return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active='goal', image=img, body_cls='p-report p-goal',
+    return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active='goal', image=core.share_photo(t),
+                                         body_cls='p-report p-goal',
                                          bottom=goal_bottom_bar(t, has_notes), extra_head=head, trip=t), t['title'])
 
 
@@ -549,32 +575,44 @@ def page(t, site):
         return goal_page(t, site)
     here = t['url']
     meta = core.render_meta(t)
-    gpx_href = t['slug'] + '.gpx'
+    # no track.gpx, no download: the title action and the phone bar's GPX item are only there when the file is
+    gpx_href = (t['slug'] + '.gpx') if t['track'] else ''
     has_report = bool(t['body_md'])
     story = narrative(t)
-    beta = beta_list(t)
     lone = lone_portrait(t)
     show_hero = story and not lone and lead_photo(t) is not None
     cover_file = t['cover']['photo']['file'] if show_hero else None
     # the lead photo leaves the grid (it is already on the page) but stays in the viewer's group
     photos = [p for p in t['photos'] if p.get('file') and p['file'] != cover_file]
     has_gallery = bool(photos) and not lone
+    # no track.gpx, no route: no map section, no link to one, no full-screen map page (build() below)
+    has_map = bool(t['track'])
     actions = ''
     if story:
-        # the write-up starts right under the photo and the strip; the route is further down, so its link leads
-        actions += '<a class="btn" href="#map">%sView route</a>' % icon('map', 18)
+        if has_map:
+            # the write-up starts right under the photo and the strip; the route is further down, so its link leads
+            actions += '<a class="btn" href="#map">%sView route</a>' % icon('map', 18)
     elif has_report:
         actions += '<a class="btn" href="#report">%sRead the report</a>' % icon('report', 18)
-    actions += '<a class="btn btn--ink" href="%s" download>%sDownload GPX</a>' % (gpx_href, icon('download', 18))
+    if gpx_href:
+        actions += '<a class="btn btn--ink" href="%s" download>%sDownload GPX</a>' % (gpx_href, icon('download', 18))
     actions += core.copy_link(core.SITE_URL + here)
     body = [title_block(t, here, actions), tick_backlink(t, here, site)]
-    strip_ = '<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(core.strip_cells(t)), core.stats_note(t))
+    # a recorded report has stats (tools/add_trip.py writes them from the track). One without a track may have none:
+    # then there is no strip, rather than an empty list under a "Stats" label with links leading to it
+    cells = core.strip_cells(t)
+    has_stats = bool(cells) or has_map
+    beta = beta_list(t, noted=has_stats)
+    strip_ = ('<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(cells), core.stats_note(t))) if has_stats else ''
     variants = [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]
     nowide = 'map-wide' not in meta['maps']
-    map_ = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
-            % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=not show_hero, cls='map--report' + (' map--nowide' if nowide else ''),
-                              fullscreen_href=link(here, t['url'] + 'map/')),
-               core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t), core.stats_note(t, 'rep-note-ph')))
+    map_ = ''
+    if has_map:
+        map_ = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
+                % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=not show_hero, cls='map--report' + (' map--nowide' if nowide else ''),
+                                  fullscreen_href=link(here, t['url'] + 'map/')),
+                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t),
+                   core.stats_note(t, 'rep-note-ph')))
     profile = profile_section(t, here, meta)
     main = ''
     if has_report:
@@ -590,11 +628,12 @@ def page(t, site):
     if story:
         if show_hero:
             body.append(hero(t, here, photos_anchor=not has_gallery))
-        body += [strip_, section_nav(has_report, has_gallery, bool(beta)), rep_body, map_, profile]
+        body += [strip_, section_nav(has_report, has_gallery, bool(beta), has_map, has_stats), rep_body, map_, profile]
     else:
         body += [strip_, map_, profile, rep_body]
     if has_gallery:
         body.append(gallery(t, here, photos, lead=1 if show_hero else 0))
+    body.append(published_line(t))
     body.append(share_row(here))
     body.append(core.related_block(t, here, site, skip=neighbours(t, site)))
     body.append(pager(t, here, site))
@@ -607,16 +646,16 @@ def page(t, site):
         ex = core.excerpt(t, 400)
         desc = core.clip_words(core.summary(t) + ((' ' + ex) if ex else ''), 155)
     # the share image is the cover the trip's cards show, whether or not it leads the page (a portrait cover does not)
-    cover = t.get('cover')
-    img = (t['url'] + cover['photo']['file']) if cover else ((t['url'] + t['photos'][0]['file']) if t['photos'] else None)
+    img = core.share_photo(t)
     if show_hero:
         head = core.cover_preload(t, here, HERO_SIZES)
     else:
         head = core.map_preloads(t, here, variants, t['url'] + 'map/', nowide=nowide)
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img,
                                          body_cls='p-report' + (' p-report--story' if story else ''),
-                                         bottom=bottom_bar(t, here, gpx_href, bool(beta), has_report, has_gallery, has_chart(meta), story=story),
-                                         extra_head=head, og_type='article', trip=t, full_title=full_title), t['title'])
+                                         bottom=bottom_bar(t, here, gpx_href, bool(beta), has_report, has_gallery, has_chart(meta), story=story,
+                                                           has_map=has_map, has_stats=has_stats),
+                                         extra_head=head, og_type='article', trip=t, full_title=full_title, report=t), t['title'])
 
 
 _TITLE_COUNTS = {}
@@ -664,6 +703,7 @@ def build(site):
     for t in site['trips']:
         if not t['days'] and t['kind'] in ('trip', 'planned'):
             out.append(page(t, site))
-            if t['kind'] != 'planned' or core.render_meta(t)['maps']:   # a goal without a rendered map has no full-screen map page
+            # a goal without a rendered map, or a report without a track, has no full-screen map page
+            if core.render_meta(t)['maps'] if t['kind'] == 'planned' else t['track']:
                 out.append(fullscreen_page(t))
     return out

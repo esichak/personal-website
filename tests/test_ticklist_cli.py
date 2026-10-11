@@ -467,6 +467,38 @@ class AddTests(CliFixture):
         self.add('--gpx', self.gpx('other.gpx', gf.ROUTE_ONLY), title='Metadata Only Idea')
         self.assertNoLocalPath('metadata-only-idea')
 
+    def next_line(self, out):
+        lines = [ln for ln in out.splitlines() if ln.startswith('Next: ')]
+        self.assertEqual(len(lines), 1, out)
+        return lines[0]
+
+    def test_the_next_line_names_the_render_folder_only_when_a_map_was_drawn(self):
+        # a new goal is a draft, and render.py leaves drafts out: the run (patched here, so it draws nothing either) makes
+        # no rendered/trips/<slug>/, and `git add` of a path that is not there stops with an error
+        out = self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--publish-track', render=True)
+        self.assertEqual(len([c for c in self.calls if any('render' in x for x in c)]), 1)
+        self.assertIn('no map was drawn (render.py leaves drafts out): once "draft: true" is removed, run python3 tools/render.py %s '
+                      'and add "rendered/trips/%s" as well' % (SLUG, SLUG), out)
+        self.assertTrue(self.next_line(out).endswith('git add "content/trips/%s"' % SLUG), self.next_line(out))
+
+    def test_the_next_line_names_the_render_folder_when_it_is_there(self):
+        root = os.path.join(os.path.dirname(self.trips), 'checkout')
+        os.makedirs(os.path.join(root, 'rendered', 'trips', SLUG))
+        with open(os.path.join(root, 'rendered', 'trips', SLUG, 'meta.json'), 'w') as fh:
+            fh.write('{}')
+        with mock.patch.object(self.cli, 'ROOT', root):
+            out = self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--publish-track', render=True)
+        self.assertNotIn('no map was drawn', out)
+        self.assertTrue(self.next_line(out).endswith('git add "content/trips/%s" "rendered/trips/%s"' % (SLUG, SLUG)), self.next_line(out))
+
+    def test_with_no_render_or_without_a_track_the_next_line_names_the_goal_folder_alone(self):
+        out = self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--publish-track')
+        self.assertNotIn('no map was drawn', out)
+        self.assertTrue(self.next_line(out).endswith('git add "content/trips/%s"' % SLUG))
+        out = self.add('--slug', 'synthetic-idea', title='Synthetic Idea', render=True)
+        self.assertNotIn('no map was drawn', out)
+        self.assertTrue(self.next_line(out).endswith('git add "content/trips/synthetic-idea"'))
+
     def test_without_publish_track_nothing_from_the_file_is_written(self):
         path = self.gpx('single.gpx', gf.SINGLE)
         out = self.add('--gpx', path)

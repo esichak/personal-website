@@ -27,6 +27,11 @@ body.p-multiday { --dnav-h: 48px; }
 /* ---------------------------------------------------------------- sticky day nav */
 .mul-body { margin-top: 24px; }
 .mul-dnav { position: sticky; top: var(--header-h); z-index: 40; background: var(--paper); }
+/* a control reached with the keyboard clears the sticky day bar too: html's scroll padding only knows the header */
+.mul-body :is(a, button, input, summary) { scroll-margin-top: calc(var(--dnav-h) + 8px); }
+.mul-dnav :is(a, button) { scroll-margin-top: 0; }
+/* a short viewport (a phone on its side) cannot give the header, this bar and the bottom bar 170 px: the bar scrolls away */
+@media (max-height: 480px) { .mul-dnav { position: static; } }
 .mul-dn-in { width: min(1248px, 100% - 2 * var(--m)); margin-inline: auto; height: var(--dnav-h); display: flex;
   background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .mul-dn-i { position: relative; min-width: 0; padding: 0 16px; display: flex; flex-direction: column; justify-content: center;

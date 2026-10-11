@@ -71,6 +71,16 @@
   function daysListed(list, all) { return all ? list.slice() : list.slice(0, DAYS_SHOWN); }
   // the button under the list: none when everything already shows
   function daysMoreText(n, all) { return n <= DAYS_SHOWN ? '' : all ? 'Show fewer journal days' : 'Show all ' + n + ' journal days'; }
+  // a card's facets (its data attributes: act, region, year, kind, writeup) against the filters of a state; the search
+  // text is matched separately. A journal day is filtered as its journal's card is.
+  function facetOk(d, st) {
+    if (st.activity !== 'all' && d.act !== st.activity) return false;
+    if (st.region && d.region !== st.region) return false;
+    if (st.year && d.year !== st.year) return false;
+    if (st.format && d.kind !== st.format) return false;
+    if (st.writeup && d.writeup !== '1') return false;
+    return true;
+  }
   // whether a found day is listed: its journal's card passes the filters (cardOk; false when the journal has no card),
   // and with 'Has a write-up' on the day itself has one. A titled track-only day has none, whatever its journal has.
   function dayShown(e, cardOk, writeup) { return !!cardOk && (!writeup || !!(e && e.x)); }
@@ -87,9 +97,48 @@
     if (tripsState === 'failed') return failText(searching, true, daysState === 'ready');
     return pending(searching, tripsState, daysState) ? LOADING : '';
   }
+  // The form is on screen before this script arrives (core.reveal shows it at first paint), so the visitor may have used
+  // it by then. adoptForm(st, form, traversal) is the state the page starts from. st is the URL's state (parseState);
+  // form is what the controls hold as the script finds them, { q, region, year, format, sort, writeup } (a control the
+  // page lacks is left out). A key the URL sets keeps the URL's value, so a shared address still opens as it was
+  // shared, and the control is put back to it. A key the URL leaves alone takes its control's value when that is off
+  // the default: a select, the ticked write-up box, the text typed. traversal: the page was reached by Back / Forward,
+  // when the browser itself puts the selects and the box back to what it remembers, which need not be what this
+  // address says; they are then not taken. The text is taken either way (the box has autocomplete="off", so the
+  // browser never fills it).
+  // ownSort: the sort is one the visitor chose, in the address or in the form. Without one, typed text means best match
+  // first, as it does when typed after the script has arrived.
+  var SELECTS = ['region', 'year', 'format', 'sort'];
+  function ownSort(st, form, traversal) {
+    return st.sort !== DEFAULTS.sort || (!traversal && !!form && !!form.sort && form.sort !== DEFAULTS.sort);
+  }
+  function adoptForm(st, form, traversal) {
+    var out = {};
+    KEYS.forEach(function (k) { out[k] = st[k]; });
+    form = form || {};
+    if (!traversal) {
+      SELECTS.forEach(function (k) { if (out[k] === DEFAULTS[k] && form[k] && form[k] !== DEFAULTS[k]) out[k] = String(form[k]); });
+      if (form.writeup === true) out.writeup = true;
+    }
+    if (!out.q && form.q) {
+      out.q = String(form.q);
+      if (!ownSort(st, form, traversal) && tokens(out.q).length) out.sort = 'relevance';
+    }
+    return out;
+  }
+  // An index that did not load is asked for again when the search changes, never on every later render (a filter, a
+  // view switch): failedFor is the query that was in the box when the request failed. stillFailed(failedFor, q) is what
+  // to remember once the box holds q: the same query, while it is still that one, or null as soon as the box has been
+  // cleared or changed, so that the same words typed again ask again. mayLoad(indexState, failedFor, q): whether a
+  // search for q fetches now (never while a request is out, never once the index is here).
+  function stillFailed(failedFor, q) { return failedFor === q ? failedFor : null; }
+  function mayLoad(indexState, failedFor, q) {
+    return tokens(q).length > 0 && (indexState === 'idle' || (indexState === 'failed' && q !== failedFor));
+  }
   var TRX = { norm: norm, tokens: tokens, parseState: parseState, serialize: serialize, match: match, score: score, snippet: snippet, chipLabel: chipLabel, DEFAULTS: DEFAULTS,
+    adoptForm: adoptForm, ownSort: ownSort, stillFailed: stillFailed, mayLoad: mayLoad,
     dayHits: dayHits, dayMeta: dayMeta, dayHref: dayHref, dayText: dayText, countText: countText, daysCount: daysCount, daysHead: daysHead,
-    DAYS_SHOWN: DAYS_SHOWN, daysListed: daysListed, daysMoreText: daysMoreText, dayShown: dayShown, pending: pending, failText: failText, noteText: noteText,
+    DAYS_SHOWN: DAYS_SHOWN, daysListed: daysListed, daysMoreText: daysMoreText, facetOk: facetOk, dayShown: dayShown, pending: pending, failText: failText, noteText: noteText,
     FAIL: FAIL, FAIL_REPORTS: FAIL_REPORTS, LOADING: LOADING };
   if (typeof module === 'object' && module && module.exports) { module.exports = TRX; return; }
   if (typeof document === 'undefined' || !document.body.classList.contains('p-trips')) return;
@@ -118,9 +167,19 @@
   var names = { activity: {}, region: optionNames(sel.region), year: optionNames(sel.year), format: optionNames(sel.format) };
   actBtns.forEach(function (b) { names.activity[b.dataset.filter] = b.querySelector('.fchip-l').textContent; });
   var hash = location.hash;                       // read before the first write() canonicalises the URL
-  var state = parseState(location.search, allowed);
-  var userSort = state.sort !== DEFAULTS.sort;    // a sort the visitor chose (or shared) is kept; otherwise a query means best match
-  var index = null, indexState = 'idle', failedFor = null;   // idle | loading | ready | failed (failedFor: the query that failed)
+  // the form is on screen before this script arrives (core.reveal): what the visitor typed or chose in it meanwhile is
+  // taken over (adoptForm), unless the address says otherwise
+  var found = { q: q.value, writeup: !!(chk && chk.checked) };
+  SELECTS.forEach(function (k) { if (sel[k]) found[k] = sel[k].value; });
+  var traversal = false;                          // reached by Back / Forward: the browser may have filled the form itself
+  try {
+    var nav = performance.getEntriesByType('navigation')[0];
+    traversal = nav ? nav.type === 'back_forward' : performance.navigation.type === 2;
+  } catch (e) { /* no Performance API: a first visit */ }
+  var fromUrl = parseState(location.search, allowed);
+  var userSort = ownSort(fromUrl, found, traversal);   // a sort the visitor chose (or shared) is kept; otherwise a query means best match
+  var state = adoptForm(fromUrl, found, traversal);
+  var index = null, indexState = 'idle', failedFor = null;   // idle | loading | ready | failed (failedFor: see stillFailed)
   var excerpts = {};                              // slug -> the card's own excerpt text, restored when a snippet goes
   var timer = null, lastPush = 0;
   // journal days: listed only while searching; the section is absent when no journal has a day to search
@@ -129,7 +188,7 @@
   if (!daysList || !daysN || !daysMore) daysSec = null;
   var days = null, daysState = daysSec ? 'idle' : 'none';   // none | idle | loading | ready | failed
   var daysAll = false, daysAllFor = null;         // 'Show all' belongs to one query: any other starts from the short list
-  var daysFailedFor = null;                       // the query the journal index failed on: a changed query tries once more
+  var daysFailedFor = null;                       // the query the journal index failed on (stillFailed, as failedFor)
   var lastSearch = location.search;              // the query string of the view on screen (write() and popstate keep it)
   var bySlug = {};
   cards.forEach(function (c) { bySlug[c.dataset.slug] = c; });
@@ -163,15 +222,6 @@
       if (!r.ok) throw new Error(String(r.status));
       return r.json();
     }).then(ok, fail);
-  }
-  // a card's facets against the filters: a journal day is filtered as its journal is
-  function facetOk(d) {
-    if (state.activity !== 'all' && d.act !== state.activity) return false;
-    if (state.region && d.region !== state.region) return false;
-    if (state.year && d.year !== state.year) return false;
-    if (state.format && d.kind !== state.format) return false;
-    if (state.writeup && d.writeup !== '1') return false;
-    return true;
   }
   function renderDays(list, toks) {
     if (!daysSec) return;
@@ -257,7 +307,7 @@
     if (useQ) index.forEach(function (e) { if (match(e, toks)) hits[e.s] = e; });
     var shown = [];
     cards.forEach(function (c, i) {
-      var d = c.dataset, on = facetOk(d);
+      var d = c.dataset, on = facetOk(d, state);
       if (on && useQ && !hits[d.slug]) on = false;
       c.hidden = !on;
       var e = on && useQ ? hits[d.slug] : null;
@@ -293,7 +343,7 @@
     // the journal days the query finds, filtered like their journal's own card
     var dayList = [];
     if (toks.length && daysState === 'ready') {
-      dayList = dayHits(days, toks).filter(function (e) { var c = bySlug[e.s]; return dayShown(e, !!c && facetOk(c.dataset), state.writeup); });
+      dayList = dayHits(days, toks).filter(function (e) { var c = bySlug[e.s]; return dayShown(e, !!c && facetOk(c.dataset, state), state.writeup); });
     }
     renderDays(dayList, toks);
     // the count, then the journal days as a link to their list under the reports (rewritten only when it changes, so
@@ -341,10 +391,16 @@
       lastSearch = location.search;   // the browser's own spelling: it writes an apostrophe as %27
     } catch (e) { /* file:// */ }
   }
+  // fetch what the search on screen needs: each index once, and again after a failure only when the query has changed
+  function ask() {
+    failedFor = stillFailed(failedFor, state.q);
+    daysFailedFor = stillFailed(daysFailedFor, state.q);
+    if (mayLoad(indexState, failedFor, state.q)) loadIndex(render);
+    if (mayLoad(daysState, daysFailedFor, state.q)) loadDays(render);
+  }
   function apply(push, keepHash) {
     setControls();
-    if (searching() && (indexState === 'idle' || (indexState === 'failed' && state.q !== failedFor))) loadIndex(render);
-    if (searching() && (daysState === 'idle' || (daysState === 'failed' && state.q !== daysFailedFor))) loadDays(render);
+    ask();
     render();
     write(push, keepHash);
   }
@@ -368,6 +424,9 @@
   });
   q.addEventListener('input', function () {
     clearTimeout(timer);
+    // noted at once, not after the pause below: a box emptied and filled again within it has still been changed
+    failedFor = stillFailed(failedFor, q.value);
+    daysFailedFor = stillFailed(daysFailedFor, q.value);
     timer = setTimeout(function () {
       state.q = q.value;
       if (!userSort) state.sort = searching() ? 'relevance' : 'newest';
@@ -391,8 +450,7 @@
     state = parseState(location.search, allowed);
     userSort = state.sort !== DEFAULTS.sort;
     setControls();
-    if (searching() && (indexState === 'idle' || (indexState === 'failed' && state.q !== failedFor))) loadIndex(render);
-    if (searching() && (daysState === 'idle' || (daysState === 'failed' && state.q !== daysFailedFor))) loadDays(render);
+    ask();
     render();
   });
   // the header's Search link is trips/#search: focus the box after the first render (a same-page click too)

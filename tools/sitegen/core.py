@@ -25,6 +25,9 @@ SITE_NAME = 'Eric Sichak'
 TAGLINE = 'Backcountry skiing, climbing, hiking, mountain biking and other trips, each with the full GPX track and map.'
 SITE_TAGLINE = TAGLINE
 SITE_URL = 'https://esichak.github.io/personal-website/'
+AUTHOR_NAME = SITE_NAME          # the one author of every write-up (structured data); never a `party:` name
+AUTHOR_URL = SITE_URL + 'about/'
+STRUCTURED_MIN_CHARS = 100       # a report needs this much of Eric's own text to be marked up as a BlogPosting
 HOME_COORDS = '39.09°N 120.04°W · LAKE TAHOE'
 FONTS = ('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..112,400..700'
          '&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=Geist+Mono:wght@400..600&display=swap')  # serif: 400 only
@@ -59,7 +62,7 @@ def site_meta():
     """rendered/site/meta.json (region + ski-panel overview maps), read once."""
     if not _SITE_META:
         p = os.path.join(ROOT, 'rendered', 'site', 'meta.json')
-        _SITE_META.append(json.load(open(p)) if os.path.exists(p) else {'maps': {}, 'regions': []})
+        _SITE_META.append(read_json(p, {'maps': {}, 'regions': []}))
     return _SITE_META[0]
 
 
@@ -287,7 +290,7 @@ def trip_tags(t, shape=True, status=True):
     status tags (planned list rows: their meta line already opens 'PLANNED ROUTE')."""
     out = []
     if status and t['kind'] == 'multi-day':
-        out.append(tag('Multi-day · %d days' % len(t['days'])))
+        out.append(tag('Multi-day · %d day%s' % (len(t['days']), '' if len(t['days']) == 1 else 's')))
     if status and t['kind'] == 'series':
         out.append(tag('Series'))
     if status and t['kind'] == 'planned':
@@ -313,7 +316,7 @@ def section_head(title, meta='', level=2, id_=None, cls=''):
 
 
 def place_line(t, items=False):
-    """'LOVER'S LEAP, LAKE TAHOE · WITH ROSS'. items=True: the list for meta_items() (the place item may wrap at its comma
+    """'PLACE, REGION · WITH PARTY'. items=True: the list for meta_items() (the place item may wrap at its comma
     when it alone is wider than the line); default: the legacy string for callers that still join with SEP."""
     bits = []
     loc = ', '.join(nb(esc(x).upper()) for x in (t.get('place'), t.get('region')) if x)
@@ -361,6 +364,14 @@ def _read(path):
         return fh.read()
 
 
+def read_json(path, default=None):
+    """A JSON file's value, the handle closed; `default` when the file does not exist."""
+    if not os.path.exists(path):
+        return default
+    with open(path, encoding='utf-8') as fh:
+        return json.load(fh)
+
+
 def frag(path, here, ns=None):
     """Inline a rendered .svg.html fragment: route colour -> CSS var, ids namespaced, @@ROOT@@ -> relative root."""
     if not os.path.exists(path):
@@ -381,8 +392,11 @@ def rendered(t, *parts):
 
 
 def render_meta(t):
+    """What tools/render.py drew for the trip (rendered/trips/<slug>/meta.json): its maps and charts. Empty when nothing
+    is rendered, and when the trip has no track: every render is made from the track, so once the track is gone the
+    committed renders are not shown (no map, profile, key or preload), whatever the folder still holds."""
     p = rendered(t, 'meta.json')
-    if not os.path.exists(p):
+    if not has_track(t) or not os.path.exists(p):
         return {'maps': {}, 'charts': {}}
     with open(p, encoding='utf-8') as fh:
         return json.load(fh)
@@ -402,7 +416,7 @@ def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=F
     The fs map loads at once (it is the whole page)."""
     if site_maps:
         mp = os.path.join(ROOT, 'rendered', 'site', 'meta.json')
-        meta = json.load(open(mp)) if os.path.exists(mp) else {'maps': {}}
+        meta = read_json(mp, {'maps': {}})
     else:
         meta = render_meta(t)
     base = os.path.join(ROOT, 'rendered', 'site') if site_maps else t['rendered']
@@ -524,8 +538,9 @@ GLYPH_SIZES = {'g112': (112, 64), 'g64': (64, 48), 'tile': (200, 152)}
 def _drawing(t, here, name, cls):
     """A trip's track drawing as a cached image: build.py writes rendered/trips/<slug>/<name>.svg.html out as the standalone
     trips/<slug>/<name>.svg (route colour and the map CSS it uses baked in), so every page that lists the trip shares one
-    file. Decorative (alt=""): rows and links name the trip in text. '' when the drawing is not rendered."""
-    if not os.path.exists(rendered(t, name + '.svg.html')):
+    file. Decorative (alt=""): rows and links name the trip in text. '' when the drawing is not rendered, or when the
+    trip has no track (a drawing left in rendered/ by a track that was removed is not published: build.py)."""
+    if not has_track(t) or not os.path.exists(rendered(t, name + '.svg.html')):
         return ''
     w, h = GLYPH_SIZES[name]
     return ('<img class="gl gl--%s%s" src="%s%s.svg" width="%d" height="%d" alt="" loading="lazy" decoding="async">'
@@ -635,15 +650,40 @@ def map_caption(first_items, attrib=True):
 
 # ---------------------------------------------------------------- photos
 
-def photo(t, p, here, sizes='(min-width: 1200px) 1248px, 100vw', cls='', eager=False, caption=True):
+# What a phone is told about a photo that fills its width. Photos come as an 800 px copy and the full 1600 px file,
+# and a 3x phone asked for a 390 px slot needs 1170 px, so it took the full file: 250-370 KB for the lead photo, which
+# measured as a largest-contentful-paint of 4-6 s on a throttled phone (docs/IMPLEMENTATION_REPORT.md). Below 560 px
+# the slot is therefore declared as 55vw, which makes every phone up to 484 px wide take the 800 px copy: about two
+# source pixels per CSS pixel (0.68 per device pixel on a 3x phone, softer than the full file under magnification).
+# The viewer still opens the full file. From 560 px the declared width is the real one.
+PHONE_SLOT = '55vw'
+PHONE_FULL = '(min-width: 560px) 100vw, ' + PHONE_SLOT
+PHONE_SHAPES = (1.2, 1.6)   # width / height: the landscape shapes (about 4:3 to 3:2) the 800 px copy is enough for
+THUMB_EDGE = 320   # the short edge of a .th copy (the card-size derivative; tools/thumbs.py makes them)
+
+
+def phone_sizes(sizes, p):
+    """`sizes` for one photo. PHONE_FULL suits an ordinary landscape photo, whose .sm copy is 800 px wide. A portrait's
+    .sm copy is only 600 px wide and a panorama's is 800 px along the edge its slot crops, so for those shapes (and
+    for a photo whose size is not recorded) a phone is told the real width, 100vw, and takes the full file when it
+    needs it. A string without PHONE_FULL is returned as it is."""
+    w, h = p.get('w'), p.get('h')
+    if PHONE_FULL not in sizes or (w and h and PHONE_SHAPES[0] <= w / float(h) <= PHONE_SHAPES[1]):
+        return sizes
+    return sizes.replace(PHONE_FULL, '100vw')
+
+
+def photo(t, p, here, sizes='(min-width: 1200px) 1248px, ' + PHONE_FULL, cls='', eager=False, caption=True):
     base = link(here, t['url'])
     src = base + p['file']
     srcset = ''
-    if p.get('sm') and p.get('w'):
+    sizes = phone_sizes(sizes, p)
+    sized = bool(p.get('w') and p.get('h'))   # only as a pair: one of the two alone says nothing about the shape
+    if p.get('sm') and sized:
         big_w = p['w'] if p['w'] >= p['h'] else int(p['w'])
         small_w = int(round(p['w'] * 800.0 / max(p['w'], p['h'])))
         srcset = ' srcset="%s %dw, %s %dw" sizes="%s"' % (base + p['sm'], small_w, src, big_w, sizes)
-    wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if p.get('w') else ''
+    wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if sized else ''
     img = '<img src="%s"%s%s alt="%s" decoding="async"%s>' % (src, srcset, wh, esc(p.get('alt') or ''), '' if eager else ' loading="lazy"')
     cap = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if (caption and p.get('caption')) else ''
     return '<figure class="photo%s">%s%s</figure>' % ((' ' + cls) if cls else '', img, cap)
@@ -651,6 +691,16 @@ def photo(t, p, here, sizes='(min-width: 1200px) 1248px, 100vw', cls='', eager=F
 
 def _pct(v):
     return ('%g' % v) if v == int(v) else ('%.1f' % v).rstrip('0').rstrip('.')
+
+
+def thumb_width(p):
+    """The pixel width of a photo's .th copy: THUMB_EDGE on the short edge, the other edge in proportion and rounded,
+    exactly as tools/lib/photos.thumb_copy writes it (427 for a 1600 x 1200 photo, 320 for a 1200 x 1600 one)."""
+    return int(round(p['w'] * float(THUMB_EDGE) / min(p['w'], p['h'])))
+
+
+CARD_PHONE_SLOT = '112px'                    # a card's cover on a phone: the last item of every card sizes string
+CARD_PHONE_MEDIA = '(max-width: 559.98px)'   # where that slot applies: below the cards' first breakpoint (560 px)
 
 
 def _cover_srcset(t, p, here):
@@ -663,21 +713,39 @@ def _cover_srcset(t, p, here):
     return src, ''
 
 
+def _card_source(t, p, here, sizes):
+    """The <source> that offers a card cover's .th copy to phones, or ''. A card's slot is CARD_PHONE_SLOT wide below
+    560 px, and there the 427 px copy is plenty at any pixel density. From 560 px up the slot grows to 400 px: a 1x
+    screen would then be handed the .th copy at almost one source pixel per screen pixel, visibly softer than the
+    800 px copy it had always had, so wider screens are not offered it at all. Only for a card sizes string (one that
+    ends with CARD_PHONE_SLOT), a photo with both copies and a recorded size."""
+    if not (p.get('th') and p.get('sm') and p.get('w') and p.get('h') and sizes.endswith(', ' + CARD_PHONE_SLOT)):
+        return ''
+    base = link(here, t['url'])
+    small_w = int(round(p['w'] * 800.0 / max(p['w'], p['h'])))
+    return ('<source media="%s" srcset="%s %dw, %s %dw, %s %dw" sizes="%s">'
+            % (CARD_PHONE_MEDIA, base + p['th'], thumb_width(p), base + p['sm'], small_w, base + p['file'], p['w'], CARD_PHONE_SLOT))
+
+
 def cover_img(t, here, sizes, eager=False, cls=''):
     """The trip's cover (content.resolve_cover) as one <img class="cover-img">, cropped by CSS (object-fit: cover) around
     its focal point. eager=True marks the page's lead image (no lazy loading, fetchpriority high; pair with
-    cover_preload()). '' when the trip has no photo."""
+    cover_preload()). A card cover that has a .th copy is wrapped in <picture class="cover-pic"> with the phone-only
+    <source> of _card_source (the picture has no box of its own: base.css). '' when the trip has no photo."""
     c = t.get('cover')
     if not c:
         return ''
     p = c['photo']
+    sizes = phone_sizes(sizes, p)
     src, srcset = _cover_srcset(t, p, here)
     x, y = c['focal']
     pos = (' style="object-position:%s%% %s%%"' % (_pct(x), _pct(y))) if (x, y) != (50.0, 50.0) else ''
     wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if (p.get('w') and p.get('h')) else ''
-    return ('<img class="cover-img%s" src="%s"%s%s alt="%s" decoding="async"%s%s>'
-            % ((' ' + cls) if cls else '', src, (' srcset="%s" sizes="%s"' % (srcset, sizes)) if srcset else '', wh,
-               esc(p.get('alt') or ''), ' fetchpriority="high"' if eager else ' loading="lazy"', pos))
+    img = ('<img class="cover-img%s" src="%s"%s%s alt="%s" decoding="async"%s%s>'
+           % ((' ' + cls) if cls else '', src, (' srcset="%s" sizes="%s"' % (srcset, sizes)) if srcset else '', wh,
+              esc(p.get('alt') or ''), ' fetchpriority="high"' if eager else ' loading="lazy"', pos))
+    source = '' if eager else _card_source(t, p, here, sizes)
+    return ('<picture class="cover-pic">%s%s</picture>' % (source, img)) if source else img
 
 
 def cover_preload(t, here, sizes):
@@ -685,6 +753,7 @@ def cover_preload(t, here, sizes):
     c = t.get('cover')
     if not c:
         return ''
+    sizes = phone_sizes(sizes, c['photo'])   # as cover_img: the preload must name the candidate the image takes
     src, srcset = _cover_srcset(t, c['photo'], here)
     if srcset:
         return '<link rel="preload" as="image" href="%s" imagesrcset="%s" imagesizes="%s" fetchpriority="high">' % (src, srcset, sizes)
@@ -770,12 +839,12 @@ def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280
             k += 1
             land = a >= 1
             if lone_land:
-                sizes = '(min-width: 1200px) %dpx, 100vw' % col
+                sizes = '(min-width: 1200px) %dpx, %s' % (col, PHONE_FULL)
             elif one:
-                sizes = '(min-width: 760px) %dpx, 100vw' % round(min(col, a * jmax))  # .jrow--one: min(100%, ar × jmax)
+                sizes = '(min-width: 760px) %dpx, %s' % (round(min(col, a * jmax)), PHONE_FULL)  # .jrow--one: min(100%, ar × jmax)
             else:
                 sizes = ('(min-width: 1200px) %dpx, (min-width: 760px) calc((100vw - 80px) * %.3f), %s'
-                         % (round(a * h), a / tot, '100vw' if (land or i in solo) else '50vw'))
+                         % (round(a * h), a / tot, PHONE_FULL if (land or i in solo) else '50vw'))
             c = 'jph jph--%s%s' % ('l' if land else 'p', ' jph--solo' if i in solo else '')
             name = '' if p.get('alt') else ' aria-label="Photo %d of %d, full size"' % (k + lead, len(photos) + lead)
             cap = (' data-cap="%s"' % esc(p['caption'])) if p.get('caption') else ''
@@ -882,18 +951,32 @@ def strip(cells, cls='', label='Trip stats'):
             % ((' ' + cls) if cls else '', max(len(cells), 1), esc(label), out))
 
 
+def has_track(t):
+    """True when the trip publishes a recording: its own track.gpx, or a day's. What a page says about "the recording"
+    or "the GPX file", and every control that leads to one, depends on this."""
+    return bool(t.get('track')) or any(d.get('track') for d in t.get('days') or [])
+
+
 def stats_note(t, cls=''):
-    """The one stats footnote under a strip (source, track note from the beta, how derived values are computed)."""
-    bits = ['Stats from the GPS recording via Strava.']
+    """The one stats footnote under a strip (source, track note from the beta, how derived values are computed). A
+    report without a track says nothing about a recording or a GPX file; '' when nothing is left to say."""
+    recorded = has_track(t)
+    bits = ['Stats from the GPS recording via Strava.'] if recorded else []
     track = beta_value(t, 'Track')
     if track:
         bits.append('Track: %s.' % esc(track.rstrip('.')))
+    st = t['stats']
+    derived = bool(st.get('distance_km') and st.get('moving_s'))   # strip_cells shows pace / average speed only then
     if is_flat(t):
-        bits.append('Pace is moving time divided by distance.')
+        if derived:
+            bits.append('Pace is moving time divided by distance.')
     else:
-        if t['activity'] == 'mtb':
+        if t['activity'] == 'mtb' and derived:
             bits.append('Average speed is distance divided by moving time.')
-        bits.append('GPS max is the highest point in the GPX file, not a surveyed summit height.')
+        if recorded:
+            bits.append('GPS max is the highest point in the GPX file, not a surveyed summit height.')
+    if not bits:
+        return ''
     return '<p class="strip-note%s">%s</p>' % ((' ' + cls) if cls else '', ' '.join(bits))
 
 
@@ -1281,7 +1364,9 @@ def summary(t):
         facts = ['%s recorded days' % n(len(t['days']))]
         if mi:
             facts.append('%s mi' % mi)
-        return '%s. %s, with map and GPX.' % (first, ', '.join(facts))
+        if has_track(t):
+            facts.append('with map and GPX')
+        return '%s. %s.' % (first, ', '.join(facts))
     if t['days']:
         when = frange(t['date'], t.get('end_date'))
         lead = '%d-day %s trip report' % (len(t['days']), act.lower())
@@ -1298,13 +1383,15 @@ def summary(t):
     if not flat and st.get('high_m') is not None:
         facts.append('GPS max %s ft' % n(st['high_m'] * FT))
     charts = render_meta(t).get('charts', {})
-    if any(k.startswith('speed-') for k in charts):
+    if not has_track(t):
+        pass   # no recording: the page has no map and no download, so the summary promises neither
+    elif any(k.startswith('speed-') for k in charts):
         facts.append('with map, speed chart and GPX')
     elif any(k.startswith('profile-') for k in charts):
         facts.append('with map, elevation profile and GPX')
     else:
         facts.append('with map and GPX')
-    return '%s. %s.' % (first, ', '.join(facts))
+    return ('%s. %s.' % (first, ', '.join(facts))) if facts else (first + '.')
 
 
 # ---------------------------------------------------------------- layout
@@ -1330,12 +1417,114 @@ def other_subtypes(ts):
     return sorted(counts, key=lambda s: (-counts[s], s))
 
 
+def reveal(el_id):
+    """One inline script, placed right after an element that ships `hidden` because it only works with JavaScript (the
+    search forms of trips/ and tick-list/). It shows the element while the page is still being parsed, so it is in place
+    at first paint and nothing below it jumps when the deferred bundle arrives (measured before: layout shift 0.49 on
+    tick-list/ and 0.14 on trips/ on a throttled phone). Without JavaScript the script never runs and the element stays
+    hidden. The bundle wires the controls a moment later and adopts anything typed in the meantime."""
+    return '<script>document.getElementById("%s").hidden=false</script>' % el_id
+
+
+_SITE_SHARE = [None]
+_IMG_TYPES = {'.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif'}
+
+
+def share_photo(t):
+    """The photo a shared link to the trip shows: its cover (content.resolve_cover), with the size and the description
+    recorded for it in the content, as {'path', 'w', 'h', 'alt'}; None for a trip without a photo. Every page that
+    shares a trip's photo takes it from here, so the card, the lead photo and the share image never disagree."""
+    c = t.get('cover') if t else None
+    if not c:
+        return None
+    p = c['photo']
+    return {'path': t['url'] + p['file'], 'w': p.get('w'), 'h': p.get('h'), 'alt': p.get('alt') or ''}
+
+
+def site_share():
+    """The share image of the pages that stand for the whole site and have no photo of their own (About, Map, Trips,
+    Tick list): the cover of the first featured trip in content/home.json, so it follows the author's own choice.
+    None when nothing is featured. Never used on a trip page: a report without a photo shares no image."""
+    return _SITE_SHARE[0]
+
+
+def _pixels(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v > 0
+
+
+def _share_tags(image):
+    """The Open Graph image tags and the Twitter card for a share image: a share_photo() dict, or a site-relative path.
+    Width and height are written only when both are recorded, the description only when the photo has alt text:
+    nothing is measured or worded here."""
+    if not image:
+        return '<meta name="twitter:card" content="summary">'
+    if isinstance(image, str):
+        image = {'path': image}
+    out = '<meta property="og:image" content="%s">' % esc(SITE_URL + image['path'])
+    kind = _IMG_TYPES.get(os.path.splitext(image['path'])[1].lower())
+    if kind:
+        out += '<meta property="og:image:type" content="%s">' % kind
+    if _pixels(image.get('w')) and _pixels(image.get('h')):
+        out += ('<meta property="og:image:width" content="%d"><meta property="og:image:height" content="%d">'
+                % (image['w'], image['h']))
+    alt = image.get('alt') or ''
+    if alt:
+        out += '<meta property="og:image:alt" content="%s">' % esc(alt)
+    out += '<meta name="twitter:card" content="summary_large_image">'
+    if alt:
+        out += '<meta name="twitter:image:alt" content="%s">' % esc(alt)
+    return out
+
+
+def written_report(t):
+    """True for a page that is one of Eric's written reports, for structured data: a published trip (never a planned
+    route) whose own write-ups, as plain text, come to at least STRUCTURED_MIN_CHARS characters across index.md and its
+    day files. A caption-length note under a track is not marked up as an article."""
+    if not t or t['kind'] == 'planned':
+        return False
+    text = ' '.join(markdown.plain(b) for b in [t['body_md']] + [d['body_md'] for d in t['days']] if b)
+    return len(text) >= STRUCTURED_MIN_CHARS
+
+
+def blog_posting(t, canon, description, image=None):
+    """The schema.org BlogPosting of a written report, from content only: the title as written, the page's own URL and
+    description, the one author, the report's own share photo when its size is recorded, and the publication dates
+    only when index.md states them (published_at / updated_at). The trip date is not a publication date and never
+    appears here; there is no rating, publisher logo or other property the content does not hold."""
+    d = {'@context': 'https://schema.org', '@type': 'BlogPosting', 'headline': t['title'], 'url': canon,
+         'mainEntityOfPage': {'@type': 'WebPage', '@id': canon}, 'description': description, 'inLanguage': 'en',
+         'author': {'@type': 'Person', 'name': AUTHOR_NAME, 'url': AUTHOR_URL}}
+    if isinstance(image, dict) and _pixels(image.get('w')) and _pixels(image.get('h')):
+        d['image'] = {'@type': 'ImageObject', 'url': SITE_URL + image['path'], 'width': image['w'], 'height': image['h']}
+    if t.get('published_at'):
+        d['datePublished'] = t['published_at']
+    if t.get('updated_at'):
+        d['dateModified'] = t['updated_at']
+    return d
+
+
+def _report_head(t, canon, description, image):
+    """Head tags only a report page carries: article:published_time / modified_time when index.md states them, and the
+    BlogPosting block when the page is a written report. '<' is written as \\u003c so no title can close the script."""
+    out = ''
+    if t.get('published_at'):
+        out += '<meta property="article:published_time" content="%s">' % esc(t['published_at'])
+    if t.get('updated_at'):
+        out += '<meta property="article:modified_time" content="%s">' % esc(t['updated_at'])
+    if written_report(t):
+        out += ('<script type="application/ld+json">%s</script>'
+                % json.dumps(blog_posting(t, canon, description, image), ensure_ascii=False).replace('<', '\\u003c'))
+    return out
+
+
 def register_site(site):
     """build.py hands over the loaded site, so document() can find the trip a page belongs to (the phone app bar's
     glyph + title) and the header can name the Other sub-types that exist, without every page module passing them."""
     _TRIPS_BY_URL.clear()
     _TRIPS_BY_URL.update({t['url']: t for t in site['trips']})
     _HAS_PCT[0] = any(t['slug'] == PCT_SLUG for t in site['trips'])
+    feat = site.get('featured') or []
+    _SITE_SHARE[0] = share_photo(feat[0]) if feat else None
     _OTHER_SUBS[:] = other_subtypes(site.get('published') or [t for t in site['trips'] if t['kind'] != 'planned'])
 
 
@@ -1435,9 +1624,12 @@ def lightbox():
 
 
 def document(here, title, body, description='', active=None, css_pages=(), image=None, extra_head='', body_cls='', bottom='',
-             og_type='website', full_title=None, trip=None):
+             og_type='website', full_title=None, trip=None, canonical=True, report=None):
     """full_title: the whole <title> text (default '<title> · Eric Sichak'), also the og:title; og_type: 'article' on trip
-    pages. trip: the trip the page shows (default: looked up by URL, see register_site()) for the phone app bar."""
+    pages. trip: the trip the page shows (default: looked up by URL, see register_site()) for the phone app bar.
+    image: the share image, a share_photo() dict (or a site-relative path). canonical=False: a page that stands for no
+    URL of its own (the 404 page) gets neither a canonical link nor og:url. report: the published trip a report page
+    is about; it adds the publication dates index.md states and, for a written report, one BlogPosting block."""
     p = prefix(here)
     p = '' if p == './' else p
     if not full_title:
@@ -1445,17 +1637,18 @@ def document(here, title, body, description='', active=None, css_pages=(), image
     if trip is None:
         trip = _TRIPS_BY_URL.get(here)
     canon = SITE_URL + (here if not here.endswith('index.html') else here[:-10])
-    og = ''
-    if image:
-        og = '<meta property="og:image" content="%s">' % (SITE_URL + image)
-    og += '<meta name="twitter:card" content="%s">' % ('summary_large_image' if image else 'summary')
+    og = _share_tags(image)
+    if report is not None:
+        og += _report_head(report, canon, description or SITE_TAGLINE, image)
+    canon_link = ('<link rel="canonical" href="%s">' % canon) if canonical else ''
+    og_url = ('<meta property="og:url" content="%s">' % canon) if canonical else ''
     lb = lightbox() if any(('class="%s' % c) in body for c in ('jph', 'mul-ph', 'ser-ph')) else ''
     return ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             '<title>%s</title><meta name="description" content="%s">'
-            '<link rel="canonical" href="%s">'
+            '%s'
             '<meta property="og:type" content="%s"><meta property="og:title" content="%s">'
-            '<meta property="og:description" content="%s"><meta property="og:url" content="%s">%s'
+            '<meta property="og:description" content="%s">%s%s'
             '<meta name="theme-color" content="#F2F1EC">'
             '<link rel="icon" href="%sassets/favicon.svg" type="image/svg+xml">'
             '<link rel="alternate" type="application/rss+xml" title="%s — trip reports" href="%sfeed.xml">'
@@ -1465,6 +1658,6 @@ def document(here, title, body, description='', active=None, css_pages=(), image
             '<script>try{if(localStorage.getItem("units")==="km")document.documentElement.classList.add("km")}catch(e){}</script>'
             '%s</head><body class="%s">%s<main id="main">%s</main>%s%s%s'
             '<script src="%sassets/site.js" defer></script></body></html>\n'
-            % (esc(full_title), esc(description or SITE_TAGLINE), canon, og_type, esc(full_title), esc(description or SITE_TAGLINE), canon, og,
+            % (esc(full_title), esc(description or SITE_TAGLINE), canon_link, og_type, esc(full_title), esc(description or SITE_TAGLINE), og_url, og,
                p, SITE_NAME, p, FONTS.replace('&', '&amp;'), p, extra_head, body_cls, header(here, active, trip), body, footer(here),
                bottom, lb, p))

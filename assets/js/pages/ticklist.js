@@ -35,7 +35,34 @@
     return function (a, b) { return (RANK[a.priority] - RANK[b.priority]) || byAdded(a, b); };   // priority
   }
   function matches(text, toks) { return toks.every(function (t) { return text.indexOf(t) !== -1; }); }
-  var TKL = { parseState: parseState, serialize: serialize, chipLabel: chipLabel, inScope: inScope, compare: compare, matches: matches, DEFAULTS: DEFAULTS, KEYS: KEYS, FACETS: FACETS };
+  // whether a goal card shows: d is its data attributes (act, region, status, priority, months, gpx, archived, text),
+  // st the state, toks the search tokens. The scope first, then every filter, then every search token in the card's text.
+  function goalShown(d, st, toks) {
+    if (!inScope(d, st.scope)) return false;
+    if (st.activity !== 'all' && d.act !== st.activity) return false;
+    if (st.region && d.region !== st.region) return false;
+    if (st.status && d.status !== st.status) return false;
+    if (st.priority && d.priority !== st.priority) return false;
+    if (st.month && (' ' + (d.months || '') + ' ').indexOf(' ' + st.month + ' ') === -1) return false;
+    if (st.gpx && d.gpx !== '1') return false;
+    return !(toks && toks.length) || matches(d.text || '', toks);
+  }
+  // The form is on screen before this script arrives (core.reveal shows it at first paint), so the visitor may have used
+  // it by then. adoptForm(st, form, traversal) is the state the page starts from, by the rules of trips.js: st is the
+  // URL's state; form is what the controls hold, { q, region, status, priority, month, sort }. A key the URL sets keeps
+  // the URL's value; a key it leaves alone takes its control's value when that is off the default. After Back /
+  // Forward (traversal) the browser fills the selects itself, so only the text is taken (the box is autocomplete="off").
+  var SELECTS = ['region', 'status', 'priority', 'month', 'sort'];
+  function adoptForm(st, form, traversal) {
+    var out = {};
+    KEYS.forEach(function (k) { out[k] = st[k]; });
+    form = form || {};
+    if (!traversal) SELECTS.forEach(function (k) { if (out[k] === DEFAULTS[k] && form[k] && form[k] !== DEFAULTS[k]) out[k] = String(form[k]); });
+    if (!out.q && form.q) out.q = String(form.q);
+    return out;
+  }
+  var TKL = { parseState: parseState, serialize: serialize, chipLabel: chipLabel, inScope: inScope, compare: compare, matches: matches, goalShown: goalShown,
+    adoptForm: adoptForm, DEFAULTS: DEFAULTS, KEYS: KEYS, FACETS: FACETS };
   if (typeof module === 'object' && module && module.exports) { module.exports = TKL; return; }
   if (typeof document === 'undefined' || !document.body.classList.contains('p-ticklist')) return;
 
@@ -69,7 +96,16 @@
   var names = { activity: {}, region: optionNames(sel.region), status: optionNames(sel.status), priority: optionNames(sel.priority), month: optionNames(sel.month) };
   actBtns.forEach(function (b) { names.activity[b.dataset.filter] = b.querySelector('.fchip-l').textContent; });
   var hash = location.hash;
-  var state = parseState(location.search, allowed);
+  // the form is on screen before this script arrives (core.reveal): what the visitor typed or chose in it meanwhile is
+  // taken over (adoptForm), unless the address says otherwise
+  var found = { q: q.value };
+  SELECTS.forEach(function (k) { if (sel[k]) found[k] = sel[k].value; });
+  var traversal = false;                          // reached by Back / Forward: the browser may have filled the form itself
+  try {
+    var nav = performance.getEntriesByType('navigation')[0];
+    traversal = nav ? nav.type === 'back_forward' : performance.navigation.type === 2;
+  } catch (e) { /* no Performance API: a first visit */ }
+  var state = adoptForm(parseState(location.search, allowed), found, traversal);
   var timer = null, lastPush = 0;
 
   function anyFilter() { return X.tokens(state.q).length > 0 || FACETS.some(function (k) { return state[k] !== DEFAULTS[k]; }); }
@@ -101,14 +137,7 @@
     var toks = X.tokens(state.q);
     var shown = [];
     cards.forEach(function (c, i) {
-      var d = c.dataset, on = inScope(d, state.scope);
-      if (on && state.activity !== 'all' && d.act !== state.activity) on = false;
-      if (on && state.region && d.region !== state.region) on = false;
-      if (on && state.status && d.status !== state.status) on = false;
-      if (on && state.priority && d.priority !== state.priority) on = false;
-      if (on && state.month && (' ' + (d.months || '') + ' ').indexOf(' ' + state.month + ' ') === -1) on = false;
-      if (on && state.gpx && d.gpx !== '1') on = false;
-      if (on && toks.length && !matches(d.text || '', toks)) on = false;
+      var d = c.dataset, on = goalShown(d, state, toks);
       c.hidden = !on;
       if (on) shown.push({ el: c, i: i, priority: d.priority, added: d.added || '', slug: d.slug, title: (c.querySelector('.gcard-t') || c).textContent.trim() });
     });

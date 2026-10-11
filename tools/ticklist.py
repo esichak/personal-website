@@ -311,7 +311,8 @@ def cmd_add(a):
                               'alternatives': len(gpxroute.candidates(info)), 'segments': m['segments'], 'points': m['points'],
                               'elevation': m['elevation'], 'times': m['times'], 'waypoints': info['waypoints']}
                 g['route_source']['public_copy_approved'] = True
-                whole = track_bytes == open(path, 'rb').read()
+                with open(path, 'rb') as fh:
+                    whole = track_bytes == fh.read()
                 say('  publishing the %s (%d bytes, sha256 %s…) as track.gpx' % ('whole file' if whole else 'chosen element', len(track_bytes), sha[:12]))
                 # what the PUBLIC copy carries is read from the bytes that will be written, never inferred: a chosen
                 # element keeps its own name, descriptions, links, extensions, times and comments, and the file's opening
@@ -354,8 +355,13 @@ def cmd_add(a):
             r = subprocess.run([sys.executable, RENDER, slug], cwd=ROOT)
             if r.returncode != 0:
                 say('  render failed (exit %d): the goal is valid; the page says the map is not rendered yet. Re-run: python3 tools/render.py %s' % (r.returncode, slug))
+    # the render folder is named only when the run made one: render.py leaves a draft out, and a new goal is a draft
+    drawn = os.path.exists(os.path.join(ROOT, 'rendered', 'trips', slug, 'meta.json'))
+    if track_bytes and not a.no_render and not drawn:
+        say('  no map was drawn (render.py leaves drafts out): once "draft: true" is removed, run python3 tools/render.py %s '
+            'and add "rendered/trips/%s" as well' % (slug, slug))
     say('Next: review content/trips/%s/ (index.md, goal.json%s); remove "draft: true" to publish; python3 tools/build.py --check; '
-        'git add "content/trips/%s"%s' % (slug, ', track.gpx' if track_bytes else '', slug, ' "rendered/trips/%s"' % slug if track_bytes and not a.no_render else ''))
+        'git add "content/trips/%s"%s' % (slug, ', track.gpx' if track_bytes else '', slug, ' "rendered/trips/%s"' % slug if drawn else ''))
     return 0
 
 
@@ -461,7 +467,8 @@ def enrichment_prompt():
     p = os.path.join(ROOT, 'docs', 'TICK_LIST_GUIDE.md')
     if not os.path.exists(p):
         return '(docs/TICK_LIST_GUIDE.md is missing: see the plan, section 20.7)'
-    text = open(p, encoding='utf-8').read()
+    with open(p, encoding='utf-8') as fh:
+        text = fh.read()
     m = re.search(r'```text\n(Add or enrich this future goal.*?)```', text, re.S)
     return m.group(1).strip() if m else '(see the research prompt in docs/TICK_LIST_GUIDE.md)'
 

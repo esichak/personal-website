@@ -122,8 +122,11 @@ def units_block():
            '<button type="button" role="radio" aria-checked="true" data-units="mi">MI</button>'
            '<button type="button" role="radio" aria-checked="false" data-units="km">KM</button></div>')
     return ('<section class="abo-sec" aria-labelledby="abo-units-h"><h2 class="t-h3" id="abo-units-h">Units</h2>'
-            '<div class="abo-units-row"><p class="abo-p">Distances and heights are shown in miles and feet by default. The <span class="abo-nw">MI | KM</span> switch '
-            'changes every page to kilometers and meters, and this browser remembers the choice.</p>%s</div></section>' % ctl)
+            # the second sentence is about the switch: without JavaScript the switch is not shown (base.css), and neither
+            # is the sentence (about.css)
+            '<div class="abo-units-row"><p class="abo-p">Distances and heights are shown in miles and feet by default. '
+            '<span class="abo-units-how">The <span class="abo-nw">MI | KM</span> switch '
+            'changes every page to kilometers and meters, and this browser remembers the choice.</span></p>%s</div></section>' % ctl)
 
 
 def follow(here):
@@ -145,7 +148,7 @@ def page(site):
             % (intro(site), numbers(site, here), method(site), units_block(), follow(here)))
     desc = ('About Eric Sichak\'s trip reports: where the tracks, maps and stats come from, '
             'how many reports there are, and how to follow new ones.')
-    return core.Page(here, core.document(here, 'About', body, desc, active='about', body_cls='p-about'), 'About')
+    return core.Page(here, core.document(here, 'About', body, desc, active='about', body_cls='p-about', image=core.site_share()), 'About')
 
 
 def build(site):

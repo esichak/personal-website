@@ -152,6 +152,9 @@
 @media (min-width: 760px) { .rep-rel { margin-top: 24px; } }
 @media (min-width: 1200px) { .rep-rel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
+/* 'Published … · Updated …' (report.published_line): only on a report whose index.md states published_at */
+.rep-pub { margin-top: 32px; color: var(--ink-2); text-transform: uppercase; }
+
 /* phones: the bottom bar is the section navigation, so the section row is desktop and tablet only; the copy-link control
    moves to the end of the page (the title actions are hidden below 760) */
 .rep-share { margin-top: 40px; }
@@ -187,6 +190,9 @@
 .bbar a[aria-current] { color: var(--ink); }
 .bbar a[aria-current]::before { content: ""; position: absolute; top: -4px; left: 50%; width: 64px; margin-left: -32px; height: 3px; background: var(--route); }
 body.p-report .site-f { padding-bottom: 72px; }
+/* a page without the bar needs no room for one: a report left with fewer than two things to jump to (report.bottom_bar
+   then writes none), a goal that is only an idea. A browser that does not know :has() keeps the padding */
+body.p-report:not(:has(.bbar)) .site-f { padding-bottom: 0; }
 /* focused links (gallery photos, the pager) never hide under the bar */
 @media (max-width: 759.98px) { html:has(.bbar) { scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom)); } }
 @media (min-width: 760px) { .bbar { display: none; } body.p-report .site-f { padding-bottom: 0; } }
@@ -208,8 +214,6 @@ body.p-report .site-f { padding-bottom: 72px; }
 @media (max-width: 759.98px) { body.p-goal .rep-strip .strip-note { display: block; } }
 /* a goal without a rendered map: the note sits where the map would, on the same rhythm */
 .rep-map--empty .empty { max-width: 720px; }
-/* a goal page without a bottom bar (an idea with nothing to jump to) needs no room for one */
-body.p-goal:not(:has(.bbar)) .site-f { padding-bottom: 0; }
 .goal-check { display: flex; flex-direction: column; gap: 8px; font: 400 16px/24px var(--sans); }
 .goal-check li { display: flex; gap: 12px; align-items: baseline; }
 .goal-check .goal-mark { flex-shrink: 0; width: 20px; font: 500 16px/24px var(--mono); color: var(--ink-3); }

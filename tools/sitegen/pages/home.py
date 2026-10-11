@@ -21,9 +21,10 @@ RECENT_N = 6
 # the width each cover is drawn at (so srcset picks the 800 px copy where it is enough): the lead card is 7 of 12 columns
 # from 1200, the full row on tablets; supporting cards sit beside their copy from 1200 (200 px) and two to a row on
 # tablets; recent cards are 3 / 2 / 1 to a row (a 112 px thumbnail on phones)
-LEAD_SIZES = '(min-width: 1200px) 718px, (min-width: 760px) calc(100vw - 80px), 100vw'
-SUB_SIZES = '(min-width: 1200px) 200px, (min-width: 760px) calc((100vw - 104px) / 2), 100vw'
-WIDE_SUB_SIZES = '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 104px) / 2), 100vw'  # cards 4-6: three to a row
+# below 760 px the cards are a full-width column; phones are told core.PHONE_FULL (the 800 px copy, not the full file)
+LEAD_SIZES = '(min-width: 1200px) 718px, (min-width: 760px) calc(100vw - 80px), ' + core.PHONE_FULL
+SUB_SIZES = '(min-width: 1200px) 200px, (min-width: 760px) calc((100vw - 104px) / 2), ' + core.PHONE_FULL
+WIDE_SUB_SIZES = '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 104px) / 2), ' + core.PHONE_FULL  # cards 4-6: three to a row
 RECENT_SIZES = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
 TITLE = 'Eric Sichak · Trip reports: backcountry skiing, climbing, hiking and more'
 
@@ -336,7 +337,7 @@ def page(site):
     body = ['<section class="wrap hom-top" aria-label="Introduction">%s</section>' % hero(),
             featured(site), recent(site), by_activity(site), where(site)]
     # the lead card's cover is the share image and the first-screen image: preloaded, never lazy (core.cover_img eager)
-    img = (lead['url'] + lead['cover']['photo']['file']) if (lead and lead.get('cover')) else None
+    img = core.share_photo(lead)
     head = core.cover_preload(lead, HERE, LEAD_SIZES) if lead else ''
     doc = core.document(HERE, core.SITE_NAME, ''.join(body), LEAD, active=None, image=img, body_cls='p-home', full_title=TITLE,
                         extra_head=head)

@@ -3,6 +3,9 @@
 /* Unit tests for the pure functions of assets/js/pages/trips.js. Phase 2: norm, tokens, parseState, match, score,
    snippet, chipLabel. Phase 3: the journal-day search (dayHits, dayMeta, dayHref, dayText) and the wording decisions of
    the status line and the "Journal days" list (countText, daysCount, daysHead, daysListed, daysMoreText, failText).
+   Phase 4: facetOk, the filter predicate the page hides and counts its cards with; adoptForm and ownSort, what the page
+   takes over from a form the visitor used before the script arrived; stillFailed and mayLoad, when a search index that
+   did not load is asked for again.
 
    Run by tests/test_trips_js.py (skipped when node is missing); by hand: `node tests/trips_js_harness.js [trips.js]`.
    The optional argument points at another module with the same exports (used to prove the harness fails a wrong one).
@@ -549,5 +552,364 @@ check('failText: silent unless a search is on and the trip index failed; then it
   for (const [searching, tripsFailed, daysReady, want] of table) {
     eq(TRX.failText(searching, tripsFailed, daysReady), want, JSON.stringify([searching, tripsFailed, daysReady]));
   }
+});
+// ---------------------------------------------------------------- facetOk (the filters: activity, region, year, format, write-up)
+
+// Each card as the page reads it: li.dataset of core.trip_card (data-slug, data-act, data-kind, data-region, data-year,
+// data-writeup, data-date), every value a string. A trip without a region or without a date carries '' there; the last
+// card has no facet attribute at all (an attribute the page stopped writing must never crash the filter).
+const FCARDS = [
+  { slug: 'syn-couloir', act: 'ski', kind: 'trip', region: 'eastern-sierra', year: '2026', writeup: '1', date: '2026-01-17' },
+  { slug: 'syn-lap', act: 'ski', kind: 'trip', region: 'lake-tahoe', year: '2026', writeup: '0', date: '2026-02-02' },
+  { slug: 'syn-traverse', act: 'ski', kind: 'multi-day', region: 'alps', year: '2025', writeup: '1', date: '2025-04-10' },
+  { slug: 'syn-loop', act: 'hike', kind: 'trip', region: 'eastern-sierra', year: '2025', writeup: '1', date: '2025-08-10' },
+  { slug: 'syn-journal', act: 'hike', kind: 'series', region: 'pacific-crest-trail', year: '2024', writeup: '1', date: '2024-04-22' },
+  { slug: 'syn-crag', act: 'climb', kind: 'trip', region: 'lake-tahoe', year: '2024', writeup: '0', date: '2024-06-01' },
+  { slug: 'syn-ride', act: 'mtb', kind: 'trip', region: '', year: '2025', writeup: '0', date: '2025-07-04' },
+  { slug: 'syn-undated', act: 'hike', kind: 'trip', region: 'lake-tahoe', year: '', writeup: '0', date: '' },
+  { slug: 'syn-bare' },
+];
+const ALL_FCARDS = FCARDS.map((c) => c.slug);
+// the values the page's controls offer for these cards (parseState resets anything else to the default)
+const FALLOWED = Object.assign({}, ALLOWED, {
+  activity: ['all', 'ski', 'climb', 'hike', 'mtb'],
+  region: ['', 'alps', 'eastern-sierra', 'lake-tahoe', 'pacific-crest-trail'],
+});
+const fst = (s) => TRX.parseState(s, FALLOWED);
+// the cards a state shows, by slug and in page order: what render() leaves un-hidden when no search is on
+const facetShown = (o) => FCARDS.filter((c) => TRX.facetOk(c, withDefaults(o))).map((c) => c.slug);
+
+check('facetOk is exported and answers true or false', () => {
+  eq(typeof TRX.facetOk, 'function', 'TRX.facetOk is not a function');
+  eq(TRX.facetOk(FCARDS[0], DEFAULTS), true);
+  eq(TRX.facetOk(FCARDS[0], withDefaults({ activity: 'hike' })), false);
+});
+check('facetOk: the default state shows every card', () => {
+  deq(facetShown({}), ALL_FCARDS);
+  deq(FCARDS.filter((c) => TRX.facetOk(c, DEFAULTS)).length, 9);
+  deq(FCARDS.filter((c) => TRX.facetOk(c, TRX.DEFAULTS)).length, 9);      // the page's own defaults
+  deq(FCARDS.filter((c) => TRX.facetOk(c, fst(''))).length, 9);           // and a URL without a query
+  eq(TRX.facetOk({}, DEFAULTS), true);
+});
+check('facetOk: the activity filter alone', () => {
+  deq(facetShown({ activity: 'ski' }), ['syn-couloir', 'syn-lap', 'syn-traverse']);
+  deq(facetShown({ activity: 'hike' }), ['syn-loop', 'syn-journal', 'syn-undated']);
+  deq(facetShown({ activity: 'climb' }), ['syn-crag']);
+  deq(facetShown({ activity: 'mtb' }), ['syn-ride']);
+  deq(facetShown({ activity: 'other' }), []);
+  deq(facetShown({ activity: 'all' }), ALL_FCARDS);
+});
+check('facetOk: the region filter alone', () => {
+  deq(facetShown({ region: 'eastern-sierra' }), ['syn-couloir', 'syn-loop']);
+  deq(facetShown({ region: 'lake-tahoe' }), ['syn-lap', 'syn-crag', 'syn-undated']);
+  deq(facetShown({ region: 'alps' }), ['syn-traverse']);
+  deq(facetShown({ region: 'pacific-crest-trail' }), ['syn-journal']);
+  deq(facetShown({ region: 'utah' }), []);
+  deq(facetShown({ region: '' }), ALL_FCARDS);
+});
+check('facetOk: the year filter alone', () => {
+  deq(facetShown({ year: '2026' }), ['syn-couloir', 'syn-lap']);
+  deq(facetShown({ year: '2025' }), ['syn-traverse', 'syn-loop', 'syn-ride']);
+  deq(facetShown({ year: '2024' }), ['syn-journal', 'syn-crag']);
+  deq(facetShown({ year: '1999' }), []);
+  deq(facetShown({ year: '' }), ALL_FCARDS);
+});
+check('facetOk: the format filter alone reads the card\'s kind', () => {
+  deq(facetShown({ format: 'trip' }), ['syn-couloir', 'syn-lap', 'syn-loop', 'syn-crag', 'syn-ride', 'syn-undated']);
+  deq(facetShown({ format: 'multi-day' }), ['syn-traverse']);
+  deq(facetShown({ format: 'series' }), ['syn-journal']);
+  deq(facetShown({ format: 'planned' }), []);
+  deq(facetShown({ format: '' }), ALL_FCARDS);
+});
+check('facetOk: "Has a write-up" alone', () => {
+  deq(facetShown({ writeup: true }), ['syn-couloir', 'syn-traverse', 'syn-loop', 'syn-journal']);
+  deq(facetShown({ writeup: false }), ALL_FCARDS);
+  // only the page's own '1' says a card has one
+  for (const v of ['0', '', 'true', 'yes', undefined]) {
+    eq(TRX.facetOk({ act: 'ski', writeup: v }, withDefaults({ writeup: true })), false, 'writeup=' + JSON.stringify(v));
+    eq(TRX.facetOk({ act: 'ski', writeup: v }, DEFAULTS), true, 'writeup=' + JSON.stringify(v) + ', filter off');
+  }
+  eq(TRX.facetOk({ act: 'ski', writeup: '1' }, withDefaults({ writeup: true })), true);
+});
+check('facetOk: two filters at once keep only the cards that pass both', () => {
+  deq(facetShown({ activity: 'ski', year: '2026' }), ['syn-couloir', 'syn-lap']);
+  deq(facetShown({ activity: 'ski', region: 'lake-tahoe' }), ['syn-lap']);
+  deq(facetShown({ activity: 'hike', region: 'eastern-sierra' }), ['syn-loop']);
+  deq(facetShown({ region: 'lake-tahoe', year: '2024' }), ['syn-crag']);
+  deq(facetShown({ region: 'lake-tahoe', writeup: true }), []);                  // each alone finds cards, together none
+  deq(facetShown({ region: 'eastern-sierra', writeup: true }), ['syn-couloir', 'syn-loop']);
+  deq(facetShown({ format: 'trip', year: '2025' }), ['syn-loop', 'syn-ride']);
+  deq(facetShown({ format: 'series', activity: 'ski' }), []);
+  deq(facetShown({ year: '2025', writeup: true }), ['syn-traverse', 'syn-loop']);
+  deq(facetShown({ activity: 'hike', writeup: true, format: 'trip' }), ['syn-loop']);
+});
+check('facetOk: all five filters together, and each one still decides', () => {
+  const all = { activity: 'ski', region: 'eastern-sierra', year: '2026', format: 'trip', writeup: true };
+  deq(facetShown(all), ['syn-couloir']);
+  // the one card that passes four of the five filters must stay hidden by the fifth, whichever it is
+  const others = { activity: 'hike', region: 'alps', year: '2025', format: 'multi-day' };
+  for (const key of Object.keys(others)) {
+    deq(facetShown(Object.assign({}, all, { [key]: others[key] })), [], 'with another ' + key);
+  }
+  const card = FCARDS[0];
+  for (const key of ['act', 'region', 'year', 'kind', 'writeup']) {
+    const off = Object.assign({}, card, { [key]: key === 'writeup' ? '0' : 'something-else' });
+    eq(TRX.facetOk(off, withDefaults(all)), false, 'a card that differs only in data-' + key);
+  }
+  eq(TRX.facetOk(card, withDefaults(all)), true);
+  // dropping one filter at a time only ever lets cards in
+  for (const key of Object.keys(all)) {
+    const fewer = Object.assign({}, all, { [key]: DEFAULTS[key] });
+    assert.ok(facetShown(fewer).indexOf('syn-couloir') !== -1, 'without ' + key);
+  }
+});
+check('facetOk: an empty data attribute matches no value of its filter', () => {
+  const ride = FCARDS[6], undated = FCARDS[7];
+  eq(ride.region, '');
+  eq(undated.year, '');
+  for (const region of FALLOWED.region.filter(Boolean)) eq(TRX.facetOk(ride, withDefaults({ region: region })), false, region);
+  for (const year of FALLOWED.year.filter(Boolean)) eq(TRX.facetOk(undated, withDefaults({ year: year })), false, year);
+  // the other filters still see the card
+  eq(TRX.facetOk(ride, withDefaults({ activity: 'mtb', year: '2025', format: 'trip' })), true);
+  eq(TRX.facetOk(undated, withDefaults({ activity: 'hike', region: 'lake-tahoe', format: 'trip' })), true);
+});
+check('facetOk: a card without data attributes passes only when no filter is set', () => {
+  const bare = FCARDS[8];
+  deq(Object.keys(bare), ['slug']);
+  eq(TRX.facetOk(bare, DEFAULTS), true);
+  for (const o of [{ activity: 'ski' }, { region: 'alps' }, { year: '2026' }, { format: 'trip' }, { writeup: true }]) {
+    eq(TRX.facetOk(bare, withDefaults(o)), false, JSON.stringify(o));
+  }
+});
+check('facetOk: a value is compared whole', () => {
+  deq(facetShown({ region: 'lake' }), []);
+  deq(facetShown({ region: 'sierra' }), []);
+  deq(facetShown({ year: '202' }), []);
+  deq(facetShown({ activity: 'sk' }), []);
+  deq(facetShown({ format: 'multi' }), []);
+});
+check('facetOk: the search text, the order and the view are not filters', () => {
+  deq(facetShown({ q: 'zermatt' }), ALL_FCARDS);            // the text is matched against the index, separately
+  deq(facetShown({ sort: 'oldest' }), ALL_FCARDS);
+  deq(facetShown({ sort: 'relevance', view: 'list' }), ALL_FCARDS);
+  deq(facetShown({ q: 'zermatt', sort: 'oldest', view: 'list', region: 'alps' }), ['syn-traverse']);
+});
+check('facetOk: how many cards a state shows', () => {
+  const table = [
+    ['', 9],
+    ['?activity=ski', 3],
+    ['?activity=hike', 3],
+    ['?region=lake-tahoe', 3],
+    ['?region=eastern-sierra', 2],
+    ['?year=2025', 3],
+    ['?format=trip', 6],
+    ['?writeup=1', 4],
+    ['?activity=ski&region=lake-tahoe', 1],
+    ['?activity=ski&writeup=1', 2],
+    ['?region=alps&writeup=1', 1],
+    ['?year=2024&format=series', 1],
+    ['?activity=climb&writeup=1', 0],
+    ['?activity=ski&region=eastern-sierra&year=2026&format=trip&writeup=1', 1],
+    ['?q=couloir&sort=oldest&view=list', 9],
+    ['?region=mars&year=1999', 9],            // values no control offers are reset by parseState, so nothing is filtered
+  ];
+  for (const [search, want] of table) {
+    eq(FCARDS.filter((c) => TRX.facetOk(c, fst(search))).length, want, search || '(no query)');
+  }
+});
+check('facetOk leaves the card and the state as it found them', () => {
+  const state = withDefaults({ activity: 'ski', region: 'alps', writeup: true });
+  const before = [JSON.stringify(FCARDS), JSON.stringify(state)];
+  FCARDS.forEach((c) => TRX.facetOk(c, state));
+  deq([JSON.stringify(FCARDS), JSON.stringify(state)], before);
+});
+check('facetOk and dayShown: a journal day follows its journal\'s card', () => {
+  const journal = FCARDS[4], written = { s: 'syn-journal', x: 'synthetic words' }, bare = { s: 'syn-journal', x: '' };
+  const shown = (e, o) => TRX.dayShown(e, TRX.facetOk(journal, withDefaults(o)), withDefaults(o).writeup);
+  eq(shown(written, {}), true);
+  eq(shown(written, { region: 'pacific-crest-trail', format: 'series', year: '2024' }), true);
+  eq(shown(written, { region: 'alps' }), false);        // the journal's card is filtered out, and its days with it
+  eq(shown(written, { activity: 'ski' }), false);
+  eq(shown(bare, { writeup: true }), false);            // the card passes; this day has no write-up
+  eq(shown(written, { writeup: true }), true);
+});
+
+// ---------------------------------------------------------------- the form as the script finds it (adoptForm, ownSort)
+
+// The form is revealed at first paint and the script is deferred, so the visitor may have used it first. An untouched
+// form: an empty box, every select on its first option, the write-up box unticked.
+const UNTOUCHED = { q: '', region: '', year: '', format: '', sort: 'newest', writeup: false };
+const formWith = (o) => Object.assign({}, UNTOUCHED, o);
+const adopt = (search, form, traversal) => TRX.adoptForm(fst(search), form, traversal);
+
+check('adoptForm and ownSort are exported', () => {
+  eq(typeof TRX.adoptForm, 'function', 'TRX.adoptForm is not a function');
+  eq(typeof TRX.ownSort, 'function', 'TRX.ownSort is not a function');
+});
+check('adoptForm: an untouched form adopts nothing', () => {
+  deq(adopt('', UNTOUCHED), DEFAULTS);
+  deq(adopt('', {}), DEFAULTS);                 // a page without the controls
+  deq(adopt('', undefined), DEFAULTS);
+  deq(adopt('', null), DEFAULTS);
+  for (const search of ['?q=tallac', '?view=list', '?activity=ski&region=alps&year=2025&format=multi-day&writeup=1&sort=oldest&view=list']) {
+    deq(adopt(search, UNTOUCHED), fst(search), search);
+    deq(adopt(search, UNTOUCHED, true), fst(search), search + ' after Back');
+  }
+});
+check('adoptForm: with no state in the URL, each select that is off its default is taken over', () => {
+  deq(adopt('', formWith({ region: 'lake-tahoe' })), withDefaults({ region: 'lake-tahoe' }));
+  deq(adopt('', formWith({ year: '2025' })), withDefaults({ year: '2025' }));
+  deq(adopt('', formWith({ format: 'series' })), withDefaults({ format: 'series' }));
+  deq(adopt('', formWith({ sort: 'oldest' })), withDefaults({ sort: 'oldest' }));
+  deq(adopt('', formWith({ sort: 'relevance' })), withDefaults({ sort: 'relevance' }));
+});
+check('adoptForm: the ticked write-up box is taken over', () => {
+  deq(adopt('', formWith({ writeup: true })), withDefaults({ writeup: true }));
+  deq(adopt('', { writeup: true }), withDefaults({ writeup: true }));
+  // only the checkbox's own true: the page passes chk.checked, nothing else ticks the filter
+  for (const v of ['1', 'on', 'true', 1, 'false', null, undefined]) eq(adopt('', formWith({ writeup: v })).writeup, false, JSON.stringify(v));
+});
+check('adoptForm: several choices at once, the reported case among them', () => {
+  deq(adopt('', formWith({ region: 'lake-tahoe', writeup: true })), withDefaults({ region: 'lake-tahoe', writeup: true }));
+  deq(adopt('', formWith({ region: 'lake-tahoe', year: '2025', format: 'trip', writeup: true, sort: 'oldest' })),
+      withDefaults({ region: 'lake-tahoe', year: '2025', format: 'trip', writeup: true, sort: 'oldest' }));
+});
+check('adoptForm: what is taken over filters and is written to the URL as a choice made later would be', () => {
+  const state = adopt('', formWith({ region: 'lake-tahoe', year: '2024' }));
+  deq(FCARDS.filter((c) => TRX.facetOk(c, state)).map((c) => c.slug), ['syn-crag']);
+  eq(TRX.serialize(state), 'region=lake-tahoe&year=2024');
+  eq(TRX.serialize(adopt('', formWith({ writeup: true, sort: 'oldest' }))), 'writeup=1&sort=oldest');
+  eq(TRX.serialize(adopt('', UNTOUCHED)), '');
+});
+check('adoptForm: typed text is the search, best match first unless a sort was chosen', () => {
+  deq(adopt('', formWith({ q: 'tallac' })), withDefaults({ q: 'tallac', sort: 'relevance' }));
+  deq(adopt('', formWith({ q: 'tallac', sort: 'oldest' })), withDefaults({ q: 'tallac', sort: 'oldest' }));     // the visitor's own sort stays
+  deq(adopt('', formWith({ q: 'tallac', sort: 'relevance' })), withDefaults({ q: 'tallac', sort: 'relevance' }));
+  deq(adopt('?sort=oldest', formWith({ q: 'tallac' })), withDefaults({ q: 'tallac', sort: 'oldest' }));       // so does a sort in the URL
+  deq(adopt('?activity=ski&view=list', formWith({ q: 'tallac' })), withDefaults({ activity: 'ski', view: 'list', q: 'tallac', sort: 'relevance' }));
+  deq(adopt('', formWith({ q: '  !! ' })), withDefaults({ q: '  !! ' }));    // text that searches nothing is kept in the box and changes no order
+  deq(adopt('', formWith({ q: 'tallac', region: 'lake-tahoe' })), withDefaults({ q: 'tallac', region: 'lake-tahoe', sort: 'relevance' }));
+});
+check('adoptForm: a URL with state wins over the form, key by key', () => {
+  deq(adopt('?region=alps', formWith({ region: 'lake-tahoe' })), withDefaults({ region: 'alps' }));
+  deq(adopt('?year=2026', formWith({ year: '2024' })), withDefaults({ year: '2026' }));
+  deq(adopt('?format=series', formWith({ format: 'trip' })), withDefaults({ format: 'series' }));
+  deq(adopt('?sort=oldest', formWith({ sort: 'relevance' })), withDefaults({ sort: 'oldest' }));
+  deq(adopt('?writeup=1', formWith({ writeup: false })), withDefaults({ writeup: true }));
+  deq(adopt('?q=whitney', formWith({ q: 'tallac' })), withDefaults({ q: 'whitney' }));     // and the URL's search keeps the URL's order
+  const full = '?q=whitney&activity=hike&region=alps&year=2026&format=series&writeup=1&sort=oldest&view=list';
+  deq(adopt(full, formWith({ q: 'tallac', region: 'lake-tahoe', year: '2024', format: 'trip', sort: 'relevance' })), fst(full));
+});
+check('adoptForm: a key the URL leaves alone is still taken from the form', () => {
+  deq(adopt('?region=alps', formWith({ region: 'lake-tahoe', year: '2025', writeup: true })), withDefaults({ region: 'alps', year: '2025', writeup: true }));
+  deq(adopt('?activity=ski&view=list', formWith({ format: 'trip' })), withDefaults({ activity: 'ski', view: 'list', format: 'trip' }));
+  deq(adopt('?q=whitney', formWith({ q: 'tallac', sort: 'oldest' })), withDefaults({ q: 'whitney', sort: 'oldest' }));
+});
+check('adoptForm: after Back or Forward only the typed text is taken', () => {
+  // the browser puts the selects and the box back to what it remembers, which need not be what the address says
+  const form = formWith({ q: 'tallac', region: 'lake-tahoe', year: '2025', format: 'trip', writeup: true, sort: 'oldest' });
+  deq(adopt('', form, true), withDefaults({ q: 'tallac', sort: 'relevance' }));
+  deq(adopt('', formWith({ region: 'lake-tahoe', writeup: true }), true), DEFAULTS);
+  deq(adopt('', formWith({ sort: 'oldest' }), true), DEFAULTS);
+  deq(adopt('?region=alps', form, true), withDefaults({ region: 'alps', q: 'tallac', sort: 'relevance' }));
+  deq(adopt('', form, false), withDefaults({ q: 'tallac', region: 'lake-tahoe', year: '2025', format: 'trip', writeup: true, sort: 'oldest' }));
+  deq(adopt('', form), adopt('', form, false));         // not said: a first visit
+});
+check('adoptForm: the activity and the view have no control that holds a value, and are never read from the form', () => {
+  deq(adopt('', formWith({ activity: 'ski', view: 'list' })), DEFAULTS);
+  deq(adopt('?activity=hike', formWith({ activity: 'ski', view: 'list' })), withDefaults({ activity: 'hike' }));
+});
+check('adoptForm returns a new state of the eight keys and changes neither argument', () => {
+  const state = fst('?activity=ski'), form = formWith({ q: 'tallac', region: 'lake-tahoe', writeup: true, extra: 'x' });
+  const before = [JSON.stringify(state), JSON.stringify(form)];
+  const out = TRX.adoptForm(state, form);
+  assert.notStrictEqual(out, state);
+  deq([JSON.stringify(state), JSON.stringify(form)], before);
+  deq(Object.keys(out).sort(), Object.keys(DEFAULTS).sort());
+  assert.notStrictEqual(TRX.adoptForm(state, UNTOUCHED), state);      // also when nothing is taken over
+  for (const k of ['region', 'year', 'format', 'sort', 'q']) eq(typeof TRX.adoptForm(state, formWith({ region: 'alps' }))[k], 'string', k);
+});
+check('adoptForm: ownSort says whether the sort is the visitor\'s own', () => {
+  eq(TRX.ownSort(fst(''), UNTOUCHED), false);
+  eq(TRX.ownSort(fst(''), undefined), false);
+  eq(TRX.ownSort(fst(''), {}), false);
+  eq(TRX.ownSort(fst('?sort=oldest'), UNTOUCHED), true);                      // chosen or shared: in the URL
+  eq(TRX.ownSort(fst('?sort=relevance'), UNTOUCHED), true);
+  eq(TRX.ownSort(fst(''), formWith({ sort: 'oldest' })), true);              // chosen in the form before the script arrived
+  eq(TRX.ownSort(fst(''), formWith({ sort: 'relevance' })), true);
+  eq(TRX.ownSort(fst(''), formWith({ sort: 'oldest' }), true), false);       // after Back the select is the browser's doing
+  eq(TRX.ownSort(fst('?sort=oldest'), formWith({ sort: 'oldest' }), true), true);
+  eq(TRX.ownSort(fst(''), formWith({ q: 'tallac' })), false);                // best match for typed text is not a choice
+  eq(TRX.ownSort(fst('?q=tallac'), formWith({ region: 'alps', writeup: true })), false);
+});
+
+// ---------------------------------------------------------------- a search index that did not load (stillFailed, mayLoad)
+
+check('retry: stillFailed and mayLoad are exported', () => {
+  eq(typeof TRX.stillFailed, 'function', 'TRX.stillFailed is not a function');
+  eq(typeof TRX.mayLoad, 'function', 'TRX.mayLoad is not a function');
+});
+check('retry: a first search fetches; no words, a request under way or an index already here never do', () => {
+  eq(TRX.mayLoad('idle', null, 'tallac'), true);
+  for (const q of ['', '   ', ' !! ']) for (const s of ['idle', 'failed']) eq(TRX.mayLoad(s, null, q), false, s + ' ' + JSON.stringify(q));
+  for (const s of ['loading', 'ready', 'none']) {
+    eq(TRX.mayLoad(s, null, 'tallac'), false, s);
+    eq(TRX.mayLoad(s, 'whitney', 'tallac'), false, s + ', after another query failed');
+  }
+});
+check('retry: after a failure the same query does not ask again, any other one does', () => {
+  eq(TRX.mayLoad('failed', 'tallac', 'tallac'), false);
+  eq(TRX.mayLoad('failed', 'tallac', 'whitney'), true);
+  eq(TRX.mayLoad('failed', 'tallac', 'tallac '), true);      // the box is compared as typed
+  eq(TRX.mayLoad('failed', 'tallac', ''), false);            // nothing to search for
+  eq(TRX.mayLoad('failed', null, 'tallac'), true);           // forgotten: the box was cleared or changed since
+  eq(TRX.mayLoad('failed', '', 'tallac'), true);             // it failed after the box had been emptied
+});
+check('retry: stillFailed keeps the failed query only while the box still holds it', () => {
+  eq(TRX.stillFailed('tallac', 'tallac'), 'tallac');
+  eq(TRX.stillFailed('tallac', ''), null);
+  eq(TRX.stillFailed('tallac', 'talla'), null);
+  eq(TRX.stillFailed('tallac', 'tallac '), null);
+  eq(TRX.stillFailed(null, 'tallac'), null);
+  eq(TRX.stillFailed(null, ''), null);
+});
+// The page's ask(), which runs on every apply() (typing, a filter, a view switch, Back): forget the failed query when the
+// box no longer holds it, then fetch if the search may. `online` decides how the request ends.
+function visit() {
+  const v = { state: 'idle', failedFor: null, requests: 0, online: false };
+  v.ask = (q) => {
+    v.failedFor = TRX.stillFailed(v.failedFor, q);
+    if (TRX.mayLoad(v.state, v.failedFor, q)) {
+      v.requests++;
+      if (v.online) v.state = 'ready'; else { v.state = 'failed'; v.failedFor = q; }
+    }
+    return v.requests;
+  };
+  return v;
+}
+check('retry: the same words typed again after the box was cleared ask again', () => {
+  const v = visit();
+  eq(v.ask('tallac'), 1);            // offline: the request fails
+  eq(v.ask(''), 1);                  // the box cleared
+  v.online = true;
+  eq(v.ask('tallac'), 2);            // the same word: asked again, and answered
+  eq(v.state, 'ready');
+  eq(v.ask('tallac'), 2);
+  eq(v.ask('whitney'), 2);           // the index is here: never again
+});
+check('retry: the same words typed again after the box held something else ask again', () => {
+  const v = visit();
+  eq(v.ask('tallac'), 1);
+  eq(v.ask('tallac x'), 2);          // a changed query has always retried
+  eq(v.ask('tallac'), 3);            // and so does the first one, typed again
+});
+check('retry: no request while the failed query is still the one in the box', () => {
+  const v = visit();
+  eq(v.ask('tallac'), 1);
+  for (let i = 0; i < 25; i++) eq(v.ask('tallac'), 1, 'apply() number ' + (i + 2));   // filters, view switches, re-renders
+  // typing on while offline: one request per changed query, none for a repeat
+  const w = visit();
+  for (const q of ['t', 'ta', 'ta', 'tal', 'tal', 'tal', 'tall']) w.ask(q);
+  eq(w.requests, 4);
 });
 console.log('trips_js_harness: ' + checks + ' checks passed');

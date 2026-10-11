@@ -1220,12 +1220,87 @@ class UndatedJournalTests(JournalFixture):
                 self.assertNotRegex(desc, r',\s*[,.]|\s[,.]')
                 self.assertEqual(doc.find('meta', attrs={'property': 'og:description'})['content'], desc)
 
+    def description(self, t):
+        """The page's meta description; og:description is the same text."""
+        doc = self.doc(t)
+        desc = doc.find('meta', attrs={'name': 'description'})['content']
+        self.assertEqual(doc.find('meta', attrs={'property': 'og:description'})['content'], desc)
+        self.assertNotRegex(desc, r',\s*[,.]|\s[,.]|\band\s*\.')
+        return desc
+
     def test_meta_description_of_a_dated_journal_keeps_the_range(self):
-        # contract 10.5: the same sentence with its range, with and without written days
-        desc = self.doc(self.journal()).find('meta', attrs={'name': 'description'})['content']
-        self.assertEqual(desc, 'Synthetic Journal: 6 recorded days, Apr 22 – May 2, 2024, with a GPX track for every day and 3 written up.')
-        desc = self.doc(self.pct(slug=PREFIX + 'none-written', written_day=None)).find('meta', attrs={'name': 'description'})['content']
-        self.assertEqual(desc, 'Pacific Crest Trail 2024: 3 recorded days, Apr 22 – Sep 21, 2024, with a GPX track for every day.')
+        # contract 10.5: the same sentence with its range, with and without written days. Phase 4 (2026-10-10): the GPX
+        # phrase counts the days that have a track, and neither fixture has one on every day (the six-day journal's
+        # day 3 and helpers.make_series' third day are recorded without a GPX), so it reads 'for N of them'
+        t = self.journal()
+        self.assertEqual([bool(d['track']) for d in t['days']], [True, True, False, True, True, True])
+        self.assertEqual(self.description(t),
+                         'Synthetic Journal: 6 recorded days, Apr 22 – May 2, 2024, with a GPX track for 5 of them and 3 written up.')
+        t = self.pct(slug=PREFIX + 'none-written', written_day=None)
+        self.assertEqual([bool(d['track']) for d in t['days']], [True, True, False])
+        self.assertEqual(self.description(t), 'Pacific Crest Trail 2024: 3 recorded days, Apr 22 – Sep 21, 2024, with a GPX track for 2 of them.')
+
+    def test_meta_description_of_a_journal_whose_every_day_has_a_track_is_word_for_word_what_it_was(self):
+        # the real shape (every day of the real journal has its GPX): 'with a GPX track for every day', with ' and N
+        # written up' when days are written, exactly as before the phrase learned to count
+        t = self.pct(slug=PREFIX + 'all-tracks', tracks=(True, True, True))
+        self.assertEqual([bool(d['track']) for d in t['days']], [True, True, True])
+        self.assertEqual(self.description(t),
+                         'Pacific Crest Trail 2024: 3 recorded days, Apr 22 – Sep 21, 2024, with a GPX track for every day and 1 written up.')
+        t = self.pct(slug=PREFIX + 'all-tracks-none-written', tracks=(True, True, True), written_day=None)
+        self.assertEqual(self.description(t), 'Pacific Crest Trail 2024: 3 recorded days, Apr 22 – Sep 21, 2024, with a GPX track for every day.')
+        days = journal_days()
+        days[2]['track'] = True                              # the six-day journal with its one missing GPX put back
+        t = self.journal(slug=PREFIX + 'six-tracks', days=days)
+        self.assertEqual(self.description(t),
+                         'Synthetic Journal: 6 recorded days, Apr 22 – May 2, 2024, with a GPX track for every day and 3 written up.')
+        one = self.journal(slug=PREFIX + 'one-day', days=[{'id': '001', 'date': '2024-04-22', 'body': W1}], end_date='2024-04-22')
+        self.assertEqual(self.description(one), 'Synthetic Journal: 1 recorded day, Apr 22, 2024, with a GPX track for every day and 1 written up.')
+
+    def test_meta_description_says_for_how_many_days_there_is_a_track(self):
+        # Phase 4 (2026-10-10): 'for every day' only when every day has a track; with some, 'for N of them'; with none
+        # the phrase is left out. 'N written up' is joined with ' and ' when both are there and stands alone otherwise
+        head = 'Pacific Crest Trail 2024: 3 recorded days, Apr 22 – Sep 21, 2024'
+        cases = [
+            ('every-written', (True, True, True), 1, head + ', with a GPX track for every day and 1 written up.'),
+            ('every-bare', (True, True, True), None, head + ', with a GPX track for every day.'),
+            ('two-written', (True, True, False), 1, head + ', with a GPX track for 2 of them and 1 written up.'),
+            ('two-bare', (True, True, False), None, head + ', with a GPX track for 2 of them.'),
+            ('one-written', (False, True, False), 2, head + ', with a GPX track for 1 of them and 1 written up.'),
+            ('one-bare', (False, False, True), None, head + ', with a GPX track for 1 of them.'),
+            ('none-written', (False, False, False), 3, head + ', 1 written up.'),
+            ('none-bare', (False, False, False), None, head + '.'),
+        ]
+        for name, tracks, written_day, want in cases:
+            with self.subTest(name):
+                t = self.pct(slug=PREFIX + 'gpx-' + name, tracks=tracks, written_day=written_day)
+                self.assertEqual([bool(d['track']) for d in t['days']], list(tracks))
+                desc = self.description(t)
+                self.assertEqual(desc, want)
+                self.assertEqual('every day' in desc, all(tracks))
+                self.assertEqual('GPX' in desc, any(tracks))
+                self.assertEqual('of them' in desc, any(tracks) and not all(tracks))
+
+    def test_meta_description_counts_the_written_days_whatever_the_tracks(self):
+        # several written days, some without a track; and a journal with no dates, no tracks and nothing written, whose
+        # description is the count alone
+        days = journal_days()
+        for d in days[:4]:
+            d['track'] = False
+        t = self.journal(slug=PREFIX + 'two-of-six', days=days)
+        self.assertEqual(self.description(t),
+                         'Synthetic Journal: 6 recorded days, Apr 22 – May 2, 2024, with a GPX track for 2 of them and 3 written up.')
+        for d in days:
+            d['track'] = False
+        t = self.journal(slug=PREFIX + 'none-of-six', days=days)
+        self.assertEqual(self.description(t), 'Synthetic Journal: 6 recorded days, Apr 22 – May 2, 2024, 3 written up.')
+        bare = self.journal(slug=PREFIX + 'undated-bare', date=None, end_date=None,
+                            days=[{'id': '001', 'track': False}, {'id': '002', 'track': False}])
+        self.assertEqual(self.description(bare), 'Synthetic Journal: 2 recorded days.')
+        some = self.journal(slug=PREFIX + 'undated-some', date=None, end_date=None, days=[{'id': '001'}, {'id': '002', 'track': False}])
+        self.assertEqual(self.description(some), 'Synthetic Journal: 2 recorded days, with a GPX track for 1 of them.')
+        lone = self.journal(slug=PREFIX + 'undated-lone', date=None, end_date=None, days=[{'id': '001', 'track': False}])
+        self.assertEqual(self.description(lone), 'Synthetic Journal: 1 recorded day.')
 
     def test_the_page_still_lists_every_undated_day(self):
         # hard rules: every anchor kept; a day without a date keeps its article and its id, and every in-page link lands

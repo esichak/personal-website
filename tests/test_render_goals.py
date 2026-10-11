@@ -185,5 +185,95 @@ class RegionMapGoalTests(RenderGoalsFixture):
         self.assertEqual(self.maps, [])
 
 
+class ReportWithoutTrackTests(RenderGoalsFixture):
+    """A report whose track.gpx is gone (or that never had one), and a multi-day trip with no day track. The site shows no
+    render for it (sitegen.core.has_track), so the renderer draws none: it must not crash on it, and above all it must
+    not empty rendered/site/ and then stop, which is what reading a missing track did."""
+
+    def tour(self, slug, tracks, **meta):
+        meta.setdefault('region', REGION)
+        folder = helpers.make_trip(self.trips_dir, slug, kind='multi-day', date='2026-08-01', activity='ski',
+                                   days=[{'date': '2026-08-%02d' % (i + 1), 'track': False} for i in range(len(tracks))], **meta)
+        for i, has in enumerate(tracks):
+            if has:
+                with open(os.path.join(folder, 'days', '%02d.gpx' % (i + 1)), 'w', encoding='utf-8') as fh:
+                    fh.write(gf.SINGLE)
+        t = content.load_trip(folder)
+        t['rendered'] = os.path.join(self.out, 'trips', slug)
+        return t
+
+    def test_no_track_by_shape(self):
+        no_track = self.render.no_track
+        self.assertIs(no_track(self.trip('words-only', None, date='2026-08-02')), True)
+        self.assertIs(no_track(self.recorded('walked-it', 1)), False)
+        self.assertIs(no_track(self.tour('tour-none', (False, False))), True)
+        self.assertIs(no_track(self.tour('tour-some', (False, True))), False)
+        # a goal is never this case: an idea is no_route, and a goal with a route has a track
+        self.assertIs(no_track(self.trip('idea-only', None, kind='planned')), False)
+        self.assertIs(no_track(self.trip('route-goal', gf.ROUTE_ONLY, kind='planned')), False)
+
+    def test_it_is_skipped_and_never_reaches_the_drawing_code(self):
+        for t in (self.trip('words-only', None, date='2026-08-02'), self.tour('tour-none', (False, False))):
+            with self.subTest(slug=t['slug']):
+                with mock.patch.object(self.render, 'render_single', side_effect=AssertionError('drawn')), \
+                        mock.patch.object(self.render, 'render_multi', side_effect=AssertionError('drawn')), \
+                        mock.patch.object(self.render, 'load_track', side_effect=AssertionError('a missing track was read')):
+                    self.assertIs(self.render.render_trip(t), False)
+                    self.assertIs(self.render.render_trip(t, force=True), False)
+                self.assertFalse(os.path.exists(t['rendered']))
+
+    def test_a_render_left_from_when_it_had_a_track_is_removed(self):
+        t = self.trip('words-only', None, date='2026-08-02')
+        os.makedirs(t['rendered'])
+        with open(os.path.join(t['rendered'], 'meta.json'), 'w') as fh:
+            json.dump({'maps': {'map-col': {}}, 'charts': {'profile-wide': {}}}, fh)
+        self.assertIs(self.render.render_trip(t), False)
+        self.assertFalse(os.path.exists(t['rendered']))
+        self.assertIn('removed render of words-only (the report has no track now)', self.printed.getvalue())
+
+    def test_a_report_with_a_track_is_still_rendered(self):
+        t = self.recorded('walked-it', 1)
+        seen = []
+        with mock.patch.object(self.render, 'render_single', side_effect=lambda trip, meta: seen.append(trip['slug'])):
+            self.assertIs(self.render.render_trip(t, force=True), True)
+        self.assertEqual(seen, ['walked-it'])
+
+    def test_the_region_maps_leave_it_out_and_the_run_finishes(self):
+        trips = [self.recorded('walk-%d' % i, i) for i in (1, 2, 3)] + [self.trip('words-only', None, date='2026-08-09'),
+                                                                        self.tour('tour-none', (False, False))]
+        os.makedirs(os.path.join(self.out, 'site'))
+        with open(os.path.join(self.out, 'site', 'meta.json'), 'w') as fh:
+            json.dump({'hash': 'stale', 'maps': {}}, fh)
+        self.assertIs(self.render.render_site(trips, force=True), True)     # no TypeError from a track that is not there
+        with open(os.path.join(self.out, 'site', 'meta.json')) as fh:
+            meta = json.load(fh)
+        slug = content.slugify(REGION)
+        self.assertEqual(sorted(meta['maps']), ['region-%s-desktop' % slug, 'region-%s-phone' % slug])
+        for m in meta['maps'].values():
+            self.assertEqual(sorted(m['trips']), ['walk-1', 'walk-2', 'walk-3'])
+        for spec in self.maps:
+            self.assertEqual(sorted(p['key'] for p in spec['pins']), ['walk-1', 'walk-2', 'walk-3'])
+            self.assertEqual({tr['key'] for tr in spec['tracks']}, {'walk-1', 'walk-2', 'walk-3'})
+
+    def test_it_does_not_count_towards_a_regions_map_but_its_region_is_still_listed(self):
+        trips = [self.recorded('walk-1', 1), self.recorded('walk-2', 2), self.trip('words-only', None, date='2026-08-09'),
+                 self.trip('far-words', None, date='2026-08-10', region='Elsewhere')]
+        self.assertIs(self.render.render_site(trips, force=True), True)
+        with open(os.path.join(self.out, 'site', 'meta.json')) as fh:
+            meta = json.load(fh)
+        self.assertEqual(meta['maps'], {})                       # two drawable reports are not enough for a region map
+        self.assertEqual(meta['regions'], [])
+        self.assertEqual(meta['all_regions'], ['Elsewhere', REGION])
+        self.assertEqual(self.maps, [])
+
+    def test_the_site_maps_of_trips_that_all_have_tracks_are_what_they_were(self):
+        trips = [self.recorded('walk-%d' % i, i) for i in (1, 2, 3)]
+        self.assertIs(self.render.render_site(trips, force=True), True)
+        with open(os.path.join(self.out, 'site', 'meta.json')) as fh:
+            first = json.load(fh)
+        self.assertIs(self.render.render_site(trips), False)     # same inputs, same hash: nothing is redrawn
+        self.assertEqual(sorted(first['maps'][next(iter(first['maps']))]['trips']), ['walk-1', 'walk-2', 'walk-3'])
+
+
 if __name__ == '__main__':
     unittest.main()

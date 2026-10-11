@@ -35,14 +35,12 @@ def page(site):
             % (link(here, ''), icon('arrow-right', 18), act_rows(site, here, dist=False),
                link(here, 'map/'), icon('map', 20), len(site['published']), icon('chevron-right', 20, 'abo-act-c')))
     extra = base_tag() + '<meta name="robots" content="noindex">'
-    html_ = core.document(here, 'Page not found', body, 'This page is not on the map.', body_cls='p-404', extra_head=extra)
+    # canonical=False: document() would derive canonical / og:url from `here` (''), the home page; a 404 names no page
+    html_ = core.document(here, 'Page not found', body, 'This page is not on the map.', body_cls='p-404', extra_head=extra,
+                          canonical=False)
     # <base> only applies to URLs that come after it, and core.document places extra_head after the stylesheet links,
     # so move it to the top of <head>. (Requested in core: emit extra_head / a base tag before any URL.)
     html_ = html_.replace(extra, '', 1).replace('<meta charset="utf-8">', '<meta charset="utf-8">' + extra, 1)
-    # document() derives canonical / og:url from `here` (''), which would name the home page; a 404 has neither.
-    home = core.SITE_URL
-    html_ = (html_.replace('<link rel="canonical" href="%s">' % home, '', 1)
-             .replace('<meta property="og:url" content="%s">' % home, '', 1))
     # Fragment-only links resolve against <base> too (the skip link would load the home page): notfound.js keeps them in-page.
     return core.Page(URL, html_, 'Page not found')
 

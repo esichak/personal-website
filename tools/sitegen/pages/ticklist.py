@@ -106,14 +106,14 @@ def controls(site):
             '<div class="trx-filters tkl-row2">'
             '<div class="trx-acts tkl-scope" role="radiogroup" aria-label="Show">%s</div>%s'
             '<div class="trx-view" role="radiogroup" aria-label="View">%s</div>'
-            '</div></form>'
+            '</div></form>%s'
             '<noscript><p class="note wrap trx-noscript">Search and filters need JavaScript. Every goal is listed below by region.</p></noscript>'
             % (''.join(chips),
                select('region', 'Region', [(slug, name) for name, slug in regions_of(gs) if slug], 'All regions'),
                select('status', 'Status', statuses, 'Any status'),
                select('priority', 'Priority', prios, 'Any priority'),
                select('month', 'Month', [(str(m), lab) for m, lab in MONTHS if m in months], 'Any month'),
-               scope, sort, views))
+               scope, sort, views, core.reveal('search')))
 
 
 def status_row(site):
@@ -145,4 +145,4 @@ def results(site):
 def build(site):
     body = head(site) + controls(site) + status_row(site) + results(site)
     desc = 'Routes and objectives on my tick list: planned routes with approximate stats, planning notes, status and priority.'
-    return [core.Page(HERE, core.document(HERE, 'Tick list', body, desc, active='ticklist', body_cls='p-ticklist'), 'Tick list')]
+    return [core.Page(HERE, core.document(HERE, 'Tick list', body, desc, active='ticklist', body_cls='p-ticklist', image=core.site_share()), 'Tick list')]

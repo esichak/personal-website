@@ -180,6 +180,10 @@
 .hom-also > .t-mono-s { flex-shrink: 0; display: flex; align-items: center; min-height: 44px; }
 .hom-also ul { display: flex; flex-wrap: wrap; column-gap: 20px; min-width: 0; }
 .hom-also a { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font: 500 14px/20px var(--sans); color: var(--ink); }
+/* a link narrower than 44 px still answers over 44 px, as the browse links of the Trips page do: the hit area is out of
+   the flow and wider than the link by the same amount on each side, so no link moves (links are 20 px apart) */
+.hom-also a { position: relative; }
+.hom-also a::before { content: ""; position: absolute; inset: 0 min(0px, (100% - 44px) / 2); }
 .hom-also-w { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .hom-also-c { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 @media (max-width: 559.98px) {

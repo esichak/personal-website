@@ -16,7 +16,7 @@ SHOW = 8  # "In this region" rows shown before the "Show all" toggle (JS only; w
 
 def site_meta():
     p = os.path.join(core.ROOT, 'rendered', 'site', 'meta.json')
-    return json.load(open(p)) if os.path.exists(p) else {'maps': {}, 'regions': []}
+    return core.read_json(p, {'maps': {}, 'regions': []})
 
 
 def listed(site):
@@ -294,5 +294,6 @@ def build(site):
         rs = regs[0][1]
         head = core.map_preloads(None, here, [('region-%s-desktop' % rs, 'desktop'), ('region-%s-phone' % rs, 'phone')],
                                  'assets/maps/', site_maps=True)
-    return [core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive', extra_head=head),
+    return [core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive', extra_head=head,
+                                    image=core.site_share()),
                       'Map & archive')]

@@ -7,7 +7,7 @@ That covers every field the trip files use; anything fancier should stay out of 
 import json
 import re
 
-_NUM = re.compile(r'^-?\d+(\.\d+)?$')
+_NUM = re.compile(r'^-?\d+(\.\d+)?$', re.ASCII)   # 0-9 only: full-width digits stay text, as typed
 
 
 def split(text):
