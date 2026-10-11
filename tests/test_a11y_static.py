@@ -29,6 +29,25 @@ What is checked, and how far a static check can go:
   --  a report without a phone bar       its footer keeps no room for one
   --  every page type                    one h1, the skip link first and pointing at #main, alt on every img, no
                                          interactive element inside another
+  P5  region pages (contract-phase5.md   the fixture builds two; with scripting off the links into the Trips explorer
+      section 5, as revised in round 2)  (.reg-x) are not displayed and nothing else of the page goes; the region name on
+                                         the home page (.hom-reg-n a) is an inline-block as high as its 16 px line and
+                                         answers over 44 px by a hit area that changes no box and lies above the count
+                                         line (z-index); the Map page's panel link (.arc-reg-a) and the 'Other regions'
+                                         links are 44 px; the breadcrumb has its room, and the short 'Map' crumb answers
+                                         over 44 px of width (10.5 px each side at most, 4 px for a crumb of 44 px or
+                                         more); the list's 'Show all' button (.arc-all-btn) is hidden as generated,
+                                         44 px high once shown, with its two margins; the Featured cards keep the
+                                         cover rules and their phone source declares 106 px
+  R3  region pages, round 3              from 1200 px, where the caption of a home page map is one line, the region
+                                         name's hit area sits 2 px higher (16 px above, 12 px below, 44 px as before)
+                                         and ends inside the caption's own padding, above the map; a place in a region
+                                         page's head may break inside a word too long for a line (.reg-stats .mi-w)
+                                         and still wraps at its spaces first (base.css); base.js dims a map (is-hl)
+                                         only when a track, a pin or a cluster marker matched the keys, so a list row
+                                         the map does not draw leaves it alone; archive.js scrolls the 'Show fewer'
+                                         button into view when its list closes, and only then, and opening a list
+                                         still focuses the first row it reveals
 
 The CSS side uses a small reader written for this file (parse_css, matches, computed): selector -> declarations with
 the rules inside @media blocks, a selector matcher over the helpers.Doc tree, specificity and source order, and media
@@ -39,8 +58,8 @@ that it can read every selector in them), it does not inherit, and it reports de
 The JavaScript side is a block-level reading, not an interpreter: a scanner that knows comments, strings and regular
 expression literals finds the callback wired over the marker selector (and the one over [data-filter-nav]) by matching
 braces, then looks at each addEventListener / setAttribute call in it and at the `if` conditions around that call.
-The shapes it accepts are listed at marker_focus() and Script.guards(); a rewrite into another shape fails the test and
-has to be read by a person, which is the intent.
+The shapes it accepts are listed at marker_focus(), map_dimming(), show_all_press() and Script.guards(); a rewrite into
+another shape fails the test and has to be read by a person, which is the intent.
 
 The fixture site is synthetic (slugs start with PREFIX, sentences are made up), written to a temp dir with
 tests/helpers.py and built with the page modules' own build() functions. core.ROOT, content.RENDERED and core's copy of
@@ -66,6 +85,8 @@ from sitegen import core  # noqa: E402
 
 import helpers  # noqa: E402
 from helpers import Doc, Node, photo, LANDSCAPE, PORTRAIT, SQUARE  # noqa: E402
+
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
 
 CSS_DIR = os.path.join(ROOT, 'assets', 'css')
 JS_DIR = os.path.join(ROOT, 'assets', 'js')
@@ -674,6 +695,34 @@ def sides(value, base=None):
     return (top, right, vals[2] if len(vals) > 2 else top, vals[3] if len(vals) > 3 else right)
 
 
+def pseudo_winner(node, pseudo, prop, rules, e):
+    """The rule whose declaration of `prop` wins the cascade for the element's pseudo-element (see computed_pseudo), or
+    None: for comparing two declarations of one pseudo-element in the cascade (_key)."""
+    best = None
+    for r in (rules.declaring(prop) if isinstance(rules, Sheet) else rules):
+        if prop not in r.decls or r.parts is None or ('pe', pseudo) not in r.parts[-1][1]:
+            continue
+        own = r.parts[:-1] + [(r.parts[-1][0], [x for x in r.parts[-1][1] if x[0] != 'pe'])]
+        if not all(media_matches(q, e) for q in r.media) or not matches(node, own):
+            continue
+        if best is None or _key(r, prop) >= _key(best, prop):
+            best = r
+    return best
+
+
+_WIDEN = re.compile(r'^min\(\s*(-\d+(?:\.\d+)?)px\s*,\s*\(\s*100%\s*-\s*(\d+(?:\.\d+)?)px\s*\)\s*/\s*2\s*\)$')
+
+
+def widen(value, base):
+    """One inline side of a hit area declared as `min(-Apx, (100% - Npx) / 2)`, for a box `base` px across, in px (a
+    negative inset reaches outside the box): half of what the box lacks of N, and at least A px whatever the box is.
+    None for any other value (side() reads the forms without a floor)."""
+    m = _WIDEN.match((value or '').strip())
+    if m is None:
+        return None
+    return min(float(m.group(1)), (base - float(m.group(2))) / 2)
+
+
 def line_height(node, rules, e):
     """The px line height the stylesheet gives the element itself: its `line-height`, or the one in its `font`
     shorthand ('400 12px/16px var(--mono)'), whichever of the two declarations wins the cascade. None when the winner
@@ -803,8 +852,9 @@ class Script:
     def guards(self, pos, start):
         """The `if` conditions that have to hold for the statement at `pos` to run, looking outwards as far as the block
         that opens just before `start`: ('if', condition) for an enclosing `if (...) {` block or an `if (...)` in front
-        of the statement itself, ('else', condition) for the else block of an `if (condition)`. Loops, functions and
-        other blocks add nothing."""
+        of the statement itself, ('else', condition) for the else block of an `if (condition)`, and for a statement that
+        stands right after the `else` of an `if (condition) { ... }` without braces of its own. Loops, functions and
+        other blocks add nothing; an `else` after an `if` that has no braces is not read."""
         out = []
         # an `if (...)` in front of the statement, without braces
         i, depth = pos - 1, 0
@@ -824,6 +874,13 @@ class Script:
             closing = self.close(opening)
             if not self.text[closing + 1:pos].strip():
                 out.append(('if', self.text[opening + 1:closing]))
+        elif i >= start and self.text[i] == '}' and re.match(r'^\s*else\s*$', self.text[i + 1:pos]):
+            # `if (condition) { ... } else <statement>`: the else branch, without braces
+            k = self.before(self.open(i))
+            if k >= 0 and self.text[k] == ')' and self.code(k):
+                opening = self.open(k)
+                if re.search(r'\bif\s*$', self.text[:opening]):
+                    out.append(('else', self.text[opening + 1:k]))
         # the blocks around it
         stack = []
         for j in range(start, pos):
@@ -943,6 +1000,116 @@ def radiogroup_setters(src):
                                  % (re.escape(var), re.escape(param), re.escape(param), re.escape(var)), body) is not None
         out.append((var, param, made, replaced))
     return out
+
+
+def map_dimming(src):
+    """What decides, in a script's `function highlight(map, keys) { ... }`, whether the map gets the class is-hl (the
+    class that dims every track and pin the keys do not pick out). None when the script has not exactly one such
+    function, or the function does not toggle the class exactly once; otherwise a dict:
+
+      arg      the second argument of `<map>.classList.toggle('is-hl', <arg>)`, as written
+      flag     that argument when it is a variable the function declares as `var <flag> = false;` before its loops and
+               the call stands after every loop (it then sees the flag as the loops left it); else None
+      raised   one tuple of selectors per `<map>.querySelectorAll('<selectors>').forEach(function (el) { ... })` loop
+               that raises the flag for an element the keys matched, in source order. Such a loop gives the element
+               its own highlight with a variable, `el.classList.toggle('hl', <on>)`, and raises the flag with that same
+               variable: `<flag> = <flag> || <on>;`, `<flag> = <on> || <flag>;` or `if (<on>) <flag> = true;`
+      tests    {the tuple of selectors: the expression <on> is declared with}, for those loops
+      other    every other assignment to the flag in the function, up to its semicolon: a place where something else
+               than a match could set it
+    """
+    js = Script(src)
+    heads = [m for m in re.finditer(r'(?<![\w$.])function\s+highlight\s*\(\s*([\w$]+)[^)]*\)\s*\{', js.text) if js.code(m.start())]
+    if len(heads) != 1:
+        return None
+    map_ = re.escape(heads[0].group(1))
+    start, end = heads[0].end(), js.close(heads[0].end() - 1)
+    body = js.text[start:end]
+    calls = [m for m in re.finditer(r'''(?<![\w$.])%s\.classList\.toggle\(\s*(['"])is-hl\1\s*,''' % map_, body) if js.code(start + m.start())]
+    if len(calls) != 1:
+        return None
+    call = start + calls[0].start()
+    arg = js.text[start + calls[0].end():js.close(js.text.index('(', call))].strip()
+    out = {'arg': arg, 'flag': None, 'raised': [], 'tests': {}, 'other': []}
+    if not re.match(r'^[A-Za-z_$][\w$]*$', arg):
+        return out
+    flag = re.escape(arg)
+    loops = []
+    for m in re.finditer(r'''(?<![\w$.])%s\.querySelectorAll\(\s*(['"])((?:(?!\1).)*)\1\s*\)\s*\.forEach\(\s*function\s*\(\s*([\w$]+)[^)]*\)\s*\{'''
+                         % map_, body):
+        if js.code(start + m.start()):
+            loops.append((tuple(s.strip() for s in split_top(m.group(2), ',')), m.group(3), start + m.end(), js.close(start + m.end() - 1)))
+    declared = re.search(r'(?<![\w$.])(?:var|let)\s+%s\s*=\s*false\s*;' % flag, js.text[start:min([s for _sel, _el, s, _e in loops] + [call])])
+    known = [(start + declared.start(), start + declared.end())] if declared else []
+    for selectors, el, s, e in loops:
+        inner = js.text[s:e]
+        own = re.search(r'''(?<![\w$.])%s\.classList\.toggle\(\s*(['"])hl\1\s*,\s*([A-Za-z_$][\w$]*)\s*\)''' % re.escape(el), inner)
+        if own is None:
+            continue
+        on = re.escape(own.group(2))
+        up = re.search(r'(?<![\w$.])(?:%s\s*=\s*%s\s*\|\|\s*%s|%s\s*=\s*%s\s*\|\|\s*%s|if\s*\(\s*%s\s*\)\s*%s\s*=\s*true)\s*;'
+                       % (flag, flag, on, flag, on, flag, on, flag), inner)
+        if up is None:
+            continue
+        known.append((s + up.start(), s + up.end()))
+        made = re.search(r'(?<![\w$.])(?:var|let|const)\s+%s\s*=\s*([^;]+);' % on, inner)
+        out['raised'].append(selectors)
+        out['tests'][selectors] = made.group(1).strip() if made else None
+    for m in re.finditer(r'(?<![\w$.])%s\s*(?:\|\||&&|[-+*/%%|&^])?=(?!=)' % flag, body):
+        pos = start + m.start()
+        if js.code(pos) and not any(a <= pos < b for a, b in known):
+            stop = js.text.find(';', pos, end)
+            out['other'].append(js.text[pos:(stop + 1) if stop >= 0 else end].strip())
+    if declared and all(e < call for _sel, _el, _s, e in loops):
+        out['flag'] = arg
+    return out
+
+
+def show_all_press(src):
+    """What a press of a 'Show all' button does in a script, read from its
+    `querySelectorAll('.arc-all-btn').forEach(function (b) { ... b.addEventListener('click', function () { ... }); })`.
+    None when the script has not exactly one such loop with exactly one click listener on the loop's element; otherwise
+    a dict:
+
+      button   the loop's parameter: the button
+      list     the variable the loop declares as document.getElementById(<button>.getAttribute('aria-controls')), or None
+      open     (variable, expression) of the listener's declaration that toggles a class of the list: what the press
+               did to the list (None when the listener has none)
+      scrolls  [(target, argument, guards)] of every `<target>.scrollIntoView(<argument>)` in the listener
+      focuses  [(target, the expression the listener declares the target with or None, guards)] of every
+               `<target>.focus(...)` in it
+
+    guards: Script.guards() from the listener's own block, so the `if` and the `else` a call stands under in it."""
+    js = Script(src)
+    loops = js.each_callbacks(lambda s: s.strip() == '.arc-all-btn')
+    if len(loops) != 1:
+        return None
+    _selector, button, start, end = loops[0]
+    clicks = [m for m in re.finditer(r'''(?<![\w$.])%s\.addEventListener\(\s*(['"])click\1\s*,\s*function\s*\([^)]*\)\s*\{''' % re.escape(button),
+                                     js.text[start:end]) if js.code(start + m.start())]
+    if len(clicks) != 1:
+        return None
+    s = start + clicks[0].end()
+    e = js.close(s - 1)
+    body = js.text[s:e]
+
+    def declared(name, text):
+        m = re.search(r'(?<![\w$.])(?:var|let|const)\s+%s\s*=\s*([^;]+);' % re.escape(name), text)
+        return m.group(1).strip() if m else None
+
+    made = re.search(r'''(?<![\w$.])(?:var|let|const)\s+([\w$]+)\s*=\s*document\.getElementById\(\s*%s\.getAttribute\(\s*(['"])aria-controls\2\s*\)\s*\)\s*;'''
+                     % re.escape(button), js.text[start:s])
+    list_ = made.group(1) if made else None
+    opened = re.search(r'(?<![\w$.])(?:var|let|const)\s+([\w$]+)\s*=\s*(%s\.classList\.toggle\([^;]*);' % re.escape(list_), body) if list_ else None
+    scrolls, focuses = [], []
+    for m in re.finditer(r'(?<![\w$.])([\w$]+)\.scrollIntoView\(', body):
+        if js.code(s + m.start()):
+            scrolls.append((m.group(1), js.text[s + m.end():js.close(s + m.end() - 1)].strip(), js.guards(s + m.start(), s)))
+    for m in re.finditer(r'(?<![\w$.])([\w$]+)\.focus\(', body):
+        if js.code(s + m.start()):
+            focuses.append((m.group(1), declared(m.group(1), body), js.guards(s + m.start(), s)))
+    return {'button': button, 'list': list_, 'open': (opened.group(1), opened.group(2).strip()) if opened else None,
+            'scrolls': scrolls, 'focuses': focuses}
 
 
 # ---------------------------------------------------------------- the reader itself
@@ -1113,6 +1280,33 @@ class ReaderTests(unittest.TestCase):
         for other in ('min(0px, 100% - 2em)', 'max(0px, 100% - 44px)', 'calc(100% - 44px)', 'min(4px, 100% - 44px)', '50%', 'auto'):
             self.assertIsNone(side(other, 32.0), other)
 
+    def test_a_side_widened_to_a_least_size_with_a_floor(self):
+        value = 'min(-4px, (100% - 44px) / 2)'
+        for base, want in ((20.0, -12.0), (23.0, -10.5), (25.0, -9.5), (36.0, -4.0), (40.0, -4.0), (44.0, -4.0), (120.0, -4.0)):
+            with self.subTest(base=base):
+                self.assertEqual(widen(value, base), want)
+                self.assertGreaterEqual(base - 2 * widen(value, base), 44.0)          # never under 44 px across
+                self.assertEqual(base - 2 * widen(value, base), max(base + 8.0, 44.0))    # 44, or the box and the floor on both sides
+        self.assertEqual(widen('min(-2.5px,(100% - 30px)/2)', 20.0), -5.0)
+        self.assertEqual(widen('min(-2.5px,(100% - 30px)/2)', 28.0), -2.5)
+        for other in ('min(0px, (100% - 44px) / 2)', 'min(4px, (100% - 44px) / 2)', 'max(-4px, (100% - 44px) / 2)', 'min(-4px, 100% - 44px)',
+                      'min(-4px, (100% - 2em) / 2)', '-4px', '', None, 'calc((100% - 44px) / 2)'):
+            self.assertIsNone(widen(other, 23.0), other)
+        # pseudo_winner is the rule computed_pseudo reads the value from
+        d = self.doc('<div class="h"><nav class="c"><a href="#">One</a></nav></div><nav class="c"><a href="#">Two</a></nav>')
+        one, two = d.find_all('a')
+        rules = parse_css('.c a::before { content: ""; inset: -21px -4px -7px; } .h .c a::before { inset-inline: %s; }'
+                          ' @media (min-width: 760px) { .c a::before { inset-inline: -1px; } }' % value)[0]
+        self.assertEqual(pseudo_winner(one, 'before', 'inset-inline', rules, env()).selector, '.h .c a::before')
+        self.assertEqual(pseudo_winner(one, 'before', 'inset-inline', rules, env(800)).selector, '.h .c a::before')      # the more specific rule
+        self.assertEqual(pseudo_winner(one, 'before', 'inset', rules, env()).selector, '.c a::before')
+        self.assertIsNone(pseudo_winner(two, 'before', 'inset-inline', rules, env()))
+        self.assertEqual(pseudo_winner(two, 'before', 'inset-inline', rules, env(800)).decls['inset-inline'][0], '-1px')
+        self.assertEqual(computed_pseudo(one, 'before', 'inset-inline', rules, env()), value)
+        self.assertGreater(_key(pseudo_winner(one, 'before', 'inset-inline', rules, env()), 'inset-inline'),
+                           _key(pseudo_winner(one, 'before', 'inset', rules, env()), 'inset'))
+        self.assertIsNone(pseudo_winner(one, 'after', 'inset', rules, env()))
+
     def test_conjuncts_splits_a_condition_at_its_top_level_ands(self):
         self.assertEqual(conjuncts("box && box.querySelector('.copy-pop') && e.relatedTarget && !box.contains(e.relatedTarget)"),
                          ['box', "box.querySelector('.copy-pop')", 'e.relatedTarget', '!box.contains(e.relatedTarget)'])
@@ -1186,6 +1380,106 @@ class ReaderTests(unittest.TestCase):
         self.assertEqual(radiogroup_setters("nav.setAttribute('role', 'radiogroup');"), [('nav', None, None, False)])
         self.assertEqual(radiogroup_setters(loop % "// el.setAttribute('role', 'radiogroup');\n"), [])
 
+    def test_guards_reads_an_else_branch_with_and_without_braces(self):
+        src = ("function f() { if (open) { a(); }\n // closing: a comment between the block and its else\n else b.go();"
+               " if (x) c(); else d(); if (y) { e(); } else { g(); } if (z) { if (w) h(); } }")
+        js = Script(src)
+        start = src.index('{') + 1
+        want = {'a()': [('if', 'open')], 'b.go': [('else', 'open')], 'c()': [('if', 'x')], 'e()': [('if', 'y')], 'g()': [('else', 'y')],
+                'h()': [('if', 'w'), ('if', 'z')],
+                'd()': []}           # after an if without braces: not read, so nothing is taken to guard it
+        for call, guards in want.items():
+            with self.subTest(call=call):
+                self.assertEqual(js.guards(src.index(call), start), guards)
+
+    def test_map_dimming_reads_what_the_is_hl_class_follows(self):
+        fn = "function highlight(map, keys) { keys = keys || []; var has = function (k) { return keys.indexOf(k) !== -1; }; %s }"
+        tracks = "map.querySelectorAll('.mk-cat[data-key], .mk-pin[data-key]').forEach(function (g) { %s });"
+        clusters = 'map.querySelectorAll(".mk-cluster").forEach(function (c) { %s });'
+        T, C = ('.mk-cat[data-key]', '.mk-pin[data-key]'), ('.mk-cluster',)
+        t_on = "var on = has(g.dataset.key); g.classList.toggle('hl', on);"
+        c_on = "var on = (c.dataset.keys || '').split(' ').some(has); c.classList.toggle('hl', on);"
+        dim = " map.classList.toggle('is-hl', hit);"
+
+        def read(*parts):
+            return map_dimming(fn % ' '.join(parts))
+
+        # a flag that both loops raise for an element that matched, read by the toggle after them
+        got = read('var hit = false;', tracks % (t_on + ' hit = hit || on;'), clusters % (c_on + ' hit = hit || on;'), dim)
+        self.assertEqual(got, {'arg': 'hit', 'flag': 'hit', 'raised': [T, C], 'other': [],
+                               'tests': {T: 'has(g.dataset.key)', C: "(c.dataset.keys || '').split(' ').some(has)"}})
+        # the other two ways to raise it
+        got = read('let any = false;', tracks % (t_on + ' any = on || any;'), clusters % (c_on + ' if (on) any = true;'),
+                   'map.classList.toggle("is-hl", any);')
+        self.assertEqual((got['arg'], got['flag'], got['raised'], got['other']), ('any', 'any', [T, C], []))
+        # as it was before round 3: any key at all dimmed the map, whether or not the map draws its trip
+        old = read("map.classList.toggle('is-hl', keys.length > 0);", tracks % "g.classList.toggle('hl', has(g.dataset.key));",
+                   clusters % "c.classList.toggle('hl', (c.dataset.keys || '').split(' ').some(has));")
+        self.assertEqual(old, {'arg': 'keys.length > 0', 'flag': None, 'raised': [], 'tests': {}, 'other': []})
+        both = (tracks % (t_on + ' hit = hit || on;'), clusters % (c_on + ' hit = hit || on;'))
+        cases = [
+            # (what is wrong, the function's statements, flag, raised, other)
+            ('the clusters do not raise it', ('var hit = false;', both[0], clusters % c_on, dim), 'hit', [T], []),
+            ('the tracks and pins do not', ('var hit = false;', tracks % t_on, both[1], dim), 'hit', [C], []),
+            ('raised whether or not it matched', ('var hit = false;', tracks % (t_on + ' hit = true;'), both[1], dim), 'hit', [C], ['hit = true;']),
+            ('lowered by an element that did not match', ('var hit = false;', tracks % (t_on + ' hit = hit && on;'), both[1], dim), 'hit', [C],
+             ['hit = hit && on;']),
+            ('raised with another value than the highlight', ('var hit = false;', tracks % (t_on + ' hit = hit || keys.length;'), both[1], dim),
+             'hit', [C], ['hit = hit || keys.length;']),
+            ('the raise is commented out', ('var hit = false;', tracks % (t_on + ' // hit = hit || on;\n'), both[1], dim), 'hit', [C], []),
+            ('the flag starts raised', ('var hit = true;',) + both + (dim,), None, [T, C], ['hit = true;']),
+            ('the flag starts as the old rule', ('var hit = keys.length > 0;',) + both + (dim,), None, [T, C], ['hit = keys.length > 0;']),
+            ('the class is toggled before the loops ran', ('var hit = false;', dim) + both, None, [T, C], []),
+            ('the flag is overwritten after the loops', ('var hit = false;',) + both + ('hit = keys.length > 0;', dim), 'hit', [T, C],
+             ['hit = keys.length > 0;']),
+            ('the class follows something else', ('var hit = false;',) + both + ("map.classList.toggle('is-hl', !hit);",), None, [], []),
+            ('the class follows the flag or the keys', ('var hit = false;',) + both + ("map.classList.toggle('is-hl', hit || keys.length > 0);",),
+             None, [], []),
+        ]
+        for what, parts, flag, raised, other in cases:
+            with self.subTest(case=what):
+                got = read(*parts)
+                self.assertEqual((got['flag'], got['raised'], got['other']), (flag, raised, other))
+        # a loop over another element's markers is not the map's; no function, or a class toggled twice, is not read at all
+        got = read('var hit = false;', both[0], "other.querySelectorAll('.mk-cluster').forEach(function (c) { %s });" % (c_on + ' hit = hit || on;'), dim)
+        self.assertEqual((got['raised'], got['other']), ([T], ['hit = hit || on;']))
+        self.assertIsNone(map_dimming("map.classList.toggle('is-hl', true);"))
+        self.assertIsNone(map_dimming(fn % (dim + dim)))
+        self.assertIsNone(map_dimming(fn % "// map.classList.toggle('is-hl', hit);\n"))
+
+    def test_show_all_press_reads_what_a_press_does(self):
+        loop = ("document.querySelectorAll('.arc-all-btn').forEach(function (b) { var ol = document.getElementById(b.getAttribute('aria-controls'));"
+                " b.addEventListener('click', function () { var open = ol.classList.toggle('arc-collapsed') === false; %s }); });")
+        focus = "if (open) { var f = ol.querySelector('.arc-more a'); if (f) f.focus(); }"
+        near = "{ block: 'nearest' }"
+        got = show_all_press(loop % (focus + "\n // closing: keep the button in view\n else b.scrollIntoView({ block: 'nearest' });"))
+        self.assertEqual(got, {'button': 'b', 'list': 'ol', 'open': ('open', "ol.classList.toggle('arc-collapsed') === false"),
+                               'scrolls': [('b', near, [('else', 'open')])],
+                               'focuses': [('f', "ol.querySelector('.arc-more a')", [('if', 'f'), ('if', 'open')])]})
+
+        def scrolls(rest):
+            return show_all_press(loop % (focus + rest))['scrolls']
+
+        self.assertEqual(scrolls(" else { b.scrollIntoView({ block: 'nearest' }); }"), [('b', near, [('else', 'open')])])     # with braces
+        self.assertEqual(scrolls(" if (!open) b.scrollIntoView({ block: 'nearest' });"), [('b', near, [('if', '!open')])])
+        self.assertEqual(scrolls(''), [])                                                              # before round 3
+        self.assertEqual(scrolls(" // else b.scrollIntoView({ block: 'nearest' });\n"), [])           # commented out
+        self.assertEqual(scrolls(" b.scrollIntoView({ block: 'nearest' });"), [('b', near, [])])       # on every press
+        self.assertEqual(scrolls(" else ol.scrollIntoView();"), [('ol', '', [('else', 'open')])])      # the list, to its top
+        # the focus: on every press, or on something the listener did not look up
+        got = show_all_press(loop % "var f = ol.querySelector('.arc-more a'); if (f) f.focus(); b.focus();")
+        self.assertEqual(got['focuses'], [('f', "ol.querySelector('.arc-more a')", [('if', 'f')]), ('b', None, [])])
+        # no loop, two loops, a loop without a press, or with two: not read
+        self.assertIsNone(show_all_press('var x = 1;'))
+        self.assertIsNone(show_all_press(loop % focus + loop % focus))
+        self.assertIsNone(show_all_press("document.querySelectorAll('.arc-all-btn').forEach(function (b) { b.hidden = false; });"))
+        self.assertIsNone(show_all_press("document.querySelectorAll('.arc-all-btn').forEach(function (b) {"
+                                         " b.addEventListener('click', function () { a(); }); b.addEventListener('click', function () { c(); }); });"))
+        # a loop over other buttons is not this one, and a list that is not looked up by aria-controls is not known
+        self.assertIsNone(show_all_press(loop.replace('.arc-all-btn', '.arc-all-btn, .x') % focus))
+        got = show_all_press(loop.replace("document.getElementById(b.getAttribute('aria-controls'))", 'b.previousElementSibling') % focus)
+        self.assertEqual((got['list'], got['open']), (None, None))
+
 
 # ---------------------------------------------------------------- the published stylesheet and the fixture site
 
@@ -1203,11 +1497,15 @@ def published_rules():
 PREFIX = 'syn-ay-'           # every fixture slug starts with it; no real trip's slug does
 REGION, COAST = 'Synthetic Range', 'Synthetic Coast'      # a region with maps, and one with too few reports for a map
 RS = 'synthetic-range'
+# a second region with a region map (one report), so that each of the two region pages (contract-phase5.md) has another
+# to list under 'Other regions' and the home page's Also row has a region with a page of its own
+MESA, MS = 'Synthetic Mesa', 'synthetic-mesa'
+REGION_PAGES = ('regions/%s/' % RS, 'regions/%s/' % MS)
 WRITEUP = ('Synthetic write-up for a test, long enough to stand as a written report in every sense of the word.\n\n'
            'Second synthetic paragraph, with *emphasis* and a [synthetic link](https://example.test/).')
-SLUGS = dict((k, PREFIX + k) for k in ('story', 'lap', 'spring', 'crag', 'ride', 'photos', 'paddle', 'walk', 'undated', 'goal', 'idea',
-                                       'tour', 'journal'))
-SINGLE = ('story', 'lap', 'spring', 'crag', 'ride', 'photos', 'paddle', 'walk', 'undated')      # single-day reports
+SLUGS = dict((k, PREFIX + k) for k in ('story', 'lap', 'spring', 'crag', 'ride', 'photos', 'paddle', 'walk', 'undated', 'mesa', 'goal',
+                                       'idea', 'tour', 'journal'))
+SINGLE = ('story', 'lap', 'spring', 'crag', 'ride', 'photos', 'paddle', 'walk', 'undated', 'mesa')      # single-day reports
 
 
 def _svg(w, h, inner=''):
@@ -1242,8 +1540,9 @@ def _render(rendered, slug, names, chart=False):
 
 def _site_maps(rendered, pins, cluster):
     """rendered/site/: one region map and one ski region map for REGION, as tools/render.py names them, each a fragment
-    with a track, a pin per trip (a link, as tools/lib/mapkit.py writes it) and one cluster marker."""
-    meta = {'hash': '', 'regions': [REGION], 'all_regions': [COAST, REGION], 'maps': {}}
+    with a track, a pin per trip (a link, as tools/lib/mapkit.py writes it) and one cluster marker; and a region map
+    for MESA with the pin of its one report."""
+    meta = {'hash': '', 'regions': [REGION, MESA], 'all_regions': [COAST, MESA, REGION], 'maps': {}}
     marks = ''.join('<g class="mk-cat" data-key="%s"><path d="M1 1L9 9"/></g>'
                     '<a class="mk-pin" href="@@ROOT@@trips/%s/" data-key="%s" aria-label="%s"><title>%s</title>'
                     '<circle class="mk-hit" cx="9" cy="9" r="12" style="fill: transparent"/></a>' % (s, s, s, title, title)
@@ -1256,6 +1555,12 @@ def _site_maps(rendered, pins, cluster):
             meta['maps'][name] = {'w': w, 'h': h, 'png': name + '.webp', 'base': name + '.base.svg', 'region': REGION,
                                   'trips': [s for s, _t in pins], 'clusters': [{'x': 40, 'y': 40, 'n': 2, 'keys': list(cluster)}]}
             _write(os.path.join(rendered, 'site', name + '.svg.html'), _svg(w, h, marks))
+    mesa = ('<a class="mk-pin" href="@@ROOT@@trips/%s/" data-key="%s" aria-label="Synthetic Mesa"><title>Synthetic Mesa</title>'
+            '<circle class="mk-hit" cx="9" cy="9" r="12" style="fill: transparent"/></a>' % (SLUGS['mesa'], SLUGS['mesa']))
+    for size, (w, h) in (('desktop', (718, 620)), ('phone', (390, 480))):
+        name = 'region-%s-%s' % (MS, size)
+        meta['maps'][name] = {'w': w, 'h': h, 'png': name + '.webp', 'base': name + '.base.svg', 'region': MESA, 'trips': [SLUGS['mesa']]}
+        _write(os.path.join(rendered, 'site', name + '.svg.html'), _svg(w, h, mesa))
     _write(os.path.join(rendered, 'site', 'meta.json'), json.dumps(meta))
     return meta
 
@@ -1279,6 +1584,7 @@ def _write_trips(trips_dir):
     mk(trips_dir, s['paddle'], title='Synthetic Paddle', activity='other', subtype='SUP', date='2025-09-01', region=REGION, track=True)
     mk(trips_dir, s['walk'], title='Synthetic Walk Without A Track', activity='hike', date='2025-05-05', region=REGION, body=WRITEUP)
     mk(trips_dir, s['undated'], title='Synthetic Undated Track', activity='hike', region=REGION, track=True)
+    mk(trips_dir, s['mesa'], title='Synthetic Mesa', activity='hike', date='2023-10-07', region=MESA, track=True)
     goals = importlib.import_module('goals')
     for key, extra, sidecar in (('goal', {'track': True, 'body': 'Synthetic planning notes for a test.',
                                          'photos': [photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo one')]},
@@ -1345,7 +1651,11 @@ def site_pages():
                     raise AssertionError('%s would read outside the temp dir' % t['slug'])
             site = build.site_of(helpers.newest_first(trips))
             site['featured'] = [site['by_slug'][SLUGS[k]] for k in ('story', 'tour', 'journal')]
-            core.register_site(site)
+            # with the site meta as it is on disk (the temp dir's), as tools/build.py does: the two regions with a
+            # region map get their pages (registered without a meta, no region would have one)
+            if core.read_site_meta() != meta:
+                raise AssertionError('the site meta on disk is not the fixture\'s')
+            core.register_site(site, core.read_site_meta())
             pages = {}
             for name in build.PAGE_MODULES:
                 for p in importlib.import_module('sitegen.pages.' + name).build(site):
@@ -1430,6 +1740,12 @@ class PageTests(SiteFixture):
         want |= {trip_url(k, 'map/') for k in with_map}
         self.assertNotIn(trip_url('walk', 'map/'), urls)
         self.assertNotIn(trip_url('idea', 'map/'), urls)
+        # contract-phase5.md: one page for each region with a region map and a published report (REGION and MESA); none
+        # for the region without a region map, and no index of them
+        want |= set(REGION_PAGES)
+        self.assertEqual(REGION_PAGES, ('regions/synthetic-range/', 'regions/synthetic-mesa/'))
+        self.assertNotIn('regions/synthetic-coast/', urls)
+        self.assertNotIn('regions/', urls)
         self.assertEqual(urls, want)
         for url, html_ in self.pages.items():
             self.assertTrue(html_.startswith('<!doctype html>'), url)
@@ -1441,8 +1757,63 @@ class PageTests(SiteFixture):
         self.assertIn('p-goal', kinds['idea'])
         self.assertIn('p-multiday', kinds['tour'])
         self.assertIn('p-series', kinds['journal'])
+        for url in REGION_PAGES:
+            self.assertEqual(page_doc(url).find('body')['class'], 'p-region')
         # and card covers with the phone-only wrapper are among what these tests walk
         self.assertGreaterEqual(sum(h.count('<picture class="cover-pic">') for h in self.pages.values()), 4)
+
+    def test_a_region_page_has_every_block_the_static_checks_walk(self):
+        # the big region's page: the breadcrumb, the Map page's list beside the map (every trip filed under the region:
+        # twelve rows, four of them behind the hidden 'Show all' button), three Featured cards (two of them with the
+        # phone-only <picture> wrapper), both links into the explorer, the table with its filter row, and the link to
+        # the other region page; the small region's page has what one bare track gives it
+        doc = page_doc(REGION_PAGES[0])
+        main = doc.by_id('main')
+        self.assertEqual([h.text() for h in doc.find_all('h1')], [REGION])
+        self.assertEqual([(a.text(), a['href']) for a in main.find('nav', cls='crumbs').find_all('a')], [('Reports', '../../'), ('Map', '../../map/')])
+        rows = main.find('ol', cls='arc-rows').find_all('li')
+        # contract-phase5.md section 1 as revised: what the content files under the region (the walk without a track,
+        # the tour, the journal and the two goals with the rest), not the four trips the map's entry names
+        self.assertEqual([li['data-key'] for li in rows],
+                         [SLUGS[k] for k in ('story', 'tour', 'lap', 'paddle', 'crag', 'walk', 'photos', 'journal', 'spring', 'undated', 'goal', 'idea')])
+        self.assertEqual([li['data-key'] for li in rows if 'arc-more' in li.classes], [SLUGS[k] for k in ('spring', 'undated', 'goal', 'idea')])
+        buttons = main.find('div', cls='arc-inreg').find_all('button')
+        self.assertEqual([(b.classes, b.text(), 'hidden' in b, b['aria-controls']) for b in buttons],
+                         [(['alink', 'arc-all-btn'], 'Show all 10', True, 'arc-rows-' + RS)])
+        self.assertEqual(main.find('div', cls='arc-inreg').find('h3').text(), 'In this region')
+        self.assertEqual(main.find_all('a', cls='arc-reg-a'), [])                    # no link to the page it is on
+        # the map's cluster marker names a row that is shown and one behind the button: both are rows of the list
+        clusters = {g['data-keys'] for g in main.find_all('g', cls='mk-cluster')}
+        self.assertEqual(clusters, {'%s %s' % (SLUGS['lap'], SLUGS['spring'])})
+        cards = main.find('ul', cls='reg-cards').find_all('li', cls='tcard')
+        self.assertEqual([li['data-slug'] for li in cards], [SLUGS['story'], SLUGS['tour'], SLUGS['crag']])
+        self.assertEqual(len(main.find('ul', cls='reg-cards').find_all('picture', cls='cover-pic')), 2)
+        self.assertEqual([n['class'] for n in main.find_all(cls='reg-x')], ['reg-more reg-x', 'reg-find reg-x wrap'])
+        self.assertGreaterEqual(len(main.find('div', cls='arc-filt').find_all('button', cls='fchip')), 3)
+        self.assertEqual([a['href'] for a in main.find('nav', cls='reg-others').find_all('a')], ['../../regions/synthetic-mesa/', '../../map/'])
+        small = page_doc(REGION_PAGES[1]).by_id('main')
+        self.assertEqual([a['href'] for a in small.find('nav', cls='reg-others').find_all('a')], ['../../regions/synthetic-range/', '../../map/'])
+        self.assertIsNone(small.find('section', cls='reg-feat'))
+        self.assertEqual([n['class'] for n in small.find_all(cls='reg-x')], ['reg-find reg-x wrap'])
+        self.assertEqual(([li['data-key'] for li in small.find('ol', cls='arc-rows').find_all('li')], small.find_all('button')), ([SLUGS['mesa']], []))
+        # the pages that link to them: the home page's region block and Also row, the Map page's panels, the browse row
+        home = page_doc('')
+        self.assertEqual([a['href'] for a in home.find_all('a') if inside(a, 'hom-reg-n')], ['regions/synthetic-range/'])
+        self.assertIn('regions/synthetic-mesa/', [a['href'] for a in home.find_all('a') if inside(a, 'hom-also')])
+        self.assertEqual([a['href'] for a in page_doc('map/').find_all('a', cls='arc-reg-a')], ['../regions/synthetic-range/', '../regions/synthetic-mesa/'])
+        # the Map page's panel for the big region keeps the four trips its map was drawn with
+        panel = page_doc('map/').by_id('region-' + RS)
+        self.assertEqual([li['data-key'] for li in panel.find('ol', cls='arc-rows').find_all('li')],
+                         [SLUGS[k] for k in ('story', 'lap', 'crag', 'spring')])
+    def test_building_the_fixture_left_no_region_page_registered(self):
+        # site_pages() registered the fixture's site with its meta (the pages link to regions/<slug>/, so it did) and
+        # put core back: the two regions are not registered as having a page once the pages are built
+        self.assertIn('regions/%s/' % RS, self.pages[''])
+        self.assertIn('../regions/%s/' % MS, self.pages['map/'])
+        for name in (REGION, MESA):
+            self.assertNotIn(name, core._REGION_PAGES)
+            self.assertIsNone(core.region_page_href('', name))
+        self.assertFalse(any(url.startswith('trips/' + PREFIX) for url in core._TRIPS_BY_URL))
 
     def test_the_report_without_a_track_is_a_whole_page_without_a_map(self):
         # contract-phase4.md 10.2: no track.gpx, no route: the page has no map section, no link to one and no download,
@@ -1799,6 +2170,117 @@ class ScriptTests(unittest.TestCase):
         self.assertRegex(body, r'if\s*\(\s*%s\s*===\s*keep\s*\)\s*return\s*;' % re.escape(field))
 
 
+# ---------------------------------------------------------------- R3: the list beside a region map (base.js, archive.js)
+
+def page_scripts():
+    return ['base.js'] + [os.path.join('pages', n) for n in sorted(os.listdir(os.path.join(JS_DIR, 'pages'))) if n.endswith('.js')]
+
+
+class MapListScriptTests(unittest.TestCase):
+    """Round 3 of the region pages, read from the two scripts (the same two behaviours are run under node, against a
+    stand-in page, in tests/test_maplist_js.py).
+
+    A region page lists what the content says, so the list beside its map has rows the map does not draw: a report
+    without a track, a journal, a report newer than the last render. base.js: highlight(map, keys) gave the map the class
+    is-hl, which dims every track and pin that is not picked out, as soon as there was a key; pointing at such a row
+    dimmed the whole map and picked out nothing. Now the class follows a flag that only an element that matched raises.
+
+    archive.js: 'Show fewer' closes a long list above the reader and the page under it moves up; the button they
+    pressed, which keeps the focus, is scrolled back into view. Opening is as it was: the focus goes to the first row
+    that came into view."""
+
+    def setUp(self):
+        self.base = source('js', 'base.js')
+        self.archive = source('js', 'pages', 'archive.js')
+
+    def test_the_map_is_dimmed_only_when_a_track_a_pin_or_a_cluster_marker_matched(self):
+        got = map_dimming(self.base)
+        self.assertIsNotNone(got, 'base.js has no highlight(map, keys) that toggles is-hl once')
+        self.assertEqual(got['flag'], got['arg'], 'is-hl follows `%s`, which is not a flag that starts false and is read after the loops' % got['arg'])
+        self.assertNotIn('keys', got['arg'])                             # the old rule: `keys.length > 0`
+        # every kind of mark a key can pick out raises it: a track (.mk-cat, the planned line included), a pin, a cluster
+        tracks_and_pins, clusters = ('.mk-cat[data-key]', '.mk-pin[data-key]'), ('.mk-cluster',)
+        self.assertEqual(got['raised'], [tracks_and_pins, clusters])
+        self.assertEqual(got['other'], [], 'the flag is also set by something that is not a match')
+        # ... with the very value that gives the element its own highlight: its key is one of the keys; for a cluster
+        # marker, one of the keys it stands for is
+        self.assertRegex(got['tests'][tracks_and_pins], r'^has\(\s*[\w$]+\.dataset\.key\s*\)$')
+        self.assertRegex(got['tests'][clusters], r'''^\(\s*[\w$]+\.dataset\.keys\s*\|\|\s*(['"])\1\s*\)\.split\(\s*(['"]) \2\s*\)\.some\(\s*has\s*\)$''')
+
+    def test_the_number_of_keys_decides_nothing_in_highlight(self):
+        js = Script(self.base)
+        (head,) = [m for m in re.finditer(r'(?<![\w$.])function\s+highlight\s*\(\s*([\w$]+)\s*,\s*([\w$]+)\s*\)\s*\{', js.text) if js.code(m.start())]
+        body = js.text[head.end():js.close(head.end() - 1)]
+        keys = re.escape(head.group(2))
+        self.assertNotRegex(body, r'(?<![\w$.])%s\.length' % keys)
+        # the keys are asked one way only: is this key among them (null and undefined count as none)
+        self.assertRegex(body, r'(?<![\w$.])%s\s*=\s*%s\s*\|\|\s*\[\s*\]\s*;' % (keys, keys))
+        self.assertRegex(body, r'(?:var|let|const)\s+has\s*=\s*function\s*\(\s*([\w$]+)\s*\)\s*\{\s*return\s+%s\.indexOf\(\s*\1\s*\)\s*!==\s*-1\s*;\s*\}' % keys)
+        self.assertEqual(len(re.findall(r'(?<![\w$.])%s(?![\w$])' % keys, body)), 3)       # those two lines and nothing else
+
+    def test_no_other_line_of_any_script_gives_a_map_the_class(self):
+        for name in page_scripts():
+            with self.subTest(script=name):
+                js = Script(source('js', name))
+                hits = [m.start() for m in re.finditer(r'''(['"])is-hl\1''', js.text) if js.mask[m.start()] == 's']
+                self.assertEqual(len(hits), 1 if name == 'base.js' else 0)
+        self.assertEqual(len(re.findall(r'''classList\.toggle\(\s*['"]is-hl['"]''', Script(self.base).text)), 1)
+
+    def test_a_list_row_still_asks_for_its_own_key_and_clears_the_map_when_left(self):
+        # unchanged by round 3, and what the change leans on: a row hands highlight() its one key, drawn or not, and
+        # null when the pointer or the focus leaves it (the flag then stays down and the class goes)
+        js = Script(self.base)
+        (_sel, list_, start, end), = js.each_callbacks(lambda s: s.strip() == '[data-map-target]')
+        rows = [x for x in js.each_callbacks(lambda s: s.strip() == '[data-key]') if start <= x[2] and x[3] <= end]
+        self.assertEqual(len(rows), 1)
+        _sel, row, s, e = rows[0]
+        body = js.text[s:e]
+        on = re.search(r'(?:var|let|const)\s+([\w$]+)\s*=\s*function\s*\(\s*\)\s*\{\s*highlight\(\s*([\w$]+)\s*,\s*\[\s*%s\.dataset\.key\s*\]\s*\)\s*;\s*\}'
+                       % re.escape(row), body)
+        self.assertIsNotNone(on, 'a row no longer calls highlight(map, [its key])')
+        off = re.search(r'(?:var|let|const)\s+([\w$]+)\s*=\s*function\s*\(\s*\)\s*\{\s*highlight\(\s*%s\s*,\s*null\s*\)\s*;\s*\}' % re.escape(on.group(2)), body)
+        self.assertIsNotNone(off, 'leaving a row no longer calls highlight(map, null)')
+        wired = dict(re.findall(r'''(?<![\w$.])%s\.addEventListener\(\s*['"]([\w-]+)['"]\s*,\s*([\w$]+)\s*\)''' % re.escape(row), body))
+        self.assertEqual(wired, {'mouseenter': on.group(1), 'focusin': on.group(1), 'mouseleave': off.group(1), 'focusout': off.group(1)})
+        # the map is the one the list names
+        self.assertRegex(js.text[start:s], r'(?:var|let|const)\s+%s\s*=\s*document\.getElementById\(\s*%s\.dataset\.mapTarget\s*\)'
+                         % (re.escape(on.group(2)), re.escape(list_)))
+
+    def test_show_fewer_scrolls_the_button_into_view_and_only_when_the_list_closes(self):
+        got = show_all_press(self.archive)
+        self.assertIsNotNone(got, "archive.js has no loop over the 'Show all' buttons with one click listener")
+        button, list_ = got['button'], got['list']
+        self.assertIsNotNone(list_, 'the list is not looked up by the aria-controls of its button')
+        self.assertIsNotNone(got['open'], 'the press does not toggle a class of the list')
+        opened, how = got['open']
+        # open: the class that hides the rows beyond the first eight has just been taken off
+        self.assertRegex(how, r'''^%s\.classList\.toggle\(\s*(['"])arc-collapsed\1\s*\)\s*===\s*false$''' % re.escape(list_))
+        self.assertEqual(len(got['scrolls']), 1, 'the press does not scroll once: %r' % (got['scrolls'],))
+        target, how, guards = got['scrolls'][0]
+        self.assertEqual(target, button)                           # the button the reader pressed, not the list or its first row
+        self.assertRegex(how, r'''^\{\s*block\s*:\s*(['"])nearest\1\s*\}$''')        # by the least movement, and not at all when it is in view
+        self.assertEqual(guards, [('else', opened)])               # when the list closed, and only then
+
+    def test_show_all_still_moves_the_focus_to_the_first_row_it_reveals(self):
+        got = show_all_press(self.archive)
+        opened = got['open'][0]
+        self.assertEqual(len(got['focuses']), 1, got['focuses'])
+        target, how, guards = got['focuses'][0]
+        self.assertNotEqual(target, got['button'])
+        # querySelector: the first of the rows that were hidden (li.arc-more), its link
+        self.assertRegex(how or '', r'''^%s\.querySelector\(\s*(['"])\.arc-more a\1\s*\)$''' % re.escape(got['list']))
+        self.assertEqual(guards, [('if', target), ('if', opened)])  # when the list opened, and it has such a row
+
+    def test_no_other_script_wires_the_show_all_buttons(self):
+        for name in page_scripts():
+            with self.subTest(script=name):
+                src = source('js', name)
+                if name.endswith('archive.js'):
+                    self.assertIsNotNone(show_all_press(src))
+                else:
+                    self.assertNotIn('arc-all-btn', Script(src).text)
+
+
 # ---------------------------------------------------------------- D2, D3: without JavaScript
 
 def scripting_none(rules):
@@ -1846,6 +2328,73 @@ class NoScriptTests(SiteFixture):
         self.assertEqual({k: got.get(k) for k in ('menu-btn', 'units', 'nav-search', 'copy', 'rep-share')},
                          dict.fromkeys(('menu-btn', 'units', 'nav-search', 'copy', 'rep-share'), 'none'))
         self.assertNotEqual(got.get('nav'), 'none')
+
+    # contract-phase5.md section 5: a region page's links into the Trips explorer carry its filters in the address, which
+    # only trips.js reads; region.css takes them off the page when scripting is off, and nothing else
+
+    def test_region_css_hides_the_links_that_need_the_explorers_script(self):
+        rules = parse_css(source('css', 'pages', 'region.css'))[0]
+        self.assertEqual(self.displays(rules), {'reg-x': 'none'})
+        self.assertEqual([r.selector for r in scripting_none(rules)], ['.reg-x'])           # the block holds that one rule
+        self.assertEqual(self.displays(self.rules).get('reg-x'), 'none')                    # and the published stylesheet keeps it
+        # no rule outside the scripting query hides or shows the class
+        self.assertEqual([r.selector for r in self.rules if 'reg-x' in r.selector and not scripting_none([r])], [])
+
+    def explorer_links(self, url):
+        marked = self.nodes(url, cls='reg-x')
+        links = [a for n in marked for a in n.find_all('a')]
+        self.assertEqual(len(links), len(marked))
+        for a in links:
+            self.assertIn('trips/?region=', a['href'])
+        return marked, links
+
+    def test_without_scripting_no_explorer_link_of_a_region_page_is_displayed(self):
+        seen = 0
+        for url in REGION_PAGES:
+            marked, links = self.explorer_links(url)
+            for width in (320,) + WIDTHS:
+                e = env(width, scripting='none')
+                with self.subTest(page=url, width=width):
+                    for node in marked + links:
+                        seen += 1
+                        self.assertFalse(displayed(node, self.rules, e), '%r: %s' % (node, why(node, 'display', self.rules, e)))
+        self.assertEqual(seen, (2 + 2 + 1 + 1) * 7)             # two links on the big region's page, one on the small one's
+        # every link of the page that carries a query for trips.js is one of them
+        for url in REGION_PAGES:
+            queried = [a for a in page_doc(url).by_id('main').find_all('a') if '?' in (a['href'] or '')]
+            self.assertEqual([a for a in queried if not inside(a, 'reg-x')], [])
+            self.assertEqual(len(queried), len(self.explorer_links(url)[1]))
+
+    def test_with_scripting_the_explorer_links_are_displayed(self):
+        for url in REGION_PAGES:
+            marked, links = self.explorer_links(url)
+            for width in (320,) + WIDTHS:
+                e = env(width)
+                for node in marked + links:
+                    self.assertTrue(displayed(node, self.rules, e), '%r at %d px: %s' % (node, width, why(node, 'display', self.rules, e)))
+                for node in marked:
+                    self.assertIsNone(computed(node, 'display', self.rules, e))
+
+    def test_without_scripting_nothing_else_of_a_region_page_goes(self):
+        # the breadcrumb, the rows beside the map, the cards, the table and the other regions are plain links: each is
+        # displayed without scripting exactly where it is displayed with it (a map pin of the render a width does not
+        # show stays hidden either way)
+        checked = 0
+        for url in REGION_PAGES:
+            main = page_doc(url).by_id('main')
+            rest = [a for a in main.find_all('a') if not inside(a, 'reg-x')]
+            self.assertGreater(len(rest), 7)
+            for width in (320,) + WIDTHS:
+                with_, without = env(width), env(width, scripting='none')
+                for a in rest:
+                    checked += 1
+                    self.assertEqual(displayed(a, self.rules, without), displayed(a, self.rules, with_), '%r at %d px' % (a, width))
+                for cls in ('reg-head', 'arc-map', 'arc-all', 'reg-others'):
+                    for node in main.find_all(cls=cls):
+                        self.assertTrue(displayed(node, self.rules, without), '%r at %d px' % (node, width))
+                for a in main.find('nav', cls='reg-others').find_all('a') + main.find('nav', cls='crumbs').find_all('a'):
+                    self.assertTrue(displayed(a, self.rules, without))
+        self.assertGreater(checked, 250)
 
     # the header as it is generated, and what the published stylesheet makes of it with scripting off
 
@@ -2501,7 +3050,8 @@ class TargetSizeTests(SiteFixture):
         # the header (the padding above the crumbs), and not into the hit area of the chip link under it on a report.
         seen = 0
         for url, holder in (('ski/', 'sec-head'), ('other/', 'sec-head'), (trip_url('story'), 'rep-title'), (trip_url('goal'), 'rep-title'),
-                            (trip_url('tour'), 'rep-title'), (trip_url('journal'), 'rep-title')):
+                            (trip_url('tour'), 'rep-title'), (trip_url('journal'), 'rep-title'),
+                            (REGION_PAGES[0], 'reg-head'), (REGION_PAGES[1], 'reg-head')):      # contract-phase5.md: .reg-head has the room
             crumbs = self.nodes(url, cls='crumbs', tag='nav')[0]
             links = crumbs.find_all('a')
             self.assertTrue(links, url)
@@ -2530,8 +3080,15 @@ class TargetSizeTests(SiteFixture):
                             self.assertIsNone(computed(a, prop, self.rules, e), why(a, prop, self.rules, e))
                         # two crumbs' areas do not overlap
                         self.assertEqual(computed(crumbs, 'display', self.rules, e), 'flex')
-                        self.assertLessEqual(left + right, px(computed(crumbs, 'gap', self.rules, e)))
                         self.assertGreaterEqual(min(left, right), 0)
+                        if holder == 'reg-head':
+                            # a region page widens the area of its short 'Map' crumb sideways (inset-inline, which wins
+                            # over the 4 px read here): test_the_map_crumb_of_a_region_page measures how far it reaches
+                            self.assertIsNotNone(computed_pseudo(a, 'before', 'inset-inline', self.rules, e))
+                        else:
+                            self.assertLessEqual(left + right, px(computed(crumbs, 'gap', self.rules, e)))
+                            for prop in ('inset-inline', 'inset-inline-start', 'inset-inline-end', 'left', 'right'):
+                                self.assertIsNone(computed_pseudo(a, 'before', prop, self.rules, e), prop)      # nothing else moves a side
                         # it stays below the header: the block's own padding is above the crumbs
                         self.assertLessEqual(up, px(computed(box, 'padding-top', self.rules, e)), why(box, 'padding-top', self.rules, e))
                         # and above the hit area of the link under it
@@ -2545,6 +3102,529 @@ class TargetSizeTests(SiteFixture):
                         else:
                             self.assertEqual([n for n in [after] + list(after.walk()) if focusable(n)], [])     # a heading: nothing to press
         self.assertGreater(seen, 40)
+
+    # ---- contract-phase5.md section 5: the links the region pages brought
+
+    def test_a_region_pages_head_gives_the_breadcrumb_its_room(self):
+        # .reg-head: 24 / 32 / 40 px above the crumbs at the 760 and 1200 px breakpoints; the crumbs' hit area reaches
+        # 21 px up (base.css), so it stays under the header at every width
+        for url in REGION_PAGES:
+            head = self.nodes(url, cls='reg-head', tag='section')[0]
+            crumbs = head.elements()[0]
+            self.assertIn('crumbs', crumbs.classes)
+            for width, want in ((320, '24px'), (390, '24px'), (759, '24px'), (760, '32px'), (1024, '32px'), (1199, '32px'), (1200, '40px'), (1300, '40px')):
+                e = env(width)
+                self.assertEqual(computed(head, 'padding-top', self.rules, e), want, why(head, 'padding-top', self.rules, e))
+                self.assertTrue(displayed(crumbs, self.rules, e))                       # shown on a phone too, unlike a report's
+                reach = -sides(computed_pseudo(crumbs.find('a'), 'before', 'inset', self.rules, e))[0]
+                self.assertLessEqual(reach, px(want))
+                self.assertIsNone(computed(head, 'padding', self.rules, e))             # no shorthand takes the room back
+
+    def test_the_map_crumb_of_a_region_page_answers_over_44_px_of_width(self):
+        # contract-phase5.md section 5 (REVISED in round 2): .reg-head .crumbs a::before { inset-inline: min(-4px,
+        # (100% - 44px) / 2); }. 'Map' is three letters of the crumbs' Mono caps: 23 px wide at 12 px, 25 px at 13 px
+        # (from 760 px). Its hit area was 31 to 33 px wide with the 4 px each side every crumb has; it is 44 px now,
+        # widened by the same amount on both sides. 'Reports' is wider than 44 px and keeps its 4 px.
+        seen = 0
+        for url in REGION_PAGES:
+            crumbs = self.nodes(url, cls='crumbs', tag='nav', within='reg-head')[0]
+            self.assertEqual([(n.tag, n.text()) for n in crumbs.elements()][:4], [('a', 'Reports'), ('span', '/'), ('a', 'Map'), ('span', '/')])
+            reports, map_ = crumbs.find_all('a')
+            last = crumbs.elements()[-1]
+            self.assertEqual((last.tag, last['aria-current'], focusable(last)), ('span', 'page', False))       # no link after 'Map'
+            for width in (320,) + WIDTHS:
+                e = env(width)
+                gap = px(computed(crumbs, 'gap', self.rules, e))
+                self.assertEqual(gap, 8.0)
+                for a in (reports, map_):
+                    with self.subTest(page=url, width=width, link=a.text()):
+                        seen += 1
+                        inline = pseudo_winner(a, 'before', 'inset-inline', self.rules, e)
+                        short = pseudo_winner(a, 'before', 'inset', self.rules, e)
+                        self.assertIsNotNone(inline, 'no inset-inline for the hit area of %r' % a)
+                        self.assertEqual((inline.selector, short.selector), ('.reg-head .crumbs a::before', '.crumbs a::before'))
+                        self.assertEqual(inline.media, ())                                 # at every width
+                        # it is the later and more specific declaration: it decides left and right, and the shorthand of
+                        # base.css still decides top and bottom (no longhand of either rule says otherwise)
+                        self.assertGreater(_key(inline, 'inset-inline'), _key(short, 'inset'))
+                        for prop in ('left', 'right', 'inset-inline-start', 'inset-inline-end', 'top', 'bottom', 'inset-block', 'width', 'min-width'):
+                            self.assertIsNone(computed_pseudo(a, 'before', prop, self.rules, e), prop)
+                        self.assertEqual(sorted(inline.decls), ['inset-inline'])           # the rule says nothing else
+                        value = inline.decls['inset-inline'][0]
+                        self.assertIsNotNone(widen(value, 23.0), 'not a value this file reads: %s' % value)
+                        up, _right, down, _left = (-v for v in sides(short.decls['inset'][0]))
+                        self.assertGreaterEqual(up + line_height(crumbs, self.rules, e) + down, 44.0)      # the height is as it was
+                        # a 23 px word and a 25 px word: 44 px across, 10.5 and 9.5 px on each side
+                        for words, each in ((23.0, 10.5), (25.0, 9.5)):
+                            reach = -widen(value, words)
+                            self.assertEqual(reach, each)
+                            self.assertEqual(words + 2 * reach, 44.0)
+                        # never more than 10.5 px each side for a word of 23 px or more, and 44 px across up to 36 px
+                        for words in (23.0, 23.4, 24.0, 25.0, 28.0, 30.5, 36.0):
+                            reach = -widen(value, words)
+                            self.assertLessEqual(reach, 10.5)
+                            self.assertGreaterEqual(reach, 4.0)
+                            self.assertAlmostEqual(words + 2 * reach, 44.0)
+                        # from 36 px on a crumb has the 4 px every crumb has, and a crumb of 44 px or more only that:
+                        # 'Reports', seven letters of the same face, is not widened
+                        for words in (36.0, 40.0, 43.9, 44.0, 44.1, 54.0, 60.0, 120.0):
+                            self.assertEqual(-widen(value, words), 4.0)
+                # 'Map' never reaches the area of 'Reports' before it: between the two links are two gaps of the row
+                # and the separator, and the two areas reach 10.5 px and 4 px into them, less than the gaps alone
+                value = pseudo_winner(map_, 'before', 'inset-inline', self.rules, e).decls['inset-inline'][0]
+                for map_words in (23.0, 25.0):
+                    for reports_words in (44.0, 54.0, 60.0):
+                        self.assertLess(-widen(value, map_words) + -widen(value, reports_words), 2 * gap)
+        self.assertEqual(seen, 2 * 2 * 7)
+        # the rule is the region head's own: a crumb of a section page or a report keeps the 4 px of base.css
+        for url in ('ski/', trip_url('story')):
+            for a in self.nodes(url, cls='crumbs', tag='nav')[0].find_all('a'):
+                self.assertIsNone(pseudo_winner(a, 'before', 'inset-inline', self.rules, env(1024)))
+        # region.css is where it is written
+        mine = parse_css(source('css', 'pages', 'region.css'))[0]
+        self.assertEqual([(r.selector, r.media, dict((k, v[0]) for k, v in r.decls.items())) for r in mine if 'crumbs' in r.selector],
+                         [('.reg-head .crumbs a::before', (), {'inset-inline': 'min(-4px, (100% - 44px) / 2)'})])
+
+    def test_the_stats_line_of_a_region_page_breaks_after_the_counts(self):
+        # .reg-stats .ml-br is shown at every width: counts and years on one line, places on the next
+        slot = self.nodes(REGION_PAGES[0], cls='ml-br', tag='span', within='reg-stats')
+        self.assertEqual(len(slot), 1)
+        other = Doc('<p class="t-mono-s"><span class="ml"><span class="ml-br" aria-hidden="true"></span></span></p>').find('span', cls='ml-br')
+        for width in (320,) + WIDTHS:
+            e = env(width)
+            self.assertEqual(computed(slot[0], 'display', self.rules, e), 'block', why(slot[0], 'display', self.rules, e))
+            self.assertEqual(computed(other, 'display', self.rules, e), 'none')          # a break slot is off unless a page shows it
+
+    def test_a_place_in_a_region_pages_head_may_wrap_and_nothing_else_of_the_line(self):
+        # contract-phase5.md section 3.1 (REVISED in round 2): a place is free text, so its item carries .mi-w and may
+        # wrap at its spaces when it alone is wider than the line (base.css: .ml > .mi-w); the counts and the years stay
+        # one item on one line each. region.css takes none of that back
+        stats = self.nodes(REGION_PAGES[0], cls='reg-stats', tag='p')[0]
+        items = stats.find_all('span', cls='mi')
+        places = [mi for mi in items if 'mi-w' in mi.classes]
+        self.assertEqual(len(places), 2)                                      # the journal's place and the story's
+        self.assertIn(', SYNTHETIC BASIN', [mi.text() for mi in places])
+        self.assertEqual(len(items) - len(places), 4)                         # reports, kinds, planned routes, years
+        self.assertEqual(items[-len(places):], places)                        # the places are the line's last items
+        for width in (320,) + WIDTHS:
+            e = env(width)
+            for mi in items:
+                self.assertEqual(computed(mi, 'white-space', self.rules, e), 'normal' if mi in places else 'nowrap',
+                                 why(mi, 'white-space', self.rules, e))
+            for node in (stats, stats.find('span', cls='ml')):
+                for prop in ('white-space', 'overflow', 'overflow-x', 'min-width', 'width', 'text-overflow'):
+                    self.assertIsNone(computed(node, prop, self.rules, e), why(node, prop, self.rules, e))
+            self.assertEqual(computed(stats.find('span', cls='ml'), 'flex-wrap', self.rules, e), 'wrap')       # items go to a new line whole
+        for mi in places:
+            self.assertNotIn('\xa0', mi.text(clean=False))                    # ... and a place has a space to break at
+
+    def test_one_word_of_a_place_too_long_for_a_line_breaks_instead_of_widening_the_page(self):
+        # Round 3: .reg-stats .mi-w { overflow-wrap: anywhere; }. A place wraps at its spaces (the test above), but a
+        # single word wider than the line has no space to wrap at: its least width held the head, and so the page, open
+        # (a long compound name at 320 px). `anywhere` lets the word break and, unlike break-word, takes it out of the
+        # least width the flex line works with. The rule is for the places of a region page's head and for nothing else,
+        # and the places keep base.css's white-space: they still wrap at a space first
+        url = REGION_PAGES[0]
+        stats = self.nodes(url, cls='reg-stats', tag='p')[0]
+        items = stats.find_all('span', cls='mi')
+        places = [mi for mi in items if 'mi-w' in mi.classes]
+        others = [mi for mi in items if mi not in places]
+        self.assertEqual((len(places), len(others)), (2, 4))
+        # the same class outside the head: the places on the cards of the same page, and a meta line of any page
+        cards = [n for n in page_doc(url).find_all('span', cls='mi-w') if not inside(n, 'reg-stats')]
+        self.assertTrue(cards, '%s has no .mi-w outside its head' % url)
+        loose = Doc('<p class="t-mono-s"><span class="ml"><span class="mi mi-w">SYNTHETIC PLACE</span></span></p>').find('span', cls='mi-w')
+        bare = Doc('<p class="reg-stats"><span class="ml"><span class="mi">3 REPORTS</span></span></p>').find('span', cls='mi')
+        for width in (320,) + WIDTHS:
+            for scripting in ('enabled', 'none'):
+                e = env(width, scripting=scripting)
+                with self.subTest(width=width, scripting=scripting):
+                    for mi in places:
+                        self.assertEqual(computed(mi, 'overflow-wrap', self.rules, e), 'anywhere', why(mi, 'overflow-wrap', self.rules, e))
+                        self.assertEqual(winner(mi, 'overflow-wrap', self.rules, e).selector, '.reg-stats .mi-w')
+                        self.assertEqual(computed(mi, 'white-space', self.rules, e), 'normal', why(mi, 'white-space', self.rules, e))
+                        self.assertEqual(winner(mi, 'white-space', self.rules, e).selector, '.ml > .mi-w')
+                        # nothing else about how the item breaks or how wide it may be
+                        for prop in ('word-break', 'word-wrap', 'hyphens', 'overflow', 'overflow-x', 'text-overflow', 'min-width', 'max-width',
+                                     'width', 'flex', 'flex-shrink'):
+                            self.assertIsNone(computed(mi, prop, self.rules, e), why(mi, prop, self.rules, e))
+                    for node in others + cards + [loose, bare, stats, stats.find('span', cls='ml')]:
+                        self.assertIsNone(computed(node, 'overflow-wrap', self.rules, e), '%r: %s' % (node, why(node, 'overflow-wrap', self.rules, e)))
+                    for mi in others + [bare]:
+                        self.assertEqual(computed(mi, 'white-space', self.rules, e), 'nowrap')     # a count or the years: one piece
+                    self.assertEqual(computed(loose, 'white-space', self.rules, e), 'normal')
+        # region.css: one rule, outside every media query, with that one declaration; it names no white-space anywhere
+        mine = parse_css(source('css', 'pages', 'region.css'))[0]
+        self.assertEqual([(r.selector, r.media, dict((k, v[0]) for k, v in r.decls.items())) for r in mine
+                          if 'mi-w' in r.selector or 'overflow-wrap' in r.decls or 'word-break' in r.decls],
+                         [('.reg-stats .mi-w', (), {'overflow-wrap': 'anywhere'})])
+        self.assertEqual([r.selector for r in mine if 'white-space' in r.decls], [])
+        # base.css: the rule the places lean on is where it was, and is the only thing base.css says of .mi-w
+        base = parse_css(source('css', 'base.css'))[0]
+        self.assertEqual([(r.selector, r.media, dict((k, v[0]) for k, v in r.decls.items())) for r in base if 'mi-w' in r.selector],
+                         [('.ml > .mi-w', (), {'white-space': 'normal'})])
+        # and in the stylesheet as published no other rule gives a .mi-w a way to break
+        self.assertEqual([r.selector for r in self.rules if 'mi-w' in r.selector and ('overflow-wrap' in r.decls or 'word-break' in r.decls)],
+                         ['.reg-stats .mi-w'])
+
+    def hovered(self, node, prop, e):
+        """(value, selector) of the declaration of `prop` that wins for the element while the pointer is over it: the
+        cascade as computed() reads it, with :hover taken as holding for the element and what is around it."""
+        best = None
+        for r in self.rules.declaring(prop):
+            if r.parts is None or not all(media_matches(q, e) for q in r.media):
+                continue
+            parts = [(comb, [x for x in simples if x[:2] != ('pc', 'hover')]) for comb, simples in r.parts]
+            if matches(node, parts) and (best is None or _key(r, prop) >= _key(best, prop)):
+                best = r
+        return (best.decls[prop][0], best.selector) if best else (None, None)
+
+    def test_the_region_name_link_of_the_home_page(self):
+        # The name is one 16 px line of the caption, as before the phase; as a link it answers over 44 px by a hit area
+        # of its own (::before, out of the flow, no wider than the name), so no box of the home page moves. Only a
+        # region with a page has the link. REVISED in round 2: the link is an inline-block (as high as its 16 px line)
+        # and lies above the count line under it (z-index). Round 3: where the caption is two lines (below 1200 px) the
+        # area is 14 px above and below the line (16 + 14 + 14 = 44); where it is one line (from 1200 px) the map
+        # starts 13 px under the name, so the area sits 2 px higher there: 16 px above and 12 px below, 44 px as before
+        links = self.nodes('', tag='a', within='hom-reg-n')
+        self.assertEqual([a['href'] for a in links], ['regions/synthetic-range/'])
+        a = links[0]
+        h3 = a.parent
+        self.assertEqual((h3.tag, h3.classes, h3.elements()), ('h3', ['hom-reg-n'], [a]))
+        head = h3.parent
+        self.assertIn('hom-reg-h', head.classes)
+        count, open_map = head.elements()[1], head.elements()[2]
+        self.assertEqual((count.classes, open_map.classes), (['t-mono-s', 'hom-reg-c'], ['hom-reg-a']))
+        block = head.parent
+        # the map is the next thing in the block: it starts where the caption's lower padding ends
+        self.assertEqual([(n.tag, n.classes) for n in block.elements()], [('div', ['hom-reg-h']), ('div', ['map'])])
+        the_map = block.elements()[1]
+        regions = block.parent
+        self.assertIn('hom-regions', regions.classes)
+        # The one length here that the stylesheet does not state. From 1200 px the caption is one line of three items set
+        # on a common baseline (align-items: baseline): the name at 12/16 px, the count at 13/18 px and 'Open the map' at
+        # 14/20 px. The line is as high as the tallest of them needs, so the name's own 16 px line ends a little above
+        # the caption's content edge: by how much depends on the fonts' metrics, which this reader does not have. In a
+        # browser the name's box ends 13 px above the map: the caption's 12 px of padding and that 1 px (home.css says
+        # so beside the rule; measured in Chrome at 1200 and 1440 px, with the site's own fonts loaded)
+        MAP_UNDER_NAME = 13.0
+        for width in sorted(set((320, 1199, 1200) + WIDTHS)):
+            e = env(width)
+            one_line = width >= 1200
+            with self.subTest(width=width):
+                line = line_height(h3, self.rules, e)
+                self.assertEqual(line, 16.0)
+                # An inline-block: its box is the line it stands in, the heading's 16 px (the link sets no line height,
+                # font or height of its own, so it has the heading's). As an inline box it was the font's content area,
+                # about 14 px of a 12 px face, and 14 px above and below that came to 42 px
+                self.assertEqual(computed(a, 'display', self.rules, e), 'inline-block', why(a, 'display', self.rules, e))
+                for words in (60.0, 96.4, 151.2):
+                    wide, high, left, right, up, down = self.hit_box(a, words, line, e)
+                    self.assertEqual((wide, left, right), (words, 0.0, 0.0))            # never sideways into 'Open the map'
+                    self.assertEqual(high, 44.0)                                        # 16 + 14 + 14, or 16 + 16 + 12
+                    self.assertEqual((up, down), (16.0, 12.0) if one_line else (14.0, 14.0))
+                # the link itself is the text it was: nothing of its own that sizes or moves a box
+                self.assertSizeUntouched(a, e)
+                for prop in ('padding', 'padding-block', 'padding-inline', 'margin-block', 'margin-top', 'margin-bottom', 'min-height', 'height',
+                             'max-height', 'line-height', 'font', 'font-size', 'font-weight', 'letter-spacing', 'float', 'inset', 'top', 'bottom',
+                             'left', 'right', 'vertical-align', 'overflow', 'transform'):
+                    self.assertIsNone(computed(a, prop, self.rules, e), why(a, prop, self.rules, e))
+                # Where the caption is two lines the lower 14 px of the area lie over the count line under the name,
+                # whose items are positioned (.ml > .mi) and come later in the page: they would take the presses there.
+                # The link is a layer above them (z-index: 1), and nothing of the caption has a z-index to answer it with
+                self.assertEqual(computed(a, 'z-index', self.rules, e), '1', why(a, 'z-index', self.rules, e))
+                items = count.find_all('span', cls='mi')
+                self.assertTrue(items)
+                self.assertEqual({computed(mi, 'position', self.rules, e) for mi in items}, {'relative'})
+                for node in [head, h3, count, open_map] + list(count.walk()):
+                    self.assertIsNone(computed(node, 'z-index', self.rules, e), why(node, 'z-index', self.rules, e))
+                self.assertIsNone(computed_pseudo(a, 'before', 'z-index', self.rules, e))            # the area is inside the link's own layer
+                self.assertEqual(computed(a, 'color', self.rules, e), 'inherit')         # the heading's colour, not a link's
+                self.assertEqual(computed(a, 'text-decoration', self.rules, e), 'none')  # the reset every link has: underlined on hover only
+                # under the pointer it keeps that colour (base.css gives every other link the route colour) and is underlined
+                self.assertEqual(self.hovered(a, 'color', e), ('inherit', '.hom-reg-n a'))
+                self.assertEqual(self.hovered(a, 'text-decoration', e), ('underline', '.hom-reg-n a:hover'))
+                self.assertEqual(self.hovered(open_map, 'color', e)[1], 'a:hover')        # the link beside it is as it was
+                # the heading keeps the type it had
+                self.assertEqual(computed(h3, 'font', self.rules, e), '600 12px/16px var(--sans)')
+                # 'Open the map' is the 44 px box it was, in its own column or pulled into the line from 1200 px
+                self.assertEqual(min_block(open_map, self.rules, e), 44.0)
+                # nothing pulls the map up into the caption, or pushes the caption's padding out of the way
+                for node, props in ((the_map, ('margin', 'margin-block', 'margin-top', 'top', 'inset', 'transform')),
+                                    (head, ('padding', 'padding-block', 'margin', 'margin-block', 'margin-bottom', 'height', 'max-height', 'overflow'))):
+                    for prop in props:
+                        self.assertIsNone(computed(node, prop, self.rules, e), why(node, prop, self.rules, e))
+                if one_line:
+                    # one caption line, its three items on one baseline; the 44 px link is pulled in by 14 px above and
+                    # below, so it adds 16 px to the line, as the name does
+                    self.assertEqual(computed(open_map, 'margin-block', self.rules, e), '-14px')
+                    self.assertEqual((computed(head, 'display', self.rules, e), computed(head, 'align-items', self.rules, e)), ('flex', 'baseline'))
+                    # Under the name there is the caption's padding and then the map. The area's 12 px end inside that
+                    # padding whatever the baseline leaves between the name and the caption's edge, so it never lies
+                    # over the map; the 14 px of the narrower widths would end 1 px inside it (2 px outside the padding)
+                    padding = px(computed(head, 'padding-bottom', self.rules, e))
+                    self.assertEqual(padding, 12.0, why(head, 'padding-bottom', self.rules, e))
+                    self.assertLessEqual(down, padding)
+                    self.assertLess(down, MAP_UNDER_NAME)
+                    self.assertLessEqual(padding, MAP_UNDER_NAME)                         # the measured gap is the padding and a little more
+                    # above the name: the 24 px between the section's heading and the two maps (both captions are in
+                    # the first row), which hold nothing that answers
+                    self.assertLessEqual(up, px(computed(regions, 'margin-top', self.rules, e)))
+                    self.assertEqual(computed(regions, 'grid-template-columns', self.rules, e), 'repeat(2, minmax(0, 1fr))')
+                else:
+                    # the name above the count, 'Open the map' beside both: below the name there is the gap and the
+                    # count's own line before the caption ends, above it the space between two blocks
+                    self.assertEqual(computed(head, 'display', self.rules, e), 'grid')
+                    self.assertLessEqual(down, px(computed(head, 'row-gap', self.rules, e)) + line_height(count, self.rules, e))
+                    self.assertLessEqual(up, px(computed(regions, 'gap', self.rules, e)))
+        # the rule is written for the link, so a name without a page (plain text in the h3) is untouched
+        plain = Doc('<div class="hom-reg-h"><h3 class="hom-reg-n">Synthetic Plain</h3></div>').find('h3')
+        for prop in ('position', 'z-index', 'display'):
+            self.assertIsNone(computed(plain, prop, self.rules, env(390)))
+        # home.css says all of it in one rule for the link and one for its hit area, and moves the area in one more:
+        # the inset alone, in the block that makes the caption one line (where .hom-reg-h becomes a flex row)
+        mine = parse_css(source('css', 'pages', 'home.css'))[0]
+        own = [r for r in mine if r.selector == '.hom-reg-n a']
+        self.assertEqual([sorted(r.decls) for r in own], [['color', 'display', 'position', 'z-index']])
+        area = [(r.media, dict((k, v[0]) for k, v in r.decls.items())) for r in mine if r.selector == '.hom-reg-n a::before']
+        self.assertEqual(area, [((), {'content': '""', 'position': 'absolute', 'inset': '-14px 0'}),
+                                (('(min-width: 1200px)',), {'inset': '-16px 0 -12px'})])
+        rows = [r for r in mine if r.selector == '.hom-reg-h' and r.decls.get('display', ('',))[0] == 'flex']
+        self.assertEqual([(r.media, r.decls['padding-bottom'][0], r.decls['align-items'][0]) for r in rows],
+                         [(area[1][0], '12px', 'baseline')])
+
+    def test_the_panel_link_to_a_region_page(self):
+        # a.alink.arc-reg-a under the rows of a Map page panel: an .alink (44 px high, a real box), 4 px under the list
+        links = self.nodes('map/', cls='arc-reg-a', tag='a')
+        self.assertEqual([a['href'] for a in links], ['../regions/synthetic-range/', '../regions/synthetic-mesa/'])
+        self.assertTargets('map/', links, widths=(320,) + WIDTHS)
+        for width in (320,) + WIDTHS:
+            e = env(width)
+            for a in links:
+                self.assertIn('arc-inreg', a.parent.classes)
+                self.assertEqual(computed(a, 'display', self.rules, e), 'inline-flex')
+                self.assertEqual(computed(a, 'margin-top', self.rules, e), '4px')
+                self.assertIsNone(computed(a, 'margin-left', self.rules, e))             # no 'Show all' button beside it here
+                self.assertSizeUntouched(a, e)
+        # the link is the Map page's alone (REVISED in round 2: a region page has no link to itself)
+        for url in REGION_PAGES:
+            self.assertEqual(page_doc(url).find_all('a', cls='arc-reg-a'), [])
+        # beside a 'Show all' button, once archive.js has shown it, and after the hidden one it is without JavaScript
+        shown = Doc('<div class="arc-inreg"><ol class="arc-rows arc-collapsed" id="arc-rows-x"></ol>'
+                    '<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-x">Show all 9</button>'
+                    '<a class="alink arc-reg-a" href="../regions/x/">All Synthetic reports</a></div>')
+        hidden = Doc('<div class="arc-inreg"><ol class="arc-rows" id="arc-rows-x"></ol>'
+                     '<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-x" hidden>Show all 9</button>'
+                     '<a class="alink arc-reg-a" href="../regions/x/">All Synthetic reports</a></div>')
+
+        def between(doc, e):
+            """The px the stylesheet puts between the button and the link that follows it on one line."""
+            button, link = doc.find('button'), doc.find('a')
+            return (px(computed(button, 'margin-right', self.rules, e) or '0px') or 0.0) + (px(computed(link, 'margin-left', self.rules, e) or '0px') or 0.0)
+
+        for width in (320,) + WIDTHS:
+            e = env(width)
+            self.assertEqual(between(shown, e), 24.0)                                    # 24 px to the left of the link, after a shown button
+            self.assertEqual(between(hidden, e), 0.0)                                    # without JavaScript the button is not there
+            for doc in (shown, hidden):
+                self.assertEqual(min_block(doc.find('a'), self.rules, e), 44.0)
+                self.assertEqual(computed(doc.find('button'), 'margin-top', self.rules, e), '4px')      # the button is where it was
+                self.assertEqual(min_block(doc.find('button'), self.rules, e), 44.0)
+                self.assertIsNone(computed(doc.find('button'), 'margin-left', self.rules, e))
+
+    def test_the_show_all_button_of_a_region_pages_list(self):
+        # REVISED in round 2: a region page has the Map page's list, so a region with more than nine trips has its
+        # 'Show all N' button. As generated the button is off the page (the hidden attribute) and every row is on it;
+        # archive.js collapses the list (.arc-collapsed) and shows the button, 44 px high, 4 px under the rows
+        url = REGION_PAGES[0]
+        (button,) = self.nodes(url, cls='arc-all-btn', tag='button')
+        box = button.parent
+        self.assertEqual((box.classes, [n.tag for n in box.elements()]), (['arc-inreg'], ['div', 'ol', 'button']))      # no link beside it here
+        ol = box.find('ol')
+        self.assertEqual((ol['id'], button['aria-controls'], ol.classes), ('arc-rows-' + RS, 'arc-rows-' + RS, ['arc-rows']))
+        rows = ol.elements()
+        more = [li for li in rows if 'arc-more' in li.classes]
+        self.assertEqual((len(rows), len(more)), (12, 4))
+        self.assertTargets(url, [button], widths=(320,) + WIDTHS)
+        for width in (320,) + WIDTHS:
+            for scripting in ('enabled', 'none'):
+                e = env(width, scripting=scripting)
+                with self.subTest(width=width, scripting=scripting):
+                    # the attribute wins over the display .alink gives the button (base.css: [hidden], !important)
+                    self.assertFalse(displayed(button, self.rules, e))
+                    self.assertIs(hidden_by(button, self.rules, e), button)
+                    self.assertEqual(computed(button, 'display', self.rules, e), 'none')
+                    for li in rows:
+                        self.assertTrue(displayed(li, self.rules, e), '%r at %d px' % (li, width))
+                        self.assertTrue(displayed(li.find('a'), self.rules, e))
+                    self.assertIsNone(computed(button, 'margin-right', self.rules, e))        # the 24 px belong to a shown button
+        self.assertNotIn('arc-collapsed', self.pages[url])                                  # the script's class is never generated
+        # the same box as archive.js leaves it: the list collapsed, the button shown
+        html_ = self.pages[url]
+        start = html_.index('<div class="arc-inreg">')
+        piece = html_[start:html_.index('</button>', start) + len('</button>')] + '</div>'
+        self.assertEqual((piece.count('<ol class="arc-rows" '), piece.count(' hidden>Show all 10')), (1, 1))
+        after = Doc(piece.replace('<ol class="arc-rows" ', '<ol class="arc-rows arc-collapsed" ').replace(' hidden>Show all 10', '>Show all 10'))
+        shown, list_ = after.find('button'), after.find('ol')
+        self.assertNotIn('hidden', shown)
+        for width in (320,) + WIDTHS:
+            e = env(width)
+            with self.subTest(width=width, state='after archive.js'):
+                self.assertTrue(displayed(shown, self.rules, e))
+                self.assertEqual(computed(shown, 'display', self.rules, e), 'inline-flex')
+                self.assertEqual(min_block(shown, self.rules, e), 44.0)
+                self.assertEqual(computed(shown, 'margin-top', self.rules, e), '4px')
+                self.assertEqual(computed(shown, 'margin-right', self.rules, e), '24px')    # .arc-all-btn:not([hidden]); nothing follows it here
+                self.assertIsNone(computed(shown, 'margin-left', self.rules, e))
+                self.assertSizeUntouched(shown, e, allowed=('margin', 'margin-right'))
+                self.assertEqual([displayed(li, self.rules, e) for li in list_.elements()], [True] * 8 + [False] * 4)
+                self.assertEqual([li['data-key'] for li in list_.elements() if not displayed(li, self.rules, e)],
+                                 [SLUGS[k] for k in ('spring', 'undated', 'goal', 'idea')])
+        # opened again (the class toggled off, aria-expanded true): every row is back, the button stays
+        opened = Doc(piece.replace(' hidden>Show all 10', '>Show fewer').replace('aria-expanded="false"', 'aria-expanded="true"'))
+        for width in (390, 1024):
+            e = env(width)
+            self.assertEqual([displayed(li, self.rules, e) for li in opened.find('ol').elements()], [True] * 12)
+            self.assertTrue(displayed(opened.find('button'), self.rules, e))
+        # archive.css: the two rules of the button's margins, as the Map page has them
+        mine = parse_css(source('css', 'pages', 'archive.css'))[0]
+        self.assertEqual([(r.selector, dict((k, v[0]) for k, v in r.decls.items())) for r in mine
+                          if 'arc-all-btn' in r.selector and any(p.startswith('margin') for p in r.decls)],
+                         [('.arc-all-btn', {'margin-top': '4px'}), ('.arc-all-btn:not([hidden])', {'margin-right': '24px'})])
+
+    def test_the_other_regions_links_of_a_region_page(self):
+        # the browse-row markup of the Trips page, so its rules apply: 44 px high as a real box, and a hit area at least
+        # 44 px wide that moves no link (16 px apart)
+        for url in REGION_PAGES:
+            nav = self.nodes(url, cls='reg-others', tag='nav')[0]
+            links = nav.find_all('a')
+            self.assertEqual(len(links), 2)                                # the other region page, then the Map page
+            self.assertEqual([inside(a, 'trx-bgroup') for a in links], [True, True])
+            self.assertTargets(url, links, widths=(320,) + WIDTHS)
+            label = nav.find('span', cls='t-label')
+            for width in (320,) + WIDTHS:
+                e = env(width)
+                with self.subTest(page=url, width=width):
+                    self.assertEqual(computed(label, 'line-height', self.rules, e), '44px')
+                    self.assertEqual(computed(nav.find('ul'), 'column-gap', self.rules, e), '16px')
+                    self.assertEqual(computed(nav.find('div', cls='trx-browse'), 'display', self.rules, e), 'flex')
+                    for a in links:
+                        self.assertEqual(a.parent.tag, 'li')
+                        self.assertSizeUntouched(a, e)
+                        self.assertEqual(computed(a, 'display', self.rules, e), 'inline-flex')
+                        for words in (28.0, 43.8, 44.0, 96.3, 130.6):
+                            wide, high, left, right, up, down = self.hit_box(a, words, 44.0, e)
+                            self.assertAlmostEqual(wide, max(words, 44.0))
+                            self.assertEqual((high, up, down), (44.0, 0.0, 0.0))
+                            self.assertAlmostEqual(left, right)
+        # the same rules as the Trips page's own browse links, element for element
+        theirs = self.nodes('trips/', tag='a', within='trx-bgroup')[0]
+        mine = self.nodes(REGION_PAGES[0], tag='a', within='trx-bgroup')[0]
+        for width in (320,) + WIDTHS:
+            e = env(width)
+            for prop in ('min-height', 'display', 'align-items', 'gap', 'font', 'font-size', 'color', 'position'):
+                self.assertEqual(computed(mine, prop, self.rules, e), computed(theirs, prop, self.rules, e), prop)
+
+    def test_the_links_into_the_explorer_are_44_px_and_every_control_is_in_a_known_component(self):
+        for url in REGION_PAGES:
+            links = [n.find('a') for n in self.nodes(url, cls='reg-x')]
+            self.assertTrue(all('alink' in a.classes for a in links))
+            self.assertTargets(url, links, widths=(320,) + WIDTHS)
+            for n in self.nodes(url, cls='reg-x'):
+                for width in (320,) + WIDTHS:
+                    self.assertEqual(computed(n, 'margin-top', self.rules, env(width)), '12px')
+        # every link and button a region page has in <main> that is not one line of running text has a 44 px box or a
+        # hit area of its own: rows, cards, chips, the crumbs, the browse links. What is new here is listed above; the
+        # rest are components other pages use and other tests measure. Nothing on the page is a bare text link
+        # (REVISED in round 2: the list beside the map is the Map page's, with its 'Show all' button; the first round's
+        # link down to the table, a.arc-reg-a, is not on a region page)
+        known = ('crumbs', 'arc-rows', 'map', 'tcard', 'arc-filt', 'arc-years', 'rtab', 'trx-bgroup', 'reg-x', 'arc-all-btn')
+        met = set()
+        for url in REGION_PAGES:
+            for node in page_doc(url).by_id('main').walk():
+                if node.tag in ('a', 'button'):
+                    self.assertTrue(any(inside(node, cls) for cls in known), '%r on %s is in none of the known components' % (node, url))
+                    met.update(cls for cls in known if inside(node, cls))
+                    self.assertFalse(inside(node, 'arc-reg-a'), '%r on %s' % (node, url))
+        self.assertEqual(met, set(known))                    # the fixture's pages have a control of every one of them
+
+    def test_a_region_pages_featured_cards_keep_the_cover_rules(self):
+        # ul.reg-cards.tgrid of core.trip_card items: the grid of the report pages' 'More like this' (1 / 2 / 3 columns
+        # at 560 and 1200 px), and inside each card the cover rules written for an <img> in its link, which still reach
+        # it through the phone-only <picture> wrapper (display: contents)
+        grid = self.nodes(REGION_PAGES[0], cls='reg-cards', tag='ul')[0]
+        self.assertEqual(grid.classes, ['reg-cards', 'tgrid'])
+        cards = grid.elements()
+        self.assertEqual([c.classes for c in cards], [['tcard']] * 3)
+        for width, columns in ((320, None), (390, None), (559, None), (560, 'repeat(2, minmax(0, 1fr))'), (800, 'repeat(2, minmax(0, 1fr))'),
+                               (1199, 'repeat(2, minmax(0, 1fr))'), (1200, 'repeat(3, minmax(0, 1fr))'), (1300, 'repeat(3, minmax(0, 1fr))')):
+            e = env(width)
+            with self.subTest(width=width):
+                self.assertEqual(computed(grid, 'display', self.rules, e), 'grid')
+                self.assertEqual(computed(grid, 'grid-template-columns', self.rules, e), columns)
+                for card in cards:
+                    # a row card on a phone (photo beside the text), a column card from 560 px
+                    self.assertEqual(computed(card, 'display', self.rules, e), 'grid' if width < 560 else 'flex')
+        pics = grid.find_all('picture')
+        self.assertEqual([p['class'] for p in pics], ['cover-pic', 'cover-pic'])
+        covers = grid.find_all('img', cls='cover-img')
+        self.assertEqual(len(covers), 3)
+        # two covers are wrapped (the story's and the tour's have a card-size copy), one is bare (the crag's)
+        self.assertEqual([img.parent.tag for img in covers], ['picture', 'picture', 'a'])
+        self.assertEqual([img.parent for img in covers][:2], pics)
+        # each wrapper's phone source declares the slot as 106 px (core.CARD_PHONE_SIZES), the <img> string ends with 112 px
+        for pic in pics:
+            self.assertEqual((pic.find('source')['sizes'], pic.find('source')['media']), ('106px', '(max-width: 559.98px)'))
+            self.assertTrue(pic.find('img')['sizes'].endswith(', 112px'))
+        for width in (390, 800, 1300):
+            e = env(width)
+            for pic in pics:
+                self.assertEqual(computed(pic, 'display', self.rules, e), 'contents')
+            for img in covers:
+                holder = img.parent if img.parent.tag == 'a' else img.parent.parent
+                self.assertEqual((holder.tag, holder.classes), ('a', ['tcard-img']))
+                self.assertEqual(computed(img, 'display', self.rules, e), 'block')
+                self.assertEqual(computed(img, 'width', self.rules, e), '100%')
+                self.assertEqual(computed(img, 'height', self.rules, e), '100%')
+                self.assertEqual(computed(img, 'object-fit', self.rules, e), 'cover')
+                self.assertEqual(computed(holder, 'aspect-ratio', self.rules, e), '4 / 3' if width < 560 else '3 / 2')
+                self.assertEqual(computed(holder, 'overflow', self.rules, e), 'hidden')
+        # region.css asks for no image as a direct child of anything, and sizes no image itself
+        mine = parse_css(source('css', 'pages', 'region.css'))[0]
+        self.assertEqual([r.selector for r in mine if re.search(r'\b(img|picture)\b|cover-', r.selector)], [])
+        self.assertEqual([r.selector for r in mine if '>' in r.selector or '+' in r.selector or '~' in r.selector], [])
+
+    def test_a_region_page_is_set_like_the_pages_it_borrows_from(self):
+        # contract-phase5.md section 5: the head is a section page's (the same room above the crumbs, the same Mono line
+        # under the h1) and the Featured row is the report pages' 'More like this' grid; region.css repeats those rules
+        # under its own names, and this holds the two to each other at every width
+        url = REGION_PAGES[0]
+        head, stats, h1 = self.nodes(url, cls='reg-head')[0], self.nodes(url, cls='reg-stats')[0], page_doc(url).find('h1')
+        sec_head, sec_stats = self.nodes('ski/', cls='sec-head')[0], self.nodes('ski/', cls='sec-stats')[0]
+        sec_row = self.nodes('ski/', cls='sec-h1row')[0]
+        cards, related = self.nodes(url, cls='reg-cards')[0], self.nodes(trip_url('story'), cls='rep-rel')[0]
+        self.assertIn('tgrid', related.classes)
+        for width in (320, 360, 390, 559, 560, 600, 759, 760, 800, 1024, 1199, 1200, 1300):
+            e = env(width)
+            with self.subTest(width=width):
+                self.assertEqual(computed(head, 'padding-top', self.rules, e), computed(sec_head, 'padding-top', self.rules, e))
+                self.assertEqual(computed(h1, 'margin-top', self.rules, e), computed(sec_row, 'margin-top', self.rules, e))
+                for prop in ('margin-top', 'font', 'font-size', 'line-height', 'letter-spacing', 'text-transform', 'color'):
+                    self.assertEqual(computed(stats, prop, self.rules, e), computed(sec_stats, prop, self.rules, e), prop)
+                    self.assertIsNotNone(computed(stats, 'font', self.rules, e))
+                for prop in ('display', 'grid-template-columns', 'gap', 'row-gap', 'margin-top'):
+                    self.assertEqual(computed(cards, prop, self.rules, e), computed(related, prop, self.rules, e), prop)
+
+    def test_region_css_is_in_the_published_stylesheet(self):
+        mine = parse_css(source('css', 'pages', 'region.css'))
+        self.assertEqual(mine[1], [])                                               # the reader reads every selector of it
+        published = {(r.selector, r.media) for r in self.rules}
+        for r in mine[0]:
+            self.assertIn((r.selector, r.media), published)
+        # every class it styles is one the region page writes: no rule is left without an element
+        html_ = self.pages[REGION_PAGES[0]]
+        for cls in sorted({m for r in mine[0] for m in re.findall(r'\.([a-z][\w-]*)', r.selector)}):
+            self.assertRegex(html_, r'class="[^"]*\b%s\b' % re.escape(cls), '.%s is styled and never written' % cls)
 
     def test_the_search_placeholder_is_cut_with_an_ellipsis(self):
         rules = parse_css(source('css', 'pages', 'trips.css'))[0]

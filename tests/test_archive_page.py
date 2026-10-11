@@ -12,10 +12,17 @@ meta.json and one placeholder fragment per region map. core.ROOT, content.RENDER
 site meta point at the temp dir while a test runs, so the real rendered/ and content/ are never read. Two regions have
 a region map (the panel variant), two do not (the list variant; one name has an apostrophe), a journal sits on no
 region map, and one tick-list goal is an active planned route. Every slug starts with syn-m-.
+
+Phase 5 (contract-phase5.md section 2), in RegionLinkTests: a panel whose region has a page of its own (regions/<slug>/:
+a region map and at least one published report) ends with one link to it; nothing else on the page changes, every
+anchor stays, and with no site registered the page is the old one. As revised in round 2, core.register_site records
+region pages only when it is handed the site meta (tools/build.py passes the one on disk): RegionLinkTests registers
+that way, the Phase 4 classes register without one, as every test helper does, and so build the page as it was.
 """
 import importlib
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -29,6 +36,8 @@ from sitegen import core  # noqa: E402
 
 import helpers  # noqa: E402
 from helpers import Doc, photo, LANDSCAPE, PORTRAIT  # noqa: E402
+
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
 
 MAPPED = ['Synthetic Range', 'Synthetic Coast']            # a region map each: the panel variant
 LISTED = ['Synthetic Desert', "Synthetic O'Plateau"]       # no region map: the list variant
@@ -55,8 +64,10 @@ def ancestors(node):
 
 
 class MapPageFixture(unittest.TestCase):
+    REGION_PAGES = False      # True: use() registers the site with its meta, as build.py does, so regions have their pages
 
     def setUp(self):
+        helpers.keep_state(self)      # the site (and, since Phase 5, the region pages) registered with core is gone afterwards
         self.archive = load_module(self, 'sitegen.pages.archive')
         self.build_mod = load_module(self, 'build')
         tmp = tempfile.TemporaryDirectory()
@@ -112,7 +123,8 @@ class MapPageFixture(unittest.TestCase):
 
     def use(self, mapped, all_regions, featured=(), only=None):
         """Write the site meta, load the temp trips (all of them, or the slugs in `only`) into a site as build.py does,
-        name the featured trips, register the site and build the map page."""
+        name the featured trips, register the site (with the meta when the class asks for region pages, else without
+        one: then no region has a page and nothing is read for it) and build the map page."""
         self.meta = self.write_meta(mapped, all_regions)
         patcher = mock.patch.object(core, '_SITE_META', [self.meta])
         patcher.start()
@@ -121,7 +133,7 @@ class MapPageFixture(unittest.TestCase):
         self.site = self.build_mod.site_of(helpers.newest_first(trips))
         self.by = self.site['by_slug']
         self.site['featured'] = [self.by[s] for s in featured]
-        core.register_site(self.site)
+        core.register_site(self.site, self.meta if self.REGION_PAGES else None)
         self.pages = self.archive.build(self.site)
         self.page = self.pages[0]
         self.doc = Doc(self.page.html)
@@ -356,6 +368,142 @@ class ShareImageTests(MapPageFixture):
         tags = core._share_tags(core.share_photo(self.by['syn-m-coast-a']))
         self.assertEqual(with_.count(tags), 1)
         self.assertEqual(with_.replace(tags, '<meta name="twitter:card" content="summary">'), without)
+
+
+# ---------------------------------------------------------------- Phase 5: the panel's link to the region's own page
+
+PLANS = 'Synthetic Plans'      # a region map and nothing but a planned route: a panel on map/, no page of its own
+SLUG[PLANS] = 'synthetic-plans'
+REG_LINK = re.compile(r'<a class="alink arc-reg-a" href="[^"]*">[^<]*<svg[^>]*>.*?</svg></a>')
+
+
+class RegionLinkTests(MapPageFixture):
+    REGION_PAGES = True
+
+    def setUp(self):
+        super().setUp()
+        helpers.make_trip(self.trips_dir, 'syn-m-plans-goal', title='Synthetic Plans Goal', activity='hike', kind='planned', region=PLANS)
+        self.use(MAPPED + [PLANS], MAPPED + [PLANS] + LISTED, featured=('syn-m-coast-a',))
+
+    def panel(self, name):
+        return self.one('region-' + SLUG[name])
+
+    def link_html(self, name, here='map/'):
+        return ('<a class="alink arc-reg-a" href="%s">All %s reports%s</a>'
+                % (core.link(here, 'regions/%s/' % SLUG[name]), core.esc(name), core.icon('arrow-right', 16)))
+
+    def test_the_fixture_has_two_regions_with_a_page_and_three_without(self):
+        self.assertEqual(core._REGION_PAGES, {'Synthetic Range': 'synthetic-range', 'Synthetic Coast': 'synthetic-coast'})
+        self.assertEqual(self.meta, core.read_site_meta())            # the meta build.py would hand over: the file in the temp dir
+        self.assertEqual(len(self.main.find_all('div', cls='arc-panel')), 3)
+        self.assertEqual(len(self.main.find_all('div', cls='arc-oreg')), 2)
+
+    def test_a_test_of_this_class_leaves_no_region_page_registered(self):
+        helpers.assert_puts_core_back(self, RegionLinkTests('test_the_fixture_has_two_regions_with_a_page_and_three_without'))
+
+    def test_a_panel_whose_region_has_a_page_ends_with_one_link_to_it(self):
+        for name in MAPPED:
+            with self.subTest(region=name):
+                links = self.panel(name).find_all('a', cls='arc-reg-a')
+                self.assertEqual([(a.classes, a['href'], a.text()) for a in links],
+                                 [(['alink', 'arc-reg-a'], '../regions/%s/' % SLUG[name], 'All %s reports' % name)])
+                self.assertEqual(self.page.html.count(self.link_html(name)), 1)
+                # after the rows, the last thing in the list's box (.arc-inreg), which closes the panel
+                box = self.panel(name).find('div', cls='arc-inreg')
+                self.assertEqual([(n.tag, n.classes) for n in box.elements()],
+                                 [('div', ['arc-inreg-h']), ('ol', ['arc-rows']), ('a', ['alink', 'arc-reg-a'])])
+                self.assertIn('</li></ol>' + self.link_html(name) + '</div></div></div></div>', self.page.html)
+        self.assertEqual(len(self.doc.find_all('a', cls='arc-reg-a')), 2)
+
+    def test_a_panel_whose_region_has_no_page_has_no_link(self):
+        # a region map and a planned route only: a panel, a tab, an anchor, and no page of its own
+        panel = self.panel(PLANS)
+        self.assertEqual(panel.classes, ['arc-panel'])
+        self.assertEqual(panel.find_all('a', cls='arc-reg-a'), [])
+        self.assertEqual([n.tag for n in panel.find('div', cls='arc-inreg').elements()], ['div', 'ol'])
+        self.assertNotIn('regions/%s/' % SLUG[PLANS], self.page.html)
+
+    def test_the_not_on_a_region_map_block_is_untouched(self):
+        other = self.one('other-places')
+        self.assertEqual(other.find_all('a', cls='arc-reg-a'), [])
+        for name in LISTED:
+            self.assertEqual(self.one('region-' + SLUG[name]).classes, ['arc-oreg'])
+            self.assertNotIn('regions/%s/' % SLUG[name], self.page.html)
+        self.assertEqual(len(self.one('all-reports').find_all('a', cls='arc-reg-a')), 0)
+
+    def test_the_link_follows_the_show_all_button_when_there_is_one(self):
+        for k in range(8):
+            helpers.make_trip(self.trips_dir, 'syn-m-range-x%d' % k, title='Synthetic Range Extra %d' % k, activity='hike',
+                              date='2022-01-%02d' % (k + 1), region='Synthetic Range', track=True)
+        self.use(MAPPED + [PLANS], MAPPED + [PLANS] + LISTED)
+        box = self.panel('Synthetic Range').find('div', cls='arc-inreg')
+        self.assertEqual([(n.tag, n.classes) for n in box.elements()],
+                         [('div', ['arc-inreg-h']), ('ol', ['arc-rows']), ('button', ['alink', 'arc-all-btn']), ('a', ['alink', 'arc-reg-a'])])
+        button = box.find('button')
+        self.assertEqual((button.text(), 'hidden' in button, button['aria-controls']), ('Show all 11', True, 'arc-rows-synthetic-range'))
+        self.assertIn('</button>' + self.link_html('Synthetic Range') + '</div>', self.page.html)
+        self.assertEqual(len(box.find('ol').find_all('li', cls='arc-more')), 3)       # the rows 'Show all' opens are still there
+
+    def test_every_anchor_and_tab_stays(self):
+        ids = [n['id'] for n in self.doc.root.walk() if n['id']]
+        self.assertEqual(sorted(i for i in ids if i.startswith('region-')), sorted('region-' + SLUG[r] for r in MAPPED + [PLANS] + LISTED))
+        self.assertEqual(sorted(ids), sorted(set(ids)))
+        tabs = self.main.find_all('button', attrs={'role': 'tab'})
+        self.assertEqual([b['aria-controls'] for b in tabs], ['region-' + SLUG[r] for r in MAPPED + [PLANS]])
+        for wanted in ('all-reports', 'other-places'):
+            self.one(wanted)
+        for name in MAPPED + [PLANS] + LISTED:
+            self.assertEqual(core.region_map_href('', name), 'map/#region-' + SLUG[name])      # every old link still lands
+
+    def test_with_no_site_registered_the_page_is_the_old_one(self):
+        with_pages = self.page.html
+        core._REGION_PAGES.clear()
+        old = self.archive.build(self.site)[0].html
+        self.assertNotIn('arc-reg-a', old)
+        self.assertNotIn('regions/', old)
+        # the two links are the page's whole difference
+        self.assertEqual(len(REG_LINK.findall(with_pages)), 2)
+        self.assertEqual(REG_LINK.sub('', with_pages), old)
+        self.assertEqual(with_pages.replace(self.link_html('Synthetic Range'), '').replace(self.link_html('Synthetic Coast'), ''), old)
+        # and a page built while no region has a page is the page of a site that never has one
+        with mock.patch.object(core, 'region_page_href', lambda here, region: None):
+            core.register_site(self.site, self.meta)
+            self.assertEqual(self.archive.build(self.site)[0].html, old)
+
+    def test_registered_without_a_site_meta_the_page_is_the_old_one(self):
+        # REVISED in round 2: what every test helper does (core.register_site(site)). The region maps are in core's own
+        # copy of the meta and in the file under core.ROOT all the same; neither gives a region a page
+        with_pages = self.page.html
+        core.register_site(self.site)
+        self.assertEqual(core._REGION_PAGES, {})
+        old = self.archive.build(self.site)[0].html
+        self.assertNotIn('arc-reg-a', old)
+        self.assertNotIn('regions/', old)
+        self.assertEqual(REG_LINK.sub('', with_pages), old)
+        self.assertEqual(len(self.main.find_all('div', cls='arc-panel')), len(Doc(old).by_id('main').find_all('div', cls='arc-panel')))
+        # the Phase 4 classes of this file build that page: their fixture registers without a meta
+        self.assertFalse(MapPageFixture.REGION_PAGES)
+        self.assertTrue(AnchorTests.REGION_PAGES is False and ShareImageTests.REGION_PAGES is False)
+        # with the meta handed over again the links are back
+        core.register_site(self.site, self.meta)
+        self.assertEqual(self.archive.build(self.site)[0].html, with_pages)
+
+    def test_a_site_whose_region_maps_have_no_report_gets_no_link(self):
+        self.use([PLANS], [PLANS] + MAPPED + LISTED)
+        self.assertEqual(core._REGION_PAGES, {})
+        self.assertNotIn('arc-reg-a', self.page.html)
+        self.assertEqual(self.panel(PLANS).classes, ['arc-panel'])
+
+    def test_the_region_name_in_the_link_is_escaped(self):
+        name = "Synthetic O'Peak & <Co>"
+        SLUG[name] = 'synthetic-opeak-co'
+        self.addCleanup(SLUG.pop, name)
+        helpers.make_trip(self.trips_dir, 'syn-m-peak-a', title='Synthetic Peak A', activity='climb', date='2021-05-05', region=name, track=True)
+        self.use(MAPPED + [name], MAPPED + [name] + LISTED)
+        a = self.panel(name).find('a', cls='arc-reg-a')
+        self.assertEqual((a['href'], a.text()), ('../regions/synthetic-opeak-co/', "All Synthetic O'Peak & <Co> reports"))
+        self.assertIn('href="../regions/synthetic-opeak-co/">All Synthetic O&#x27;Peak &amp; &lt;Co&gt; reports<svg', self.page.html)
+        self.assertEqual(self.doc.find_all('co'), [])
 
 
 if __name__ == '__main__':

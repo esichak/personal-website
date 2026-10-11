@@ -32,6 +32,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc, PCT_PROSE, photo, LANDSCAPE, PORTRAIT  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 WRITEUP = 'Skinned up from the lake before dawn and skied the couloir on firm, edgeable snow.'
 DAY_PROSE = 'Crossed the Col du Chardonnet in a cold wind and reached the hut by four.'
 REGIONS = ['Eastern Sierra', 'Alps', 'Pacific Crest Trail']   # most reports first: 4, 2, 1
@@ -414,7 +416,9 @@ class ExplorerPageTests(ExplorerFixture):
         # contract-phase4.md 10.5 (it replaces 5.3, under which the copy led the <img>'s own srcset and a 1x desktop
         # screen took it for the 400 px slot): on trips/ a cover with a .th copy is wrapped in <picture class="cover-pic">
         # whose one <source> applies below 560 px and lists the copy first, at its real width (427 px for a 1600 x 1200
-        # photo), for the 112 px slot; the <img> keeps its two candidates and TRX_SIZES
+        # photo), for the 112 px slot; the <img> keeps its two candidates and TRX_SIZES. contract-phase5.md section 5:
+        # the source declares that slot as 106 px (core.CARD_PHONE_SIZES), so a 3x phone takes the 320 px copy of a
+        # portrait or square cover; the <img>'s own string still ends with the real 112 px
         sizes = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
         self.assertEqual(self.trips_mod.TRX_SIZES, sizes)
         base = '../trips/west-couloir/photos/'
@@ -437,7 +441,8 @@ class ExplorerPageTests(ExplorerFixture):
         pic = link_.find('picture')
         self.assertEqual((pic.classes, [n.tag for n in pic.elements()]), (['cover-pic'], ['source', 'img']))
         source = pic.find('source')
-        self.assertEqual((source['media'], source['sizes']), ('(max-width: 559.98px)', '112px'))
+        self.assertEqual((source['media'], source['sizes']), ('(max-width: 559.98px)', '106px'))
+        self.assertEqual((source['sizes'], img['sizes'].rsplit(', ', 1)[1]), (core.CARD_PHONE_SIZES, core.CARD_PHONE_SLOT))
         self.assertEqual(source['srcset'], '%s02.th.webp 427w, %s' % (base, two))
         self.assertEqual(sorted(source.attrs), ['media', 'sizes', 'srcset'])
         # it is the page's only wrapper (no other report has the copy), and nothing else on the page names the file
@@ -766,8 +771,8 @@ class TripCardTests(ExplorerFixture):
         self.assertEqual([n.tag for n in doc.find('a', cls='tcard-img').elements()], ['picture'])
         self.assertEqual(doc.find('picture').classes, ['cover-pic'])
         self.assertEqual(doc.find('source')['srcset'], '%s02.th.webp 427w, %s' % (base, two))
-        self.assertEqual((doc.find('source')['media'], doc.find('source')['sizes']), ('(max-width: 559.98px)', '112px'))
-        self.assertEqual((doc.find('img')['srcset'], doc.find('img')['sizes']), (two, card_sizes))
+        self.assertEqual((doc.find('source')['media'], doc.find('source')['sizes']), ('(max-width: 559.98px)', '106px'))
+        self.assertEqual((doc.find('img')['srcset'], doc.find('img')['sizes']), (two, card_sizes))      # the <img> string: 112 px as before
         self.assertEqual(unwrap(card), without[card_sizes])
         self.assertEqual(card.count('.th.'), 1)
         # from another folder depth the three candidates of the source move together, and the two of the <img>
@@ -781,6 +786,9 @@ class TripCardTests(ExplorerFixture):
         tall = helpers.load(self.tmp, 'tall-cover')
         doc = Doc(core.trip_card(tall, HERE, card_sizes))
         self.assertEqual(doc.find('source')['srcset'], ', '.join('../trips/tall-cover/photos/' + c for c in ('01.th.webp 320w', '01.sm.webp 600w', '01.webp 1200w')))
+        # ... which is why the source says 106 px: three times that is 318, within the 320 px of this copy
+        self.assertEqual(doc.find('source')['sizes'], '106px')
+        self.assertLessEqual(3 * int(doc.find('source')['sizes'][:-2]), 320)
         self.assertEqual(doc.find('img')['srcset'], ', '.join('../trips/tall-cover/photos/' + c for c in ('01.sm.webp 600w', '01.webp 1200w')))
         self.assertEqual(Doc(core.trip_card(tall, HERE, SIZES)).find_all('source'), [])
 
@@ -918,6 +926,138 @@ class TripCardTests(ExplorerFixture):
         li = self.card('dana-couloir', summary=True)
         self.assertIsNone(li.find(cls='tcard-ex'))
         self.assertIsNone(li.find(cls='tcard-exl'))
+
+
+# ---------------------------------------------------------------- Phase 5: "By region" links to a region's own page
+
+def legacy_browse(mod, site):
+    """trips.browse as it was at commit fb425ab (Phase 4), copied line for line: what the browse block was before a
+    region could have a page of its own."""
+    esc, link, here = core.esc, core.link, mod.HERE
+    pub = site['published']
+    acts = []
+    for a, lab in core.NAV:
+        k = sum(1 for t in pub if t['activity'] == a)
+        if k:
+            acts.append('<li><a href="%s">%s<span class="trx-bn">%s</span></a></li>' % (link(here, core.section_url(a)), esc(lab), mod.count_n(k)))
+    regs = []
+    for name, slug, k in mod.regions_of(pub):
+        href = core.region_map_href(here, name) or ('?region=%s' % slug)
+        regs.append('<li><a href="%s">%s<span class="trx-bn">%s</span></a></li>' % (href, esc(name), mod.count_n(k)))
+    years = ''.join('<li><a href="#y-%d">%d</a></li>' % (y, y) for y in mod.years_of(pub))
+    group = lambda lab, items: ('<div class="trx-bgroup"><span class="t-label">%s</span><ul>%s</ul></div>' % (lab, items)) if items else ''  # noqa: E731
+    return ('<nav class="trx-browse wrap" aria-label="Browse">%s%s%s</nav>'
+            % (group('By activity', ''.join(acts)), group('By region', ''.join(regs)), group('By year', years)))
+
+
+class RegionLinkTests(ExplorerFixture):
+    """contract-phase5.md section 2: a 'By region' browse link goes to regions/<slug>/ when the region has a page
+    (core.region_page_href), else to its place on map/ as before, else to this page's own filter. Here Eastern Sierra
+    has a region map and so a page, the Alps are on map/ without one, and the journal's region is on neither. With no
+    site registered, or with one registered without a site meta (REVISED in round 2: what every test helper does), the
+    block is byte for byte the old one (legacy_browse, a copy of the function body of fb425ab)."""
+
+    def setUp(self):
+        helpers.keep_state(self)              # the region page this class registers with core is gone afterwards
+        super().setUp()
+        self.trips_mod = load_trips_module(self)
+        meta = {'hash': '', 'maps': {'region-eastern-sierra-%s' % size: {'w': 100, 'h': 80} for size in ('desktop', 'phone')},
+                'regions': ['Eastern Sierra'], 'all_regions': ['Eastern Sierra', 'Alps', 'Lake Tahoe', 'Utah']}
+        patcher = mock.patch.object(core, '_SITE_META', [meta])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.meta = meta
+        core.register_site(self.site, meta)   # with the site meta, as build.py does: without it no region has a page
+
+    def region_links(self, html_):
+        nav = Doc(html_).find('nav', cls='trx-browse')
+        group = [g for g in nav.find_all('div', cls='trx-bgroup') if g.find('span', cls='t-label').text() == 'By region']
+        self.assertEqual(len(group), 1)
+        return [(a['href'], a.text()) for a in group[0].find_all('a')]
+
+    def test_a_region_with_a_page_links_to_it_and_the_others_as_before(self):
+        self.assertEqual(core._REGION_PAGES, {'Eastern Sierra': 'eastern-sierra'})
+        self.assertEqual(self.region_links(self.trips_mod.browse(self.site)),
+                         [('../regions/eastern-sierra/', 'Eastern Sierra, 4 reports'),           # its own page
+                          ('../map/#region-alps', 'Alps, 2 reports'),                             # on map/, no region map: no page
+                          ('?region=pacific-crest-trail', 'Pacific Crest Trail, 1 report')])      # on neither: this page's filter
+        page = pages_by_url(self.trips_mod.build(self.site))['trips/'].html
+        self.assertEqual(self.region_links(page), self.region_links(self.trips_mod.browse(self.site)))
+        self.assertEqual(page.count(self.trips_mod.browse(self.site)), 1)
+
+    def test_a_test_of_this_class_leaves_no_region_page_registered(self):
+        helpers.assert_puts_core_back(self, RegionLinkTests('test_a_region_with_a_page_links_to_it_and_the_others_as_before'))
+
+    def test_the_link_is_the_old_one_with_another_address(self):
+        new, old = self.trips_mod.browse(self.site), legacy_browse(self.trips_mod, self.site)
+        self.assertEqual(old.count('href="../map/#region-eastern-sierra"'), 1)
+        self.assertEqual(new, old.replace('href="../map/#region-eastern-sierra"', 'href="../regions/eastern-sierra/"'))
+        self.assertIn('<li><a href="../regions/eastern-sierra/">Eastern Sierra<span class="trx-bn">%s</span></a></li>' % self.trips_mod.count_n(4), new)
+
+    def test_with_no_site_registered_the_block_is_byte_for_byte_the_old_one(self):
+        core._REGION_PAGES.clear()
+        self.assertEqual(self.trips_mod.browse(self.site), legacy_browse(self.trips_mod, self.site))
+        self.assertEqual(self.region_links(self.trips_mod.browse(self.site)),
+                         [('../map/#region-eastern-sierra', 'Eastern Sierra, 4 reports'), ('../map/#region-alps', 'Alps, 2 reports'),
+                          ('?region=pacific-crest-trail', 'Pacific Crest Trail, 1 report')])
+        self.assertNotIn('regions/', pages_by_url(self.trips_mod.build(self.site))['trips/'].html)
+
+    def test_registered_without_a_site_meta_the_block_is_the_old_one_too(self):
+        # REVISED in round 2: the explorer fixture's own way (helpers.make_site). The region map is still in core's
+        # copy of the meta, and Eastern Sierra has no page for all that
+        with_page = self.trips_mod.browse(self.site)
+        for register in (lambda: core.register_site(self.site), lambda: helpers.make_site(self.site['trips'])):
+            core.register_site(self.site, self.meta)
+            self.assertEqual(core._REGION_PAGES, {'Eastern Sierra': 'eastern-sierra'})
+            register()
+            self.assertEqual(core._REGION_PAGES, {})
+            self.assertIn('region-eastern-sierra-desktop', core.site_meta()['maps'])
+            self.assertEqual(self.trips_mod.browse(self.site), legacy_browse(self.trips_mod, self.site))
+            self.assertNotIn('regions/', pages_by_url(self.trips_mod.build(self.site))['trips/'].html)
+        core.register_site(self.site, self.meta)
+        self.assertEqual(self.trips_mod.browse(self.site), with_page)
+
+    def test_the_count_beside_the_link_is_the_number_of_reports_the_region_page_lists(self):
+        # REVISED in round 2: the page lists every report whose `region` is the name (core.region_pages), which is what
+        # trips.regions_of counts for a region written one way
+        (name, slug, ts), = core.region_pages(self.site, self.meta)
+        self.assertEqual((name, slug), ('Eastern Sierra', 'eastern-sierra'))
+        counted = dict((n, k) for n, _s, k in self.trips_mod.regions_of(self.site['published']))
+        self.assertEqual(len([t for t in ts if t['kind'] != 'planned']), counted['Eastern Sierra'])
+        self.assertEqual(counted['Eastern Sierra'], 4)
+        self.assertIn(('../regions/eastern-sierra/', 'Eastern Sierra, 4 reports'), self.region_links(self.trips_mod.browse(self.site)))
+        self.assertEqual(sorted(t['slug'] for t in ts if t['kind'] != 'planned'),
+                         sorted(t['slug'] for t in self.site['published'] if t['region'] == 'Eastern Sierra'))
+
+    def test_a_region_page_changes_that_one_link_on_the_whole_page(self):
+        with_page = pages_by_url(self.trips_mod.build(self.site))
+        core._REGION_PAGES.clear()
+        without = pages_by_url(self.trips_mod.build(self.site))
+        self.assertEqual(sorted(with_page), sorted(without))
+        self.assertEqual(with_page['trips/'].html.count('regions/'), 1)
+        self.assertEqual(with_page['trips/'].html.replace('href="../regions/eastern-sierra/"', 'href="../map/#region-eastern-sierra"'),
+                         without['trips/'].html)
+        for url in ('trips/search.json', 'trips/journal.json'):
+            self.assertEqual(with_page[url].html, without[url].html)       # the search indexes know nothing of region pages
+            self.assertNotIn('regions/', with_page[url].html)
+
+    def test_without_any_region_map_no_link_changes(self):
+        # the explorer fixture's own meta (no region map at all): a registered site without region pages
+        plain = {'hash': '', 'maps': {}, 'regions': [], 'all_regions': list(REGIONS)}
+        with mock.patch.object(core, '_SITE_META', [plain]):
+            core.register_site(self.site, plain)
+            self.assertEqual(core._REGION_PAGES, {})
+            self.assertEqual(self.trips_mod.browse(self.site), legacy_browse(self.trips_mod, self.site))
+            self.assertEqual([h for h, _t in self.region_links(self.trips_mod.browse(self.site))],
+                             ['../map/#region-%s' % content.slugify(r) for r in REGIONS])
+
+    def test_the_page_is_asked_for_by_the_name_the_link_shows(self):
+        # trips.regions_of labels a region with the first spelling it meets; the page belongs to the name core recorded
+        asked = []
+        with mock.patch.object(core, 'region_page_href', lambda here, region: asked.append((here, region)) or None):
+            html_ = self.trips_mod.browse(self.site)
+        self.assertEqual(asked, [('trips/', r) for r in REGIONS])
+        self.assertEqual(html_, legacy_browse(self.trips_mod, self.site))
 
 
 if __name__ == '__main__':

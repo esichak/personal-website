@@ -2,9 +2,10 @@
 
 How to choose what the homepage shows, which photo fronts a trip's card and leads its report, what the card says, what
 the Trips page finds when someone searches, and which entries the PCT journal points to. It also covers checking the
-content before it is built (section 5), the optional publication dates (section 8) and what a shared link shows
-(section 9). All of it is done by editing two kinds of file (`content/home.json` and a trip's `index.md`) and running
-the commands in section 5. No Python edit is needed to feature, reorder or re-cover a trip, or to list PCT highlights.
+content before it is built (section 5), the optional publication dates (section 8), what a shared link shows
+(section 9) and the page that a region with a region map and a published report gets (section 11). All of it is done
+by editing two kinds of file (`content/home.json` and a trip's `index.md`) and running the commands in section 5. No
+Python edit is needed to feature, reorder or re-cover a trip, or to list PCT highlights.
 
 Adding a trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); how the generator works is in
 [DEVELOPING.md](DEVELOPING.md).
@@ -21,8 +22,9 @@ Adding a trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); how the generator wor
   no features the home page has no share image, and neither do About, Map, Trips and Tick list (section 9).
 - This file alone picks the homepage. `featured: true` in a trip's front matter still drives the Featured block
   on that trip's section page (Climb, Hike, MTB, Other; the Ski page has no Featured block; single-day trips with a
-  track only, so the flag on a multi-day trip, the PCT or a report without `track.gpx` does nothing), but it no longer
-  has any say over the homepage.
+  track only, so the flag on a multi-day trip, the PCT or a report without `track.gpx` does nothing there). On its
+  region's page it counts for a report of any kind, with or without a track: flagged reports come before unflagged
+  ones in the Featured row there, which holds three cards (11.3). It no longer has any say over the homepage.
 - If the file is missing, the build prints a warning naming `content/home.json` and falls back to the old pick
   (the newest published trip flagged `featured: true`, else the newest published trip). The build still succeeds, so
   GitHub would publish that fallback: keep the file in place.
@@ -101,9 +103,14 @@ least 6:5 wide (section 7.3), and the share image of the trip's page (section 9)
 
 **Card-size copies.** A photo comes as up to three files in `photos/`: the full one (`01.webp`), an 800 px copy
 (`01.sm.webp`) and a card-size copy (`01.th.webp`, 320 px on its short edge). `add_trip.py` writes all three for every
-photo it imports. On a phone the small cards (the Trips page, Recent outings, More like this) load the cover's
-card-size copy when the file is there and the 800 px copy when it is not, so a missing copy never breaks a page;
-those cards just load a larger file than they need. On wider screens the cards always load the 800 px copy. `validate.py` and every build name the covers that have none:
+photo it imports. On a phone the small cards (the Trips page, Recent outings, More like this, the Featured row of a
+region page) load the cover's card-size copy when the file is there and the 800 px copy when it is not, so a missing
+copy never breaks a page; those cards just load a larger file than they need. A card's photo is 112 px wide on a
+phone, and the page tells the phone 106 px: three times 106 is 318, so a phone with three pixels to the point still
+takes the card-size copy of a portrait or square cover, which is 320 px wide. On wider screens the cards are not
+offered the card-size copy. They load what they loaded before it existed: the 800 px copy on a standard screen, and
+the full file where a screen with two or three pixels to the point asks for more than the 800 px copy holds.
+`validate.py` and every build name the covers that have none:
 
 ```
 WARNING content/trips/<slug>/index.md: cover photos/01.webp has no card-size copy (.th); run python3 tools/thumbs.py <slug>
@@ -300,9 +307,9 @@ A warning line reads `WARNING <file>: <message>`. A warning never stops a build.
 | `unknown key 'plase' (did you mean 'place'?); nothing reads it` | a misspelt field name: the line is ignored. Inside a photo entry or `stats:` the message says where (`in photos[1]`, `in stats`). A misspelt key in `content/home.json` gets the same line, with that file named | Correct the name. |
 | `key 'place' is written twice in the front matter; only the last one is read` | a field name stands twice at the left margin of the front matter, in `index.md` or in a `days/NN.md` | Delete one of the two lines. |
 | `route_shape 'lollipop' is not one of loop, out-and-back, point-to-point; it is shown as written` | a `route_shape:` the site has no word for. `subtype:` is held to its own list in the same words: `subtype 'Scrambling' is not one of SUP, Rafting, Kayaking, Mountaineering; it is shown as written` | Use one of the listed words. |
-| `region 'Lake Taho' is not in rendered/site/meta.json, so the map page does not list it yet; run python3 tools/render.py --site --force` | a region the site maps do not know: a misspelling, or a new region | Correct the spelling. For a new region run the command as printed (needs the internet) and commit `rendered/site/`. Without `--force` the run can end before it rewrites the list of regions. |
-| `region 'nowhere range' is written 'Nowhere Range' on 1 other trip; the two are listed as different regions but share one filter value and one map anchor (nowhere-range)` | two spellings of one region, for example in capitals | Use one spelling on every trip. |
-| `the site maps under rendered/site/ still draw this trip, which is a draft: its line and title stay on the pages that show those maps (the home page, the Map page, an activity page) until python3 tools/render.py has been run and rendered/site/ committed` | a trip the region maps were drawn with has since become a draft. Those maps are on the home page, the Map page and the Ski page, and a build cannot redraw them (7.10). The same line reads `which has no track any more` after its `track.gpx` was deleted, and `which has no folder under content/trips any more` after its folder was removed; the file named is that trip's `index.md` even then. The build passes meanwhile. `--check` passes too for a report that only lost its `track.gpx`. For a draft or a removed trip that has a pin of its own on one of those maps it fails, with lines such as `BROKEN map/index.html -> ../trips/<slug>/` (7.10) | Run `python3 tools/render.py` (needs the internet), then stage `rendered` as step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md) gives for a run with no trip name. |
+| `region 'Lake Taho' is not in rendered/site/meta.json, so the map page does not list it yet; run python3 tools/render.py --site --force` | a region the site maps do not know: a misspelling, a new region, or a region that was renamed. When several trips are filed under it, the line names one of them and counts the others: `region 'Lake Taho' (and 2 more trips) is not in …` | Correct the spelling. When the warning of the next row is printed as well, the name is a second spelling of a region that is on the site: bring the trips to one spelling and do not run the command while two are in use, because after that render `build.py --check` fails (next row). For a new region run the command as printed (needs the internet) and commit `rendered/site/`. Without `--force` the run can end before it rewrites the list of regions. For a renamed region the same command draws the region map under the new name, which takes three trips with a track; until it has, the region's reports are on no region page (11.4). |
+| `region 'nowhere range' is written 'Nowhere Range' on 1 other trip; the two are listed as different regions but share one filter value and one map anchor (nowhere-range)` | two spellings of one region that give one address (the slug rule is in section 11: capitals, accents, apostrophes and other punctuation do not count). Once the region maps have been drawn with both spellings, the Map page has two blocks with one address, and the check fails with a `DUPLICATE IDS map/index.html: …` line that lists ids of the region, `region-nowhere-range` among them. Where the region has a map on the Ski page and ski reports are filed under both spellings, that page fails in the same way (`DUPLICATE IDS ski/index.html: …`), even before a render (11.4) | Use one spelling on every trip. A build is then enough for the check to pass, except where each spelling had a region map: there the maps have to be drawn again as well (`python3 tools/render.py`, needs the internet). |
+| `the site maps under rendered/site/ still draw this trip, which is a draft: its line and title stay on the pages that show those maps (the home page, the Map page, an activity page) until python3 tools/render.py has been run and rendered/site/ committed` | a trip the region maps were drawn with has since become a draft. Those maps are on the home page, the Map page, the region pages (section 11) and the Ski page, and a build cannot redraw them (7.10); the message does not name the region pages. The same line reads `which has no track any more` after its `track.gpx` was deleted, and `which has no folder under content/trips any more` after its folder was removed; the file named is that trip's `index.md` even then. The build passes meanwhile. `--check` passes too for a report that only lost its `track.gpx`. For a draft or a removed trip that has a pin of its own on one of those maps it fails, with lines such as `BROKEN map/index.html -> ../trips/<slug>/` and `BROKEN regions/<region>/index.html -> ../../trips/<slug>/` (7.10) | Run `python3 tools/render.py` (needs the internet), then stage `rendered` as step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md) gives for a run with no trip name. |
 | `date 2026-09-04 is before the day ahead of it (days/01.md, 2026-09-05); days are shown in file order` | the file named is a `days/NN.md` whose date is earlier than the day before it | Fix the date. |
 | `date 2026-09-20 is after the last day's date 2026-09-13 (days/02.md), so the page would end the trip before it starts` | `date:` in the `index.md` of a multi-day trip or a journal is later than the date of its last day file, and there is no `end_date:` line | Correct `date:`, or delete the line: the page then starts on the first day's date. |
 | `date 2026-09-03 is after the trip's end_date 2026-09-02 (index.md), so the page's dates end before this day` | the file named is a `days/NN.md` dated later than the `end_date:` in the trip's `index.md` | Correct `end_date:`, or the day's date. |
@@ -331,16 +338,24 @@ then `... N more`). It ends with `link check: OK`, or with `link check: N proble
 | `INDEX trips/search.json: …` (or `trips/journal.json`) | the search data names a trip without a page, or a PCT day without its anchor | See below. |
 | `GPX <file>: …` | a published GPX file is not, byte for byte, its source file in `content/`, or a multi-day trip's "Download all GPX" file does not hold its days' tracks as they are, holds no track at all, or is not well-formed XML | See below. |
 
-The two `BROKEN` lines are the ones a write-up usually causes. A `BROKEN` line on `index.html`, `map/index.html` or
-`ski/index.html` that points at `trips/<slug>/` has another cause: the trip was made a draft or deleted, and a region
-map still has a pin that links to its page. Run `python3 tools/render.py` (7.10). A photo missing from `photos/`, a
-misspelt `kind:`, an iCloud conflict copy of a day file (`days/02 2.md` beside `days/02.md`) and a multi-day trip
-whose day files all hold a route and no recorded track used to end here as well; all four are now errors (5.2).
+The two `BROKEN` lines are the ones a write-up usually causes. A `BROKEN` line on `index.html`, `map/index.html`,
+`regions/<region>/index.html` or `ski/index.html` that points at `trips/<slug>/` has another cause: the trip was made
+a draft or deleted, and a region map still has a pin that links to its page. Run `python3 tools/render.py` (7.10). A
+photo missing from `photos/`, a misspelt `kind:`, an iCloud conflict copy of a day file (`days/02 2.md` beside
+`days/02.md`) and a multi-day trip whose day files all hold a route and no recorded track used to end here as well;
+all four are now errors (5.2).
 
 A write-up can cause `DUPLICATE IDS` too: raw HTML in it with an `id=` that the page already uses, such as `map`,
 `stats`, `report`, `photos` or `title`. `<span id="map">` in a report's `index.md` gives
 `DUPLICATE IDS trips/<slug>/index.html: map`, and `validate.py` does not catch it. Remove the `id`, or give it another
 name.
+
+So can a region written two ways. A `DUPLICATE IDS map/index.html: …` line that lists `region-<slug>`, or a
+`DUPLICATE IDS ski/index.html: …` line whose ids carry a region's slug, means that two spellings of one region share
+that slug, such as `Lake Tahoe` and `lake tahoe`. `validate.py` names the pair in a warning (5.3:
+`region '…' is written '…' on N other trips; …`). Use one spelling on every trip and build again: the check then
+passes without a render, except where each spelling had a region map of its own, which takes a render as well
+(11.4).
 
 One `GPX` line can still come from the content: a day's GPX of a multi-day trip whose track is not well-formed XML,
 for example a track that uses a prefix such as `gpxtpx:` which the file's `<gpx>` tag does not declare. `validate.py`
@@ -354,9 +369,10 @@ there for `validate.py --site DIR`, which checks a folder however it was built.
 
 Apart from the track that is not well-formed, no content edit tried for this guide led to one of the last five lines
 (`META`, `SITEMAP`, `FEED`, `INDEX`, `GPX`) in a fresh `build.py --check`. There they point at the generator
-(`tools/sitegen/`, see [DEVELOPING.md](DEVELOPING.md)), not at a content file, and so does a `DUPLICATE IDS` line whose
-ids are in no write-up: do not push. `validate.py --site _site` prints them too when `_site` is older than the content,
-for example `GPX …: not the bytes of …` after a track changed since the build; build again.
+(`tools/sitegen/`, see [DEVELOPING.md](DEVELOPING.md)), not at a content file, and so does a `DUPLICATE IDS` line
+whose ids are neither in a write-up nor those of a region written two ways: do not push. `validate.py --site _site`
+prints them too when `_site` is older than the content, for example `GPX …: not the bytes of …` after a track changed
+since the build; build again.
 
 ## 6. Search and the Trips page
 
@@ -397,7 +413,8 @@ search_aliases: [PCT, Pacific Crest]
 
 When a search matches only in the write-up, the card shows the words around the first hit instead of its opening
 (and a day excerpt's DAY label is hidden); clearing the search restores the card. A region appears as a link in the
-browse block to its map panel once the map page has one; until then (the PCT) it links to the Trips page's own filter.
+browse block: to its own page when it has one (section 11), else to its list on the Map page, and when the Map page
+does not list it either (the PCT) to the Trips page's own filter.
 
 **Journal days.** A search also reads the days of the PCT journal on their own, every one of them. The days it finds
 are listed under "Journal days", after the reports, and the count line above the results
@@ -773,15 +790,28 @@ Three edits take a published report off the site, or part of it, at the next bui
   nor copies any of it, and a run of `python3 tools/render.py` with no trip name, or with that trip's, removes the
   folder.
 
-A build cannot take the trip off the region maps. The maps on the home page, the Map page and the Ski page are drawn
-by `render.py` and committed under `rendered/site/`, so they keep the trip's line and its title until
-`python3 tools/render.py` has been run (needs the internet) and `rendered/site/` committed. Until then `validate.py`
-and every build warn `the site maps under rendered/site/ still draw this trip, …` (5.3, which also says what to
-stage). The build passes all the same. `--check` does not always. Where a draft or a deleted trip has a pin of its
-own on one of those maps, the pin links to a page that is no longer built, and the check ends with lines such as
-`BROKEN map/index.html -> ../trips/<slug>/` and exit status 1. GitHub then publishes nothing, so the page and its
-downloads stay online. Where the pin is merged with others, and for a report that only lost its `track.gpx`, the
-check passes. So run `render.py` before the check, and stage `rendered` with the change.
+A draft or a deleted trip also leaves the lists and the counts of its region's page at that build, and the last
+report out of a region takes the page with it (section 11). A report that only lost its `track.gpx` stays on that
+page.
+
+A build cannot take the trip off the region maps. The maps on the home page, the Map page, the region pages and the
+Ski page are drawn by `render.py` and committed under `rendered/site/`, so they keep the trip's line and its title
+until `python3 tools/render.py` has been run (needs the internet) and `rendered/site/` committed. Until then
+`validate.py` and every build warn `the site maps under rendered/site/ still draw this trip, …` (5.3, which also says
+what to stage). The build passes all the same. `--check` does not always. Where a draft or a deleted trip has a pin
+of its own on one of those maps, the pin links to a page that is no longer built, and the check ends with lines such
+as `BROKEN map/index.html -> ../trips/<slug>/`, the same for its region's page
+(`BROKEN regions/<region>/index.html -> ../../trips/<slug>/`), and exit status 1. GitHub then publishes nothing, so
+the page and its downloads stay online. Where the pin is merged with others, and for a report that only lost its
+`track.gpx`, the check passes. It also passes when the trip was the last report of its region and no tick-list goal
+is filed under the region: no page shows that region's map any more, unless it is one of the two on the home page
+(11.4 has the other cases). So run `render.py` before the check, and stage `rendered` with the change.
+
+That run can take more than the trip's line off the maps. It draws a region map only for a region with three trips
+with a track, so a region that the change leaves with fewer gets no map, and without the map it has no page: its
+remaining reports are listed on the Map page under "Not on a region map", and their links to the region lead there
+(11.4). That holds for a report that only lost its `track.gpx` as well, because it no longer counts as one of the
+three.
 
 A report that something else names cannot be made a draft or deleted on its own. The build stops, so the site stays as
 it was, until the other file is changed as well:
@@ -863,6 +893,7 @@ and one image. Nothing in this section needs a new field.
 | a trip's own page: a single-day report on either layout, a multi-day trip, the PCT, a goal page | the trip's cover (section 3), whether or not it leads the page; none when the trip has no photo |
 | home | the lead card's cover: the first slug in `content/home.json` |
 | an activity page (Ski, Climb, Hike, MTB, Other) | the cover of its Featured trip when that trip has a photo, else of the first trip on the page that has one |
+| a region page (section 11) | the cover of the first report in its Featured row that has a photo, else of the newest report on the page that has one; when no report of the region has a photo, the image of the next row |
 | About, Map, Trips, Tick list | they have no photo of their own, so: the cover of the first featured trip, the first slug in `content/home.json` |
 | the 404 page and the full-screen map pages | none |
 
@@ -947,3 +978,221 @@ git add "content/trips/<slug>/index.md" "content/trips/<slug>/photos/03.th.webp"
 git status --short
 git commit -m "Change the cover of <trip>" && git push
 ```
+
+## 11. Region pages
+
+A region that has a region map and at least one published report has a page of its own at `regions/<slug>/`. The
+slug is made from the region's name, and it is the same one as in `map/#region-<slug>`: the name in lower case, with
+accents folded to plain letters and apostrophes dropped; a character with no plain-letter form (an en dash, `ø`, a
+letter of another script) is dropped as well; every run of what is then neither a letter nor a digit becomes one
+hyphen, and hyphens at the two ends are removed. Lake Tahoe is `regions/lake-tahoe/`, and a region named
+`Val d'Isère` would be `regions/val-disere/`. Two names that come out the same share one slug (11.4): `Lake Tahoe` and
+`lake tahoe`, or `St. Moritz` and `St Moritz`. Eight regions have a page today: Lake Tahoe, Santa Cruz, Eastern Sierra, Bay Area, Boise, Alps,
+Tetons and Oregon. There is no `regions/` page that lists them: the Map page is their parent, and every region page
+links to the others.
+
+Nothing is written for a region. The page has no file in `content/` and no text of its own. Everything on it is
+counted or copied from its trips (`region:`, `place:`, `date:` and `end_date:`, `featured:`, the titles, write-ups and
+covers), and its map is the region map `render.py` drew.
+
+### 11.1 Which regions get a page, and which trips are on it
+
+Two things make a page, and they come from different places.
+
+- **Whether a region has a page** comes from the region maps. `tools/render.py` draws a region map once a region has
+  three trips with a track (an active tick-list goal with a route counts as one; a journal and a report without a
+  track do not) and records the region in `rendered/site/meta.json`. While that file lists the region with a map,
+  every build makes the page, as long as at least one report is filed under the region: planned routes alone do not
+  make one. The published site has it once `rendered/site/` is committed and pushed.
+- **Which trips are on the page** comes from `content/` alone, at every build: every report and every active
+  tick-list goal whose `region:` is the region's name, letter for letter. A multi-day trip, a journal filed under the
+  region, a report without a track and a report added since the maps were last drawn are all on it. So, for a region
+  that is written one way on every trip, the page counts the reports the Trips page counts for it under "By region".
+  A region written two ways is the exception: the Trips page counts both spellings in one link, and the page lists
+  only the trips that spell the region as it does (11.4).
+
+The map on the page is not made from that list. It is the picture `render.py` last drew, so a new report's line and
+pin appear on it after the next render, exactly as on the Map page. The Map page's own list for a region still names
+the trips its map was drawn with. So that list has no report without a track and no journal, and between an edit and
+the next render it can differ from the region's page in other trips as well.
+
+- A region without a region map has no page. It is where it has always been: in the Map page's "Not on a region map"
+  list, at `map/#region-<slug>`. Utah, Arizona, Idaho, Minnesota, Washington and Yosemite are there today. A new
+  region is listed there once the command of the `region '…' is not in rendered/site/meta.json …` warning has been
+  run (5.3).
+- The PCT's region, Pacific Crest Trail, has no region map, because a journal is drawn on none. So it has no page.
+
+### 11.2 What the page shows
+
+In this order:
+
+1. **The head.** `Reports / Map / <Region>`, the region's name, and one line of counts and years:
+   `86 REPORTS · INCL. 8 MULTI-DAY · + 1 PLANNED ROUTE · 2022–2026` on Lake Tahoe's page today. The years run from the
+   earliest to the latest `date:` or `end_date:` of the reports, and one year is written once. A second line names
+   the places in capitals: each `place:` the reports state, the one on the most reports first and equal ones A to Z.
+   Two spellings that read the same in capitals (`Mount Rose` and `Mount rose`) are one place, and their reports are
+   counted together. Up to four are all named; with more, the first three and `N MORE`:
+   `TAHOMA · EMERALD BAY · KINGSBURY · 7 MORE` on Lake Tahoe's page today. A place too long for the line wraps at
+   its spaces, and a single word too long for a line is broken across lines. A region whose reports state no place
+   has no second line. That is all the introduction the page has.
+2. **The map**, with its caption and legend as on the Map page, and beside it the list the Map page has for a region:
+   "In this region", the counts again, and one row for every report and planned route of the page, newest first, the
+   planned routes last. The legend is the key to the map, not to the list: it names the activities of the reports the
+   map draws, and shows the planned-route line only when the map draws one. A report without a track, or a trip added
+   since the maps were last drawn, is in the list and adds nothing to the legend. (Only when none of the trips the
+   map draws is on the site any more is the legend made from the list.) Pointing at the row of a trip that is not on the map
+   leaves the map as it is; the row of a trip on the map picks out that trip's line and pin. A list of more than nine
+   rows shows its first eight with "Show all N" under them, N being the number of reports; pressed, the button shows
+   the rest and reads "Show fewer", and pressed again it folds the list back to eight rows.
+3. **Featured**: up to three cards (11.3).
+4. **All reports**: every report of the region by year, as in the Map page's table, with the activity filter when
+   the reports are of more than one activity, and the region's planned routes under "Planned". Under the table,
+   "Search and filter these in Trips" opens the Trips page with the region chosen.
+5. **Other regions**: a link to each other region page with its number of reports, then "Map & archive". The block is
+   left out when no other region has a page.
+
+With JavaScript off, the two links into the Trips page ("Search and filter these in Trips" and the one under the
+Featured cards) are not shown, because the Trips page applies its filters with a script. The activity filter and the
+"Show all N" button are not shown either: the table lists every report, and the list beside the map every row.
+
+### 11.3 The Featured row
+
+No list picks it. The row takes up to three of the region's reports, in this order:
+
+1. reports with `featured: true` in their `index.md`. It is the line that makes a single-day trip with a track
+   eligible for the Featured block of its activity page (section 1); here it counts on every kind of report: a
+   multi-day trip, a journal and a report without a track as well;
+2. reports whose write-ups come to at least 100 characters (the measure section 9 gives for structured data) and that
+   have a photo;
+3. reports with such a write-up and no photo.
+
+Within each step the newest comes first, and the row stops at three cards. So:
+
+- A flagged report is ahead of every unflagged one. The flag does not put it first in the row: flagged reports are in
+  date order among themselves, and of more than three only the three newest are shown. A fourth flagged report is
+  not in the row.
+- Among unflagged reports, one with a photo is ahead of one without, whatever their dates. A region without a flag
+  shows its newest written reports that have a photo, and one without a photo only when fewer than three have one.
+
+A report with neither the flag nor such a write-up is never in the row, a planned route never is, and a region with no
+candidate has no Featured section (Tetons and Oregon today). Each card carries the trip's summary (section 4).
+
+To put a report ahead of the unflagged ones, add `featured: true` to its `index.md`; to take it out of the first step,
+remove the line. A build is enough.
+
+"All N write-ups in Trips" under the cards opens the Trips page with the region and "Has a write-up" chosen. N is the
+number of the region's reports with a write-up of any length, and the link is there when N is two or more. It is part
+of the Featured section, so a region without a Featured row has no such link, however many short write-ups it has.
+
+### 11.4 When a page changes
+
+The lists and the counts of a region page follow `content/` at every build. Its map, and whether the region has a
+page at all, follow `rendered/site/meta.json`, which only `render.py` rewrites (11.1). So:
+
+- **A new report** is on its region's page at the next build: in the counts, in the list beside the map, in the
+  table and, when it qualifies, in the Featured row. That holds for a trip added with `--no-render` too. Its line and
+  pin are on the page's map once the region maps have been drawn again and `rendered/site/` is pushed with the trip
+  (step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md)). Until then the Map page's list for the region does not name it.
+- **A draft or a deleted trip** leaves the page's lists and counts at the next build, with no render. Its line stays
+  on the map until `python3 tools/render.py` has run, exactly as on the Map page, and `--check` fails meanwhile when
+  the trip has a pin of its own there (7.10).
+- **The last report out of a region** takes the page with it at the next build, whatever its map still draws. The
+  Map page keeps or drops its panel for the region by its own rule: it lists the trips the map was last drawn with
+  that are still on the site. So until the maps have been drawn again the two can differ:
+  - Reports that were *moved* to another region are still in the Map page's panel for the old one, the home page's
+    `ALSO` row still names it, and `build.py --check` passes.
+  - When the reports were *drafted or deleted* and nothing the map draws is left on the site, the panel goes as
+    well, and with it the region's item in the `ALSO` row. The check then passes unless a page still links to the
+    panel's address: a tick-list goal that is filed under the region and is not on its map, or the home page when
+    the region is one of the two whose maps it shows (Lake Tahoe and Eastern Sierra). The check names the page:
+    `BROKEN ANCHOR <page> -> …map/#region-<slug>`. `validate.py` goes on warning
+    `the site maps under rendered/site/ still draw this trip, …` (5.3) either way.
+  - A tick-list goal that the map draws keeps the panel, which then lists the goal alone. A drafted or deleted
+    trip's own pin on that map fails the check there as it does anywhere else (7.10).
+
+  `python3 tools/render.py` (needs the internet), with `rendered` staged afterwards, brings the maps and the lists
+  back in step in each case.
+- **A region that falls under three trips with a track** keeps its page until the maps are drawn again. That run
+  draws no map for it, so the page goes, a saved link to it no longer finds it, and the region is back in the Map
+  page's "Not on a region map" list.
+- **A report without a track** is on its region's page like any other: in the counts, the list and the table. It has
+  no line on the map, and the page's description no longer promises a GPX track for every report (11.6). After the
+  `track.gpx` of a report is deleted, the map keeps its line until the next render (7.10).
+- **A report moved to another region** leaves the old region's page at the next build and is on the new region's
+  page at once, when that region has one. The two maps, and the Map page's two lists, follow with the next render.
+- **Another spelling is another region.** A report filed under `Lake Taho` leaves Lake Tahoe's page at the next build
+  and is on no region page. Its breadcrumb has no region link, the Trips page lists `Lake Taho` as a region of its
+  own, and `validate.py` gives the `region 'Lake Taho' is not in rendered/site/meta.json …` warning (5.3). Correct the
+  spelling: left as it is, a spelling gets a map and a page of its own only with three trips with a track. A spelling
+  that comes out as the same slug (`lake tahoe`; the rule is at the top of this section) is still another region.
+  That report is not on the page either, and its breadcrumb leads to `map/#region-lake-tahoe`. The Trips page counts
+  both spellings in one "By region" link, which takes the spelling of the newest report and leads to the region's page
+  only when that spelling is the page's. `validate.py` gives two warnings for such a report (5.3): the one above,
+  which asks for a render, and `region 'lake tahoe' is written 'Lake Tahoe' on N other trips; …`. Do not run that
+  render for a second spelling. Once the maps know both spellings, the Map page has two blocks with one address and
+  `build.py --check` fails with a `DUPLICATE IDS map/index.html: …` line that lists ids of the region,
+  `region-lake-tahoe` among them. When ski reports are filed under both spellings and the region has a map on the Ski
+  page, that page fails in the same way, with a `DUPLICATE IDS ski/index.html: …` line, even before a render. GitHub
+  publishes nothing while the check fails. These lines do not point at the generator (5.4): the fix is one spelling
+  on every trip. The check then passes at the next build, with no render, and the report is on the region's page.
+  Only where each spelling had a region map of its own when the maps were drawn does it take a render as well.
+- **A renamed region.** The page's address is made from the name (the rule is at the top of this section), and
+  nothing redirects an old address. Change `region:` on every trip of the region. At the next build the old name's
+  page is gone, because the page lists by the exact name and no report is filed under that name any more, and the
+  reports are on no region page. `validate.py` gives the warning of 5.3, which names one trip and counts the rest:
+  `region '<new name>' (and 4 more trips) is not in rendered/site/meta.json, …`. The build and `build.py --check`
+  pass on this site (the home page's "N more regions" link needs the Map page's "Not on a region map" block, which
+  the PCT journal and the regions without a map keep there). What the site shows meanwhile, and what the render brings back, depend on whether the address changes:
+  - *The new name gives a new slug* (`Bay Area` to `East Bay`). The new name has no region map yet. Meanwhile the Map
+    page still shows the region under its old name, with the trips its map was drawn with, and the home page's `ALSO`
+    row still names it so; the renamed reports have no region link in their breadcrumb; and the Trips page links
+    the new name to its own filter. Run the command the warning gives and commit `rendered/site/`. A new name with
+    three trips with a track then has a region map, and with it a page at the address made from the new name.
+    Nothing is left at the old address, neither a page nor a redirect, so a saved link to `regions/<old-slug>/` or to
+    `map/#region-<old-slug>` no longer finds the region.
+  - *The new name gives the same slug*: only capitals, an apostrophe, a hyphen or an accent change (`Bay Area` to
+    `Bay area`). Meanwhile the breadcrumbs of the renamed reports and the Trips page's "By region" link lead to
+    `map/#region-<slug>`, where the Map page still shows the region under its old spelling, as the home page's `ALSO`
+    row does. Run the command the warning gives and commit `rendered/site/`. The page is then back at the address it
+    had, under the new spelling, so a saved link to `regions/<slug>/` finds the region again; `map/#region-<slug>`
+    never stopped working.
+
+  The home page's two region maps are named in the generator (`HOME_REGIONS` in `tools/sitegen/pages/home.py`: Lake
+  Tahoe and Eastern Sierra), so renaming one of those takes an edit there too. Without it, after a rename that
+  changes the slug, the home page keeps the map under the old name, which is no longer a link, until the maps are
+  drawn again, and shows no map for the region from then on. After a rename that keeps the slug, the home page goes
+  on showing the map, before and after the render, under the old spelling and without a link on the name, and once
+  the maps are drawn again the `ALSO` row names the region a second time, in the new spelling.
+
+### 11.5 Links to a region page
+
+Where a region has a page, these lead to it and no longer to the Map page:
+
+- the region at the end of a breadcrumb, on a single-day report, a multi-day trip, a journal and a tick-list goal;
+- the "By region" links on the Trips page;
+- the regions in the home page's `ALSO` row (the row names a region that has a region map only while it has a page
+  or the Map page has a panel for it, 11.4);
+- the names over the home page's two region maps ("Open the map" beside each still opens the Map page).
+
+Two links read "All <Region> reports": a new one under each region's list on the Map page, and the link at the foot
+of a tick-list goal's page, which read "Open the map" before. A region page carries no such link to itself. A region
+without a page keeps the links it had, to `map/#region-<slug>`, and every `map/#region-<slug>` address still lands on
+the Map page as before. Each link goes by the region as the trip spells it, so a trip filed under another spelling
+keeps the link it had (11.4).
+
+### 11.6 Description, share image and preview
+
+The page's description, for search results and shared links, is one sentence made of the same counts. Today the
+Tetons page has
+`Tetons: 4 trip reports, 2026 (backcountry ski), with a map of the region and the full GPX track of each.` The end
+depends on the tracks. When every report of the region has one, it is as above, or
+`, with a map of the region and its full GPX track.` for a region with a single report. As soon as one report has no
+track, the sentence ends `, with a map of the region.` and promises no file. It never says that every report is on
+the map. The page's share image is in the table of section 9. The page is in the sitemap; it is not in the RSS feed
+or in the Trips page's search.
+
+Preview with `python3 tools/build.py --serve` and open http://localhost:8000/regions/lake-tahoe/. A build is enough
+for everything the page lists: a new report, a draft, a changed `region:`, `featured:`, `place:`, date or write-up.
+`render.py` (internet needed) and a commit of `rendered/site/` are needed for what the map draws, for a new region to
+get its map and with it its page, and for a renamed region to get them back. A region page has no files of its own,
+so there is nothing else to stage for it.

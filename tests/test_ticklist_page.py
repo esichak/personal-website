@@ -36,6 +36,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc, photo, LANDSCAPE, PORTRAIT  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 HERE = 'tick-list/'
 REGIONS = ['Alps', 'Boise', 'Eastern Sierra', 'Lake Tahoe']
 GOALS = ['ridge-idea', 'couloir-short', 'alps-someday', 'done-traverse', 'old-archived', 'legacy-ridge', 'tile-goal']

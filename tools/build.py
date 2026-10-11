@@ -29,7 +29,7 @@ import checks  # noqa: E402
 import goals  # noqa: E402
 
 OUT = os.path.join(ROOT, '_site')
-PAGE_MODULES = ['home', 'trips', 'ticklist', 'section', 'report', 'multiday', 'series', 'archive', 'about', 'notfound']
+PAGE_MODULES = ['home', 'trips', 'ticklist', 'section', 'report', 'multiday', 'series', 'archive', 'region', 'about', 'notfound']
 
 
 def _text(path):
@@ -252,7 +252,8 @@ def build(verbose=True, only=None):
     site = site_of(trips)
     # content/home.json picks the home page's featured trips; an invalid manifest stops the build here, before any page
     site['featured'] = curation.featured_for(site)
-    core.register_site(site)
+    # the site meta as it is on disk now decides which regions have a page (the region module reads the same file)
+    core.register_site(site, core.read_site_meta())
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT)

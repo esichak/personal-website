@@ -23,6 +23,8 @@ from sitegen import core  # noqa: E402,F401
 import helpers  # noqa: E402
 from helpers import photo, LANDSCAPE  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 NORM_CASES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'norm_cases.json')
 
 WRITEUP = ('Skinned up from the lake before dawn and skied the couloir on firm, edgeable snow. The exit apron had softened '

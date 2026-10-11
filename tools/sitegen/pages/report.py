@@ -112,7 +112,8 @@ def title_block(t, here, actions):
     else:
         crumbs = ['<a href="%s">Reports</a>' % link(here, ''), '<a href="%s">%s</a>' % (sec, esc(core.ACT[act][0]))]
         tags = core.trip_tags(t)
-    reg = core.region_map_href(here, t.get('region'))
+    # the region's own page when it has one (a region with a region map), else its place on map/
+    reg = core.region_page_href(here, t.get('region')) or core.region_map_href(here, t.get('region'))
     if reg:
         crumbs.append('<a href="%s">%s</a>' % (reg, esc(t['region'])))
     long_ = len(t['title']) > 28
@@ -315,10 +316,7 @@ def planned_pager(t, here, site):
     cells = ['<a class="prev" href="%s"><span class="pager-t"><span class="t-label pager-l">%s<span>%s</span></span>'
              '<span class="pager-n">All %s reports</span><span class="t-mono-s">%s</span></span></a>'
              % (link(here, core.section_url(act)), icon('arrow-left', 14), esc(word), esc(word.lower()), counts)]
-    reg = core.region_map_href(here, t.get('region'))
-    if reg:
-        cells.append('<a class="next" href="%s"><span class="pager-t"><span class="t-label pager-l"><span>%s</span>%s</span>'
-                     '<span class="pager-n">Open the map</span></span></a>' % (reg, esc(t['region']), icon('arrow-right', 14)))
+    cells += region_cell(t, here)
     return '<nav class="pager wrap sec" aria-label="More %s">%s</nav>' % (esc(word.lower()), ''.join(cells))
 
 
@@ -426,13 +424,22 @@ def goal_bottom_bar(t, has_notes):
     return '<nav class="bbar" aria-label="Goal sections" style="--n:%d">%s</nav>' % (k, out)
 
 
+def region_cell(t, here):
+    """The pager's second cell: the region's own page ('All <Region> reports') when it has one, else its place on map/
+    ('Open the map'); [] for a trip without a region, or one whose region is not on map/."""
+    own = core.region_page_href(here, t.get('region'))
+    reg = own or core.region_map_href(here, t.get('region'))
+    if not reg:
+        return []
+    text = ('All %s reports' % esc(t['region'])) if own else 'Open the map'
+    return ['<a class="next" href="%s"><span class="pager-t"><span class="t-label pager-l"><span>%s</span>%s</span>'
+            '<span class="pager-n">%s</span></span></a>' % (reg, esc(t['region']), icon('arrow-right', 14), text)]
+
+
 def goal_pager(t, here):
     cells = ['<a class="prev" href="%s"><span class="pager-t"><span class="t-label pager-l">%s<span>Tick list</span></span>'
              '<span class="pager-n">Back to the tick list</span></span></a>' % (link(here, 'tick-list/'), icon('arrow-left', 14))]
-    reg = core.region_map_href(here, t.get('region'))
-    if reg:
-        cells.append('<a class="next" href="%s"><span class="pager-t"><span class="t-label pager-l"><span>%s</span>%s</span>'
-                     '<span class="pager-n">Open the map</span></span></a>' % (reg, esc(t['region']), icon('arrow-right', 14)))
+    cells += region_cell(t, here)
     return '<nav class="pager wrap sec" aria-label="More goals">%s</nav>' % ''.join(cells)
 
 

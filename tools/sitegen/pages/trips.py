@@ -75,7 +75,8 @@ def head(site):
 
 
 def browse(site):
-    """Static links that work without JavaScript: activity pages, the map's region panels, the year groups below."""
+    """Static links that work without JavaScript: activity pages, the region pages (a region without one: its place on
+    map/), the year groups below."""
     pub = site['published']
     acts = []
     for a, lab in core.NAV:
@@ -84,8 +85,9 @@ def browse(site):
             acts.append('<li><a href="%s">%s<span class="trx-bn">%s</span></a></li>' % (link(HERE, core.section_url(a)), esc(lab), count_n(k)))
     regs = []
     for name, slug, k in regions_of(pub):
-        # a region with no panel or anchor on map/ (the PCT) links to this page's own filter instead
-        href = core.region_map_href(HERE, name) or ('?region=%s' % slug)
+        # a region's own page when it has one, else its place on map/; a region with neither (the PCT) links to this
+        # page's own filter instead
+        href = core.region_page_href(HERE, name) or core.region_map_href(HERE, name) or ('?region=%s' % slug)
         regs.append('<li><a href="%s">%s<span class="trx-bn">%s</span></a></li>' % (href, esc(name), count_n(k)))
     years = ''.join('<li><a href="#y-%d">%d</a></li>' % (y, y) for y in years_of(pub))
     group = lambda lab, items: ('<div class="trx-bgroup"><span class="t-label">%s</span><ul>%s</ul></div>' % (lab, items)) if items else ''  # noqa: E731

@@ -167,6 +167,12 @@
 .hom-regions { margin-top: 12px; display: grid; gap: 32px; }
 .hom-reg-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 2px; padding-bottom: 8px; }
 .hom-reg-n { grid-column: 1; font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+/* the name opens the region's own page. The link is as high as its 16 px line (an inline box would be the font's
+   14 px), and its hit area adds 14 px above and below: 44 px, with no box changed. It lies above the count line under
+   the name, which is positioned and would otherwise take the lower part */
+.hom-reg-n a { display: inline-block; position: relative; z-index: 1; color: inherit; }
+.hom-reg-n a::before { content: ""; position: absolute; inset: -14px 0; }
+.hom-reg-n a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .hom-reg-c { grid-column: 1; text-transform: uppercase; }
 .hom-reg-a { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;
   font: 500 14px/20px var(--sans); color: var(--ink); white-space: nowrap; }
@@ -212,4 +218,7 @@
   .hom-reg-n { flex: none; white-space: nowrap; }
   .hom-reg-c { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hom-reg-a { margin-left: auto; margin-block: -14px; }
+  /* the head is one line here and the map starts 13 px under the name: the name's hit area sits 2 px higher, still
+     44 px, so that it ends above the map */
+  .hom-reg-n a::before { inset: -16px 0 -12px; }
 }

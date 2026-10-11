@@ -1,4 +1,4 @@
-# Implementation report: website improvement plan, Phases 0 to 4
+# Implementation report: website improvement plan, Phases 0 to 5
 
 Written 2026-10-10 at the end of Phase 4. The plan is `docs/personal-website-improvement-plan.md`; the phase-by-phase
 record of what was changed and what was run is `docs/WEBSITE_IMPLEMENTATION_LOG.md`. This report is the handoff the
@@ -12,6 +12,9 @@ All work is on the branch `phase1-curated-homepage`. Phases 1, 2, 2T and 3 are c
 `6f6091d`), and Phase 4 is the commit that adds this report. Nothing has been pushed or deployed: the public site
 is still the build of `main`.
 
+Section 14, on Phase 5 (region pages), was added later the same day. Sections 1 to 13 describe the site at the end
+of Phase 4, except for the few lines that say otherwise.
+
 ## 1. Where things stand
 
 | Phase | What it delivered | State |
@@ -20,8 +23,8 @@ is still the build of `main`.
 | 2 | The Trips explorer: search, filters, URL state, a static search index | Committed (`ca5c6ec`) |
 | 2T | The Tick list: goals, GPX intake, outings, the goal page | Committed (`a0eb1cd` to `282d0db`) |
 | 3 | Story layout for reports, related reports, copy link, the PCT journal page, journal-day search | Committed (`6f6091d`) |
-| 4 | Validation, measured loading changes, share metadata and structured data, privacy notes, author docs, this report | The commit that adds this report |
-| 5 | Optional expansion (collections, region pages, summit index, interactive map) | Scope decided on 2026-10-10: region pages only. Not started when this report was written |
+| 4 | Validation, measured loading changes, share metadata and structured data, privacy notes, author docs, this report | Committed (`fb425ab`, and `c7ed3ee`, which corrects one row of this report) |
+| 5 | Optional expansion. Scope decided on 2026-10-10: region pages only (section 14). Collections, a summit index, reading bookmarks and an interactive map were not built | The commit that adds section 14 |
 
 What Phase 4 added, in short:
 
@@ -452,8 +455,8 @@ The decisions these observations lead to are the author's and are listed in the 
   The guides warn; the validator does not catch either.
 - **The card-size copy does not help every cover.** It is 320 px on the short edge. For a photo wider than 5:2
   (three real photos) it is wider than the 800 px copy and is never the one picked. A portrait cover's copy is 320 px
-  wide, so a 3x phone, which wants 336 px for the 112 px card slot, skips it and loads the copy it loaded before the
-  phase. Neither case is worse than before; neither gains.
+  wide, so at the end of Phase 4 a 3x phone, which wants 336 px for the 112 px card slot, skipped it and loaded the
+  copy it loaded before the phase. Phase 5 changed that for portrait and square covers (14.3).
 - **An earlier build folder** given to `--out` is emptied along with anything put into it since.
 - **Tests cite "the contract"** in docstrings: those were working notes of each phase and are not in the repository.
   `docs/DEVELOPING.md` is the durable statement of the rules.
@@ -508,11 +511,165 @@ None of these blocks a commit of Phase 4. Each is listed with what is in place n
 12. **Time zones on a few trips** look wrong; the list is in the git-ignored author file the privacy notes point to.
 13. **PCT Day 146**: its route drawing is nearly blank, which suggests a recording that spans two distant places.
     Seen in a screenshot; the GPX was not examined.
-14. **Phase 5.** Decided on 2026-10-10: region pages only. The other ideas (collections, a summit index, reading
-    bookmarks, an interactive map) stay undecided.
+14. **Phase 5.** Decided on 2026-10-10: region pages only, built since (section 14, with its own decisions in 14.7).
+    The other ideas (collections, a summit index, reading bookmarks, an interactive map) stay undecided.
 
 ## 13. Next smallest step
 
-Review the Phase 4 commit on `phase1-curated-homepage`. When the branch is merged to `main` and pushed, look at
-the live pages on a phone and paste one report's address into a share-preview tool: those are the two checks no
-local run could make.
+Review the Phase 4 and Phase 5 commits on `phase1-curated-homepage` (section 14 covers Phase 5). When the branch is
+merged to `main` and pushed, look at the live pages on a phone and paste one report's address into a share-preview
+tool: those are the two checks no local run could make.
+
+## 14. Phase 5: region pages
+
+Added 2026-10-10. The plan leaves Phase 5 optional and asks for a scope decision first. Asked, the author chose
+region pages only. This section keeps the same three kinds of statement apart as the rest of the report.
+
+### 14.1 What was built
+
+A region that has a region map and at least one published report has a page at `regions/<slug>/`. Eight regions do
+today: Lake Tahoe (86 reports), Santa Cruz (45), Eastern Sierra (7), Bay Area (5), Boise (5), Alps (4), Tetons (4)
+and Oregon (3). The other seven regions the reports name have no region map and keep their list on the Map page.
+The build went from 349 to 357 pages.
+
+Nothing is written for a region and nothing was rendered. A page is made of:
+
+- **A head of facts**: the name, a line of counts and the years the reports span, and a line of the places the
+  reports name, most reports first. All of it is counted or copied from front matter.
+- **The region's map**, the one `render.py` had already drawn, with its legend and the list the Map page shows
+  beside it, including "Show all".
+- **A Featured row** of up to three cards: reports flagged `featured: true` (the flag the activity pages already
+  use), then written reports with a photo, then written reports without one, newest first. Tetons and Oregon have no
+  written report and no flag, so they have no row.
+- **Every report of the region by year**, with the Map page's activity filter, and the region's planned routes.
+- **Links** into the Trips page with the region chosen, and to the other region pages.
+
+The page lists what the content files say: every report and active tick-list goal whose `region:` is exactly the
+region's name. Its map shows what it was last drawn with. Report and goal breadcrumbs, the goal pager, the Trips
+page's "By region" links, the home page's region names and its `ALSO` row, and a new link under each panel of the
+Map page lead to the region page. Every `map/#region-<slug>` address still works.
+
+Two existing components changed with it, each for a measured or reproduced reason:
+
+- The phone source of a card cover declares 106 px for its 112 px slot, so that a 3x phone takes the 320 px copy of
+  a portrait or square cover (14.3).
+- `base.js` dims a map only when the row pointed at has a line or pin on it, and "Show fewer" keeps its button in
+  view. Both also apply to the Map page.
+
+### 14.2 Method
+
+The measurement method is that of 2.1, unchanged, with the same scripts. Builds: the Phase 4 commit; the Phase 5
+code before the review fixes; and the Phase 5 code after the second round of fixes. The final build differs from the
+last measured one only in the stylesheet (58 bytes gzipped) and the script (146 bytes): every HTML page is
+byte-identical. Pages: three region pages (the largest, a middle one and the smallest) and four existing pages
+(Home, Trips, the Map page and one report).
+
+### 14.3 Measured results
+
+Phone profile, median of three cold loads. KB is everything transferred except font files.
+
+| Page | LCP ms | CLS | KB | HTML KB (gzip) | Image KB | Requests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Lake Tahoe (86 reports) | 1592 | 0.000 | 185 | 42 | 76 | 19 |
+| Santa Cruz (45 reports) | 1580 | 0.000 | 166 | 52 | 47 | 22 |
+| Oregon (3 reports) | 1544 | 0.000 | 89 | 7 | 22 | 13 |
+
+Desktop profile, one cold load each.
+
+| Page | LCP ms | CLS | KB | Requests |
+| --- | ---: | ---: | ---: | ---: |
+| Lake Tahoe | 420 | 0.000 | 461 | 35 |
+| Santa Cruz | 384 | 0.000 | 326 | 39 |
+| Oregon | 340 | 0.000 | 115 | 13 |
+
+The four existing pages, Phase 4 commit against Phase 5, phone profile:
+
+| Page | LCP ms Phase 4 | Phase 5 | KB Phase 4 | Phase 5 | CLS (both) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Home | 1744 | 1756 | 344 | 344 | 0.000 |
+| Trips | 1496 | 1492 | 229 | 229 | 0.035 |
+| Map | 1640 | 1640 | 214 | 215 | 0.041 |
+| A report (Back at Tallac) | 1596 | 1596 | 193 | 194 | 0.000 |
+
+What the tables say:
+
+- **The region pages load like the Map page they are cut from.** The largest element is the region map in all
+  three, and the three runs of a page differ by at most 20 ms.
+- **The existing pages did not change** beyond run-to-run noise: the same requests, the same image bytes, and a
+  byte total within 0.5 KB.
+- **A measurement changed the card copy.** In the first Phase 5 measurement the Lake Tahoe page transferred 290 KB
+  on the phone profile, and 154 KB of that was one card photo drawn 112 px wide: a portrait cover, whose 320 px
+  copy a 3x phone passed over for the 600 px one. With the slot declared as 106 px the phone takes the 320 px copy
+  (42 KB) and the page is 185 KB. Read from the requests of a 3x phone scrolling the whole Trips page, 25 portrait
+  covers and one near-square cover now load the small copy, 78 landscape covers load what they loaded before, and
+  the covers together come to 2.22 MB where they were 3.46 MB. At 1x and 2x nothing changes.
+- **Lighthouse** (13.4.1, Lake Tahoe and Oregon, mobile and desktop): accessibility, best practices and SEO 100 in
+  all four runs, with no failed audit.
+
+### 14.4 Browser checks
+
+Chrome 155, with real key presses and pointer events, in three passes: on the first build, after the second round
+of fixes, and on the last fixes.
+
+| Check | Result |
+| --- | --- |
+| Widths 320, 360, 390, 768, 1024, 1440 | No horizontal scrolling on any region page; no clipped or overlapping text. A place of 60 characters wraps; a single word of 80 characters breaks instead of widening the page. |
+| Keyboard | Lake Tahoe at 1440 and 390: every stop visible with a focus ring, none under the sticky header; the activity filter is one stop with arrow keys; the live region reports the count (for example "Showing 13 climbing reports"). |
+| Map and list | Every cluster marker on the Lake Tahoe and Santa Cruz maps leads to its report's row (on the first build 10 of 13 on Lake Tahoe did nothing); a click opens the list, scrolls to the row and focuses it, as on the Map page. |
+| Target sizes | Each new link answers over at least 44 x 44 px, probed pixel by pixel at 320, 390 and 1440 px, and no hit area lies over another control. |
+| Nothing else moved | Every element box equals the Phase 4 build's on Home (seven widths from 320 to 1920 px) and on Trips, the Map page and a report (390 and 1440 px). The exceptions are the two links added on Home, and the new link row under the six Map page panels that have no "Show all" button. |
+| JavaScript off | Every report of the region is listed; the links that need the Trips page's script, the filter and "Show all" are not shown. |
+| Links into Trips | The explorer opens with the region applied and reports the number the link names (86, and 53 with a write-up, on Lake Tahoe); Back returns to the same scroll position. |
+| Console | No error or warning on the eight region pages, Home, Trips and the Map page. |
+| Reduced motion, forced colours | Checked with Chrome's emulation only: handled as on the Map page. |
+
+### 14.5 Tests and compatibility
+
+- 2,339 tests in 38 files (2,021 in 36 at the end of Phase 4), on Python 3.9 and 3.12 with `-W error`, also with the
+  test modules in reverse and shuffled order. Four Node harnesses, 266 checks; the new one runs `base.js` and
+  `archive.js` against a stand-in page.
+- Mutants on scratch copies: 355 single-line changes over three rounds, 349 killed and 6 shown equivalent.
+- Against the Phase 4 build: no path removed, 8 added; all 351 GPX files, the feed, `robots.txt` and both search
+  indexes identical; no title, description, canonical, id or anchor changed; the sitemap gained the eight
+  addresses. 169 of the 347 existing pages differ in their HTML, by the links of 14.1 and the `sizes` of the phone
+  source of card covers.
+- The CI rehearsal of 5.3 was repeated on the 5,204 files this commit holds, taken from the staged index: tests and
+  the checked build pass, and the output equals the local build. The CI job itself has not run.
+
+Not run, as in section 4: `tools/render.py`, Safari and Firefox, real phones and screen readers, a real share
+preview, field performance.
+
+### 14.6 Known limits
+
+- **The map and the lists can differ until a render.** A report added since the maps were last drawn is on its
+  region's page at once and on the page's map after `render.py` has run, as on the Map page. A region gets its page
+  only once it has a region map, so a new region waits for a render too.
+- **Small regions have small pages.** By the rule as built, every region with a region map has a page: Oregon's is a
+  map and three rows.
+- **A region written two ways is two regions.** The page lists the trips that spell the region as it does; the
+  validator already warns about the pair. After a render with both spellings the check fails with a
+  `DUPLICATE IDS` line until one spelling is used, as it did before this phase.
+- **Stale maps can still fail the check in states that predate this phase.** When every report of a mapped region
+  has been drafted or deleted and the maps have not been drawn again, the Map page drops the region's panel. Phase 5
+  stopped the home page's `ALSO` row from linking to it. Two links still do: the page of a tick-list goal that is
+  filed under the region and is not on its map, and the home page's own map block when the region is Lake Tahoe or
+  Eastern Sierra. The check says so (`BROKEN ANCHOR`), and a render ends it.
+- **Small things left as they are.** After "Show fewer" the page moves 11 px more than it needs to when the button
+  sits just under the header. A list row without a route drawing starts further left than its neighbours. A map
+  that draws only a planned route has a legend with an empty activities list, as on the Map page. On the home page
+  "Open the map" answers over 42 of its 44 rows from 1200 px, and on report pages a short region crumb answers over
+  41 px of width; both are as they were in Phase 4.
+
+### 14.7 Decisions for the author
+
+1. **Which regions deserve a page.** Every region with a region map has one today. Raising the bar (for example to
+   five reports) is a one-line rule in `core.region_pages`; it was not chosen for you.
+2. **The Featured row.** It follows a fixed rule from `featured: true`, write-ups and photos. A list per region, as
+   `content/home.json` is for the home page, would let you choose and order the cards; it was not built.
+3. **An introduction.** A region page has no prose. If you want one, it needs a place in `content/` for your own
+   words; none was invented.
+4. **A `regions/` index.** There is none; the Map page is the parent of the region pages.
+5. **Portrait card photos on 3x phones.** They now come from the 320 px copy, 5% under the 336 device pixels the
+   slot has. Side by side at device-pixel level the copy is softer in fine texture; at card size it was not judged
+   blurred. `core.CARD_PHONE_SIZES` is the one value to change back.
+

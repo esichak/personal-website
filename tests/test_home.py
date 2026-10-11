@@ -11,6 +11,7 @@ same candidates and sizes; the three feature-card sizes strings end with core.PH
 that has a card-size .th copy offers it to phones in a <source> of its own, and no <img> and no preload on the page
 lists it (5.3 as replaced by 10.5; a .th file is an empty placeholder the test writes).
 """
+import json
 import os
 import re
 import sys
@@ -22,10 +23,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo 
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from sitegen import core  # noqa: E402,F401
-from sitegen.pages import home  # noqa: E402
+from sitegen.pages import archive, home  # noqa: E402
 
 import helpers  # noqa: E402
 from helpers import Doc, PCT_PROSE, photo, LANDSCAPE, PORTRAIT  # noqa: E402
+
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
 
 H3 = re.compile(r'<h3\b[^>]*>(.*?)</h3>', re.S)
 HREF = re.compile(r'href="([^"]*)"')
@@ -407,8 +410,11 @@ class HomePageTests(HomeFixture):
         pic = card.find('picture')
         self.assertEqual((pic.classes, [n.tag for n in pic.elements()], pic.parent.classes), (['cover-pic'], ['source', 'img'], ['tcard-img']))
         source = pic.find('source')
+        # the source declares 106 px (core.CARD_PHONE_SIZES, contract-phase5.md section 5), the <img> string still ends
+        # with the real 112 px slot
         self.assertEqual((source['media'], source['sizes'], source['srcset']),
-                         ('(max-width: 559.98px)', '112px', '%s02.th.webp 427w, %s' % (base, two)))
+                         ('(max-width: 559.98px)', '106px', '%s02.th.webp 427w, %s' % (base, two)))
+        self.assertEqual((source['sizes'], img['sizes'].rsplit(', ', 1)[1]), (core.CARD_PHONE_SIZES, core.CARD_PHONE_SLOT))
         self.assertEqual((after.count('<picture'), after.count('.th.')), (1, 1))
         self.assertEqual(self.unwrap(after), before)
         # a cover without an .sm copy stays a plain src, unwrapped
@@ -472,6 +478,430 @@ class HomePageTests(HomeFixture):
         self.assertIn('sub-photo', wrapped)
         self.assertIn('wide-photo', wrapped)
         self.assertEqual(p.html.count('.th.'), len(wrapped))
+
+
+# ---------------------------------------------------------------- Phase 5: the links to a region's own page
+
+PEAKS = "Synthetic O'Brien & <Peaks>"      # a region name every context must escape
+
+
+def legacy_also_items(site):
+    """home.also_items as it was at commit fb425ab (Phase 4), copied line for line."""
+    esc, link, HERE = core.esc, core.link, home.HERE
+    mapped = set(core.site_meta().get('regions') or [])
+    counts = {}
+    for t in site['published']:
+        r = t.get('region')
+        if r and home.is_report(t) and t['kind'] != 'series':
+            counts[r] = counts.get(r, 0) + 1
+    item = '<li><a href="%s"><span class="hom-also-w">%s</span>%s</a></li>'
+    out = []
+    for r in sorted((r for r in mapped if r not in home.HOME_REGIONS), key=lambda r: (-counts.get(r, 0), r)):
+        k = counts.get(r, 0)
+        out.append(item % (core.region_map_href(HERE, r) or link(HERE, 'map/#region-' + home.slug(r)), esc(r),
+                           ('<span class="hom-also-c">%d</span>' % k) if k else ''))
+    unmapped = [r for r in counts if r not in mapped and r not in home.HOME_REGIONS]
+    if unmapped:
+        more = '%d more region%s' % (len(unmapped), '' if len(unmapped) == 1 else 's')
+        out.append(item % (link(HERE, 'map/#other-places'), esc(more), ''))
+    out += [item % (link(HERE, t['url']), esc(t['title']), '<span class="hom-also-c">SERIES</span>')
+            for t in site['published'] if t['kind'] == 'series']
+    return out
+
+
+def legacy_where(site):
+    """home.where as it was at commit fb425ab, copied line for line (with legacy_also_items for its Also row)."""
+    esc, link, icon, HERE = core.esc, core.link, core.icon, home.HERE
+    meta = core.site_meta().get('maps', {})
+    blocks = []
+    drawn = []
+    for region in home.HOME_REGIONS:
+        rs = home.slug(region)
+        dk, ph = 'region-%s-desktop' % rs, 'region-%s-phone' % rs
+        if dk not in meta and ph not in meta:
+            continue
+        drawn += [x for x in (dk, ph) if x in meta]
+        slugs = (meta.get(dk) or meta.get(ph)).get('trips', [])
+        bits = home.region_counts(site, slugs)
+        line = home.meta_line(bits[:1])
+        spoken = ', '.join(b.replace(' ', ' ').replace('+ ', '') for b in bits).lower()
+        aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
+        mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False)
+        blocks.append('<div class="hom-reg"><div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
+                      '<span class="t-mono-s hom-reg-c">%s</span>'
+                      '<a class="hom-reg-a" href="%s" aria-label="%s">Open the map%s</a></div>%s</div>'
+                      % (esc(region), line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16), mp))
+    if not blocks:
+        return ''
+    also = legacy_also_items(site)
+    also_html = ('<div class="hom-also"><span class="t-mono-s" id="also-l">ALSO</span><ul aria-labelledby="also-l">%s</ul></div>'
+                 % ''.join(also)) if also else ''
+    head_meta = home.plural(sum(1 for t in site['published'] if home.is_report(t)), 'REPORT')
+    return ('<section class="wrap sec hom-where" aria-labelledby="where-h">%s<div class="hom-regions">%s</div>'
+            '%s<p class="t-small hom-attr">North up · %s</p>%s</section>'
+            % (core.section_head("Where I’ve been", head_meta, id_='where-h'), ''.join(blocks), home.region_key(site, meta, drawn),
+               esc(home.ATTRIB), also_html))
+
+
+class RegionLinkTests(HomeFixture):
+    """contract-phase5.md section 2 on the home page: the name of a region map block (h3.hom-reg-n) is a link to the
+    region's page when it has one, 'Open the map' still goes to the Map page, and a region of the 'Also' row links to
+    its page instead of its panel. Region maps are placeholders written into the temp dir (rendered/site/, where
+    home.where reads them): Eastern Sierra (two reports: a page) and Lake Tahoe (a planned route only: a map block and
+    no page) are the home page's two regions; Synthetic Coast (one report: a page) and Synthetic Plans (a planned route
+    only: none) are in the Also row, with one region that has no region map and the journal. With no site registered,
+    or with one registered without a site meta (REVISED in round 2: what helpers.make_site does), both functions are
+    byte for byte the old ones (legacy_also_items, legacy_where: copies of the bodies of fb425ab).
+
+    Round 3: the Also row names a mapped region only while the Map page has a panel for it (core.region_groups lists
+    it). A region map outlives its reports until the next render: when they have all been made drafts or removed, the
+    old row still linked to map/#region-<slug>, an anchor the Map page no longer has. A mapped region that holds only
+    active goals has a panel and keeps its item."""
+
+    MAPPED = {'Eastern Sierra': ['ski-report', 'loop-hike'], 'Lake Tahoe': ['tahoe-plan'], 'Synthetic Coast': ['coast-a'],
+              'Synthetic Plans': ['plans-goal']}
+
+    def setUp(self):
+        helpers.keep_state(self)              # the region pages this class registers with core are gone afterwards
+        super().setUp()
+        mk = helpers.make_trip
+        mk(self.tmp, 'tahoe-plan', title='Synthetic Tahoe Plan', activity='ski', kind='planned', region='Lake Tahoe')
+        mk(self.tmp, 'coast-a', title='Synthetic Coast A', activity='hike', date='2024-02-02', region='Synthetic Coast', track=True)
+        mk(self.tmp, 'plans-goal', title='Synthetic Plans Goal', activity='hike', kind='planned', region='Synthetic Plans')
+        mk(self.tmp, 'desert-a', title='Synthetic Desert A', activity='climb', date='2024-03-03', region='Synthetic Desert', track=True)
+        self.use(self.MAPPED)
+
+    def use(self, mapped):
+        """rendered/site/ in the temp dir with a region map (and the trips it draws) for each name in `mapped`; the
+        trips loaded again and registered with core together with that meta, as build.py does (registered without it,
+        as helpers.make_site alone does, no region would have a page)."""
+        site_dir = os.path.join(self.tmp, 'rendered', 'site')
+        os.makedirs(site_dir, exist_ok=True)
+        maps = {}
+        for name, slugs in mapped.items():
+            for size, (w, h) in (('desktop', (718, 620)), ('phone', (390, 480))):
+                key = 'region-%s-%s' % (home.slug(name), size)
+                maps[key] = {'w': w, 'h': h, 'png': key + '.webp', 'base': key + '.base.svg', 'trips': list(slugs)}
+                with open(os.path.join(site_dir, key + '.svg.html'), 'w', encoding='utf-8') as fh:
+                    fh.write('<svg width="%d" height="%d" viewBox="0 0 %d %d"></svg>' % (w, h, w, h))
+        meta = {'hash': '', 'maps': maps, 'regions': sorted(mapped), 'all_regions': sorted(mapped) + ['Synthetic Desert']}
+        with open(os.path.join(site_dir, 'meta.json'), 'w', encoding='utf-8') as fh:
+            json.dump(meta, fh)
+        patcher = mock.patch.object(core, '_SITE_META', [meta])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.meta = meta
+        self.trips = helpers.load_dir(self.tmp)
+        self.site = helpers.make_site(self.trips, register=False)
+        core.register_site(self.site, meta)
+
+    def blocks(self, html_):
+        return Doc(html_).find_all('div', cls='hom-reg')
+
+    def also(self, items):
+        doc = Doc('<ul>%s</ul>' % ''.join(items))
+        return [(a['href'], a.find('span', cls='hom-also-w').text(), a.find('span', cls='hom-also-c').text() if a.find('span', cls='hom-also-c') else None)
+                for a in doc.find_all('a')]
+
+    # ------------------------------------------------------------ the fixture
+
+    def test_the_fixture_has_regions_with_a_page_and_without(self):
+        self.assertEqual(core._REGION_PAGES, {'Eastern Sierra': 'eastern-sierra', 'Synthetic Coast': 'synthetic-coast'})
+        self.assertEqual(home.HOME_REGIONS, ('Lake Tahoe', 'Eastern Sierra'))
+        self.assertNotIn('<!-- missing', home.where(self.site))        # both map fragments were found in the temp dir
+
+    def test_a_test_of_this_class_leaves_no_region_page_registered(self):
+        helpers.assert_puts_core_back(self, RegionLinkTests('test_the_fixture_has_regions_with_a_page_and_without'))
+
+    # ------------------------------------------------------------ the region map blocks
+
+    def test_the_name_of_a_region_with_a_page_is_a_link_to_it(self):
+        tahoe, sierra = self.blocks(home.where(self.site))
+        h3 = sierra.find('h3', cls='hom-reg-n')
+        (a,) = h3.elements()
+        self.assertEqual((a.tag, a['href'], a.children, sorted(a.attrs)), ('a', 'regions/eastern-sierra/', ['Eastern Sierra'], ['href']))
+        self.assertEqual(h3.text(), 'Eastern Sierra')
+        self.assertEqual(h3.children, [a])                                         # the link is the whole heading
+        self.assertIn('<h3 class="hom-reg-n"><a href="regions/eastern-sierra/">Eastern Sierra</a></h3>', home.where(self.site))
+        # a region with a region map and no report has no page: its name is the text it was
+        self.assertEqual(tahoe.find('h3', cls='hom-reg-n').children, ['Lake Tahoe'])
+        self.assertIn('<h3 class="hom-reg-n">Lake Tahoe</h3>', home.where(self.site))
+
+    def test_open_the_map_stays_and_still_goes_to_the_map_page(self):
+        tahoe, sierra = self.blocks(home.where(self.site))
+        for block, slug, label in ((tahoe, 'lake-tahoe', 'Lake Tahoe: 1 planned route. Open the map'),
+                                   (sierra, 'eastern-sierra', 'Eastern Sierra: 2 reports. Open the map')):
+            (a,) = block.find_all('a', cls='hom-reg-a')
+            self.assertEqual((a['href'], a.text(), a['aria-label']), ('map/#region-' + slug, 'Open the map', label))
+        # the heading's link and 'Open the map' are the block's two links; the other block has the one it had
+        self.assertEqual([a['href'] for a in sierra.find('div', cls='hom-reg-h').find_all('a')], ['regions/eastern-sierra/', 'map/#region-eastern-sierra'])
+        self.assertEqual([a['href'] for a in tahoe.find('div', cls='hom-reg-h').find_all('a')], ['map/#region-lake-tahoe'])
+        self.assertEqual([n.tag for n in sierra.find('div', cls='hom-reg-h').elements()], ['h3', 'span', 'a'])
+
+    def test_the_linked_name_is_escaped(self):
+        helpers.make_trip(self.tmp, 'peaks-a', title='Synthetic Peaks A', activity='climb', date='2023-01-01', region=PEAKS, track=True)
+        with mock.patch.object(home, 'HOME_REGIONS', (PEAKS, 'Eastern Sierra')):
+            self.use(dict(self.MAPPED, **{PEAKS: ['peaks-a']}))
+            html_ = home.where(self.site)
+            self.assertIn('<h3 class="hom-reg-n"><a href="regions/synthetic-obrien-peaks/">Synthetic O&#x27;Brien &amp; &lt;Peaks&gt;</a></h3>', html_)
+            self.assertEqual(self.blocks(html_)[0].find('h3').text(), PEAKS)
+            self.assertNotIn('<Peaks>', html_)
+            # ... and in the Also row, where a region that is not one of the two is listed
+        with mock.patch.object(home, 'HOME_REGIONS', ('Eastern Sierra',)):
+            self.assertIn(('regions/synthetic-obrien-peaks/', PEAKS, '1'), self.also(home.also_items(self.site)))
+
+    def test_a_name_without_a_page_is_the_escaped_text_it_was(self):
+        helpers.make_trip(self.tmp, 'peaks-plan', title='Synthetic Peaks Plan', activity='climb', kind='planned', region=PEAKS)
+        with mock.patch.object(home, 'HOME_REGIONS', (PEAKS, 'Eastern Sierra')):
+            self.use(dict(self.MAPPED, **{PEAKS: ['peaks-plan']}))
+            self.assertNotIn(PEAKS, core._REGION_PAGES)                 # a region map and a planned route only: no page
+            html_ = home.where(self.site)
+            self.assertIn('<h3 class="hom-reg-n">Synthetic O&#x27;Brien &amp; &lt;Peaks&gt;</h3>', html_)
+            self.assertNotIn('<Peaks>', html_)
+            core._REGION_PAGES.clear()
+            self.assertEqual(home.where(self.site), legacy_where(self.site))
+
+    # ------------------------------------------------------------ the Also row
+
+    def test_an_also_region_with_a_page_links_to_it_and_the_others_as_before(self):
+        self.assertEqual(self.also(home.also_items(self.site)),
+                         [('regions/synthetic-coast/', 'Synthetic Coast', '1'),           # a region map and a report: its own page
+                          ('map/#region-synthetic-plans', 'Synthetic Plans', None),       # a region map, a planned route only: its panel
+                          ('map/#other-places', '1 more region', None),                   # no region map: the Map page's block
+                          ('trips/journal-series/', 'Long Trail 2024', 'SERIES')])
+        self.assertIn('<li><a href="regions/synthetic-coast/"><span class="hom-also-w">Synthetic Coast</span><span class="hom-also-c">1</span></a></li>',
+                      home.also_items(self.site))
+
+    def test_the_also_row_is_the_old_one_with_one_address_changed(self):
+        old = legacy_also_items(self.site)
+        self.assertEqual(''.join(old).count('href="map/#region-synthetic-coast"'), 1)
+        self.assertEqual(home.also_items(self.site), [x.replace('href="map/#region-synthetic-coast"', 'href="regions/synthetic-coast/"') for x in old])
+
+    # ------------------------------------------------------------ round 3: a region map the Map page has no panel for
+
+    GHOST = 'Synthetic Ghost'
+    GHOST_ITEM = '<li><a href="map/#region-synthetic-ghost"><span class="hom-also-w">Synthetic Ghost</span></a></li>'
+    ALSO = [('regions/synthetic-coast/', 'Synthetic Coast', '1'), ('map/#region-synthetic-plans', 'Synthetic Plans', None),
+            ('map/#other-places', '1 more region', None), ('trips/journal-series/', 'Long Trail 2024', 'SERIES')]
+
+    def ghost(self, named=('ghost-a', 'ghost-b')):
+        """The fixture with one more region map, drawn when Synthetic Ghost had two reports. One has since been made a
+        draft and the other removed; the map and its entry in the site meta stay until the next render."""
+        helpers.make_trip(self.tmp, 'ghost-a', title='Synthetic Ghost A', activity='hike', date='2023-05-05', region=self.GHOST, track=True,
+                          draft=True)
+        self.use(dict(self.MAPPED, **{self.GHOST: list(named)}))
+
+    def map_ids(self):
+        """Every id of the Map page built for the fixture's site: what a map/#... link of the home page can land on."""
+        return {n['id'] for n in Doc(archive.build(self.site)[0].html).root.walk() if n['id']}
+
+    def dead(self, items):
+        """The links of an Also row that land on nothing: a map/#id the Map page does not have, or a region page that
+        is not built."""
+        ids = self.map_ids()
+        out = []
+        for href, _word, _count in self.also(items):
+            if href.startswith('map/#'):
+                if href[len('map/#'):] not in ids:
+                    out.append(href)
+            elif href.startswith('regions/'):
+                if href[len('regions/'):-1] not in core._REGION_PAGES.values():
+                    out.append(href)
+            elif not (href.startswith('trips/') and href[len('trips/'):-1] in self.site['by_slug']):
+                out.append(href)
+        return out
+
+    def test_a_mapped_region_whose_reports_are_all_gone_has_no_item(self):
+        self.assertEqual(self.also(home.also_items(self.site)), self.ALSO)
+        self.ghost()
+        # the region still has its map, and no trip of the site is on it or filed under it
+        self.assertIn(self.GHOST, core.site_meta()['regions'])
+        self.assertEqual(core.site_meta()['maps']['region-synthetic-ghost-desktop']['trips'], ['ghost-a', 'ghost-b'])
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, 'rendered', 'site', 'region-synthetic-ghost-desktop.svg.html')))
+        self.assertEqual([t['slug'] for t in self.site['trips'] if t['slug'].startswith('ghost') or t.get('region') == self.GHOST], [])
+        self.assertNotIn(self.GHOST, [name for name, _slug, _ts in core.region_groups(self.site)])
+        items = home.also_items(self.site)
+        self.assertEqual(self.also(items), self.ALSO)                    # the row it was without that map
+        self.assertNotIn('ghost', ''.join(items).lower())
+        # the row of commit c7ed3ee (the body of fb425ab) kept it, between the regions it sorts among (no report: by name)
+        old = legacy_also_items(self.site)
+        self.assertEqual(old.count(self.GHOST_ITEM), 1)
+        self.assertEqual([w for _h, w, _c in self.also(old)], ['Synthetic Coast', self.GHOST, 'Synthetic Plans', '1 more region', 'Long Trail 2024'])
+
+    def test_the_home_page_then_holds_no_link_to_a_panel_the_map_page_lacks(self):
+        self.ghost()
+        html_ = home.page(self.site).html
+        self.assertNotIn('map/#region-synthetic-ghost', html_)
+        self.assertNotIn('synthetic-ghost', html_)
+        self.assertNotIn(self.GHOST, html_)
+        ids = self.map_ids()
+        self.assertNotIn('region-synthetic-ghost', ids)                  # the Map page has no panel and no list for it
+        linked = sorted(set(re.findall(r'href="map/#([^"]+)"', html_)))
+        self.assertEqual(linked, ['other-places', 'region-eastern-sierra', 'region-lake-tahoe', 'region-synthetic-plans'])
+        self.assertEqual([i for i in linked if i not in ids], [])
+        self.assertEqual(self.dead(home.also_items(self.site)), [])
+        # before: the one dead link of the page
+        self.assertEqual(self.dead(legacy_also_items(self.site)), ['map/#region-synthetic-ghost'])
+        with mock.patch.object(home, 'also_items', legacy_also_items):
+            before = home.page(self.site).html
+        self.assertEqual([i for i in sorted(set(re.findall(r'href="map/#([^"]+)"', before))) if i not in ids], ['region-synthetic-ghost'])
+        # and the two pages differ in that item and, as before round 3, in the address of the region that has a page
+        self.assertEqual(before.replace(self.GHOST_ITEM, '').replace('href="map/#region-synthetic-coast"', 'href="regions/synthetic-coast/"'), html_)
+
+    def test_a_map_whose_entry_names_no_trip_is_treated_the_same(self):
+        # an entry without trips falls back to the trips filed under the region (core.region_groups): there are none
+        self.ghost(named=())
+        self.assertEqual(core.site_meta()['maps']['region-synthetic-ghost-desktop']['trips'], [])
+        self.assertEqual(self.also(home.also_items(self.site)), self.ALSO)
+        self.assertEqual(self.dead(home.also_items(self.site)), [])
+        self.assertEqual(self.dead(legacy_also_items(self.site)), ['map/#region-synthetic-ghost'])
+        # with a report filed under it again the region has its panel, and its item, again
+        helpers.make_trip(self.tmp, 'ghost-c', title='Synthetic Ghost C', activity='hike', date='2026-02-02', region=self.GHOST, track=True)
+        self.use(dict(self.MAPPED, **{self.GHOST: []}))
+        self.assertIn(self.GHOST, [name for name, _slug, _ts in core.region_groups(self.site)])
+        self.assertEqual(self.also(home.also_items(self.site)),
+                         [('regions/synthetic-coast/', 'Synthetic Coast', '1'), ('regions/synthetic-ghost/', self.GHOST, '1')] + self.ALSO[1:])
+        self.assertEqual(self.dead(home.also_items(self.site)), [])
+        # A stale map that names only trips that are gone, while a newer report is filed under the region: the region
+        # has a page of its own (it lists by the content) and still no panel on the Map page (that goes by the map's
+        # entry). The row names it, with its count, and links to that page, never to the panel
+        self.use(dict(self.MAPPED, **{self.GHOST: ['ghost-b']}))
+        self.assertEqual(core._REGION_PAGES.get(self.GHOST), 'synthetic-ghost')
+        self.assertNotIn('region-synthetic-ghost', self.map_ids())
+        self.assertNotIn(self.GHOST, [name for name, _slug, _ts in core.region_groups(self.site)])
+        self.assertEqual(self.also(home.also_items(self.site)),
+                         [('regions/synthetic-coast/', 'Synthetic Coast', '1'), ('regions/synthetic-ghost/', self.GHOST, '1')] + self.ALSO[1:])
+        self.assertEqual(self.dead(home.also_items(self.site)), [])
+        self.assertNotIn('map/#region-synthetic-ghost', home.page(self.site).html)
+        self.assertEqual(self.dead(legacy_also_items(self.site)), ['map/#region-synthetic-ghost'])
+
+    def test_a_mapped_region_of_active_goals_only_keeps_its_item(self):
+        # Synthetic Plans: a region map and one planned route. The Map page gives it a panel, so the link lands; it has
+        # no report, so no page of its own and no count
+        self.ghost()
+        items = home.also_items(self.site)
+        self.assertIn('<li><a href="map/#region-synthetic-plans"><span class="hom-also-w">Synthetic Plans</span></a></li>', items)
+        self.assertIn(('map/#region-synthetic-plans', 'Synthetic Plans', None), self.also(items))
+        self.assertNotIn('Synthetic Plans', core._REGION_PAGES)
+        group = {name: ts for name, _slug, ts in core.region_groups(self.site)}['Synthetic Plans']
+        self.assertEqual([(t['slug'], t['kind']) for t in group], [('plans-goal', 'planned')])
+        self.assertIn('region-synthetic-plans', self.map_ids())
+        # as the build names the goals that are still to do (site['active_goals']): the same while the goal is one of them
+        self.site['active_goals'] = [self.site['by_slug']['plans-goal'], self.site['by_slug']['tahoe-plan']]
+        self.assertEqual(self.also(home.also_items(self.site)), self.ALSO)
+        # once it is done or shelved the Map page lists nothing there, and the row follows
+        self.site['active_goals'] = [self.site['by_slug']['tahoe-plan']]
+        self.assertNotIn('region-synthetic-plans', self.map_ids())
+        self.assertEqual(self.also(home.also_items(self.site)), [self.ALSO[0]] + self.ALSO[2:])
+        self.assertEqual(self.dead(home.also_items(self.site)), [])
+        self.assertEqual(self.dead(legacy_also_items(self.site)), ['map/#region-synthetic-ghost', 'map/#region-synthetic-plans'])
+
+    def test_the_other_items_keep_their_order_and_their_counts(self):
+        # two more mapped regions with reports, so that the row has an order to keep: most reports first, then A to Z,
+        # the regions without a report last; then the regions without a map, then the journal
+        mk = helpers.make_trip
+        for slug, day in (('bay-a', '2024-06-01'), ('bay-b', '2024-06-02'), ('bay-c', '2024-06-03')):
+            mk(self.tmp, slug, title='Synthetic ' + slug, activity='mtb', date=day, region='Synthetic Bay', track=True)
+        mk(self.tmp, 'alps-a', title='Synthetic Alps A', activity='ski', date='2024-01-05', region='Synthetic Alps', track=True)
+        mapped = dict(self.MAPPED, **{'Synthetic Bay': ['bay-a', 'bay-b', 'bay-c'], 'Synthetic Alps': ['alps-a']})
+        self.use(mapped)
+        want = [('regions/synthetic-bay/', 'Synthetic Bay', '3'), ('regions/synthetic-alps/', 'Synthetic Alps', '1'),
+                ('regions/synthetic-coast/', 'Synthetic Coast', '1'), ('map/#region-synthetic-plans', 'Synthetic Plans', None),
+                ('map/#other-places', '1 more region', None), ('trips/journal-series/', 'Long Trail 2024', 'SERIES')]
+        without = home.also_items(self.site)
+        self.assertEqual(self.also(without), want)
+        # the same site with the maps of two regions whose reports are gone (both sort among the regions without a report)
+        helpers.make_trip(self.tmp, 'ghost-a', title='Synthetic Ghost A', activity='hike', date='2023-05-05', region=self.GHOST, track=True, draft=True)
+        self.use(dict(mapped, **{self.GHOST: ['ghost-a', 'ghost-b'], 'Synthetic Aa': ['aa-gone']}))
+        items = home.also_items(self.site)
+        self.assertEqual(items, without)                                 # to the byte: every other item where it was, as it was
+        self.assertEqual(self.also(items), want)
+        old = legacy_also_items(self.site)
+        self.assertEqual([w for _h, w, _c in self.also(old)],
+                         ['Synthetic Bay', 'Synthetic Alps', 'Synthetic Coast', 'Synthetic Aa', self.GHOST, 'Synthetic Plans', '1 more region', 'Long Trail 2024'])
+        kept = [x for x in old if 'synthetic-ghost' not in x and 'synthetic-aa' not in x]
+        self.assertEqual(len(kept), len(old) - 2)
+        self.assertEqual(items, [re.sub(r'href="map/#region-synthetic-(bay|alps|coast)"', r'href="regions/synthetic-\1/"', x) for x in kept])
+        self.assertEqual(self.dead(items), [])
+        self.assertEqual(self.dead(old), ['map/#region-synthetic-aa', 'map/#region-synthetic-ghost'])
+
+    def test_the_row_asks_the_map_pages_own_grouping(self):
+        # home.also_items goes by core.region_groups(site) under core's site meta, the grouping archive.regions hands the
+        # Map page's panels: whatever that says has a panel has an item. Of the rest, only a region with a page of its
+        # own has one (Synthetic Coast here), linked to that page; a region with neither (Synthetic Plans, whose goal
+        # the stand-in grouping does not list) has none
+        self.ghost()
+        asked = []
+
+        def groups(site, meta=None):
+            asked.append((site, meta))
+            return [(self.GHOST, 'synthetic-ghost', []), ('Eastern Sierra', 'eastern-sierra', [])]
+
+        with mock.patch.object(core, 'region_groups', groups):
+            got = self.also(home.also_items(self.site))
+        self.assertEqual(asked, [(self.site, None)])                     # once, and with core's own meta (the one `mapped` is read from)
+        # the region with a page and the ghost (a home region is never in the row), then what does not depend on a panel
+        self.assertEqual(got, [self.ALSO[0], ('map/#region-synthetic-ghost', self.GHOST, None)] + self.ALSO[2:])
+        self.assertEqual({name for name, _slug, _ts in core.region_groups(self.site)},
+                         {name for name, _slug, _ts in archive.regions(self.site, archive.site_meta())})
+
+    # ------------------------------------------------------------ nothing else changes; nothing changes unregistered
+
+    def test_with_no_site_registered_both_functions_are_byte_for_byte_the_old_ones(self):
+        core._REGION_PAGES.clear()
+        self.assertEqual(home.also_items(self.site), legacy_also_items(self.site))
+        self.assertEqual(home.where(self.site), legacy_where(self.site))
+        self.assertNotIn('regions/', home.where(self.site))
+        self.assertIn('<h3 class="hom-reg-n">Eastern Sierra</h3>', home.where(self.site))
+        self.assertEqual([h for h, _w, _c in self.also(home.also_items(self.site))],
+                         ['map/#region-synthetic-coast', 'map/#region-synthetic-plans', 'map/#other-places', 'trips/journal-series/'])
+
+    def test_registered_without_a_site_meta_both_functions_are_the_old_ones_too(self):
+        # REVISED in round 2: helpers.make_site registers the site and hands over no meta. The region maps are still in
+        # core's own copy of the meta (home.where draws them from it), and no region has a page for all that
+        self.assertEqual(sorted(core._REGION_PAGES), ['Eastern Sierra', 'Synthetic Coast'])
+        with_pages = home.where(self.site)
+        site = helpers.make_site(self.trips)
+        self.assertEqual(core._REGION_PAGES, {})
+        self.assertEqual(sorted(core.site_meta()['regions']), sorted(self.MAPPED))
+        self.assertEqual(home.also_items(site), legacy_also_items(site))
+        self.assertEqual(home.where(site), legacy_where(site))
+        self.assertNotIn('regions/', home.where(site))
+        self.assertEqual(len(self.blocks(home.where(site))), 2)                      # both region maps are drawn as before
+        self.assertNotIn('regions/', home.page(site).html)
+        # handed the meta, the same site has its two links again
+        core.register_site(site, self.meta)
+        self.assertEqual(home.where(site), with_pages)
+        self.assertEqual(with_pages.count('regions/'), 2)
+
+    def test_a_site_without_region_pages_changes_nothing_either(self):
+        # region maps for regions without a published report: registered, and no region has a page
+        self.use({'Lake Tahoe': ['tahoe-plan'], 'Synthetic Plans': ['plans-goal']})
+        self.assertEqual(core._REGION_PAGES, {})
+        self.assertEqual(home.where(self.site), legacy_where(self.site))
+        self.assertEqual(home.also_items(self.site), legacy_also_items(self.site))
+        self.assertEqual(len(self.blocks(home.where(self.site))), 1)
+
+    def test_the_section_is_the_old_one_with_the_two_links(self):
+        old = legacy_where(self.site)
+        new = home.where(self.site)
+        self.assertEqual(old.count('<h3 class="hom-reg-n">Eastern Sierra</h3>'), 1)
+        want = (old.replace('<h3 class="hom-reg-n">Eastern Sierra</h3>', '<h3 class="hom-reg-n"><a href="regions/eastern-sierra/">Eastern Sierra</a></h3>')
+                .replace('href="map/#region-synthetic-coast"', 'href="regions/synthetic-coast/"'))
+        self.assertEqual(new, want)
+        self.assertEqual(new.count('regions/'), 2)
+
+    def test_the_whole_page_differs_only_in_those_two_links(self):
+        with_pages = home.page(self.site).html
+        core._REGION_PAGES.clear()
+        without = home.page(self.site).html
+        self.assertNotIn('regions/', without)
+        self.assertEqual(with_pages.count('regions/'), 2)
+        self.assertEqual(with_pages.replace('<h3 class="hom-reg-n"><a href="regions/eastern-sierra/">Eastern Sierra</a></h3>',
+                                            '<h3 class="hom-reg-n">Eastern Sierra</h3>')
+                         .replace('href="regions/synthetic-coast/"', 'href="map/#region-synthetic-coast"'), without)
+        # one h1 and no heading inside a link's way: the h3 keeps its class and level
+        self.assertEqual(len(Doc(with_pages).find_all('h3', cls='hom-reg-n')), 2)
 
 
 if __name__ == '__main__':

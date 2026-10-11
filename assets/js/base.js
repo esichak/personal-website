@@ -138,11 +138,20 @@
     if (!map) return;
     keys = keys || [];
     var has = function (k) { return keys.indexOf(k) !== -1; };
-    map.classList.toggle('is-hl', keys.length > 0);
-    map.querySelectorAll('.mk-cat[data-key], .mk-pin[data-key]').forEach(function (g) { g.classList.toggle('hl', has(g.dataset.key)); });
-    map.querySelectorAll('.mk-cluster').forEach(function (c) {
-      c.classList.toggle('hl', (c.dataset.keys || '').split(' ').some(has));
+    var hit = false;
+    map.querySelectorAll('.mk-cat[data-key], .mk-pin[data-key]').forEach(function (g) {
+      var on = has(g.dataset.key);
+      g.classList.toggle('hl', on);
+      hit = hit || on;
     });
+    map.querySelectorAll('.mk-cluster').forEach(function (c) {
+      var on = (c.dataset.keys || '').split(' ').some(has);
+      c.classList.toggle('hl', on);
+      hit = hit || on;
+    });
+    // the map dims everything else only when it has something to pick out: a list row whose trip this map does not
+    // draw (a report without a track on a region page) leaves it as it is
+    map.classList.toggle('is-hl', hit);
   }
   function rowsFor(map) {
     return map && map.id ? document.querySelectorAll('[data-map-target="' + map.id + '"] [data-key]') : [];

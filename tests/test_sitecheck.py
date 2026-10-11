@@ -34,6 +34,8 @@ from sitegen import curation  # noqa: E402
 import gpx_fixtures as gf  # noqa: E402
 import helpers  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 SITE = core.SITE_URL
 PHOTO = SITE + 'trips/alpha/photos/01.webp'
 
@@ -464,7 +466,7 @@ class LinkTests(Fixture):
         # ... and a <source>'s: the phone-only source of a card cover (contract-phase4.md 10.5) names the card-size copy
         # nothing else names, so this is the only rule that notices the file missing
         picture = ('<picture class="cover-pic"><source media="(max-width: 559.98px)" srcset="trips/alpha/photos/01.th.webp 427w, '
-                   'trips/alpha/photos/01.sm.webp 800w, trips/alpha/photos/01.webp 1600w" sizes="112px">'
+                   'trips/alpha/photos/01.sm.webp 800w, trips/alpha/photos/01.webp 1600w" sizes="106px">'
                    '<img class="cover-img" src="trips/alpha/photos/01.webp" srcset="trips/alpha/photos/01.sm.webp 800w, '
                    'trips/alpha/photos/01.webp 1600w" sizes="(min-width: 560px) 400px, 112px" alt=""></picture>')
         self.assertEqual(self.lines(picture), ['BROKEN index.html -> trips/alpha/photos/01.th.webp'])

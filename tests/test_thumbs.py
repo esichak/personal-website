@@ -342,9 +342,13 @@ class ThPathTests(ThumbsFixture):
         tw = photolib.thumb_size(1600, 1200)[0]
         self.assertEqual(tw, 427)
         self.assertEqual(core.thumb_width(t['cover']['photo']), tw)
+        # (the source declares 106 px, core.CARD_PHONE_SIZES, where CARD_SIZES ends with the real 112 px:
+        # contract-phase5.md section 5)
         self.assertEqual(img, '<picture class="cover-pic"><source media="(max-width: 559.98px)" '
-                              'srcset="%s02.th.webp %dw, %s02.sm.webp 800w, %s02.webp 1600w" sizes="112px">%s</picture>'
+                              'srcset="%s02.th.webp %dw, %s02.sm.webp 800w, %s02.webp 1600w" sizes="106px">%s</picture>'
                               % (base, tw, base, base, without))
+        self.assertEqual((core.CARD_PHONE_SIZES, CARD_SIZES.rsplit(', ', 1)[1]), ('106px', core.CARD_PHONE_SLOT))
+        self.assertIn('sizes="%s"' % CARD_SIZES, without)                # the <img> keeps the string it was handed
         self.assertEqual(img.count('.th.'), 1)
         # a lead image and a full-width slot never state it
         self.assertEqual(core.cover_img(t, 'trips/', CARD_SIZES, eager=True), without.replace(' loading="lazy"', ' fetchpriority="high"'))

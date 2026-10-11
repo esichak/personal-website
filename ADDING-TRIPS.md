@@ -29,7 +29,7 @@ python3 tools/add_trip.py ~/Downloads/Morning_Ski.fit --title "Rose Knob Peak" -
 | `--activity` | `ski`, `climb`, `hike`, `mtb` or `other` |
 | `--subtype` | Only with `other`: `SUP`, `Rafting`, `Kayaking` or `Mountaineering` |
 | `--place` | The specific spot, e.g. "Mount Rose" (optional) |
-| `--region` | Reuse an existing region so the trip joins its region map (list below) |
+| `--region` | Reuse an existing region, spelt exactly as it is, so the trip joins its region map and its region page (list below) |
 | `--party` | Who you went with, e.g. "Adam" (optional) |
 | `--photos` | A folder of photos, or individual photo files (optional) |
 | `--draft` | Keep the trip off the site until you remove `draft: true` from its file. A draft you push is still in the public repository. Its maps are not drawn while it is a draft: after you remove the line, run `python3 tools/render.py <trip-name>`. To push a draft, stage `"content/trips/<trip-name>"` alone in step 5. For a trip that is already on the site, see "Taking a trip off the site" below |
@@ -38,9 +38,26 @@ python3 tools/add_trip.py ~/Downloads/Morning_Ski.fit --title "Rose Knob Peak" -
 
 Regions already on the site: Lake Tahoe, Santa Cruz, Eastern Sierra, Boise, Bay Area, Tetons, Alps, Oregon, Utah,
 Yosemite, Washington, Idaho, Minnesota, Arizona (the PCT journal has a region of its own, Pacific Crest Trail). A new
-region name is fine too; it gets its own region map once it has three trips. Until the region maps are drawn again
+region name is fine too; it gets its own region map once it has three trips with a track. An active tick-list goal
+with a route counts as one of the three; a report without a track does not. Until the region maps are drawn again
 the Map page does not list the new region, and the check prints a `WARNING` for the trip that ends
-`run python3 tools/render.py --site --force`: run that (internet needed) and stage `rendered/site` with the trip.
+`run python3 tools/render.py --site --force`: run that (internet needed) and stage `rendered/site` with the trip. A
+name that differs from an existing region only in capitals, accents, apostrophes or other punctuation is not a new
+region but a second spelling of that one: correct it instead of running the command (`docs/CONTENT_GUIDE.md`, 11.4).
+
+A region that has a region map and at least one published report also has a page of its own, `regions/<region>/`. The
+address is made from the name: lower case, accents folded to plain letters, apostrophes and characters with no
+plain-letter form dropped, and every run of what is then neither a letter nor a digit turned into one hyphen (none
+at the ends). `Lake Tahoe` gives `regions/lake-tahoe/`, and
+`Val d'Isère` would give `regions/val-disere/`. The first eight regions in the list above have one today. A region
+whose map draws planned routes only has none. Nothing is written for the page: its head is counts, years and places
+taken from its trips, and under that come the region's map, up to three Featured reports and every report of the
+region. The page lists every report and active tick-list goal whose `region:` is exactly the region's name, so a new
+trip is on it at the next build, also one added with `--no-render` and one without a track. The map on the page is the
+region map as it was last drawn: the new trip's line and pin appear there, as on the Map page, once the render that
+draws the trip's own maps has redrawn it and `rendered/site` is pushed with the trip (step 5). A region without a
+region map has no page and stays in the Map page's list, under "Not on a region map". `docs/CONTENT_GUIDE.md`, section
+11, has the rest.
 
 The command creates `content/trips/<trip-name>/` with the GPX track, web copies of each photo in three sizes (GPS and
 camera data removed) and the stats, then draws the maps and elevation profile. That takes about a minute and needs the
@@ -138,10 +155,13 @@ Open `content/trips/<trip-name>/index.md` in any text editor:
   ```
 
   `featured: true` makes a single-day trip with a track eligible for the Featured block of its activity page (Climb,
-  Hike, MTB, Other; the Ski page has none); the home page's features are listed in
-  `content/home.json` (see `docs/CONTENT_GUIDE.md`). `beta:` rows show beside the report. `map: peaks:` labels those
-  summits on the map (run `python3 tools/render.py <trip-name>` after changing it). Keep comments out of this block:
-  a `#` note at the end of a line breaks it. Any existing trip's `index.md` shows the format.
+  Hike, MTB, Other; the Ski page has none); the home page's features are listed in `content/home.json` (see
+  `docs/CONTENT_GUIDE.md`). On its region's page, when the region has one, the same line counts for a report of any
+  kind, with or without a track: the Featured row there holds three cards, and flagged reports come before unflagged
+  ones, the newest flagged first, so a fourth flagged report is not shown (`docs/CONTENT_GUIDE.md`, 11.3). `beta:`
+  rows show beside the report. `map: peaks:` labels those summits on the map (run `python3 tools/render.py
+  <trip-name>` after changing it). Keep comments out of this block: a `#` note at the end of a line breaks it. Any
+  existing trip's `index.md` shows the format.
 - The other optional lines (the cover photo and its crop, the card summary, search names, and the `published_at` and
   `updated_at` dates) are described in `docs/CONTENT_GUIDE.md`.
 
@@ -205,7 +225,9 @@ Which paths to give `git add`:
 | Changed the home page's features | `content/home.json` |
 
 A folder path stages what is new, changed or deleted inside it. `rendered/site` holds the region maps, which a render
-redraws along with the trip's own; naming it when nothing changed there does no harm.
+redraws along with the trip's own; naming it when nothing changed there does no harm. The trip is in the lists of its
+region's page (`regions/<region>/`) without it; `rendered/site` is what puts the trip's line and pin on the map there,
+as on the Map page.
 
 Never use `git add -A` or `git add .`. This folder syncs through iCloud Drive, which sometimes leaves a conflict copy
 of a file: the same name with a space and a number added, such as `meta 3.json` or `index 2.md`. `.gitignore` hides
@@ -242,17 +264,24 @@ folder is on `main`: on another branch `git pull` leaves it out, and on a branch
 ## Taking a trip off the site
 
 Put `draft: true` among the lines above the closing `---` of the trip's `index.md`, or remove its folder from
-`content/trips/`. A build then leaves out the trip's page, its photos, its GPX download and its own map. Two things
-stand between that build and the site:
+`content/trips/`. A build then leaves out the trip's page, its photos, its GPX download and its own map. The trip
+also leaves the lists and the counts on its region's page at that build, and a region left without a report loses its
+page. A region left with no report and no tick-list goal also leaves the Map page's region maps and the home page's
+`ALSO` row at that build; with a goal still filed under it, see `docs/CONTENT_GUIDE.md`, 11.4. Two things stand
+between that build and the site:
 
-- **The region maps still draw the trip.** The maps on the home page, the Map page and the Ski page are drawn by
-  `render.py` and committed under `rendered/site/`; a build only places them. They keep the trip's line and title
-  until you run `python3 tools/render.py` (internet needed). Where the trip has a pin of its own on a map, the pin
-  links to the page that is gone, and `build.py --check` fails on it with lines such as
-  `BROKEN map/index.html -> ../trips/<trip-name>/`. Where its pin is merged with others, the check passes and
-  the line stays on the map. So run `render.py` before the check of step 5, and stage `rendered` with the trip's
-  folder, as the table there gives for a run with no trip name. Until the maps are drawn again the content check
-  prints a `WARNING` for the trip that begins `the site maps under rendered/site/ still draw this trip`.
+- **The region maps still draw the trip.** The maps on the home page, the Map page, the region pages and the Ski
+  page are drawn by `render.py` and committed under `rendered/site/`; a build only places them. They keep the trip's
+  line and title until you run `python3 tools/render.py` (internet needed). Where the trip has a pin of its own on a
+  map, the pin links to the page that is gone, and `build.py --check` fails on it with lines such as
+  `BROKEN map/index.html -> ../trips/<trip-name>/` and, for its region's page,
+  `BROKEN regions/<region>/index.html -> ../../trips/<trip-name>/`. Where its pin is merged with others, the check
+  passes and the line stays on the map. So run `render.py` before the check of step 5, and stage `rendered` with the
+  trip's folder, as the table there gives for a run with no trip name. Until the maps are drawn again the content
+  check prints a `WARNING` for the trip that begins `the site maps under rendered/site/ still draw this trip`. That
+  run can take more than the trip's line away: a region left with fewer than three trips with a track gets no region
+  map from it, and without the map the region has no page. Its remaining reports are then listed on the Map page
+  under "Not on a region map", and their links to the region lead there.
 - **The build stops while something else names the trip:** `content/home.json`, a tick-list goal's outing
   (`report_slug` in its `goal.json`), or a link in another trip's write-up. Each `ERROR` line names the file to
   change.
@@ -265,7 +294,13 @@ page loses its map, its elevation profile or speed chart, its links to the route
 no longer draw the small route beside its name, and the check prints a `WARNING`:
 `no track.gpx: the page has no map, no profile and no GPX download`. The region maps keep the trip's line until
 `render.py` has been run; its pin still leads to a page, so `--check` passes meanwhile. That run also deletes the
-report's `rendered/trips/<trip-name>/` folder, which the site no longer uses, so stage `rendered` after it.
+report's `rendered/trips/<trip-name>/` folder, which the site no longer uses, so stage `rendered` after it. A report
+without a track is drawn on no region map, so after that run the Map page no longer names it in its region's list. It
+stays on the Trips page, in the Map page's table of all reports and, as long as the region still has a region map, in
+the lists and the counts of its region's page (`docs/CONTENT_GUIDE.md`, section 11.4). A report without a track does
+not count towards the three trips a region map takes, so the same run draws no map for a region that is left with
+fewer than three trips with a track. The region's page goes with the map, and the Map page then lists the region's
+reports, this one included, under "Not on a region map".
 
 None of this takes a file out of the repository's history (`docs/PRIVACY_NOTES.md`, section 6).
 

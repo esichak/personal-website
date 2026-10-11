@@ -24,6 +24,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo root, from tests/
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -32,6 +33,8 @@ from sitegen import core  # noqa: E402
 
 import helpers  # noqa: E402
 from helpers import Doc, LANDSCAPE, PORTRAIT  # noqa: E402
+
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
 
 PREFIX = 'synt-'             # every fixture slug starts with it; no real trip's slug does
 REGION = 'Synthetic Range'
@@ -601,7 +604,10 @@ class PhotoSizeTests(Fixture):
                 t = self.trip(title='Synthetic Half Measured', date='2026-06-01', region=REGION, track=True, photos=entries)
                 state = (dict(core._TRIPS_BY_URL), list(core._OTHER_SUBS), core._HAS_PCT[0], core._SITE_SHARE[0])
                 try:
-                    html_ = report.page(t, helpers.make_site([t])).html
+                    # the page asks whether its region is on map/ (core.region_map_href): from a stand-in for the site
+                    # meta, so that the checkout's own rendered/site/meta.json is neither read nor left in core's cache
+                    with mock.patch.object(core, '_SITE_META', [{'maps': {}, 'regions': [], 'all_regions': []}]):
+                        html_ = report.page(t, helpers.make_site([t])).html
                 finally:
                     core._TRIPS_BY_URL.clear()
                     core._TRIPS_BY_URL.update(state[0])

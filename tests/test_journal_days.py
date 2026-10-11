@@ -21,6 +21,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 PREFIX = 'syn-d-'
 SLUG = PREFIX + 'journal'
 

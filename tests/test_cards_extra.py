@@ -18,6 +18,8 @@ from unittest import mock  # noqa: E402
 import helpers  # noqa: E402
 from helpers import photo, LANDSCAPE, PORTRAIT  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 DAY_PROSE = 'Crossed the pass in soft afternoon snow and dropped to the hut by five.'
 WRITEUP = 'Skinned up before dawn and skied the couloir on firm snow.'
 

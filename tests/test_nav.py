@@ -17,6 +17,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 PCT = 'trips/pacific-crest-trail-2024/'
 SITE_LINKS = ['trips/', 'tick-list/', 'map/', PCT, 'about/', 'trips/#search']
 

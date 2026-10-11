@@ -39,6 +39,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc, photo, LANDSCAPE  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 HARNESS = os.path.join(TESTS, 'series_js_harness.js')
 SERIES_JS = os.path.join(ROOT, 'assets', 'js', 'pages', 'series.js')
 SERIES_CSS = os.path.join(ROOT, 'assets', 'css', 'pages', 'series.css')

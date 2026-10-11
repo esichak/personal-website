@@ -9,15 +9,19 @@ import sys
 import tempfile
 import unittest
 import warnings
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo root, from tests/
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
+from sitegen import core  # noqa: E402
 from sitegen import curation  # noqa: E402
 
 import helpers  # noqa: E402
 from helpers import slugs  # noqa: E402
+
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
 
 INITIAL = ['pacific-crest-trail-2024', 'matterhorn-peak-west-couloir', 'peak-bagging-szn']
 EXTRAS = ['extra-a', 'extra-b', 'extra-c', 'extra-d']
@@ -275,6 +279,76 @@ class CurationTests(unittest.TestCase):
         self.assertEqual(site3['published'], [])
         with self.assertWarns(UserWarning):
             self.assertEqual(curation.resolve_featured(site3, None, trips_dir=self.trips_dir), [])
+
+
+class RegisteredSiteTests(unittest.TestCase):
+    """contract-phase5.md section 1, as revised in round 2: helpers.make_site registers the site with core and hands
+    over no site meta, so no region of a site made in a test has a page of its own and nothing is read from rendered/
+    to find out. The fixture of this file (CurationTests.setUp, used here as it is) is the case that matters: two of
+    its reports are filed under a region name that the site meta of a checkout may well map. The site meta here is a
+    stand-in in a temp folder (core.ROOT points at it): one that would give that region a page if it were read."""
+
+    def setUp(self):
+        helpers.keep_state(self)          # first: what the tests register with core is put back
+        fixture = CurationTests('test_constants')
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        self.root, self.trips_dir, self.trips, self.site = fixture.root, fixture.trips_dir, fixture.trips, fixture.site
+        self.resolve = fixture.resolve
+        self.checkout = os.path.join(self.root, 'checkout')
+        site_dir = os.path.join(self.checkout, 'rendered', 'site')
+        os.makedirs(site_dir)
+        self.meta = {'hash': '', 'regions': ['Eastern Sierra'], 'all_regions': ['Eastern Sierra'],
+                     'maps': {'region-eastern-sierra-%s' % size: {'w': 100, 'h': 80} for size in ('desktop', 'phone')}}
+        with open(os.path.join(site_dir, 'meta.json'), 'w', encoding='utf-8') as fh:
+            json.dump(self.meta, fh)
+        patcher = mock.patch.object(core, 'ROOT', self.checkout)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_the_stand_in_meta_would_give_the_region_a_page(self):
+        # the proof below is not an empty one: read and handed over, the meta gives the region its page
+        self.assertEqual(core.read_site_meta(), self.meta)
+        pages = core.region_pages(self.site, core.read_site_meta())
+        self.assertEqual([(name, slug, slugs(ts)) for name, slug, ts in pages],
+                         [('Eastern Sierra', 'eastern-sierra', ['matterhorn-peak-west-couloir', 'peak-bagging-szn'])])
+        core.register_site(self.site, core.read_site_meta())
+        self.assertEqual(core._REGION_PAGES, {'Eastern Sierra': 'eastern-sierra'})
+        self.assertEqual(core.region_page_href('trips/peak-bagging-szn/', 'Eastern Sierra'), '../../regions/eastern-sierra/')
+
+    def test_a_site_made_by_the_helper_has_no_region_page(self):
+        with mock.patch.object(core, '_SITE_META', []) as cache:
+            core.register_site(self.site, self.meta)                  # as if an earlier site had left its pages
+            self.assertEqual(core._REGION_PAGES, {'Eastern Sierra': 'eastern-sierra'})
+            site = helpers.make_site(self.trips)
+            self.assertEqual(core._REGION_PAGES, {})
+            self.assertIsNone(core.region_page_href('', 'Eastern Sierra'))
+            self.assertIsNone(core.region_page_href('trips/peak-bagging-szn/', 'Eastern Sierra'))
+            self.assertEqual(cache, [])                               # core's copy of the site meta was not filled: nothing was read
+            self.assertEqual([t['slug'] for t in site['published'] if t['region'] == 'Eastern Sierra'],
+                             ['matterhorn-peak-west-couloir', 'peak-bagging-szn'])
+
+    def test_the_helper_reads_no_site_meta(self):
+        def refuse(*args, **kwargs):
+            raise AssertionError('helpers.make_site read a site meta')
+
+        with mock.patch.object(core, '_SITE_META', []) as cache, mock.patch.object(core, 'read_site_meta', refuse), \
+                mock.patch.object(core, 'site_meta', refuse), mock.patch.object(core, 'read_json', refuse):
+            helpers.make_site(self.trips)
+            helpers.make_site([])
+            self.assertEqual((core._REGION_PAGES, cache), ({}, []))
+        # curation, which this file is about, registers nothing and reads no site meta either
+        with mock.patch.object(core, 'read_site_meta', refuse), mock.patch.object(core, 'site_meta', refuse):
+            self.resolve(INITIAL)
+            self.assertEqual(core._REGION_PAGES, {})
+
+    def test_every_test_of_this_file_starts_and_ends_without_a_region_page(self):
+        # the fixture's own setUp has registered its site by now, and so has every test that ran before this one
+        self.assertEqual(core._REGION_PAGES, {})
+        result = unittest.TestResult()
+        CurationTests('test_initial_three_resolve_in_order').run(result)
+        self.assertEqual((result.testsRun, result.errors, result.failures), (1, [], []))
+        self.assertEqual(core._REGION_PAGES, {})
 
 
 if __name__ == '__main__':

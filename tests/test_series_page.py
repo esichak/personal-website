@@ -31,6 +31,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc, PCT_PROSE, photo, LANDSCAPE, PORTRAIT, SQUARE  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 PREFIX = 'syn-j-'            # every fixture slug starts with it; a real trip's slug never does (see JournalFixture)
 SLUG = PREFIX + 'journal'
 URL = 'trips/%s/' % SLUG

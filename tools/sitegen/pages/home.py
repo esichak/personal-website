@@ -271,10 +271,14 @@ def region_key(site, meta, names):
 
 def also_items(site):
     """The 'Also' line under the region maps: every other mapped region (core.site_meta()['regions'], most reports first,
-    each to its panel on map/), then one 'N more regions' item for the regions without a region map (map/'s 'Not on a
-    region map' block, #other-places), then the series. Region counts are published reports, series left out (a series
-    has its own item)."""
+    each to its own page, or to its panel on map/ when it has none), then one 'N more regions' item for the regions
+    without a region map (map/'s 'Not on a region map' block, #other-places), then the series. Region counts are
+    published reports, series left out (a series has its own item)."""
     mapped = set(core.site_meta().get('regions') or [])
+    # map/ gives a mapped region a panel (and its #region-<slug> anchor) only while it lists a trip there; a region
+    # without one is named here only when it has a page of its own to link to (reports filed under it that its stale
+    # map does not draw)
+    paneled = {name for name, _slug, _ts in core.region_groups(site)}
     counts = {}
     for t in site['published']:
         r = t.get('region')
@@ -282,10 +286,12 @@ def also_items(site):
             counts[r] = counts.get(r, 0) + 1
     item = '<li><a href="%s"><span class="hom-also-w">%s</span>%s</a></li>'
     out = []
-    for r in sorted((r for r in mapped if r not in HOME_REGIONS), key=lambda r: (-counts.get(r, 0), r)):
+    others = [r for r in mapped if r not in HOME_REGIONS and (r in paneled or core.region_page_href(HERE, r))]
+    for r in sorted(others, key=lambda r: (-counts.get(r, 0), r)):
         k = counts.get(r, 0)
-        out.append(item % (core.region_map_href(HERE, r) or link(HERE, 'map/#region-' + slug(r)), esc(r),
-                           ('<span class="hom-also-c">%d</span>' % k) if k else ''))
+        # the region's own page when it has one, else its panel on map/
+        href = core.region_page_href(HERE, r) or core.region_map_href(HERE, r) or link(HERE, 'map/#region-' + slug(r))
+        out.append(item % (href, esc(r), ('<span class="hom-also-c">%d</span>' % k) if k else ''))
     unmapped = [r for r in counts if r not in mapped and r not in HOME_REGIONS]
     if unmapped:
         more = '%d more region%s' % (len(unmapped), '' if len(unmapped) == 1 else 's')
@@ -313,10 +319,13 @@ def where(site):
         spoken = ', '.join(b.replace('\u00a0', ' ').replace('+ ', '') for b in bits).lower()
         aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
         mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False)
+        # the name opens the region's own page when it has one; 'Open the map' still goes to its panel on map/
+        own = core.region_page_href(HERE, region)
+        name = ('<a href="%s">%s</a>' % (own, esc(region))) if own else esc(region)
         blocks.append('<div class="hom-reg"><div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
                       '<span class="t-mono-s hom-reg-c">%s</span>'
                       '<a class="hom-reg-a" href="%s" aria-label="%s">Open the map%s</a></div>%s</div>'
-                      % (esc(region), line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16), mp))
+                      % (name, line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16), mp))
     if not blocks:
         return ''
     also = also_items(site)

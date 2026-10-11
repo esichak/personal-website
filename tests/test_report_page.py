@@ -70,6 +70,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc, photo, LANDSCAPE, PORTRAIT  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 WRITEUP = ('Synthetic write-up for a test.\n\n'
            'Second synthetic paragraph, with *emphasis* and a [synthetic link](https://example.test/).')
 NOTES = 'Synthetic planning notes for a test.'
@@ -111,6 +113,13 @@ def load_module(tc, name):
         return importlib.import_module(name)
     except ImportError as ex:
         tc.fail('%s is not importable: %s' % (name.replace('.', '/') + '.py', ex))
+
+
+def pick_candidate(widths, slot_px, dpr):
+    """The srcset candidate a browser takes for a slot `slot_px` CSS px wide on a screen of `dpr` device px per px: the
+    first of the listed widths that is at least slot x DPR wide, else the largest."""
+    need_px = slot_px * dpr
+    return next((w for w in widths if w >= need_px), widths[-1])
 
 
 def need(tc, mod, name):
@@ -3682,8 +3691,9 @@ class PhoneShapeTests(ReportFixture):
                 card = Doc(core.cover_img(t, t['url'], core.RELATED_SIZES))
                 img = card.find('img')
                 self.assertEqual((img['sizes'], img['srcset']), (core.RELATED_SIZES, two))
+                # (the source declares the slot as 106 px, core.CARD_PHONE_SIZES: contract-phase5.md section 5)
                 self.assertEqual([(s_['srcset'], s_['sizes'], s_['media']) for s_ in card.find_all('source')],
-                                 [(three, '112px', '(max-width: 559.98px)')])
+                                 [(three, '106px', '(max-width: 559.98px)')])
                 link_ = Doc(core.cover_preload(t, t['url'], core.RELATED_SIZES)).find('link')
                 self.assertEqual((link_['imagesizes'], link_['imagesrcset']), (core.RELATED_SIZES, two))
 
@@ -3934,22 +3944,24 @@ class CoverSrcsetTests(ReportFixture):
 
     def test_the_card_slots_pick_the_th_copy_on_a_phone_and_never_on_a_desktop(self):
         # the arithmetic behind 10.5, as a browser does it: the first candidate at least slot x DPR wide, else the
-        # largest. Below 560 px a card's cover is 112 px wide and the <source> applies: its list is the .th copy, the
-        # 800 px copy and the full file, and 427 px is enough for that slot at any pixel density a phone has.
-        def pick(widths, slot_px, dpr):
-            need_px = slot_px * dpr
-            return next((w for w in widths if w >= need_px), widths[-1])
-
+        # largest (pick_candidate). Below 560 px a card's cover is 112 px wide and the <source> applies: its list is the
+        # .th copy, the 800 px copy and the full file, and 427 px is enough for that slot at any pixel density a phone
+        # has, whether the slot is declared at the real 112 px or, as since Phase 5, at 106 px (CardSourceTests has the
+        # arithmetic of that change)
+        pick = pick_candidate
         self.assertEqual(need(self, core, 'CARD_PHONE_SLOT'), '112px')
         slot = int(core.CARD_PHONE_SLOT[:-2])
+        declared = int(need(self, core, 'CARD_PHONE_SIZES')[:-2])
         for dpr in (1, 1.25, 1.5, 2, 2.25, 2.5, 2.625, 2.75, 3, 3.5, 3.75):
             with self.subTest(dpr=dpr):
                 self.assertEqual(pick((427, 800, 1600), slot, dpr), 427)
+                self.assertEqual(pick((427, 800, 1600), declared, dpr), 427)
         self.assertLessEqual(slot * 3.75, 427)
         self.assertEqual(pick((427, 800, 1600), slot, 4), 800)                  # past 427 / 112 = 3.8 the next copy up
-        # a portrait cover's copy is 320 px wide (the short edge): enough up to 2.85x; a 3x phone takes the 600 px copy,
-        # which is what it took before the phase
+        # a portrait cover's copy is 320 px wide (the short edge). Declared at 112 px that was enough up to 2.85x and
+        # a 3x phone took the 600 px copy; declared at 106 px the 3x phone takes the copy as well
         self.assertEqual([pick((320, 600, 1200), slot, dpr) for dpr in (1, 2, 2.75, 3, 3.75)], [320, 320, 320, 600, 600])
+        self.assertEqual([pick((320, 600, 1200), declared, dpr) for dpr in (1, 2, 2.75, 3, 3.75)], [320, 320, 320, 320, 600])
         # From 560 px up the <source> does not apply and the <img> decides. Its slot grows to 400 px on a desktop
         # (RELATED_SIZES / TRX_SIZES / RECENT_SIZES: '(min-width: 1200px) 400px'), and its list is the 800 px copy and the
         # full file: 800 at 1x and at 2x, the full file at 3x, as before Phase 4.
@@ -3990,7 +4002,7 @@ class CoverSrcsetTests(ReportFixture):
         self.assertEqual((pic.classes, [n.tag for n in pic.elements()]), (['cover-pic'], ['source', 'img']))
         src = pic.find('source')
         self.assertEqual(sorted(src.attrs), ['media', 'sizes', 'srcset'])
-        self.assertEqual((src['media'], src['sizes']), ('(max-width: 559.98px)', '112px'))
+        self.assertEqual((src['media'], src['sizes']), ('(max-width: 559.98px)', '106px'))       # core.CARD_PHONE_SIZES: what the source declares
         self.assertEqual(src['srcset'], base % 'syn-rel-th' + '01.th.webp 427w, ' + two)
         html_ = self.page('syn-rel-page').html
         self.assertEqual((html_.count('<picture'), html_.count('</picture>'), html_.count('<source'), html_.count('.th.')), (1, 1, 1, 1))
@@ -4030,7 +4042,12 @@ class CardSourceTests(ReportFixture):
     sizes string (one that ends ', 112px') when the photo has its .th and .sm copies and a recorded size, else '';
     core.cover_img wraps a card cover that is not the page's lead image in <picture class="cover-pic"> with that
     source in front of the <img> it has always written. Reason: with 427w in the <img>'s own list a 1x desktop screen
-    took the .th copy for the card's 400 px slot, and the photo looked softer than before the phase."""
+    took the .th copy for the card's 400 px slot, and the photo looked softer than before the phase.
+
+    contract-phase5.md section 5 (the card-size copy): the source declares the slot as core.CARD_PHONE_SIZES, '106px'
+    (THUMB_EDGE // 3), instead of the real 112 px, so that a 3x phone is served by the 320 px copy of a portrait or
+    square cover. CARD_PHONE_SLOT stays '112px': it still ends every card sizes string and still decides which strings
+    get a source. Nothing else about the source changes."""
 
     CARD = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
 
@@ -4057,7 +4074,13 @@ class CardSourceTests(ReportFixture):
     def test_the_two_constants(self):
         self.assertEqual(need(self, core, 'CARD_PHONE_SLOT'), '112px')
         self.assertEqual(need(self, core, 'CARD_PHONE_MEDIA'), '(max-width: 559.98px)')
+        # ... and the third: what the source declares for that slot, six px under the real one
+        self.assertEqual(need(self, core, 'CARD_PHONE_SIZES'), '106px')
+        self.assertEqual(core.CARD_PHONE_SIZES, '%dpx' % (core.THUMB_EDGE // 3))
+        self.assertEqual(core.THUMB_EDGE, 320)
         cards, others = self.strings()
+        for sizes in cards:
+            self.assertNotIn(core.CARD_PHONE_SIZES, sizes)                    # no sizes string of an <img> carries the declared 106 px
         for sizes in cards:
             # a card's phone slot is the last, unconditional item of its string, and its first breakpoint is where the
             # source's media query ends
@@ -4068,9 +4091,9 @@ class CardSourceTests(ReportFixture):
             self.assertFalse(sizes.endswith(', ' + core.CARD_PHONE_SLOT), sizes)
 
     def test_card_source_for_a_landscape_a_portrait_and_a_panorama(self):
-        # '<source media="(max-width: 559.98px)" srcset="<th> <thumb_width>w, <sm> <w>w, <full> <w>w" sizes="112px">'
+        # '<source media="(max-width: 559.98px)" srcset="<th> <thumb_width>w, <sm> <w>w, <full> <w>w" sizes="106px">'
         card_source = need(self, core, '_card_source')
-        want = '<source media="(max-width: 559.98px)" srcset="%s01.th.webp %dw, %s01.sm.webp %dw, %s01.webp %dw" sizes="112px">'
+        want = '<source media="(max-width: 559.98px)" srcset="%s01.th.webp %dw, %s01.sm.webp %dw, %s01.webp %dw" sizes="106px">'
         cases = (('landscape', LANDSCAPE, (427, 800, 1600)), ('portrait', PORTRAIT, (320, 600, 1200)), ('panorama', (3810, 1600), (762, 800, 3810)),
                  ('square', (1000, 1000), (320, 800, 1000)), ('sixteen-nine', (1600, 900), (569, 800, 1600)))
         for k, (name, size, widths) in enumerate(cases):
@@ -4083,7 +4106,8 @@ class CardSourceTests(ReportFixture):
                 self.assertEqual(widths[0], core.thumb_width(p))
                 self.assertEqual(sorted(widths), list(widths))               # for these shapes the list ascends
                 src = Doc(got).find('source')
-                self.assertEqual((src['media'], src['sizes']), (core.CARD_PHONE_MEDIA, core.CARD_PHONE_SLOT))
+                self.assertEqual((src['media'], src['sizes']), (core.CARD_PHONE_MEDIA, core.CARD_PHONE_SIZES))
+                self.assertNotEqual(src['sizes'], core.CARD_PHONE_SLOT)       # the string it was handed ends with 112 px; the source says 106
                 # from another folder depth the three candidates move together
                 self.assertEqual(card_source(t, p, 'trips/', self.CARD), got.replace('../../trips/', '../trips/'))
                 self.assertEqual(card_source(t, p, '', self.CARD), got.replace('../../trips/', 'trips/'))
@@ -4098,7 +4122,7 @@ class CardSourceTests(ReportFixture):
         base = '../../trips/%s/photos/' % t['slug']
         self.assertEqual(core.thumb_width(p), 853)
         self.assertEqual(need(self, core, '_card_source')(t, p, t['url'], self.CARD),
-                         '<source media="(max-width: 559.98px)" srcset="%s01.th.webp 853w, %s01.sm.webp 800w, %s01.webp 4000w" sizes="112px">'
+                         '<source media="(max-width: 559.98px)" srcset="%s01.th.webp 853w, %s01.sm.webp 800w, %s01.webp 4000w" sizes="106px">'
                          % (base, base, base))
 
     def test_no_source_without_both_copies_and_a_recorded_size(self):
@@ -4125,7 +4149,9 @@ class CardSourceTests(ReportFixture):
         for sizes in cards + ('50vw, 112px', '(min-width: 560px) 300px, 112px'):
             with self.subTest(sizes=sizes):
                 self.assertTrue(card_source(t, p, t['url'], sizes).startswith('<source media="(max-width: 559.98px)" srcset="'), sizes)
-                self.assertTrue(card_source(t, p, t['url'], sizes).endswith(' sizes="112px">'))      # the slot, not the string it was handed
+                # the declared slot (CARD_PHONE_SIZES), not the string it was handed and not the 112 px that string ends with
+                self.assertTrue(card_source(t, p, t['url'], sizes).endswith(' sizes="106px">'))
+                self.assertEqual(card_source(t, p, t['url'], sizes).count('sizes="'), 1)
         for sizes in others:
             with self.subTest(sizes=sizes):
                 self.assertEqual(card_source(t, p, t['url'], sizes), '')
@@ -4134,16 +4160,67 @@ class CardSourceTests(ReportFixture):
                 self.assertNotIn('<source', got)
                 self.assertNotIn('.th.', got)
 
-    def test_the_media_and_the_slot_come_from_the_two_constants(self):
+    def test_the_media_the_slot_and_the_declared_size_come_from_the_three_constants(self):
         t = self.cover('constants', LANDSCAPE)
         p = t['cover']['photo']
         base = '../../trips/%s/photos/' % t['slug']
+        three = 'srcset="%s01.th.webp 427w, %s01.sm.webp 800w, %s01.webp 1600w"' % (base, base, base)
+        # CARD_PHONE_SLOT decides which strings get a source (the ones that end with it) and is not what the source says;
+        # CARD_PHONE_SIZES is what the source says and decides nothing else; CARD_PHONE_MEDIA is where it applies
         with mock.patch.object(core, 'CARD_PHONE_MEDIA', '(max-width: 479.98px)'), mock.patch.object(core, 'CARD_PHONE_SLOT', '96px'):
             self.assertEqual(core._card_source(t, p, t['url'], self.CARD), '')                       # no longer ends with the slot
             self.assertEqual(core._card_source(t, p, t['url'], '(min-width: 480px) 300px, 96px'),
-                             '<source media="(max-width: 479.98px)" srcset="%s01.th.webp 427w, %s01.sm.webp 800w, %s01.webp 1600w" sizes="96px">'
-                             % (base, base, base))
-        self.assertIn(' sizes="112px">', core._card_source(t, p, t['url'], self.CARD))
+                             '<source media="(max-width: 479.98px)" %s sizes="106px">' % three)
+            with mock.patch.object(core, 'CARD_PHONE_SIZES', '90px'):
+                self.assertEqual(core._card_source(t, p, t['url'], '(min-width: 480px) 300px, 96px'),
+                                 '<source media="(max-width: 479.98px)" %s sizes="90px">' % three)
+        with mock.patch.object(core, 'CARD_PHONE_SIZES', '90px'):
+            self.assertEqual(core._card_source(t, p, t['url'], self.CARD), '<source media="(max-width: 559.98px)" %s sizes="90px">' % three)
+            self.assertEqual(core._card_source(t, p, t['url'], '(min-width: 560px) 50vw, 90px'), '')      # a string that ends with 90 px is no card's
+            self.assertEqual(core._card_source(t, p, t['url'], '(min-width: 560px) 50vw, 106px'), '')
+        self.assertEqual(core._card_source(t, p, t['url'], self.CARD), '<source media="(max-width: 559.98px)" %s sizes="106px">' % three)
+        self.assertEqual(core._card_source(t, p, t['url'], '(min-width: 560px) 50vw, 106px'), '')         # nor is one that ends with 106 px
+
+    def test_at_106_px_a_3x_phone_takes_the_320_px_copy_of_a_portrait_and_a_square_cover(self):
+        # contract-phase5.md section 5, as a browser does it (pick_candidate: the first candidate at least
+        # slot x DPR wide, else the largest), over the candidates _card_source really writes for each shape
+        pick = pick_candidate
+        declared, real = int(core.CARD_PHONE_SIZES[:-2]), int(core.CARD_PHONE_SLOT[:-2])
+        self.assertEqual((declared, real), (106, 112))
+        widths = {}
+        for k, (name, size) in enumerate((('landscape', LANDSCAPE), ('portrait', PORTRAIT), ('square', (1000, 1000)))):
+            t = self.cover('pick-' + name, size, date='2025-06-%02d' % (k + 1))
+            source = Doc(core._card_source(t, t['cover']['photo'], t['url'], self.CARD)).find('source')
+            self.assertEqual(source['sizes'], '106px')
+            widths[name] = tuple(int(w) for w in re.findall(r' (\d+)w', source['srcset']))
+        self.assertEqual(widths, {'landscape': (427, 800, 1600), 'portrait': (320, 600, 1200), 'square': (320, 800, 1000)})
+        # at 106 px a 3x screen wants 318 px: the 320 px copy of a portrait or square cover, the 427 px copy of a landscape
+        self.assertEqual(declared * 3, 318)
+        self.assertEqual({name: pick(w, declared, 3) for name, w in widths.items()}, {'landscape': 427, 'portrait': 320, 'square': 320})
+        # at the real 112 px it wanted 336 px and stepped past 320w: the 600 px copy of the portrait, the 800 px one of
+        # the square (the contract's measurement on a region page's first Featured card: 154 KB where 42 KB do)
+        self.assertEqual(real * 3, 336)
+        self.assertEqual({name: pick(w, real, 3) for name, w in widths.items()}, {'landscape': 427, 'portrait': 600, 'square': 800})
+        # at 1x and 2x, and at every density up to 2.75x, the choice is the same as before for every shape: the .th copy
+        for dpr in (1, 1.25, 1.5, 2, 2.25, 2.5, 2.625, 2.75):
+            for name, w in widths.items():
+                with self.subTest(dpr=dpr, shape=name):
+                    self.assertEqual(pick(w, declared, dpr), pick(w, real, dpr))
+                    self.assertEqual(pick(w, declared, dpr), w[0])
+        # a landscape cover is served by its 427 px copy at either declaration on every phone up to 3.75x
+        for dpr in (3, 3.5, 3.75):
+            self.assertEqual((pick(widths['landscape'], declared, dpr), pick(widths['landscape'], real, dpr)), (427, 427))
+        # past 3x a portrait or square cover goes to the next copy at either declaration, as before
+        for name in ('portrait', 'square'):
+            self.assertEqual([pick(widths[name], declared, dpr) for dpr in (3.5, 3.75)], [pick(widths[name], real, dpr) for dpr in (3.5, 3.75)])
+            self.assertEqual(pick(widths[name], declared, 3.5), widths[name][1])
+        # 106 is the widest whole number of px that does it: three times it is within the copy's 320 px short edge, and
+        # one px more is not
+        self.assertEqual(declared, core.THUMB_EDGE // 3)
+        self.assertLessEqual(3 * declared, core.THUMB_EDGE)
+        self.assertGreater(3 * (declared + 1), core.THUMB_EDGE)
+        self.assertEqual(pick(widths['portrait'], declared + 1, 3), 600)
+        self.assertEqual(pick(widths['square'], declared + 1, 3), 800)
 
     def test_cover_img_wraps_a_card_cover_and_leaves_the_img_as_it_was(self):
         # for each card string: <picture class="cover-pic"> + the source + the <img>, and that <img> is character for
@@ -4272,6 +4349,323 @@ class CardSourceTests(ReportFixture):
                 self.assertNotIn('<picture', bare)
                 self.assertNotIn('.th.', bare)
                 self.assertEqual(unwrap(pages[slug]), bare)
+
+
+# ---------------------------------------------------------------- Phase 5: the links to a region's own page
+
+DESERT = 'Synthetic Desert'            # a region on map/ without a region map: it has no page of its own
+RS, DS = 'synthetic-range', 'synthetic-desert'
+
+
+def legacy_region_cell(t, here):
+    """The pagers' second cell as report.planned_pager and report.goal_pager wrote it at commit fb425ab (Phase 4),
+    copied from those two function bodies, where it stood twice: [] or the one link to the region on map/."""
+    reg = core.region_map_href(here, t.get('region'))
+    if not reg:
+        return []
+    return ['<a class="next" href="%s"><span class="pager-t"><span class="t-label pager-l"><span>%s</span>%s</span>'
+            '<span class="pager-n">Open the map</span></span></a>' % (reg, core.esc(t['region']), core.icon('arrow-right', 14))]
+
+
+def legacy_goal_pager(t, here):
+    """report.goal_pager as it was at commit fb425ab, copied line for line."""
+    cells = ['<a class="prev" href="%s"><span class="pager-t"><span class="t-label pager-l">%s<span>Tick list</span></span>'
+             '<span class="pager-n">Back to the tick list</span></span></a>' % (core.link(here, 'tick-list/'), core.icon('arrow-left', 14))]
+    cells += legacy_region_cell(t, here)
+    return '<nav class="pager wrap sec" aria-label="More goals">%s</nav>' % ''.join(cells)
+
+
+def legacy_planned_pager(t, here, site):
+    """report.planned_pager as it was at commit fb425ab, copied line for line."""
+    act = t['activity']
+    word = core.ACT[act][0]
+    same = [x for x in site['trips'] if x['activity'] == act]
+    counts = core.meta_items(core.count_items([x for x in same if x['kind'] != 'planned'], [x for x in same if x['kind'] == 'planned']))
+    cells = ['<a class="prev" href="%s"><span class="pager-t"><span class="t-label pager-l">%s<span>%s</span></span>'
+             '<span class="pager-n">All %s reports</span><span class="t-mono-s">%s</span></span></a>'
+             % (core.link(here, core.section_url(act)), core.icon('arrow-left', 14), core.esc(word), core.esc(word.lower()), counts)]
+    cells += legacy_region_cell(t, here)
+    return '<nav class="pager wrap sec" aria-label="More %s">%s</nav>' % (core.esc(word.lower()), ''.join(cells))
+
+
+class RegionLinkTests(ReportFixture):
+    """contract-phase5.md section 2, on the pages report.py writes or shares its title block with: the region crumb of a
+    report, a multi-day, a journal and a goal page, and the region cell of the two pagers (report.region_cell). The
+    fixture's region gets a region map here (so core.region_pages gives it a page); a second region, on map/ without a
+    region map, has none. With no page registered every link is what it was before the phase: the breadcrumb is
+    written out by hand below, and the pagers are compared with copies of the old function bodies (legacy_goal_pager,
+    legacy_planned_pager). REVISED in round 2: core.register_site records region pages only when it is handed a site
+    meta, so this class registers its site with one (load_site below), as tools/build.py does; the fixture's own
+    load_site registers without one, and every other class of this file therefore builds its pages as before."""
+
+    meta = None                               # the site meta load_site registers with, once setUp has written it
+
+    def setUp(self):
+        helpers.keep_state(self)              # the region pages this class registers with core are gone afterwards
+        super().setUp()
+        meta = {'hash': '', 'maps': {'region-%s-%s' % (RS, size): {'w': 100, 'h': 80} for size in ('desktop', 'phone')},
+                'regions': [REGION], 'all_regions': [REGION, DESERT]}
+        patcher = mock.patch.object(core, '_SITE_META', [meta])
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.meta = meta
+        self.multiday = load_module(self, 'sitegen.pages.multiday')
+        self.series = load_module(self, 'sitegen.pages.series')
+        mk = helpers.make_trip
+        mk(self.tmp, 'syn-desert', title='Synthetic Desert Walk', activity='hike', date='2025-02-02', region=DESERT, track=True)
+        mk(self.tmp, 'syn-desert-goal', title='Synthetic Desert Goal', activity='hike', kind='planned', region=DESERT)
+        mk(self.tmp, 'syn-nowhere-goal', title='Synthetic Nowhere Goal', activity='hike', kind='planned', region='Synthetic Nowhere')
+        mk(self.tmp, 'syn-regionless-goal', title='Synthetic Regionless Goal', activity='hike', kind='planned')
+        self.load_site()
+
+    def load_site(self):
+        """The fixture's site, registered again with the site meta: the regions with a region map get their pages."""
+        super().load_site()
+        if self.meta is not None:
+            core.register_site(self.site, self.meta)
+
+    def html(self, slug):
+        """The trip's page, built now by the module that owns its kind."""
+        t = self.by[slug]
+        if t['kind'] == 'multi-day':
+            return self.multiday.page(t, self.site).html
+        if t['kind'] == 'series':
+            return self.series.page(t, self.site).html
+        return self.report.page(t, self.site).html
+
+    def crumbs(self, html_):
+        nav = Doc(html_).by_id('main').find('nav', attrs={'aria-label': 'Breadcrumb'})
+        return [(a.text(), a['href']) for a in nav.find_all('a')]
+
+    def unregistered(self):
+        core._REGION_PAGES.clear()            # core as it is before any site is registered (helpers.keep_state undoes it)
+
+    # ------------------------------------------------------------ the fixture
+
+    def test_the_fixture_has_a_region_with_a_page_and_one_without(self):
+        self.assertEqual(core._REGION_PAGES, {REGION: RS})
+        self.assertEqual(core.region_page_href('trips/syn-story/', REGION), '../../regions/synthetic-range/')
+        self.assertIsNone(core.region_page_href('trips/syn-desert/', DESERT))
+        self.assertEqual(core.region_map_href('trips/syn-desert/', DESERT), '../../map/#region-synthetic-desert')
+        self.assertIsNone(core.region_map_href('trips/syn-nowhere-goal/', 'Synthetic Nowhere'))
+
+    def test_a_test_of_this_class_leaves_no_region_page_registered(self):
+        helpers.assert_puts_core_back(self, RegionLinkTests('test_the_fixture_has_a_region_with_a_page_and_one_without'))
+
+    # ------------------------------------------------------------ the breadcrumb
+
+    def test_the_region_crumb_opens_the_regions_own_page(self):
+        want = {'syn-story': [('Reports', '../../'), ('Hiking', '../../hiking/'), (REGION, '../../regions/synthetic-range/')],
+                'syn-tour': [('Reports', '../../'), ('Backcountry Ski', '../../ski/'), (REGION, '../../regions/synthetic-range/')],
+                'syn-journal': [('Reports', '../../'), ('Hiking', '../../hiking/'), (REGION, '../../regions/synthetic-range/')],
+                'syn-goal': [('Tick list', '../../tick-list/'), (REGION, '../../regions/synthetic-range/')]}
+        for slug in sorted(want):
+            with self.subTest(slug=slug):
+                html_ = self.html(slug)
+                self.assertEqual(self.crumbs(html_), want[slug])
+                self.assertEqual(html_.count('<a href="../../regions/synthetic-range/">Synthetic Range</a>'), 1)
+                self.assertNotIn('<a href="../../map/#region-synthetic-range">', html_)
+
+    def test_a_region_without_a_page_keeps_its_crumb_to_the_map_page(self):
+        self.assertEqual(self.crumbs(self.html('syn-desert')),
+                         [('Reports', '../../'), ('Hiking', '../../hiking/'), (DESERT, '../../map/#region-synthetic-desert')])
+        self.assertEqual(self.crumbs(self.html('syn-desert-goal')), [('Tick list', '../../tick-list/'), (DESERT, '../../map/#region-synthetic-desert')])
+        self.assertNotIn('regions/', self.html('syn-desert'))
+        self.assertNotIn('regions/', self.html('syn-desert-goal'))
+        # a region that map/ has no anchor for, and no region: no region crumb, as before
+        self.assertEqual(self.crumbs(self.html('syn-nowhere-goal')), [('Tick list', '../../tick-list/')])
+        self.assertEqual(self.crumbs(self.html('syn-regionless-goal')), [('Tick list', '../../tick-list/')])
+
+    def test_title_block_is_relative_to_the_page_it_is_on(self):
+        nav = Doc(self.report.title_block(self.by['syn-story'], 'a/b/c/', '')).find('nav')
+        self.assertEqual([a['href'] for a in nav.find_all('a')], ['../../../', '../../../hiking/', '../../../regions/synthetic-range/'])
+
+    def test_with_no_site_registered_the_breadcrumb_is_the_old_one(self):
+        self.unregistered()
+        # written out by hand: the breadcrumb of a report page as Phase 4 left it
+        self.assertIn('<nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Reports</a><span aria-hidden="true">/</span>'
+                      '<a href="../../hiking/">Hiking</a><span aria-hidden="true">/</span>'
+                      '<a href="../../map/#region-synthetic-range">Synthetic Range</a></nav>', self.html('syn-story'))
+        self.assertIn('<nav class="crumbs" aria-label="Breadcrumb"><a href="../../tick-list/">Tick list</a><span aria-hidden="true">/</span>'
+                      '<a href="../../map/#region-synthetic-range">Synthetic Range</a></nav>', self.html('syn-goal'))
+        for slug in ('syn-story', 'syn-tour', 'syn-journal', 'syn-goal', 'syn-desert', 'syn-desert-goal'):
+            self.assertNotIn('regions/', self.html(slug), slug)
+
+    def test_the_crumb_is_the_only_thing_a_region_page_changes_on_a_report(self):
+        with_page = {slug: self.html(slug) for slug in ('syn-story', 'syn-tour', 'syn-journal', 'syn-desert', 'syn-words', 'syn-undated')}
+        self.unregistered()
+        for slug, html_ in sorted(with_page.items()):
+            with self.subTest(slug=slug):
+                old = self.html(slug)
+                if slug == 'syn-desert':
+                    self.assertEqual(html_, old)                              # its region has no page: nothing differs
+                    continue
+                self.assertEqual(html_.count('href="../../regions/synthetic-range/"'), 1)
+                self.assertEqual(html_.replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"'), old)
+
+    def test_a_page_built_before_registration_equals_one_that_never_has_a_region_page(self):
+        # 'no site registered' and 'this region has no page' are one answer (None): every caller does what it did
+        self.unregistered()
+        plain = {slug: self.html(slug) for slug in ('syn-story', 'syn-tour', 'syn-goal')}
+        core.register_site(self.site, self.meta)
+        with mock.patch.object(core, 'region_page_href', lambda here, region: None):
+            for slug in sorted(plain):
+                self.assertEqual(self.html(slug), plain[slug], slug)
+
+    def test_registered_without_a_site_meta_every_link_is_the_old_one(self):
+        # REVISED in round 2: what ReportFixture.load_site and helpers.make_site do. The region map is in core's own copy
+        # of the meta all the same; the region has no page, and the crumb and the pager cell are the ones of Phase 4
+        slugs = ('syn-story', 'syn-tour', 'syn-journal', 'syn-goal', 'syn-desert', 'syn-desert-goal')
+        with_page = {slug: self.html(slug) for slug in slugs}
+        self.unregistered()
+        never = {slug: self.html(slug) for slug in slugs}
+        for register in (lambda: core.register_site(self.site), lambda: core.register_site(self.site, None), lambda: ReportFixture.load_site(self)):
+            core.register_site(self.site, self.meta)
+            self.assertEqual(core._REGION_PAGES, {REGION: RS})
+            register()
+            self.assertEqual(core._REGION_PAGES, {})
+            self.assertIn('region-%s-desktop' % RS, core.site_meta()['maps'])
+            for slug in slugs:
+                self.assertEqual(self.html(slug), never[slug], slug)
+                self.assertNotIn('regions/', self.html(slug), slug)
+            self.assertEqual(self.report.region_cell(self.by['syn-goal'], 'trips/syn-goal/'), legacy_region_cell(self.by['syn-goal'], 'trips/syn-goal/'))
+        self.assertIn('<a href="../../map/#region-synthetic-range">Synthetic Range</a></nav>', never['syn-story'])
+        # handed the meta, the pages are the ones with the links again
+        self.load_site()
+        for slug in slugs:
+            self.assertEqual(self.html(slug), with_page[slug], slug)
+        self.assertNotEqual(with_page['syn-story'], never['syn-story'])
+        self.assertEqual(with_page['syn-desert'], never['syn-desert'])
+
+    def test_a_journal_and_a_report_without_a_track_link_to_the_page_that_lists_them(self):
+        # REVISED in round 2: the page lists every listed trip whose region is the name (core.region_pages), so every
+        # report that gets the crumb is on the page it leads to: the journal and a report without a track as well
+        self.add('syn-notrack', track=False, body=WRITEUP)
+        (name, slug, ts), = core.region_pages(self.site, self.meta)
+        listed = {t['slug'] for t in ts}
+        self.assertEqual((name, slug), (REGION, RS))
+        for trip in ('syn-journal', 'syn-notrack', 'syn-tour', 'syn-story', 'syn-undated'):
+            with self.subTest(slug=trip):
+                self.assertIn(trip, listed)
+                self.assertEqual(self.crumbs(self.html(trip))[-1], (REGION, '../../regions/synthetic-range/'))
+        self.assertEqual((self.by['syn-journal']['kind'], core.has_track(self.by['syn-notrack'])), ('series', False))
+        # a trip of another region is neither on the page nor linked to it
+        self.assertNotIn('syn-desert', listed)
+        self.assertNotIn('regions/', self.html('syn-desert'))
+
+    # ------------------------------------------------------------ report.region_cell
+
+    def test_region_cell_is_one_link_to_the_regions_page(self):
+        cell = need(self, self.report, 'region_cell')
+        got = cell(self.by['syn-goal'], 'trips/syn-goal/')
+        self.assertEqual(got, ['<a class="next" href="../../regions/synthetic-range/"><span class="pager-t"><span class="t-label pager-l">'
+                               '<span>Synthetic Range</span>%s</span><span class="pager-n">All Synthetic Range reports</span></span></a>'
+                               % core.icon('arrow-right', 14)])
+        a = Doc(got[0]).find('a')
+        self.assertEqual((a.classes, a['href']), (['next'], '../../regions/synthetic-range/'))
+        self.assertEqual(a.find('span', cls='pager-l').text(), REGION)              # the label line stays the region name
+        self.assertEqual(a.find('span', cls='pager-n').text(), 'All Synthetic Range reports')
+        # any trip of the region, from any page
+        self.assertEqual(Doc(cell(self.by['syn-story'], '')[0]).find('a')['href'], 'regions/synthetic-range/')
+
+    def test_region_cell_for_a_region_without_a_page_is_the_old_cell(self):
+        cell = need(self, self.report, 'region_cell')
+        got = cell(self.by['syn-desert-goal'], 'trips/syn-desert-goal/')
+        self.assertEqual(got, ['<a class="next" href="../../map/#region-synthetic-desert"><span class="pager-t"><span class="t-label pager-l">'
+                               '<span>Synthetic Desert</span>%s</span><span class="pager-n">Open the map</span></span></a>'
+                               % core.icon('arrow-right', 14)])
+        self.assertEqual(got, legacy_region_cell(self.by['syn-desert-goal'], 'trips/syn-desert-goal/'))
+
+    def test_region_cell_is_empty_without_a_region_or_a_place_on_the_map_page(self):
+        cell = need(self, self.report, 'region_cell')
+        self.assertEqual(cell(self.by['syn-regionless-goal'], 'trips/syn-regionless-goal/'), [])
+        self.assertEqual(cell(self.by['syn-nowhere-goal'], 'trips/syn-nowhere-goal/'), [])
+        self.assertIsInstance(cell(self.by['syn-regionless-goal'], ''), list)
+
+    def test_region_cell_escapes_the_region_name(self):
+        cell = need(self, self.report, 'region_cell')
+        name = "Synthetic O'Brien & <Peaks>"
+        t = dict(self.by['syn-goal'], region=name)
+        with mock.patch.dict(core._REGION_PAGES, {name: 'synthetic-obrien-peaks'}):
+            (html_,) = cell(t, 'trips/syn-goal/')
+        self.assertIn('<span>Synthetic O&#x27;Brien &amp; &lt;Peaks&gt;</span>', html_)
+        self.assertIn('<span class="pager-n">All Synthetic O&#x27;Brien &amp; &lt;Peaks&gt; reports</span>', html_)
+        self.assertEqual(Doc(html_).find('a')['href'], '../../regions/synthetic-obrien-peaks/')
+        self.assertEqual(Doc(html_).find('span', cls='pager-n').text(), "All Synthetic O'Brien & <Peaks> reports")
+        self.assertNotIn('<Peaks>', html_)
+
+    def test_with_no_site_registered_region_cell_is_the_old_cell(self):
+        cell = need(self, self.report, 'region_cell')
+        self.unregistered()
+        for slug in ('syn-goal', 'syn-story', 'syn-desert-goal', 'syn-nowhere-goal', 'syn-regionless-goal'):
+            for here in ('trips/%s/' % slug, ''):
+                self.assertEqual(cell(self.by[slug], here), legacy_region_cell(self.by[slug], here))
+        self.assertIn('Open the map', cell(self.by['syn-goal'], '')[0])
+
+    # ------------------------------------------------------------ the goal pager and the planned-route pager
+
+    def test_the_goal_pagers_second_cell_is_the_region_cell(self):
+        t, here = self.by['syn-goal'], 'trips/syn-goal/'
+        nav = Doc(self.report.goal_pager(t, here)).find('nav', cls='pager')
+        self.assertEqual([(a.classes, a['href']) for a in nav.find_all('a')],
+                         [(['prev'], '../../tick-list/'), (['next'], '../../regions/synthetic-range/')])
+        self.assertEqual(nav.find('a', cls='next').find('span', cls='pager-n').text(), 'All Synthetic Range reports')
+        # the old pager with its second cell replaced, and nothing else
+        old = legacy_goal_pager(t, here)
+        self.assertEqual(self.report.goal_pager(t, here),
+                         old.replace(legacy_region_cell(t, here)[0], self.report.region_cell(t, here)[0]))
+        self.assertEqual(old.count(legacy_region_cell(t, here)[0]), 1)
+        # ... and it is what the goal's page carries
+        self.assertEqual(self.html('syn-goal').count(self.report.goal_pager(t, here)), 1)
+        self.assertNotIn('Open the map', self.html('syn-goal'))
+
+    def test_the_planned_pagers_second_cell_is_the_region_cell(self):
+        t, here = self.by['syn-goal'], 'trips/syn-goal/'
+        nav = Doc(self.report.planned_pager(t, here, self.site)).find('nav', cls='pager')
+        self.assertEqual([(a.classes, a['href']) for a in nav.find_all('a')],
+                         [(['prev'], '../../hiking/'), (['next'], '../../regions/synthetic-range/')])
+        self.assertEqual(nav.find('a', cls='next').find('span', cls='pager-n').text(), 'All Synthetic Range reports')
+        self.assertEqual(nav.find('a', cls='prev').find('span', cls='pager-n').text(), 'All hiking reports')
+        old = legacy_planned_pager(t, here, self.site)
+        self.assertEqual(self.report.planned_pager(t, here, self.site),
+                         old.replace(legacy_region_cell(t, here)[0], self.report.region_cell(t, here)[0]))
+
+    def test_a_region_without_a_page_keeps_both_pagers_as_they_were(self):
+        for slug in ('syn-desert-goal', 'syn-nowhere-goal', 'syn-regionless-goal'):
+            t, here = self.by[slug], 'trips/%s/' % slug
+            with self.subTest(slug=slug):
+                self.assertEqual(self.report.goal_pager(t, here), legacy_goal_pager(t, here))
+                self.assertEqual(self.report.planned_pager(t, here, self.site), legacy_planned_pager(t, here, self.site))
+        nav = Doc(self.html('syn-desert-goal')).find('nav', cls='pager')
+        self.assertEqual([(a['href'], a.find('span', cls='pager-n').text()) for a in nav.find_all('a')],
+                         [('../../tick-list/', 'Back to the tick list'), ('../../map/#region-synthetic-desert', 'Open the map')])
+        self.assertEqual(len(Doc(self.html('syn-nowhere-goal')).find('nav', cls='pager').find_all('a')), 1)
+
+    def test_with_no_site_registered_both_pagers_are_byte_for_byte_the_old_ones(self):
+        self.unregistered()
+        for slug in ('syn-goal', 'syn-desert-goal', 'syn-nowhere-goal', 'syn-regionless-goal'):
+            t, here = self.by[slug], 'trips/%s/' % slug
+            with self.subTest(slug=slug):
+                self.assertEqual(self.report.goal_pager(t, here), legacy_goal_pager(t, here))
+                self.assertEqual(self.report.planned_pager(t, here, self.site), legacy_planned_pager(t, here, self.site))
+        self.assertIn('<span class="pager-n">Open the map</span>', self.html('syn-goal'))
+        self.assertIn('href="../../map/#region-synthetic-range"><span class="pager-t">', self.html('syn-goal'))
+
+    def test_a_region_page_changes_two_links_on_a_goal_page_and_nothing_else(self):
+        with_page = self.html('syn-goal')
+        self.unregistered()
+        old = self.html('syn-goal')
+        self.assertEqual(with_page.count('href="../../regions/synthetic-range/"'), 2)          # the crumb and the pager cell
+        self.assertEqual(with_page.replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"')
+                         .replace('<span class="pager-n">All Synthetic Range reports</span>', '<span class="pager-n">Open the map</span>'), old)
+
+    def test_the_report_pager_between_reports_has_no_region_cell(self):
+        # Newer / Older is a pager of reports: the phase does not touch it
+        with_page = self.report.pager(self.by['syn-one'], 'trips/syn-one/', self.site)
+        self.assertNotIn('regions/', with_page)
+        self.assertNotIn(REGION, with_page)
+        self.unregistered()
+        self.assertEqual(self.report.pager(self.by['syn-one'], 'trips/syn-one/', self.site), with_page)
 
 
 if __name__ == '__main__':

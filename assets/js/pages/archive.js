@@ -1,8 +1,11 @@
 /* Map & archive: region tabs (ARIA tabs, automatic activation) and activity filters for the report table.
-   Without JS every region panel renders stacked and the table shows everything. */
+   Without JS every region panel renders stacked and the table shows everything.
+   A region page (/regions/<slug>/, body.p-region) is one panel and the same table for one region: it has no tab row,
+   so the tab code finds nothing there; 'Show all' and the filter run as here. */
 (function () {
   'use strict';
-  if (!document.body.classList.contains('p-archive')) return;
+  var page = document.body.classList;
+  if (!page.contains('p-archive') && !page.contains('p-region')) return;
 
   // ------------------------------------------------------------ region tabs
   // The row is a .tabs-x: base.js scrolls the selected tab into the row after a click or key press (and once at start).
@@ -76,6 +79,8 @@
       b.setAttribute('aria-expanded', String(open));
       b.firstChild.nodeValue = open ? 'Show fewer' : more;
       if (open) { var f = ol.querySelector('.arc-more a'); if (f) f.focus(); }
+      // closing a long list shortens the page above the reader: keep the button they pressed, which has focus, in view
+      else b.scrollIntoView({ block: 'nearest' });
     });
   });
 

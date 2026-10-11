@@ -76,6 +76,10 @@
 @media (min-width: 760px) { .arc-row-i { margin-top: 2px; } }
 .arc-rows.arc-collapsed .arc-more { display: none; }
 .arc-all-btn { margin-top: 4px; }
+/* the link under a panel's rows on map/, to the region's own page. Beside a shown 'Show all' button it stands 24 px to
+   the right; where the column is too narrow for both it wraps flush left */
+.arc-reg-a { margin-top: 4px; }
+.arc-all-btn:not([hidden]) { margin-right: 24px; }
 .arc-all-btn[aria-expanded="true"] .ic { transform: rotate(180deg); }
 
 /* ---------------------------------------------------------------- not on a region map

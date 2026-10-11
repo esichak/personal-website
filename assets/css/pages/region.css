@@ -1,0 +1,29 @@
+/* Region pages (/regions/<slug>/): the Map page's panel and report table for one region (archive.css draws both),
+   under a head of counts and places, with a Featured row of cards between them. */
+.reg-head { padding-top: 24px; }
+.reg-head .t-d1 { margin-top: 16px; }
+.reg-stats { margin-top: 12px; font: 400 13px/18px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); }
+.reg-stats .ml-br { display: block; }  /* counts and years on line 1, places (biggest first) on line 2 */
+/* a place wraps at its spaces (.mi-w); one word too long for a line of its own breaks rather than widen the page */
+.reg-stats .mi-w { overflow-wrap: anywhere; }
+@media (min-width: 760px) {
+  .reg-head { padding-top: 32px; }
+  .reg-head .t-d1 { margin-top: 20px; }
+  .reg-stats { font-size: 15px; line-height: 20px; }
+}
+@media (min-width: 1200px) { .reg-head { padding-top: 40px; } }
+/* 'Map' is a short crumb (23 to 25 px of text): its hit area is widened to 44 px, by the same amount on each side, as
+   the browse links are. It stops short of the area of 'Reports' before it (the two are 23 px apart; this one reaches
+   about 10 px, that one 4) and there is no link after it */
+.reg-head .crumbs a::before { inset-inline: min(-4px, (100% - 44px) / 2); }
+
+/* Featured: the report pages' "More like this" grid (1 / 2 / 3 columns of .tcard) */
+.reg-cards { margin-top: 16px; display: grid; row-gap: 20px; }
+@media (min-width: 560px) { .reg-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
+@media (min-width: 760px) { .reg-cards { margin-top: 24px; } }
+@media (min-width: 1200px) { .reg-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.reg-more { margin-top: 12px; }
+.reg-find { margin-top: 12px; }
+
+/* the links into the Trips explorer carry its filters in the address, which only its script reads */
+@media (scripting: none) { .reg-x { display: none; } }

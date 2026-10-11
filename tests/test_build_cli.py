@@ -21,6 +21,8 @@ build = importlib.import_module('build')
 checks = importlib.import_module('checks')
 sitecheck = importlib.import_module('sitegen.sitecheck')
 
+tearDownModule = helpers.no_region_pages_left      # this module runs build.build(): no region page may stay registered after it
+
 
 def finding(level, n):
     return {'level': level, 'file': 'content/trips/t%02d/index.md' % n, 'text': 'content/trips/t%02d/index.md: thing %d' % (n, n)}
@@ -123,6 +125,15 @@ class OnlyTests(unittest.TestCase):
 
     def test_every_page_module_is_accepted(self):
         self.assertEqual(Run(['--only', ','.join(build.PAGE_MODULES)]).built, [set(build.PAGE_MODULES)])
+
+    def test_region_is_a_page_module_and_builds_alone(self):
+        # contract-phase5.md section 3: 'region' is in build.PAGE_MODULES, after 'archive', so `--only region` is a build
+        self.assertEqual(build.PAGE_MODULES[build.PAGE_MODULES.index('archive') + 1], 'region')
+        r = Run(['--only', 'region'])
+        self.assertEqual((r.code, r.exit, r.built), (0, None, [{'region'}]))
+        self.assertEqual(Run(['--only', 'archive,region']).built, [{'archive', 'region'}])
+        # the name is the module's, not the folder's
+        self.assertEqual(Run(['--only', 'regions']).exit, 2)
 
     def test_an_unknown_module_is_a_usage_error_that_names_it_and_builds_nothing(self):
         r = Run(['--only', 'report,reprot,hom'])
@@ -448,14 +459,57 @@ class OutputFolderGuardTests(unittest.TestCase):
 
         out = os.path.join(self.tmp, 'site')
         module = type('M', (), {'build': staticmethod(boom)})
+        # (build() hands core.register_site the site and the site meta since Phase 5; both are stand-ins here, so the
+        # checkout's own rendered/site/meta.json is not read)
         with mock.patch.object(build, 'OUT', out), mock.patch.object(build, 'LINK', False), \
                 mock.patch.object(build, 'PAGE_MODULES', ['home']), mock.patch.object(build.importlib, 'import_module', lambda name: module), \
                 mock.patch.object(build.content, 'load_all', lambda *a, **k: []), mock.patch.object(build, 'site_of', lambda trips: {'trips': [], 'published': []}), \
-                mock.patch.object(build.curation, 'featured_for', lambda site: []), mock.patch.object(build.core, 'register_site', lambda site: None):
+                mock.patch.object(build.curation, 'featured_for', lambda site: []), \
+                mock.patch.object(build.core, 'read_site_meta', lambda: {'maps': {}, 'regions': []}), \
+                mock.patch.object(build.core, 'register_site', lambda site, meta=None: None):
             with self.assertRaises(content.ContentError):
                 build.build(verbose=False)
         self.assertEqual(seen, [True])
         self.assertIsNone(build.unsafe_out(out))
+
+    def test_build_registers_the_site_with_the_site_meta_as_it_is_on_disk(self):
+        # contract-phase5.md section 1 (REVISED in round 2): build.build() passes core.read_site_meta() to
+        # core.register_site, which is what gives the regions their pages; a site registered without it has none
+        calls, order = [], []
+        meta = {'maps': {'region-synthetic-desktop': {}}, 'regions': ['Synthetic'], 'marker': object()}
+        site = {'trips': [], 'published': []}
+
+        def read():
+            order.append('read')
+            return meta
+
+        def register(*args, **kwargs):
+            order.append('register')
+            calls.append((args, kwargs))
+
+        def pages(site_):
+            # the first page module: the build stops here, before it writes a page or copies a file of rendered/
+            order.append('pages')
+            raise content.ContentError('content/trips/x/index.md: stop here')
+
+        out = os.path.join(self.tmp, 'site')
+        module = type('M', (), {'build': staticmethod(pages)})
+        with mock.patch.object(build, 'OUT', out), mock.patch.object(build, 'LINK', False), \
+                mock.patch.object(build, 'PAGE_MODULES', ['home']), mock.patch.object(build.importlib, 'import_module', lambda name: module), \
+                mock.patch.object(build.content, 'load_all', lambda *a, **k: []), mock.patch.object(build, 'site_of', lambda trips: site), \
+                mock.patch.object(build.curation, 'featured_for', lambda site_: []), \
+                mock.patch.object(build.core, 'read_site_meta', read), mock.patch.object(build.core, 'register_site', register), \
+                mock.patch.object(build.core, 'site_meta', lambda: self.fail('build() asked for the cached copy of the site meta')):
+            with self.assertRaises(content.ContentError):
+                build.build(verbose=False)
+        self.assertEqual(len(calls), 1)
+        (args, kwargs), = calls
+        handed = list(args) + [kwargs[k] for k in sorted(kwargs)]
+        self.assertEqual(len(handed), 2)
+        self.assertIs(handed[0], site)
+        self.assertIs(handed[1], meta)                                   # the object read_site_meta returned, not a default
+        self.assertEqual(sorted(kwargs), [k for k in ('meta',) if k in kwargs])
+        self.assertEqual(order, ['read', 'register', 'pages'])           # read once, and registered before any page is built
 
 
 if __name__ == '__main__':

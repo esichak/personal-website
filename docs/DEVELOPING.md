@@ -34,6 +34,9 @@ tools/ticklist.py                 the local goal workflow: add, update, log-outi
 tools/sitegen/pages/*.py          one module per page type; each has build(site) -> [core.Page]
 tools/sitegen/pages/report.py     single-day reports in two layouts (report.narrative: story or compact), goal pages, full-screen map pages
 tools/sitegen/pages/series.py     the PCT journal: lead photo, facts-only introduction, highlights, written-entry navigation, month log
+tools/sitegen/pages/region.py     the region pages (regions/<slug>/): one per region with a region map and a published report filed under
+                                  it; map/'s panel and table (archive.py draws both) for the trips filed under the region, under a head
+                                  of counts, years and places
 assets/css/base.css               tokens, type scale, layout, shared components
 assets/css/pages/<module>.css     page CSS (bundled after base.css into assets/site.css)
 assets/js/base.js (+ pages/*.js)  bundled into assets/site.js
@@ -43,9 +46,12 @@ assets/js/pages/trips.js          the explorer's behaviour: URL state, history, 
                                   journal-day hits (node-testable)
 assets/js/pages/ticklist.js       the tick list's behaviour: scope, filters over data attributes, priority / added / name order (node-testable)
 assets/js/pages/series.js         the journal's behaviour: month scrollspy, write-ups filter on by default, reveal on hash (node-testable)
+assets/css/pages/region.css       the region pages' own rules (head, Featured grid, the links into trips/); archive.css draws the rest
+assets/js/pages/archive.js        map/'s region tabs, "Show all" and the table's activity filter; the last two also run on a region page
 docs/TICK_LIST_GUIDE.md           how to save, import, review, publish, update and complete a goal; the research prompt
 tests/                            stdlib unit tests: python3 -m unittest discover -s tests (CI runs them before the build)
-docs/CONTENT_GUIDE.md             how to feature trips, choose covers and lead photos, write card summaries, add search aliases, list PCT highlights
+docs/CONTENT_GUIDE.md             how to feature trips, choose covers and lead photos, write card summaries, add search aliases, list PCT highlights;
+                                  what a region page shows and when it changes (section 11)
 docs/PRIVACY_NOTES.md             what the site and its public repository disclose, as counts only, and the decisions that are the author's
 ```
 
@@ -81,7 +87,7 @@ menu button below 1140px.
   labels sit in `<g class="u-mi">` / `<g class="u-km">` (or `<tspan>`s), which base.css shows one at a time. Mile discs
   and contour labels stay imperial.
 - Links are relative: build hrefs with `core.link(here, target)` where `here` is the page URL (`''`, `ski/`, `trips/`,
-  `trips/<slug>/`). Rendered fragments use `@@ROOT@@` which `core.frag` rewrites.
+  `trips/<slug>/`, `regions/<slug>/`). Rendered fragments use `@@ROOT@@` which `core.frag` rewrites.
 - Maps are static: `core.map_block(t, here, [(name, size)…], asset_dir, ns)` shows exactly one variant per
   breakpoint (`wide` ≥1200, `col` 560–1199 or ≥1200 with `map--nowide`, `desktop` ≥560, `phone` <560).
   Charts: `core.chart_block`. Every inline fragment needs a unique `ns` (ids are namespaced with it).
@@ -114,8 +120,9 @@ menu button below 1140px.
     The crumb's inset is not the same above and below, on purpose. On a report the chip link sits 16 px
     under the crumbs and reaches 9 px up for its own hit area (`a.chip--title::before`), and where two areas overlap
     the later link takes the press. So the crumb's area goes 21 px up, into the 24 px or more of padding above it, and
-    only 7 px down. The 4 px each side is half the 8 px gap between two crumbs, so their areas only touch. A card's
-    title link keeps its text height: the photo or tile link beside it opens the same page.
+    only 7 px down. The 4 px each side is half the 8 px gap between two crumbs, so their areas only touch. A region
+    page widens its short `Map` crumb to 44 px (Region pages, Styles, below). A card's title link keeps its text
+    height: the photo or tile link beside it opens the same page.
   - Without JavaScript the header shows only what works: `@media (scripting: none)` in base.css hides the menu button,
     the units switches (the header's, the menu's and the About page's) and the Search link with the block that holds it
     (`.menu-btn`, `.site-h .units`, `.units.abo-units`, `.nav .nav-search`, `.nav-sep`, `.nav-sep + .nav-l`) and shows
@@ -217,8 +224,8 @@ menu button below 1140px.
   an inline script placed right after the element, not by the deferred bundle, so that it is in place at first paint
   and nothing under it moves when site.js arrives. Today that is `form#search` on trips/ and tick-list/ (their scripts
   still set `form.hidden = false`, which by then changes nothing); map/'s tab row, filter and `Show all N` buttons
-  (`.arc-tabs`, `.arc-filt`, `.arc-all-btn`) are still shown by archive.js, and the journal's write-ups toggle
-  (`.ser-only`) by series.js.
+  (`.arc-tabs`, `.arc-filt`, `.arc-all-btn`) are still shown by archive.js (a region page has no tab row, and the
+  other two where its region calls for them), and the journal's write-ups toggle (`.ser-only`) by series.js.
 - iCloud conflict copies under `rendered/` and `assets/` are never part of the site, because nothing the site is made
   from has such a name and CI's checkout has none, so a local build must not differ from the published one. The name is
   one that ends in a space and a number, before the extension when there is one (`meta 3.json`, `map-wide 4.webp`,
@@ -357,16 +364,18 @@ menu button below 1140px.
     itself, to what it remembers, so they are not taken; the text is taken either way (the search box is
     `autocomplete="off"`). The activity chips and the view switch are not read. Without JavaScript the form stays
     `hidden` (a `<noscript>` note says so) and the browse block and the year groups still hold every report: the block's
-    activities lead to the section pages, its regions to `map/#region-<slug>` (`core.region_map_href`; `?region=<slug>`
-    for a region with no map anchor, such as the PCT) and its years to `#y-YYYY`. `build.py --check` verifies those
-    anchors from every page.
+    activities lead to the section pages, its regions to `regions/<slug>/` when the region has a page
+    (`core.region_page_href`, under Region pages below), else to `map/#region-<slug>` (`core.region_map_href`), else to
+    `?region=<slug>` (a region with no map anchor, such as the PCT), and its years to `#y-YYYY`. `build.py --check`
+    verifies those links and anchors from every page.
   - Nav keys: `core.document(..., active=KEY)`. Main nav (`core.main_nav()`): Trips (`trips/`), Tick list (`tick-list/`),
     Map (`map/`), PCT (`core.PCT_SLUG`, only when that trip exists), About, then Search (`trips/#search`). `'trips'` gives
     `page` on Trips; an activity key (section, report, multi-day, full-screen-map pages) gives `true` on Trips;
     `'ticklist'` gives `page` on Tick list and `'goal'` (a goal page) gives `true` there; `'map'` / `'about'` give `page`
-    on their link; the PCT page gives `page` on PCT and nothing on Trips. The phone menu keeps the five activity rows
-    under Reports and lists Trips, Tick list, Map & archive, PCT, About, Search under Site; the footer's Site list is
-    Trips, Tick list, Map & archive, About, RSS.
+    on their link, and `'map'` on a page that is not `map/` itself (a region page) gives `true` on Map; the PCT page
+    gives `page` on PCT and nothing on Trips. The phone menu keeps the five activity rows under Reports and lists
+    Trips, Tick list, Map & archive, PCT, About, Search under Site; the footer's Site list is Trips, Tick list, Map &
+    archive, About, RSS.
   - Adding a facet: emit it as a `data-*` attribute in `core.trip_card`; add the control in trips.py (option values = the
     attribute values present, and only those); in trips.js add the key to `DEFAULTS`, `KEYS`, `FACETS`, `allowed`,
     `names`, `sel` and its change listener, `setControls`, the test in `facetOk` (cards and journal days both go
@@ -380,7 +389,8 @@ menu button below 1140px.
   rules are in `tools/lib/goals.py` and docs/TICK_LIST_GUIDE.md. `site['goals']` = `site['planned']` (pages and assets for
   every goal); `site['active_goals']` (not completed, not archived) drives every '+ N PLANNED ROUTE' counter and the Planned
   blocks (home tiles and region counts, section pages, About, the map page's head, year groups and region lists through
-  `archive.listed(site)`, and `render.py`'s region maps); `site['goal_backlinks']` maps a report slug to the goals whose
+  `core.listed_trips(site)`, which `archive.listed(site)` wraps and `core.region_pages` reads for the region pages,
+  and `render.py`'s region maps); `site['goal_backlinks']` maps a report slug to the goals whose
   outings name it (`report.tick_backlink`, called by the single-day, multi-day and series page builders). Goals never enter
   `site['published']`, the feed, the search index, home features or report counts. `build.site_of(trips)` assembles all of
   this and runs `goals.validate_site`; the tests call it too.
@@ -640,14 +650,19 @@ menu button below 1140px.
     `core.CARD_PHONE_SLOT`, 112 px: `trips.TRX_SIZES`, `core.RELATED_SIZES`, `home.RECENT_SIZES`) whose photo has the
     file, `core.cover_img` wraps the image in `<picture class="cover-pic">` with the `<source>` of
     `core._card_source`: `media="(max-width: 559.98px)"` (`core.CARD_PHONE_MEDIA`), the three copies as candidates and
-    `sizes="112px"`. The `<img>` inside is what it was before the copy existed, so from 560 px up a card loads what
-    it always did. Reason, seen in a before / after screenshot comparison: with the 427 px copy in the `<img>` list a
-    1x desktop screen took it for the 400 px card slot, about one source pixel per screen pixel, and the photos looked
-    softer than with the 800 px copy. `picture.cover-pic` is `display: contents` (base.css), so the wrapper has no box
-    and every `.cover-img` rule applies as before; never select `.cover-img` as a direct child. A lead image
-    (`eager=True`) and a full-width slot are never wrapped. `core.thumb_width(p)` is `round(w * 320 / min(w, h))`
-    (427 for a 1600 x 1200 photo, 320 for a 1200 x 1600 one) and must equal the width `photos.thumb_size(w, h)`
-    writes; tests/test_thumbs.py holds the two to each other.
+    `sizes="106px"` (`core.CARD_PHONE_SIZES`, `core.THUMB_EDGE // 3`). The slot is 112 px wide and the source
+    declares 106 px on purpose: 3 x 106 = 318, so a 3x phone takes the `.th` copy of a portrait or square cover, which
+    is 320 px wide. Declared at 112 px, such a phone asks for 336 px, more than that copy has, and the next candidate
+    is the 800 px copy (600 px wide for a portrait). A landscape cover's `.th` copy is 427 px wide and is enough
+    either way. `core.CARD_PHONE_SLOT` stays `'112px'`: it is the last item of every card `sizes` string and still
+    decides which strings get a source. The `<img>` inside is what it was before the copy existed, so from 560 px up
+    a card loads what it always did. Reason, seen in a before / after screenshot comparison: with the 427 px copy in
+    the `<img>` list a 1x desktop screen took it for the 400 px card slot, about one source pixel per screen pixel,
+    and the photos looked softer than with the 800 px copy. `picture.cover-pic` is `display: contents` (base.css), so
+    the wrapper has no box and every `.cover-img` rule applies as before; never select `.cover-img` as a direct child.
+    A lead image (`eager=True`) and a full-width slot are never wrapped. `core.thumb_width(p)` is
+    `round(w * 320 / min(w, h))` (427 for a 1600 x 1200 photo, 320 for a 1200 x 1600 one) and must equal the width
+    `photos.thumb_size(w, h)` writes; tests/test_thumbs.py holds the two to each other.
   - `sizes`: `core.PHONE_FULL` ends `report.HERO_SIZES`, home's `LEAD_SIZES`, `SUB_SIZES` and `WIDE_SUB_SIZES`, the
     default of `core.photo`, the three `core.photo_rows` strings (a portrait shown two to a row on a phone keeps
     `50vw`), `report.aside_photo` and `section.featured`. `core.phone_sizes(sizes, p)` returns the string as it is when
@@ -677,11 +692,13 @@ menu button below 1140px.
   - `core.share_photo(t)` returns `{'path': t['url'] + file, 'w', 'h', 'alt'}` from `t['cover']`, or None for a trip
     without a photo. Every page that shares a trip's photo takes it from here, so the card, the lead photo and the share
     image cannot disagree: single-day pages (both layouts), goal pages, multi-day pages (`multiday.share_image`), the
-    journal, the home page (its lead feature) and section pages (`section.og_image(ts)`: the first trip with a cover,
-    the featured trip first).
+    journal, the home page (its lead feature), section pages (`section.og_image(ts)`: the first trip with a cover,
+    the featured trip first) and region pages (`region.share_image(feat, pub)`: the first Featured pick with a cover,
+    else the first report of the region with one).
   - `core.site_share()` returns the share photo of the first trip in `site['featured']` (kept by `core.register_site`),
-    or None when nothing is featured. Only the four pages that stand for the whole site pass it: About, Map, Trips and
-    Tick list. A trip page without a photo, a full-screen map page and the 404 page share no image.
+    or None when nothing is featured. Only the four pages that stand for the whole site pass it outright: About, Map,
+    Trips and Tick list. A region page falls back to it when none of its reports has a cover
+    (`region.share_image`). A trip page without a photo, a full-screen map page and the 404 page share no image.
   - `core._share_tags(image)` writes, in this order: `og:image` (absolute), `og:image:type` (webp, jpeg, png or gif by
     the extension, else left out), `og:image:width` and `og:image:height` only when both are recorded positive whole
     numbers, `og:image:alt` only when the photo has alt text, `twitter:card` `summary_large_image`, and
@@ -728,11 +745,13 @@ menu button below 1140px.
     draft, has no track any more (`core.has_track`) or has no folder under content/trips any more: `the site maps under
     rendered/site/ still draw this trip, which is a draft: its line and title stay on the pages that show those maps
     (the home page, the Map page, an activity page) until python3 tools/render.py has been run and rendered/site/
-    committed`. Of the activity pages only the Ski page shows such a map (`section.ski_panel`). The build passes
-    meanwhile, and so does `--check` for a report that only lost its track. For a draft or a removed folder that has a
-    pin of its own on a map the check fails, because the pin still links to `trips/<slug>/`
-    (`BROKEN map/index.html -> ../trips/<slug>/`); a pin merged into a `.mk-cluster` carries no link. Drafts are checked too,
-    because a broken draft stops a build as well.
+    committed`. Of the activity pages only the Ski page shows such a map (`section.ski_panel`). Since Phase 5 the
+    region pages show the region maps as well; the message, which the author guides quote, does not name them. The
+    build passes meanwhile, and so does `--check` for a report that only lost its track. For a draft or a removed
+    folder that has a pin of its own on a map the check fails, because the pin still links to `trips/<slug>/`
+    (`BROKEN map/index.html -> ../trips/<slug>/`, and for the region's own page `BROKEN regions/<region-slug>/index.html
+    -> ../../trips/<slug>/`); a pin merged into a `.mk-cluster` carries no link. Drafts are checked too, because a
+    broken draft stops a build as well.
   - Rules on the files of a trip folder that were added after the author guides had been followed literally on scratch
     content (tests/test_checks_more.py, tests/test_frontmatter.py). `checks._check_copies` is under the conflict-copy
     rule above. `checks._check_tracks` gives the error for a GPX file without a point, which ends `(without the file
@@ -808,7 +827,7 @@ menu button below 1140px.
     ends here), `content_errors()`, `build(only=...)`, `check()` under `--check`, the preview server under `--serve`.
   - `--only` takes page module names (the files in `tools/sitegen/pages/`), split on commas and trimmed. An unknown
     name or an empty list is a usage error: `build.py: error: --only takes page modules (home, trips, ticklist, section,
-    report, multiday, series, archive, about, notfound), got reports`.
+    report, multiday, series, archive, region, about, notfound), got reports`.
   - `build.unsafe_out(path)` returns why `path` must not be the output folder, or None: `it is, or holds, this
     checkout`; `it is inside content/ of this checkout` (likewise `rendered`, `assets`, `tools`, `tests`, `docs`, `.git`
     and `.github`: `build._SOURCE_FOLDERS`); `it is a file`; `it is not empty and is not an earlier build (it has no
@@ -842,6 +861,231 @@ menu button below 1140px.
     `build.sitemap` (every page whose `core.Page.index` is not False, except 404.html: the two search indexes and the
     full-screen map pages are `index=False`, and those map pages and the 404 page carry `noindex`) and robots.txt
     (`User-agent: *`, `Allow: /`, `Sitemap: <core.SITE_URL>sitemap.xml`).
+- Region pages (`regions/<slug>/`, `tools/sitegen/pages/region.py`, `body_cls='p-region'`; Phase 5): one page for each
+  region that has a region map and at least one published report filed under it. It is map/'s panel and table for
+  that region under a head of counts, years and places, with a Featured row between them, and it lists what the
+  content says: every report and active goal whose `region` is exactly the region's name. Nothing on it is written
+  and it has no content file. map/ stays the parent: there is no `regions/` index page.
+  - Which regions get one, and what a page lists. The rule is in core, so that every page module can ask it:
+    - `core.read_site_meta()` returns `rendered/site/meta.json` as it is on disk at that call, or `{'maps': {},
+      'regions': []}` without the file. `core.site_meta()` is that, read once per process and kept, and
+      `archive.site_meta()` is `core.read_site_meta()`.
+    - `core.listed_trips(site)` is what a region lists and counts: every report, and the tick-list goals in
+      `site['active_goals']` (a site dict without that key falls back to `site['planned']`, and without that to every
+      planned trip in `site['trips']`).
+    - `core.region_groups(site, meta=None)` is the Map page's grouping, moved from `archive.regions` unchanged:
+      `[(name, slug, ts)]` for each name in `meta['regions']`, the regions `render.py` has drawn a map for (`meta=None`
+      reads `core.site_meta()`). `slug` is `content.slugify(name)`, the slug of `map/#region-<slug>`. `ts` is the
+      listed trips that the map's own entry names (`meta['maps']['region-<slug>-desktop']['trips']`) or, when the
+      entry names none, the listed trips whose `region` is the name, series left out; newest first, planned routes
+      last. A group without a trip is dropped. Order: most published reports first, then the name. map/'s panels
+      list these groups. The region pages do not.
+    - `core.region_pages(site, meta=None)` decides the region pages and what each lists, from the content and not
+      from the groups: `[(name, slug, ts)]` for each name in `meta['regions']` that has a region map
+      (`region-<slug>-desktop` or `region-<slug>-phone` under `meta['maps']`), a non-empty slug that no earlier name
+      of the list has taken, and at least one published report filed under it. `ts` is every listed trip whose
+      `region` is exactly the name: reports of every kind, a journal included, and active goals; newest first,
+      planned routes last. Planned routes alone make no page. Order: most published reports first, then the name.
+      `meta=None` reads `core.site_meta()`.
+    - `region.regions(site, meta=None)` is `core.region_pages(site, meta)`, with `archive.site_meta()` in place of a
+      `meta` of None, and `region.url(name)` is `'regions/%s/' % content.slugify(name)`. `archive.regions(site, meta)`
+      and `archive.listed(site)` remain, as wrappers with the results they had.
+    - What follows from `ts` coming from the content. The meta file decides only whether a name has a page; the
+      `region` field decides which trips are on it. A report without a track, a journal filed under the region and a
+      report added since the last render (`add_trip.py --no-render`, say) are on the page at the next build, and the
+      page counts the reports trips/ counts for the region in its "By region" link (`trips.regions_of` counts by slug,
+      so a second spelling with the same slug is in that count and not on the page). A draft or a removed folder is
+      not in `site['trips']`, so it leaves at the next build. A trip whose `region` changed leaves the old name's page
+      at the next build, although the map still draws it, and is on the new name's page at once when that name has
+      one. The map block, and map/'s panel through `region_groups`, go the other way: they show what the map was last
+      drawn with until `render.py` has rewritten `rendered/site/`. So a region whose trips were all renamed or respelt
+      has no page from the next build on, because no report is filed under the name `meta['regions']` holds, until a
+      render has drawn a map under the new name, and nothing redirects `regions/<old-slug>/`. A new spelling with the
+      same slug (`content.slugify` folds accents and drops every character that has no ASCII form, lower-cases, drops
+      apostrophes, turns every run of characters outside `a-z0-9` into one hyphen and strips hyphens at the ends) gets the same address back at that render; until then its trips
+      link to `map/#region-<slug>`, where the panel still stands under the old spelling. docs/CONTENT_GUIDE.md,
+      section 11.4, tells the author.
+    - A mapped region without a group. `core.region_groups` drops a region none of whose listed trips its map's entry
+      names: every trip the map drew is a draft or gone. map/ then has no panel and no `#region-<slug>` for it, and
+      `home.also_items` leaves it out (Links from other pages, below), so `build.py --check` passes when nothing is
+      filed under the region any more: no page shows its map. Two callers still read the meta alone.
+      `core.region_map_href` answers `map/#region-<slug>` for any name whose slug has a `region-<slug>-desktop` map,
+      so the page of a goal that is still filed under such a region and is in no group (an active goal the map does
+      not draw, because it has no route or is newer than the render, or a completed or archived goal, which
+      `core.listed_trips` leaves out) links to an anchor map/ no longer has. `home.where` draws the block of a
+      `HOME_REGIONS` name whenever the meta has its map, with "Open the map" to the same anchor. In both cases the
+      check reports `BROKEN ANCHOR … -> map/#region-<slug>` until `render.py` has rewritten `rendered/site/`.
+    - Two spellings with one slug. Before a render the second spelling is in no list of the meta, and map/ is sound.
+      After one it is in `all_regions`, and `archive.other_places` gives its "Not on a region map" entry the id
+      `region-<slug>`, which the first spelling's panel has: `DUPLICATE IDS map/index.html: region-<slug>`.
+      `section.ski_panel` makes a tab and a panel (`rt-<slug>`, `rp-<slug>`) for every region name its ski trips state
+      whose slug has a `ski-<slug>-desktop` map, and inlines the same map fragment under one namespace for each, so
+      two spellings among the ski trips give a `DUPLICATE IDS ski/index.html: …` line, with or without a render. The
+      line lists the first six double ids in sorted order, and the fragment's own ids (`rm-<slug>-…`) sort before
+      `rp-` and `rt-`, so those two are usually not in it. The content check warns about the pair
+      (`checks._region_spellings`); the author's fix is one spelling. A build is then enough, except after a render
+      that gave each spelling a map: `meta['regions']` then holds both names with one map entry between them,
+      `region_groups` makes a group, and map/ a panel, for each from that entry's trips, and the ids stay double until
+      the next render.
+  - Asking whether a region has a page: `core.register_site(site, meta=None)` clears `core._REGION_PAGES` (name to
+    slug) and refills it from `core.region_pages(site, meta)` only when a `meta` is passed. `build.build()` passes
+    `core.read_site_meta()`. `core.region_page_href(here, region)` returns `core.link(here, 'regions/<slug>/')` for a
+    name in the dict, else None. It is asked by the exact name, as the page lists by it: a second spelling of a
+    region is not on the page and keeps its link to map/. A site registered without a meta, as `helpers.make_site`
+    does in the tests, has no region page, and `register_site` then reads nothing from `rendered/`: the answer is
+    None for every region and every caller links as it did before Phase 5, so a page function called alone in a
+    test behaves as before. A test that wants region pages passes a meta of its own. `region.build` and
+    `archive.build` read `archive.site_meta()`, the file `build.build()` read just before them.
+  - Links from other pages. Each asks `core.region_page_href` first and keeps the link it had when the answer is None:
+    - the region crumb of `report.title_block` (single-day, multi-day, journal and goal pages): `regions/<slug>/`, else
+      `map/#region-<slug>` (`core.region_map_href`), else no crumb;
+    - `report.region_cell(t, here)`, the second cell of `report.goal_pager` (`report.planned_pager` uses it too, and
+      nothing calls that function today): a list of zero or one `a.next`. Its label line is the region's name; its
+      text is `All <Region> reports`, to the region's page, or `Open the map`, to `map/#region-<slug>`. `[]` for a trip
+      without a region, or with one that map/ does not list;
+    - `trips.browse`, the "By region" links: `regions/<slug>/`, else `map/#region-<slug>`, else `?region=<slug>`;
+    - `home.also_items`, the mapped regions of the `ALSO` row: `regions/<slug>/`, else the region's panel on map/.
+      The row names a mapped region only while it has something to link to: a panel on map/ (`core.region_groups(site)`
+      lists it) or a page of its own. A mapped region whose reports were all made drafts or removed has neither, so
+      map/ has no `#region-<slug>` for it until the next render, and an item for it would be a broken anchor. A
+      mapped region that holds only active goals the map draws still has its panel and keeps its item, without a
+      count; one whose stale map names no trip of the site but that has reports filed under it has its page, and its
+      item links there;
+    - `home.where`, the two region map blocks: the name inside `h3.hom-reg-n` is a link to `regions/<slug>/` (plain
+      text without a page), and the block's `a.hom-reg-a`, "Open the map", still goes to `map/#region-<slug>`;
+    - `archive.region_panel` on map/: one more link, `a.alink.arc-reg-a`, `All <Region> reports` with the arrow-right
+      icon, after the rows and the "Show all" button, and no link for a region without a page.
+  - Anatomy. `region.build(site)` returns one `core.Page` per region, from `region.page(name, slug, ts, site, meta,
+    regs)` (`regs` is `regions(site, meta)`, for the links to the others); `'region'` follows `'archive'` in
+    `build.PAGE_MODULES`. With `pub` the trips of `ts` that are not planned and `planned` the others, the body is, in
+    this order:
+    - `region.head(name, here, pub, planned)`: `<section class="reg-head wrap" aria-labelledby="reg-title">` with the
+      breadcrumb `Reports / Map / <Region>` in the section pages' markup (`<nav class="crumbs t-mono-s"
+      aria-label="Breadcrumb">`, `<span aria-hidden="true">/</span>` between the items; links to home and `map/`, the
+      region as `<span aria-current="page">`), `<h1 id="reg-title" class="t-d1">` holding the escaped name and nothing
+      else, and `<p class="reg-stats">`: one `core.meta_items` line with a break slot (`br_after`) between its two
+      parts. The first is `core.count_items(pub, planned)` (`86 REPORTS`, `INCL. 8 MULTI-DAY`, `+ 1 PLANNED ROUTE`)
+      and `region.years_item(pub)`: the years the reports span, from `date` and `end_date`, as `2022–2026` with an en
+      dash or as one year, and no item when no report is dated. The second is `region.place_items(pub)`, the places in
+      upper case in the order of `region.place_names(pub)`. That function strips and upper-cases each `place` before
+      it counts, so two spellings that read the same in upper case are one place with their reports counted together,
+      and it sorts by most reports first, then A to Z on the upper-case form. All of them are shown up to `MAX_PLACES
+      + 1` (4), else the first `MAX_PLACES` (3) and `N MORE`; there is no second part when no report states a place. A
+      place item is `(esc(PLACE), 'mi-w')`: escaped after upper-casing, so that an ampersand is `&amp;` and never
+      `&AMP;`, and without `core.nb`. `.ml > .mi-w` (base.css) lets such an item wrap at its spaces, so a long place
+      takes a second line instead of widening the page, and `.reg-stats .mi-w { overflow-wrap: anywhere; }`
+      (region.css) breaks a single word that is too long for a line. `N MORE` is a plain `core.nb` item. This line is
+      the page's whole introduction: no prose is generated for a region.
+    - The map: `<section class="arc-map reg-map wrap" aria-labelledby="reg-map-h">`, a screen-reader `<h2 class="sr"
+      id="reg-map-h">Map</h2>` and `archive.region_panel(name, slug, ts, here, meta, True, page=True,
+      drawn=region.map_trips(name, site, meta) or None)`. With `page=True` the panel is `<div class="arc-panel"
+      id="map">` (not `#region-<slug>`: that id belongs to map/) and has no `h3` naming the region, since the h1 does.
+      The map block (`region-<slug>-desktop` / `-phone`, eager, `id="arc-map-<slug>"`), the caption and the legend are
+      those of map/. The legend is the key to the map, so `archive.legend` is handed `drawn`, the trips the map draws,
+      and not the page's `ts`. `region.map_trips(name, site, meta)` is map/'s group for the region
+      (`core.region_groups`). A report without a track, a journal, a goal without a route and a trip newer than the
+      last render are in `ts` and not in the group, so they add no activity disc and no "Planned route" symbol to the
+      legend. When the group is empty (`drawn=None`: the map's entry names none of the listed trips) the legend is
+      made from `ts`; where the map draws every trip of `ts` the two give the same legend. The cluster symbol follows
+      the map's entry either way. On map/ (`page=False`) nothing passes `drawn` and the legend is made from the
+      panel's own list, which is the group. The side list is map/'s list, for `ts`: `<h3 class="t-label"
+      id="arc-in-<slug>">In this region</h3>`, an h3 because the panel head is gone, with the same count line beside
+      it (`archive.count_line(ts, 'ml--end')`), then every trip of `ts`, the planned routes too, as an
+      `archive.region_row` in `<ol class="arc-rows" id="arc-rows-<slug>" aria-labelledby="arc-in-<slug>"
+      data-map-target="arc-map-<slug>">` (labelled by the h3 alone; on map/ the panel's heading is named as well).
+      When `ts` has more than `archive.SHOW + 1` (9) trips, the rows from the ninth on carry `arc-more` and map/'s
+      button follows the list: `<button type="button" class="alink arc-all-btn" aria-expanded="false"
+      aria-controls="arc-rows-<slug>" hidden>`, `Show all N`, N being the published reports of `ts`. So archive.js and
+      base.js treat the list as they do on map/ (Script, below). The panel carries no `a.arc-reg-a`: that link, to the
+      region's own page, is on map/ only. With `page=False`, the default, the panel is what it was before Phase 5 plus
+      that link.
+    - `region.featured(slug, here, pub, feat)`: `''` when nothing was picked, else `<section class="reg-feat wrap sec"
+      aria-labelledby="reg-feat-h">` with `core.section_head('Featured', id_='reg-feat-h')` and `<ul class="reg-cards
+      tgrid">` of `core.trip_card(t, here, core.RELATED_SIZES, ns='rf', summary=True)`. After the cards, when at least
+      two reports of `pub` have `t['has_writeup']`: `<p class="reg-more reg-x"><a class="alink">`, `All <K> write-ups
+      in Trips`, to `trips/?region=<slug>&writeup=1` (the explorer's own URL state; `&amp;` in the markup).
+    - `archive.archive_section(site, here, published=pub, active=planned)`: map/'s table for a subset, with the same
+      ids (`all-reports`, `all-reports-h`, `yr-<year>`, `arc-live`), year groups, `core.table_row` rows, year index,
+      live region and "Planned" group, here the region's active goals. The filter chips are only for the activities
+      the subset has, and a subset with a single activity gets no `div.arc-filt` at all. Called without the two
+      keywords, the function lists the whole site as before.
+    - `<p class="reg-find reg-x wrap"><a class="alink">`, `Search and filter these in Trips`, to
+      `trips/?region=<slug>`.
+    - `region.others(slug, here, regs)`: `''` when there is no other region page, else `<nav class="reg-others wrap
+      sec" aria-labelledby="reg-others-l">` in the browse-row markup of trips/ (`div.trx-browse > div.trx-bgroup >
+      span.t-label#reg-others-l`, "Other regions", then `ul > li > a`): one link per other region page in the order
+      of `regions()`, the name followed by `span.trx-bn` with `archive.count_n` of its published reports (spoken ",
+      N reports"), then `Map & archive` to `map/`. The markup is reused so that the hit areas of `.trx-bgroup a`
+      apply (Targets, under Accessibility above).
+  - The Featured rule, `region.pick_featured(ts)`: up to `region.FEATURED_MAX` (3) trips of `ts` that are not planned.
+    A journal filed under the region is in `ts` and can be picked, and so can a report without a track. Tier 0 is
+    `t['featured']`, the front-matter flag behind the section pages' Featured block; `section.pick_featured` takes a
+    single-day trip with a track, and here any report with the flag counts. Tier 1 is `core.written_report(t)` with
+    `t['cover']`, tier 2 a written report without a cover, and nothing else is a candidate. Order: tier, then the
+    order of `ts` (newest first). With no candidate the section is left out, and the `reg-more` link with it.
+  - The document: `core.document(here, '<Region> trip reports', body, description, active='map', body_cls='p-region',
+    image=..., extra_head=...)`. Map is the current item of the nav, as `aria-current="true"` (Nav keys above).
+    - `region.description(name, pub)` is one sentence that starts with the region, so that no preposition has to suit
+      its name: `Lake Tahoe: 86 trip reports, 2022 to 2026 (backcountry ski, climbing, hiking, mountain biking,
+      paddleboarding and rafting), with a map of the region and the full GPX track of each.` Its parts: `1 trip
+      report` or `N trip reports`; `, 2022 to 2026` or `, 2026`, left out when no report is dated; in brackets
+      `region.activity_words(pub)` joined by `section.words_list(..., 'and')`, that is the activities in `core.NAV`
+      order in lower case, and for Other the sub-types its reports have, each as its own word (`core.SUB_WORD`), or
+      `other` when none states one. Then `, with a map of the region`, always. Only when every report has a track
+      (`core.has_track`) it goes on ` and the full GPX track of each`, or ` and its full GPX track` for a single
+      report. Then the full stop. It never says that the reports are on the map, because the map shows what it was
+      last drawn with. No adjective, and nothing that is not a count or a field.
+    - `region.share_image(feat, pub)`: `core.share_photo` of the first Featured pick that has a cover, else of the
+      first report of `pub` that has one, else `core.site_share()`.
+    - `extra_head` is `core.map_preloads(None, here, [('region-<slug>-desktop', 'desktop'), ('region-<slug>-phone',
+      'phone')], 'assets/maps/', site_maps=True)`, as map/ does for its first panel.
+    - The page is in sitemap.xml (`core.Page.index` stays True). It has no structured data (no `report=`) and is in
+      neither the feed nor the search indexes. It has one h1, its heading levels do not skip, and its ids are unique.
+  - Script: archive.js runs when `body` has `p-archive` or `p-region` (the guard at its top). A region page has no
+    `.arc-tabs[role="tablist"]`, so the tab code does nothing. The rest runs as on map/. Where the panel has an
+    `.arc-all-btn`, the script adds `arc-collapsed` to its list, which hides the `arc-more` rows, shows the button,
+    and opens and closes the list on a press (`Show all N` / `Show fewer`). Opening moves focus to the first row
+    that was hidden. Closing leaves focus on the button and calls `b.scrollIntoView({ block: 'nearest' })`: the
+    page above the reader has just become shorter, and the button they pressed stays in view. That call is new with
+    the region pages and runs on map/ too. A hash target (`#all-reports`, `#yr-2024`) is scrolled into view, and the
+    activity filter runs, and shows its row, when the page has `.arc-filt`. base.js ties the list to the map through
+    `data-map-target`, as on map/: a row highlights its track and pin, a pin its row, and a cluster marker's click
+    opens a collapsed list and focuses its report's row. `highlight(map, keys)` in base.js marks the tracks and
+    pins whose `data-key` is one of the keys, and the cluster markers whose `data-keys` hold one, with `hl`, and
+    gives the map `is-hl`, the class that dims everything not picked out, only when at least one of them matched. A
+    row whose trip the map does not draw (a report without a track, a trip newer than the last render) therefore
+    leaves the map as it is; before, it dimmed every pin and picked none out. Rows of drawn trips, pins and cluster
+    markers behave as they did.
+  - Styles: `assets/css/pages/region.css` is bundled like every file in `assets/css/pages/` and holds only what is
+    new. `.reg-head` has 24 / 32 / 40 px of padding above the crumbs at the 760 and 1200 px breakpoints (their hit
+    area reaches 21 px up). `.reg-head .crumbs a::before { inset-inline: min(-4px, (100% - 44px) / 2); }` gives a
+    crumb link narrower than 36 px a hit area 44 px wide, widened by the same amount on each side. That is the short
+    `Map` crumb; a wider link (`Reports`) keeps the 4 px each side of base.css (Targets, under Accessibility above),
+    and the two areas stay apart. `.reg-stats` is the Mono line, with its `.ml-br` shown so that the places start a
+    second line, and with `.reg-stats .mi-w { overflow-wrap: anywhere; }`, so that one place word too long for a line
+    breaks instead of widening the page. `.reg-cards` is the Featured grid: one column, two from 560 px, three from
+    1200 px. `.reg-more` and `.reg-find` are the two links into trips/, and `@media (scripting: none) { .reg-x {
+    display: none; } }` hides both without scripting, because the filters they carry in the address are read only by
+    trips.js. Everything else on the page is an existing component (`.crumbs`, `.t-d1`, `.ml` with `.mi-w`, `.arc-*`,
+    `.tgrid`, `.tcard`, `.shead`, `.alink`, `.trx-bgroup`). archive.css gained `.arc-reg-a { margin-top: 4px; }` for
+    the link on map/, and `.arc-all-btn:not([hidden]) { margin-right: 24px; }`: a shown "Show all" button keeps 24 px
+    to its right, so the link stands beside it, and wraps flush left where the column is too narrow for both. home.css
+    gained `.hom-reg-n a { display: inline-block; position: relative; z-index: 1; color: inherit; }`, an underline on
+    hover and `::before { inset: -14px 0; }`. The link is as high as its 16 px line and its hit area is 44 px high,
+    with no box changed. From 1200 px the rule is `.hom-reg-n a::before { inset: -16px 0 -12px; }`: the head is one
+    line there and the map starts 13 px under the name, so the area, still 44 px high, sits 2 px higher and ends above
+    the map. The `z-index` keeps the area above the count line under the name, whose items are positioned (`.ml >
+    .mi`) and come later in the page.
+  - URLs and anchors: nothing that existed moved. Every `map/#region-<slug>` anchor is still on map/ (the panel of a
+    region with a map, or the region's entry under "Not on a region map"), `core.region_map_href` is unchanged, and
+    map/'s panels and table are what they were, apart from the one new link per panel. Phase 5 changed nothing under
+    `content/` or `rendered/`, nor the feed, the search indexes or `tools/render.py`. The ids a region page has in
+    common with map/ (`all-reports`, `all-reports-h`, `yr-<year>`, `arc-live`, `arc-map-<slug>`, `arc-in-<slug>`,
+    `arc-rows-<slug>`) are on separate pages, and `#map` is the region page's own. `build.py --check` covers the new
+    pages like any other: links, anchors, ids, `META` and the sitemap. No content file was added, so
+    `tools/lib/checks.py` has no new rule.
+  - Tests: tests/test_region_page.py, and the page tests that own the changed links (What the test files cover,
+    below).
 
 ## Trip dict (from tools/lib/content.py)
 `slug, dir (the trip folder), meta (index.md's front matter as parsed), title, activity (ski|climb|hike|mtb|other),
@@ -895,7 +1139,11 @@ Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
   `ski-<region-slug>-desktop` 506×680 / `-phone`; pins link to trips; tracks carry `data-key="<slug>"`
   (`base.js` highlights a track when an element with that `data-key` inside `[data-map-target=<map id>]` is hovered).
   The hillshade and base-layer files are copied to `assets/maps/` (conflict copies left out): pass `site_maps=True,
-  asset_dir='assets/maps/'` to `core.map_block`.
+  asset_dir='assets/maps/'` to `core.map_block`. The `region-*` pair is drawn on the home page (two regions), in the
+  region's panel on map/ and on the region's own page; meta.json's `regions` names the regions that have a pair,
+  `all_regions` every region `render.py` grouped (a journal's is not among them), and each map entry's `trips` the
+  slugs it draws. That is also the list a panel on map/ shows (`core.region_groups`); a region page lists by the
+  `region` field instead (`core.region_pages`).
 
 ## Checking your work
 Run these from the repository root. None of them needs the internet.
@@ -926,11 +1174,14 @@ While working on the generator:
   first, and it is not empty and is not an earlier build (it has no .nojekyll file)`. An earlier build is still deleted
   and built again with whatever was put into it since, so keep no files of your own in one. On 2026-10-10 that command
   took about 3 s for the whole site (349 pages, 168 trips) in a copy of the working tree outside iCloud Drive, and
-  `python3 tools/build.py --check`, which copies, took 3 to 4 s there (wall time, three runs of each).
+  `python3 tools/build.py --check`, which copies, took 3 to 4 s there (wall time, three runs of each). Those runs were
+  before the region pages, which add one page per region with a region map: eight today, so a build prints `built 357
+  pages, 168 trips`.
 - `python3 tools/build.py --out DIR --only report,home --link` builds only the named page modules (the names are the
   files in `tools/sitegen/pages/`). Do not add `--check` to a partial build: every link into a page that was left out is
   counted as broken, so the check prints its first 40 lines, `... N more` and `link check: N problems` with N in the
-  thousands (8,759 for `report,home` on 2026-10-10) and ends with exit status 1.
+  thousands (8,761 for `report,home` on 2026-10-10, with the region pages among the modules left out) and ends with
+  exit status 1.
 - `python3 tools/build.py --serve` previews the build on http://localhost:8000; `--port N` moves it to another port.
 - `python3 tools/add_trip.py … --no-render` skips the map render. The build still passes and the validator warns `no
   rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug>`; that command needs the
@@ -949,19 +1200,35 @@ goes in:
 python3.12 -W error -m unittest discover -s tests          # 3.12, the version CI uses
 ```
 
-On 2026-10-10 the suite (1,994 tests) passed with the first of the two commands, on 3.9.6 in this checkout, in about
-25 s, with no test skipped and none marked as an expected failure. CI runs the plain command, without `-W error`.
+On 2026-10-10, at the end of Phase 5, the suite (2,339 tests) passed with the first of the two commands, on 3.9.6 in
+this checkout, in about 40 s, with no test skipped and none marked as an expected failure. CI runs the plain command,
+without `-W error`, and has no `node`, so the tests that run a Node harness skip there.
 
-Three Node harnesses test the pure functions of the page scripts: `tests/trips_js_harness.js` (trips.js),
+`tests/run_orders.py` is a helper, not a test module (discovery never loads it), for checking that the suite does not
+depend on the order of its test modules: nothing that one module registers with `sitegen.core` (the site, the regions
+that have a page of their own) may reach the tests of the next. It loads the tests as discovery does, runs the modules
+reversed or shuffled, each keeping its own test order, then prints what `core` still holds and exits with status 1
+when a test failed or a region page is still registered (`core._REGION_PAGES`):
+
+```bash
+python3 tests/run_orders.py --reverse       # discovery's order (A to Z), reversed
+python3 tests/run_orders.py --shuffle 7     # shuffled with random.Random(7); any whole number
+```
+
+Four Node harnesses test the page scripts. Three test their pure functions: `tests/trips_js_harness.js` (trips.js),
 `tests/ticklist_js_harness.js` (explore.js and ticklist.js) and `tests/series_js_harness.js` (series.js, and with a page
-model the whole script against a stand-in for the browser). `tests/test_trips_js.py`, `tests/test_ticklist_js.py` and
-`tests/test_series_js.py` run them, also against modules with wrong answers that a harness must reject, and skip those
-tests when `node` is not installed; the build never runs node. By hand:
+model the whole script against a stand-in for the browser). The fourth, `tests/maplist_js_harness.js`, runs base.js and
+archive.js as they are against a stand-in for a page with a region map and the list beside it, and plays a reader's
+pointer, focus and presses on it: which rows dim the map and which leave it as it is, and what `Show all N` and `Show
+fewer` focus and scroll to (Region pages, Script, above). `tests/test_trips_js.py`, `tests/test_ticklist_js.py`,
+`tests/test_series_js.py` and `tests/test_maplist_js.py` run them, also against modules and scripts with wrong answers
+that a harness must reject, and skip those tests when `node` is not installed; the build never runs node. By hand:
 
 ```bash
 node tests/trips_js_harness.js
 node tests/ticklist_js_harness.js
 node tests/series_js_harness.js
+node tests/maplist_js_harness.js
 ```
 
 What the test files cover:
@@ -1028,6 +1295,16 @@ What the test files cover:
     no node); and on every page type one h1, the skip link, alt attributes and no nested interactive elements.
   - `tests/test_archive_page.py`: the map page's anchors (`map/#all-reports`, `map/#other-places`, one
     `map/#region-<slug>` per region) and its share image.
+- Phase 5 (region pages), on synthetic fixtures only: `tests/test_region_page.py` holds the rule for which regions get
+  a page (`core.region_groups`, `core.region_pages`, `core.region_page_href` and what `core.register_site` records)
+  and the page itself (the head, the map panel with `page=True`, the Featured rule, the table for a subset, the other
+  regions, the description and the share image). The links that changed on other pages belong to the test files that
+  own those pages (the report and goal pages, trips/, the home page, map/). A built-site test holds that the region
+  pages exist, are in the sitemap and pass `sitecheck`, and the fixture site of `tests/test_a11y_static.py` has a
+  region page. The list beside a region map is played under node by `tests/test_maplist_js.py` with
+  `tests/maplist_js_harness.js` (a row whose trip the map does not draw, `Show all N` and `Show fewer`), and
+  `tests/test_a11y_static.py` (`MapListScriptTests`) reads the same two behaviours from base.js and archive.js
+  without node.
 
 ## Measuring page loads
 This is the method the Phase 4 loading measurements used, written down so that a later change can be measured the same

@@ -684,3 +684,103 @@ report is `docs/IMPLEMENTATION_REPORT.md`; this entry records what changed and w
 Listed in `docs/IMPLEMENTATION_REPORT.md`, sections 10 and 12. The ones that most need the author: the phone photo
 size, the font-loading choice, the privacy decisions in `docs/PRIVACY_NOTES.md`, `published_at` for existing
 reports, and whether to start Phase 5.
+
+## Phase 5 — Region pages (2026-10-10)
+
+Starting point: Phases 1 to 4 committed on `phase1-curated-homepage`; `HEAD` was `c7ed3ee` (the code of `fb425ab`).
+Baseline before this phase: 2,021 tests OK and `build.py --check` OK (349 pages). Phase 5 is the plan's optional
+expansion and needed a scope decision. Asked on 2026-10-10, Eric chose region pages only; collections, a summit
+index, reading bookmarks, an interactive map and the upload desk were not built. No copy was written for any region,
+no trip fact was added, and no file under `content/` or `rendered/` changed. `tools/render.py` was not run: the pages
+use the region maps that were already rendered. Nothing was pushed or deployed. The report's section 14 has the
+measured results; this entry records what changed and what was run.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/region.py` (new) | One page per region that has a region map and at least one published report: `regions/<slug>/`. `regions`, `head` with `years_item`, `place_names` and `place_items`, `pick_featured`, `featured`, `others`, `activity_words`, `description`, `share_image`, `map_trips`, `page`, `build`. |
+| `tools/sitegen/core.py` | `read_site_meta` (the site meta as it is on disk; `site_meta` is the cached copy), `listed_trips`, `region_groups` (the Map page's grouping, moved here with the same results), `region_pages` (which regions get a page and what each lists), `region_page_href`; `register_site(site, meta=None)` records the regions that have a page, only when a meta is passed. `CARD_PHONE_SIZES`: the phone source of a card cover declares 106 px for its 112 px slot. |
+| `tools/sitegen/pages/archive.py` | `site_meta`, `listed` and `regions` delegate to core. `region_panel(page=True, drawn=)` is the panel as a region page shows it (no heading of its own, id `map`, the legend from the trips the map draws); on the Map page each panel gains a link to the region's page. `archive_section(published=, active=)` lists a subset with the same markup. |
+| `tools/sitegen/pages/report.py`, `home.py`, `trips.py` | A region link goes to the region's page when it has one: the breadcrumb and the region cell of the goal pager (`region_cell`), the "By region" links on Trips, the `ALSO` row and the two region names on Home. A region without a page keeps its link to the Map page. `home.also_items` names a mapped region only while it has a panel on the Map page or a page of its own. |
+| `tools/build.py` | `'region'` in `PAGE_MODULES`; `register_site` is given the site meta on disk. |
+| `assets/js/base.js` | A map dims what is not picked out only when a track, pin or cluster matched, so a list row whose trip the map does not draw leaves it as it is. |
+| `assets/js/pages/archive.js` | Its guard accepts `body.p-region`; "Show fewer" keeps its button in view. |
+| `assets/css/pages/region.css` (new), `archive.css`, `home.css` | The region page's head, Featured grid and link rows; the Map crumb's 44 px hit area; a long place wraps or breaks; the panel's link; the home page's region name as a link with a 44 px hit area that changes no box. |
+| `README.md`, `ADDING-TRIPS.md`, `docs/CONTENT_GUIDE.md` (new section 11), `docs/DEVELOPING.md` | Region pages for the author and for a developer; statements the pages made wrong were corrected. |
+| `docs/IMPLEMENTATION_REPORT.md` | Section 14 and the rows that Phase 5 changes. |
+| Tests | `tests/test_region_page.py`, `tests/test_maplist_js.py` with `tests/maplist_js_harness.js`, and `tests/run_orders.py` (a helper, not a test module) are new; 21 existing files under `tests/` changed. See Checks. |
+
+### Behaviour
+
+- **Which regions have a page.** A region that has a region map in `rendered/site/meta.json` (drawn by `render.py`
+  from three trips with a track) and at least one published report. Eight today: Lake Tahoe, Santa Cruz, Eastern
+  Sierra, Bay Area, Boise, Alps, Tetons, Oregon. A region without a map keeps its list on the Map page. There is no
+  `regions/` index; the Map page is the parent.
+- **What a page lists.** Every report and active tick-list goal whose `region:` is exactly the region's name, at
+  every build: also a report without a track, a journal, or a report newer than the last render. The map on the page
+  shows what it was last drawn with, as on the Map page.
+- **The page.** Breadcrumb `Reports / Map / <Region>`; the name; one line of counts and years and one of places, all
+  from front matter; the Map page's panel for the region (map, legend, the list with "Show all"); a Featured row of
+  up to three cards (reports flagged `featured: true`, then written reports with a photo, then without, newest
+  first); every report by year with the activity filter; links to the other region pages. Its description is one
+  sentence of the same counts. It is in the sitemap, not in the feed or the search indexes.
+- **Links.** Report and goal breadcrumbs, the goal pager, the Trips page's "By region" links, the home page's `ALSO`
+  row and region names, and a new link under each Map page panel lead to the region page. Every
+  `map/#region-<slug>` address still lands on the Map page.
+- **Card photos on phones.** A portrait or square cover's 320 px copy is now taken by a 3x phone; it took the 600 px
+  copy before.
+- **Unchanged.** Every existing URL, anchor, id, title, description, write-up, GPX file, the feed and both search
+  indexes. Against the Phase 4 build, 169 of 347 pages differ in their HTML: the links above, and the `sizes` of the
+  phone source of card covers.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests` | 2,339 tests in 38 files, OK (2,021 in 36 before the phase), on Python 3.9.6 and 3.12 with `-W error`. |
+| Module order | The suite also passes with its modules reversed and in shuffled orders (`tests/run_orders.py`), and no test leaves a region page registered. |
+| Node harnesses | `trips_js_harness.js` 125 checks, `series_js_harness.js` 43, `ticklist_js_harness.js` 85, `maplist_js_harness.js` 13 (new: `base.js` and `archive.js` against a stand-in page). All pass. |
+| `python3 tools/validate.py` on the real content | 0 errors, 1 warning (the planned route without `goal.json`), 467 notes, as before the phase. |
+| `python3 tools/build.py --out <scratch> --link --check` | OK: 357 pages (349 and the eight region pages), 168 trips. |
+| Builds under Python 3.9 and 3.12 compared file by file | Identical. |
+| CI rehearsal: the 5,204 files the commit holds (from the staged index), case-sensitive volume, Python 3.12, `TZ=UTC`, `LANG=C`, nothing on the path but Python | 2,339 tests OK (29 skipped, the Node-dependent ones); `build.py --check` OK; the 3,411 files of the output identical to the local build. macOS, not Linux; the CI job itself has not run. |
+| The final build against the Phase 4 build | No path removed; 8 added (the region pages). All 351 GPX files, the feed, `robots.txt` and both search indexes identical; the sitemap gained the eight addresses. Titles, canonicals, descriptions and write-up text identical on all 347 pages; no id or anchor lost. |
+| Page-load measurement, same method as Phase 4 | Three region pages and four existing pages, three phone runs and one desktop run each, on the build before the review fixes (44 loads, with the Phase 4 build beside it) and after the second round of fixes (28 loads). See the report, 14.3. |
+| Lighthouse, two region pages, mobile and desktop | Accessibility, best practices and SEO 100 in all four runs; no failed audit. |
+| Browser walk in Chrome 155 with real key presses and pointer events | Three passes (first build, after round 2, and the last fixes): widths 320 to 1440, keyboard order, target sizes pixel by pixel, cluster markers, JavaScript off, reduced motion and forced colours by emulation, boxes of every element on Home, Trips, the Map page and a report against the Phase 4 build. See the report, 14.4. |
+| Author docs | Written by one agent from the code, then read literally by an independent reader on synthetic sites, corrected, read again by a third, and the remaining over-precise passages tightened by hand. |
+| Mutants | Single-line changes on scratch copies: 202 in the first round (199 killed, 3 equivalent), 104 in the second (102, 2 equivalent), 49 in the third (48, 1 equivalent). |
+| Rendering | Not run. No file under `rendered/` changed. |
+| Not run | Safari and Firefox; real phones; screen readers; a real share preview; field performance; the CI job. |
+
+### Review
+
+- **Round 1** (nine agents: tests and docs from the contract, two code lenses with a skeptic each, a browser walk
+  with a skeptic, a measurement). 18 findings, 13 distinct. Fixed: the page listed only what its map's entry named,
+  so a report without a track or newer than the last render was missing from its own region's page (the rule was
+  changed to the `region:` field); ten of thirteen cluster markers on the Lake Tahoe page were clickable and did
+  nothing; two new links answered over less than 44 px; a long place could make the head scroll sideways; places
+  were ordered and merged case-sensitively; the description read "each" for one report; registering a site in a
+  unit test read the checkout's real `rendered/site/meta.json`. The measurement found that a portrait card cover
+  loaded a 154 KB file on a 3x phone where a 42 KB copy does, which became the 106 px declaration.
+- **Round 2** (seven agents on the revised code). The first-round problems were confirmed fixed in the browser.
+  New: the legend beside a region's map was built from the page's list and could name activities the map does not
+  draw (fixed); a list row for an undrawn trip dimmed the whole map (fixed in `base.js`); "Show fewer" left its
+  focused button thousands of pixels above the viewport, on the Map page too since before this phase (fixed); the
+  home link's hit area reached 1 px into the map from 1200 px (fixed); one unbreakable 36-character place word
+  still widened a 320 px page (fixed). An independent reader of the docs found ten false or misleading statements;
+  one of them was a real failure of the check that predates the phase (the home page linked to a Map page panel
+  that had gone once all of a region's reports were drafted), fixed in `home.also_items`.
+- **Round 3** (four agents on those six fixes): no regression against `c7ed3ee` beyond the stated differences. One
+  side effect fixed (a region with a page but no panel had dropped out of the `ALSO` row). Left as they are, all
+  low: two sibling states of the check failure that predate the phase (report, 14.6), an 11 px extra scroll after
+  "Show fewer" when the button sits just under the header, and an empty activities list in the legend of a map that
+  draws only a planned route (as on the Map page).
+
+### Remaining issues and author inputs
+
+Listed in `docs/IMPLEMENTATION_REPORT.md`, sections 14.6 and 14.7. In short: the regions with
+three or four reports have thin pages by the rule as built; the Featured row is automatic; the 320 px card copy is
+slightly softer than the 600 px one on a 3x phone for portrait covers; and a few stale-map states that predate the
+phase still fail the check until the maps are drawn again.

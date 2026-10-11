@@ -40,6 +40,8 @@ from sitegen import core  # noqa: E402
 import helpers  # noqa: E402
 from helpers import Doc, photo, LANDSCAPE, slugs  # noqa: E402
 
+tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
+
 WRITEUP = 'Synthetic write-up for a test.'
 REGION = 'Synthetic Range'
 OTHER = 'Other Range'

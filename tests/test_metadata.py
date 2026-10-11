@@ -395,6 +395,7 @@ def tearDownModule():
     tmp = _SHARED.pop('tmp', None)
     if tmp is not None:
         tmp.cleanup()
+    helpers.no_region_pages_left()      # this module registers sites: no region page may stay registered after it
 
 
 class TempCase(unittest.TestCase):

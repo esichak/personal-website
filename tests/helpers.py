@@ -8,6 +8,7 @@ touches content/, rendered/ or _site/.
 import os
 import re
 import sys
+import unittest
 from datetime import date
 from html.parser import HTMLParser
 
@@ -141,7 +142,10 @@ def load_dir(root, include_drafts=False):
 
 def make_site(trips, register=True):
     """The site dict exactly as tools/build.py build() makes it (trips newest first; drafts are never passed in), and
-    registered with core like the build does right after loading."""
+    registered with core like the build does right after loading, except that no site meta is handed over
+    (contract-phase5.md section 1): no region has a page of its own for a site made here, and registering it reads
+    nothing from rendered/, so every page built from it is what it was before the region pages. A fixture that wants
+    region pages registers again with its own meta: core.register_site(site, meta)."""
     trips = newest_first(trips)
     site = {'trips': trips, 'by_slug': {t['slug']: t for t in trips},
             'published': [t for t in trips if t['kind'] != 'planned'],
@@ -153,6 +157,59 @@ def make_site(trips, register=True):
 
 def slugs(trips):
     return [t['slug'] for t in trips]
+
+
+def snapshot(mod=core):
+    """The module's private lists and dicts (core: the registered site, the Other sub-types, the share image, the
+    regions that have a page, the cached site meta) with a copy of each. Dunder names (__builtins__) are left alone."""
+    return [(v, v.copy()) for k, v in vars(mod).items()
+            if k.startswith('_') and not k.startswith('__') and isinstance(v, (list, dict))]
+
+
+def restore(snap):
+    """Put back what snapshot() copied: the same objects, with the content they had."""
+    for obj, copy in snap:
+        if isinstance(obj, dict):
+            obj.clear()
+            obj.update(copy)
+        else:
+            obj[:] = copy
+
+
+def keep_state(tc, mod=core):
+    """Whatever the test registers in the module's private lists and dicts (core.register_site, a page build) is undone
+    when it ends, so no test leaves a registered site behind and the order of test modules never matters. Call it
+    first in setUp, before any mock.patch of those names: clean-ups run last in, first out, so the real objects are
+    restored after the patches are gone."""
+    tc.addCleanup(restore, snapshot(mod))
+
+
+def assert_puts_core_back(tc, case):
+    """Run `case`, one test of a fixture that registers a site with a site meta (so regions have pages while it runs),
+    inside the test `tc`, starting from a core in which no region has a page: it has to pass, and when it is over no
+    region may have a page. Pick a test that asserts on the pages it registered, so that passing proves there were
+    some. This is the per-test half of what no_region_pages_left() checks once per module."""
+    core._REGION_PAGES.clear()
+    result = unittest.TestResult()
+    case.run(result)
+    tc.assertEqual((result.testsRun, [e[1] for e in result.errors], [f[1] for f in result.failures]), (1, [], []))
+    tc.assertEqual(core._REGION_PAGES, {}, '%s left region pages registered with core' % case.id())
+
+
+def no_region_pages_left():
+    """The tearDownModule of every test module that registers a site (through make_site, core.register_site or a whole
+    build): when the module's last test has run, no region is registered with core as having a page of its own
+    (core._REGION_PAGES is empty, as it is before any site is registered). Otherwise the tests of the modules that run
+    next would link to regions/<slug>/ pages that are not theirs, and the suite would depend on the order of its
+    modules. A site registered without a site meta never has a region page; a fixture that registers with one puts
+    core back (keep_state). What was left is cleared before the error is raised, so it is reported once, by the
+    module that left it."""
+    left = dict(core._REGION_PAGES)
+    core._REGION_PAGES.clear()
+    if left:
+        raise AssertionError('region pages were left registered with core (core._REGION_PAGES) when the module ended: %r. '
+                             'A test that registers a site with a site meta has to put core back: helpers.keep_state(self) '
+                             'first in setUp.' % sorted(left))
 
 
 # ---------------------------------------------------------------- a small DOM for asserting on generated HTML

@@ -72,6 +72,7 @@ import mapkit  # noqa: E402
 from sitegen import core  # noqa: E402
 from sitegen import curation  # noqa: E402
 from sitegen import sitecheck  # noqa: E402
+from sitegen.pages import home as home_page  # noqa: E402
 import build  # noqa: E402
 
 import helpers  # noqa: E402
@@ -184,7 +185,9 @@ def redirected(root, today=TODAY):
     home = os.path.join(root, 'content', 'home.json')
     out = os.path.join(root, '_site')
     stand_ins = {curation.HOME_JSON: home, content.TRIPS_DIR: trips}
-    saved = (dict(core._TRIPS_BY_URL), list(core._OTHER_SUBS), core._HAS_PCT[0], core._SITE_SHARE[0])
+    # what a build registers with core (the trips by address, the Other sub-types, the share image and, since Phase 5,
+    # the regions that have a page) is put back afterwards: core's own lists and dicts, with what they held
+    saved = helpers.snapshot(core)
     with contextlib.ExitStack() as stack:
         for fn in [v for v in vars(curation).values() if isinstance(v, types.FunctionType) and v.__module__ == curation.__name__]:
             if redirect_defaults(fn, stand_ins) != (fn.__defaults__ or ()):
@@ -198,19 +201,16 @@ def redirected(root, today=TODAY):
         try:
             yield out
         finally:
-            core._TRIPS_BY_URL.clear()
-            core._TRIPS_BY_URL.update(saved[0])
-            core._OTHER_SUBS[:] = saved[1]
-            core._HAS_PCT[0] = saved[2]
-            core._SITE_SHARE[0] = saved[3]
+            helpers.restore(saved)
             forget_builds()
 
 
-def run_build(root, today=TODAY):
-    """build.build() on the synthetic root; -> (the output folder, the pages it returned)."""
+def run_build(root, today=TODAY, only=None):
+    """build.build() on the synthetic root; -> (the output folder, the pages it returned). only: the page modules to
+    build, as `build.py --only` hands them over."""
     with redirected(root, today) as out:
         assert build.OUT == out and out.startswith(root), 'the output folder is not inside the temp root'
-        return out, build.build(verbose=False)
+        return out, build.build(verbose=False, only=only)
 
 
 def add_trip(root, slug, lines=(), **meta):
@@ -378,10 +378,12 @@ def built():
 def tearDownModule():
     _SHARED.pop('fx', None)
     _SHARED.pop('nt', None)
-    for key in ('tmp', 'nt_tmp'):
+    _SHARED.pop('rg', None)
+    for key in ('tmp', 'nt_tmp', 'rg_tmp'):
         tmp = _SHARED.pop(key, None)
         if tmp is not None:
             tmp.cleanup()
+    helpers.no_region_pages_left()      # the builds of this module registered sites with region pages: none may stay
 
 
 def files_of(folder):
@@ -542,6 +544,10 @@ class OutputTests(BuiltCase):
         self.assertNotIn('trips/synb-story/', core._TRIPS_BY_URL)
         share = core.site_share()
         self.assertFalse(share and PREFIX in share['path'])
+        built_regions()                                    # the site with region pages (below) is built by now as well
+        for name in RG_PAGES + [RG_PLANS, RG_DESERT]:
+            self.assertNotIn(name, core._REGION_PAGES)
+            self.assertIsNone(core.region_page_href('', name))
 
 
 class FeedAndSitemapFileTests(BuiltCase):
@@ -1206,6 +1212,491 @@ class NoTrackSiteTests(BuiltCase):
             self.assertNotIn('ld+json', self.html('trips/%s/' % slug))
 
 
+# ================================================================ a site with region pages (contract-phase5.md)
+
+RG_RANGE, RG_COAST, RG_PLANS, RG_DESERT = 'Synthetic Reach', 'Synthetic Shore', 'Synthetic Schemes', 'Synthetic Dunes'
+RG_PAGES = [RG_RANGE, RG_COAST]                 # a region map and a published report each: regions/<slug>/
+RG_SLUG = {RG_RANGE: 'synthetic-reach', RG_COAST: 'synthetic-shore', RG_PLANS: 'synthetic-schemes', RG_DESERT: 'synthetic-dunes'}
+RG_REPORTS = ['synb-rg-story', 'synb-rg-words', 'synb-rg-lap', 'synb-rg-shore', 'synb-rg-shore-walk', 'synb-rg-dunes',
+              'synb-rg-journal']                # newest first
+RG_NO_TRACK = ['synb-rg-shore-walk']            # a report without a track: no full-screen map page, and on no region map
+RG_GOALS = ['synb-rg-goal', 'synb-rg-scheme']
+# The trips each region map was drawn with (its entry in rendered/site/meta.json). The Reach map is in step with the
+# content. The Shore map is not (contract-phase5.md section 1, as revised in round 2): it does not name the Shore's
+# report without a track, and it still draws a report that is filed under the Dunes
+RG_MAPS = {RG_RANGE: ['synb-rg-story', 'synb-rg-words', 'synb-rg-lap', 'synb-rg-goal'], RG_COAST: ['synb-rg-shore', 'synb-rg-dunes'],
+           RG_PLANS: ['synb-rg-scheme']}
+RG_CLUSTERS = {RG_RANGE: [['synb-rg-words', 'synb-rg-lap'], ['synb-rg-story', 'synb-rg-goal']]}      # the pins each cluster marker merged
+RG_URLS = ['regions/synthetic-reach/', 'regions/synthetic-shore/']
+
+
+def write_region_site(root):
+    """A third site, with region maps: Synthetic Reach (three reports of three activities, two of them written, and a
+    goal), Synthetic Shore (two reports of one activity, one of them without a track), Synthetic Schemes (a region map
+    and a planned route only: no page), Synthetic Dunes (a report and no region map: no page) and a journal on no
+    region map. rendered/site/ holds what tools/render.py leaves: meta.json naming the three mapped regions and the
+    trips each map draws (RG_MAPS), the two image files of each map, and a fragment with a pin per trip that links to
+    its page and, on the Reach map, two cluster markers (RG_CLUSTERS)."""
+    story = add_trip(root, 'synb-rg-story', title='Synthetic Reach Story', activity='hike', date='2026-06-01', region=RG_RANGE,
+                     place='Synthetic Basin', body=LONG, track=True, photos=[photo('photos/01.webp', LANDSCAPE, alt='Synthetic reach photo', sm=True)])
+    write(os.path.join(story, 'track.gpx'), gpx('Synthetic reach story'))
+    words = add_trip(root, 'synb-rg-words', title='Synthetic Reach Words', activity='climb', date='2025-07-01', region=RG_RANGE, body=LONG, track=True)
+    write(os.path.join(words, 'track.gpx'), gpx('Synthetic reach words'))
+    lap = add_trip(root, 'synb-rg-lap', title='Synthetic Reach Lap', activity='ski', date='2025-01-10', region=RG_RANGE, track=True)
+    write(os.path.join(lap, 'track.gpx'), gpx('Synthetic reach lap'))
+    shore = add_trip(root, 'synb-rg-shore', title='Synthetic Shore Ride', activity='mtb', date='2024-09-09', region=RG_COAST, track=True)
+    write(os.path.join(shore, 'track.gpx'), gpx('Synthetic shore ride'))
+    add_trip(root, 'synb-rg-shore-walk', title='Synthetic Shore Carry', activity='mtb', date='2024-08-08', region=RG_COAST)
+    dunes = add_trip(root, 'synb-rg-dunes', title='Synthetic Dunes Walk', activity='hike', date='2024-05-05', region=RG_DESERT, track=True)
+    write(os.path.join(dunes, 'track.gpx'), gpx('Synthetic dunes walk'))
+    journal = add_trip(root, 'synb-rg-journal', title='Synthetic Reach Journal', activity='hike', kind='series', date='2023-04-22',
+                       end_date='2023-04-23', region='Synthetic Trail',
+                       days=[{'id': '001', 'title': 'Synthetic Camp One', 'date': '2023-04-22', 'body': LONG},
+                             {'id': '002', 'title': 'Synthetic Camp Two', 'date': '2023-04-23', 'track': False}])
+    write(os.path.join(journal, 'days', '001.gpx'), gpx('Synthetic reach journal day one'))
+    add_trip(root, 'synb-rg-goal', title='Synthetic Reach Goal', activity='hike', kind='planned', region=RG_RANGE)
+    add_trip(root, 'synb-rg-scheme', title='Synthetic Scheme', activity='ski', kind='planned', region=RG_PLANS)
+    write_home(root, ['synb-rg-story'])
+    write_assets(root)
+    site = os.path.join(root, 'rendered', 'site')
+    meta = {'hash': '', 'maps': {}, 'regions': [RG_PLANS, RG_COAST, RG_RANGE], 'all_regions': [RG_COAST, RG_DESERT, RG_RANGE, RG_PLANS]}
+    for name, slugs in RG_MAPS.items():
+        pins = ''.join('<a class="mk-pin" href="@@ROOT@@trips/%s/" data-key="%s" aria-label="Synthetic pin"><title>Synthetic pin</title>'
+                       '<circle class="mk-hit" cx="9" cy="9" r="12" style="fill: transparent"/></a>' % (s, s) for s in slugs)
+        # a cluster marker as tools/lib/mapkit.py writes it: hidden from readers, its data-keys the trips it stands for
+        pins += ''.join('<g class="mk-cluster" aria-hidden="true" data-keys="%s"><title>Synthetic cluster</title>'
+                        '<circle class="mk-hit" cx="40" cy="40" r="14" style="fill: transparent"/><text x="40" y="40">%d</text></g>'
+                        % (' '.join(keys), len(keys)) for keys in RG_CLUSTERS.get(name, []))
+        for size, (w, h) in (('desktop', (718, 620)), ('phone', (390, 480))):
+            key = 'region-%s-%s' % (RG_SLUG[name], size)
+            meta['maps'][key] = {'w': w, 'h': h, 'png': key + '.webp', 'base': key + '.base.svg', 'region': name, 'trips': list(slugs)}
+            write(os.path.join(site, key + '.svg.html'), '<svg width="%d" height="%d" viewBox="0 0 %d %d">%s</svg>' % (w, h, w, h, pins))
+            write(os.path.join(site, key + '.webp'), 'real ' + key)
+            write(os.path.join(site, key + '.base.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d"/>' % (w, h))
+    write(os.path.join(site, 'meta.json'), json.dumps(meta))
+
+
+def built_regions():
+    """The third site, written and built once for the module: .root, .out, .pages, .trips_dir."""
+    if 'rg' not in _SHARED:
+        tmp = tempfile.TemporaryDirectory()
+        _SHARED['rg_tmp'] = tmp
+        write_region_site(tmp.name)
+        out, pages = run_build(tmp.name)
+        _SHARED['rg'] = types.SimpleNamespace(root=tmp.name, out=out, pages=pages, trips_dir=os.path.join(tmp.name, 'content', 'trips'))
+    return _SHARED['rg']
+
+
+class RegionSiteTests(BuiltCase):
+    """contract-phase5.md on a built site: build.build() writes regions/<slug>/index.html for the regions that have a
+    region map and a published report and for no other, lists them in sitemap.xml, leaves the feed and both search
+    indexes without them, and the whole site passes the checks `build.py --check` runs. `--only region` builds them
+    alone."""
+
+    def setUp(self):
+        self.fx = built_regions()
+        self.out = self.fx.out
+        self._docs = {}
+
+    def test_region_is_a_page_module(self):
+        self.assertIn('region', build.PAGE_MODULES)
+        self.assertEqual(build.PAGE_MODULES.index('region'), build.PAGE_MODULES.index('archive') + 1)
+
+    def test_a_page_is_written_for_each_mapped_region_with_a_report(self):
+        self.assertEqual([p.url for p in self.fx.pages if p.url.startswith('regions')], RG_URLS)      # most reports first
+        self.assertEqual(files_of(self.path('regions')), ['synthetic-reach/index.html', 'synthetic-shore/index.html'])
+        for p in self.fx.pages:
+            if p.url.startswith('regions'):
+                self.assertEqual(read(self.path(page_path(p.url))), p.html)
+        for name, url in zip(RG_PAGES, RG_URLS):
+            with self.subTest(region=name):
+                doc = self.doc(url)
+                self.assertEqual([h.text() for h in doc.find_all('h1')], [name])
+                self.assertEqual(doc.find('body')['class'], 'p-region')
+                self.assertEqual([ln['href'] for ln in doc.find_all('link', attrs={'rel': 'canonical'})], [U + url])
+                self.assertNotIn('<!-- missing', self.html(url))
+
+    def test_no_page_for_a_region_without_a_report_or_without_a_region_map(self):
+        for name in (RG_PLANS, RG_DESERT, 'Synthetic Trail'):
+            slug = RG_SLUG.get(name, 'synthetic-trail')
+            self.assertFalse(os.path.exists(self.path('regions/' + slug)), name)
+            for rel in self.html_files():
+                self.assertNotIn('regions/%s/' % slug, read(self.path(rel)), rel)
+        self.assertFalse(os.path.exists(self.path('regions/index.html')))            # no index of the region pages
+        # both keep their place on the Map page: a panel for the mapped one, a list for the other
+        ids = {n['id'] for n in self.doc('map/').root.walk() if n['id']}
+        for name in (RG_RANGE, RG_COAST, RG_PLANS, RG_DESERT):
+            self.assertIn('region-' + RG_SLUG[name], ids)
+
+    def test_the_pages_of_the_site_are_exactly_these(self):
+        want = (SITE_PAGES + SECTIONS + RG_URLS + ['trips/%s/' % s for s in RG_REPORTS + RG_GOALS]
+                + ['trips/%s/map/' % s for s in RG_REPORTS if s not in RG_NO_TRACK] + ['404.html', 'trips/search.json', 'trips/journal.json'])
+        self.assertEqual(sorted(p.url for p in self.fx.pages), sorted(want))
+
+    def test_the_sitemap_lists_the_region_pages(self):
+        text = read(self.path('sitemap.xml'))
+        self.assertEqual(text, build.sitemap(self.fx.pages))
+        ns = '{http://www.sitemaps.org/schemas/sitemap/0.9}'
+        locs = [u.findtext(ns + 'loc') for u in ET.fromstring(text.encode('utf-8')).findall(ns + 'url')]
+        self.assertEqual(sorted(locs), sorted(U + u for u in SITE_PAGES + SECTIONS + RG_URLS + ['trips/%s/' % s for s in RG_REPORTS + RG_GOALS]))
+        for url in RG_URLS:
+            self.assertEqual(locs.count(U + url), 1)
+        self.assertEqual([u for u in locs if '/regions/' in u], [U + u for u in RG_URLS])
+        for p in self.fx.pages:
+            if p.url.startswith('regions'):
+                self.assertIs(p.index, True)
+
+    def test_the_feed_has_no_region_page(self):
+        text = read(self.path('feed.xml'))
+        self.assertNotIn('regions/', text)
+        items = ET.fromstring(text.encode('utf-8')).find('channel').findall('item')
+        self.assertEqual([i.findtext('link') for i in items], [U + 'trips/%s/' % s for s in RG_REPORTS])
+
+    def test_neither_search_index_has_a_region_page(self):
+        for rel in ('trips/search.json', 'trips/journal.json'):
+            with self.subTest(index=rel):
+                text = read(self.path(rel))
+                data = json.loads(text)
+                self.assertTrue(data)
+                self.assertNotIn('regions/', text)
+                self.assertNotIn('trip reports', text)                    # no region page's title either
+        # the trips index is one entry per report, keyed by its slug, and nothing else; the journal index is the journal's days
+        self.assertEqual([e['s'] for e in json.loads(read(self.path('trips/search.json')))], RG_REPORTS)
+        self.assertEqual({e['s'] for e in json.loads(read(self.path('trips/journal.json')))}, {'synb-rg-journal'})
+        for name in RG_PAGES:
+            self.assertNotIn(RG_SLUG[name], [e['s'] for e in json.loads(read(self.path('trips/search.json')))])
+        self.assertEqual([f for f in files_of(self.out) if f.endswith('.json')], ['trips/journal.json', 'trips/search.json'])
+
+    def test_the_site_check_finds_nothing(self):
+        self.assertEqual(sitecheck.check(self.out, self.fx.trips_dir), [])
+
+    def test_the_site_check_would_notice_a_region_page_that_went_missing(self):
+        # the checks do look at these pages and at the links to them: without one, its links are broken lines
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = os.path.join(tmp, 'site')
+            shutil.copytree(self.out, copy)
+            shutil.rmtree(os.path.join(copy, 'regions', 'synthetic-shore'))
+            problems = sitecheck.check(copy, self.fx.trips_dir)
+        self.assertTrue(problems)
+        self.assertTrue(any('regions/synthetic-shore' in line for line in problems), problems[:5])
+
+    def test_every_link_and_file_of_a_region_page_is_in_the_output(self):
+        for url in RG_URLS:
+            with self.subTest(page=url):
+                checked = 0
+                for href, target in self.links(url):
+                    self.assertFalse(href.startswith('/'), href)
+                    if href.startswith(U):
+                        self.assertEqual(href, U + url)                    # the canonical link and og:url: the page itself
+                    path = self.path(target + 'index.html' if (target == '' or target.endswith('/')) else target)
+                    self.assertTrue(os.path.isfile(path), '%s on %s names nothing in the output (%s)' % (href, url, target))
+                    checked += 1
+                self.assertGreater(checked, 30)
+                for src in re.findall(r'src="([^"]+)"', self.html(url)):
+                    self.assertFalse(src.startswith(('/', 'http')), src)
+                    self.assertTrue(os.path.isfile(os.path.normpath(os.path.join(self.path(url), src))), '%s on %s' % (src, url))
+        # the map a region page draws is published, and preloaded by the page
+        for f in ('region-synthetic-reach-desktop.webp', 'region-synthetic-reach-desktop.base.svg', 'region-synthetic-reach-phone.webp',
+                  'region-synthetic-reach-phone.base.svg'):
+            self.assertTrue(os.path.isfile(self.path('assets/maps/' + f)))
+            self.assertIn('<link rel="preload" as="image"', self.html(RG_URLS[0]))
+            self.assertIn('href="../../assets/maps/%s"' % f, self.html(RG_URLS[0]).split('</head>', 1)[0])
+
+    def test_the_pins_of_a_region_pages_map_link_from_its_folder(self):
+        # the fragment's @@ROOT@@ is the way back from regions/<slug>/, two folders deep
+        pins = self.doc(RG_URLS[0]).by_id('arc-map-synthetic-reach').find_all('a', cls='mk-pin')
+        self.assertEqual(sorted({a['href'] for a in pins}), sorted('../../trips/%s/' % s for s in RG_MAPS[RG_RANGE]))
+        self.assertEqual(len(pins), 2 * len(RG_MAPS[RG_RANGE]))                  # the desktop and the phone render
+
+    def test_the_other_pages_link_to_the_region_pages(self):
+        # the report's breadcrumb, the goal's breadcrumb and pager, the Trips page's browse row, the Map page's panel
+        crumbs = self.doc('trips/synb-rg-story/').find('nav', cls='crumbs')
+        self.assertEqual([a['href'] for a in crumbs.find_all('a')][-1], '../../regions/synthetic-reach/')
+        goal = self.doc('trips/synb-rg-goal/')
+        self.assertEqual([a['href'] for a in goal.find('nav', cls='crumbs').find_all('a')][-1], '../../regions/synthetic-reach/')
+        cell = goal.find('nav', cls='pager').find('a', cls='next')
+        self.assertEqual((cell['href'], cell.find('span', cls='pager-n').text()), ('../../regions/synthetic-reach/', 'All Synthetic Reach reports'))
+        browse = [a['href'] for a in self.doc('trips/').find('nav', cls='trx-browse').find_all('a')]
+        self.assertIn('../regions/synthetic-reach/', browse)
+        self.assertIn('../regions/synthetic-shore/', browse)
+        self.assertIn('../map/#region-synthetic-dunes', browse)                  # no page: its place on the Map page, as before
+        self.assertIn('?region=synthetic-trail', browse)                         # on neither: the explorer's own filter
+        panel = self.doc('map/').by_id('region-synthetic-reach')
+        self.assertEqual([(a['href'], a.text()) for a in panel.find_all('a', cls='arc-reg-a')], [('../regions/synthetic-reach/', 'All Synthetic Reach reports')])
+        self.assertEqual(self.doc('map/').by_id('region-synthetic-schemes').find_all('a', cls='arc-reg-a'), [])
+        # a trip of a region without a page keeps its links to the Map page
+        dunes = self.doc('trips/synb-rg-dunes/').find('nav', cls='crumbs')
+        self.assertEqual([a['href'] for a in dunes.find_all('a')][-1], '../../map/#region-synthetic-dunes')
+        scheme = self.doc('trips/synb-rg-scheme/').find('nav', cls='pager').find('a', cls='next')
+        self.assertEqual((scheme['href'], scheme.find('span', cls='pager-n').text()), ('../../map/#region-synthetic-schemes', 'Open the map'))
+
+    def test_the_region_pages_carry_what_the_content_says(self):
+        html_ = self.html(RG_URLS[0])
+        doc = self.doc(RG_URLS[0])
+        self.assertEqual(doc.find('meta', attrs={'name': 'description'})['content'],
+                         'Synthetic Reach: 3 trip reports, 2025 to 2026 (backcountry ski, climbing and hiking), with a map of the region '
+                         'and the full GPX track of each.')
+        self.assertEqual([m['content'] for m in doc.find_all('meta', attrs={'property': 'og:image'})], [U + 'trips/synb-rg-story/photos/01.webp'])
+        self.assertEqual([li['data-slug'] for li in doc.find_all('li', cls='tcard')], ['synb-rg-story', 'synb-rg-words'])
+        self.assertEqual([a['data-key'] for a in doc.by_id('all-reports').find_all('a', cls='rtab-r')],
+                         ['synb-rg-story', 'synb-rg-words', 'synb-rg-lap', 'synb-rg-goal'])
+        self.assertIn('href="../../trips/?region=synthetic-reach&amp;writeup=1">All 2 write-ups in Trips', html_)
+        self.assertEqual([a['href'] for a in doc.find('nav', cls='reg-others').find_all('a')], ['../../regions/synthetic-shore/', '../../map/'])
+        shore = self.doc(RG_URLS[1])
+        self.assertIsNone(shore.find('section', cls='reg-feat'))                  # two bare reports: no Featured row
+        self.assertIsNone(shore.find('div', cls='arc-filt'))                      # one activity: no filter row
+        # one of its reports has no track: the sentence promises the map and no GPX file
+        self.assertEqual(shore.find('meta', attrs={'name': 'description'})['content'],
+                         'Synthetic Shore: 2 trip reports, 2024 (mountain biking), with a map of the region.')
+
+    def test_a_region_page_lists_what_the_content_says_and_the_map_page_what_its_map_names(self):
+        # contract-phase5.md section 1 (REVISED in round 2), on a built site whose Shore map is out of step with the
+        # content (RG_MAPS): the page lists the reports filed under the region, the report without a track included
+        # and the report filed elsewhere left out; the Map page's panel keeps the trips its map was drawn with
+        shore = self.doc(RG_URLS[1])
+        filed = ['synb-rg-shore', 'synb-rg-shore-walk']
+        self.assertEqual([li['data-key'] for li in shore.by_id('arc-rows-synthetic-shore').find_all('li', cls='arc-row')], filed)
+        self.assertEqual([a['data-key'] for a in shore.by_id('all-reports').find_all('a', cls='rtab-r')], filed)
+        self.assertIn('2\xa0REPORTS', self.html(RG_URLS[1]).split('<p class="reg-stats">', 1)[1].split('</p>', 1)[0])
+        self.assertNotIn('trips/synb-rg-dunes/"', self.html(RG_URLS[1]).split('<div class="arc-side">', 1)[1])      # in no list of the page
+        panel = self.doc('map/').by_id('region-synthetic-shore')
+        self.assertEqual([li['data-key'] for li in panel.find_all('li', cls='arc-row')], RG_MAPS[RG_COAST])
+        self.assertEqual([(a['href'], a.text()) for a in panel.find_all('a', cls='arc-reg-a')],
+                         [('../regions/synthetic-shore/', 'All Synthetic Shore reports')])
+        # the count the Trips page gives the region beside its link is the page's count
+        browse = {a['href']: a.text() for a in self.doc('trips/').find('nav', cls='trx-browse').find_all('a')}
+        self.assertEqual(browse['../regions/synthetic-shore/'], 'Synthetic Shore, 2 reports')
+        self.assertEqual(browse['../regions/synthetic-reach/'], 'Synthetic Reach, 3 reports')
+        self.assertEqual(len([a for a in self.doc(RG_URLS[0]).by_id('all-reports').find_all('a', cls='rtab-r') if a['data-kind'] != 'planned']), 3)
+        # each report's breadcrumb leads to the page that lists it: the one without a track to the Shore's, the one the
+        # Shore map still draws to its own region's place on the Map page
+        walk = self.doc('trips/synb-rg-shore-walk/').find('nav', cls='crumbs')
+        self.assertEqual([a['href'] for a in walk.find_all('a')][-1], '../../regions/synthetic-shore/')
+        dunes = self.doc('trips/synb-rg-dunes/').find('nav', cls='crumbs')
+        self.assertEqual([a['href'] for a in dunes.find_all('a')][-1], '../../map/#region-synthetic-dunes')
+        self.assertFalse(os.path.exists(self.path('trips/synb-rg-shore-walk/map')))                # no track: no map page
+
+    def test_every_cluster_marker_of_a_region_pages_map_has_a_row_for_each_of_its_trips(self):
+        # base.js sends a click on a cluster marker to the first row of the list beside the map whose data-key is one of
+        # the marker's data-keys (the list is the one whose data-map-target names the map). Every key has its row on the
+        # built page, the goal's included, so no marker is dead
+        doc = self.doc(RG_URLS[0])
+        block = doc.by_id('arc-map-synthetic-reach')
+        clusters = block.find_all('g', cls='mk-cluster')
+        self.assertEqual([g['data-keys'].split() for g in clusters], RG_CLUSTERS[RG_RANGE] * 2)       # the desktop and the phone render
+        lists = doc.find_all(attrs={'data-map-target': 'arc-map-synthetic-reach'})
+        self.assertEqual([(n.tag, n['id']) for n in lists], [('ol', 'arc-rows-synthetic-reach')])
+        rows = [n['data-key'] for n in lists[0].walk() if n['data-key']]
+        self.assertEqual(rows, RG_MAPS[RG_RANGE])
+        for g in clusters:
+            self.assertEqual(g['aria-hidden'], 'true')
+            for key in g['data-keys'].split():
+                self.assertIn(key, rows)
+        for pin in block.find_all('a', cls='mk-pin'):
+            self.assertIn(pin['data-key'], rows)
+        # the same fragment on the Map page, whose list is found the same way
+        panel = self.doc('map/').by_id('region-synthetic-reach')
+        there = [n['data-key'] for n in panel.find('ol', cls='arc-rows').walk() if n['data-key']]
+        self.assertEqual(panel.find('ol', cls='arc-rows')['data-map-target'], 'arc-map-synthetic-reach')
+        for g in panel.find_all('g', cls='mk-cluster'):
+            for key in g['data-keys'].split():
+                self.assertIn(key, there)
+
+    def test_the_legend_beside_a_region_pages_map_is_the_map_pages_legend_for_that_map(self):
+        # round 3: the legend is the key to the map, so it is made from the trips the map draws (RG_MAPS), as the Map
+        # page's panel for the same map makes it, and not from the page's list. The Shore map still draws the hike that
+        # is filed under the Dunes; both reports on the Shore's list are rides, one of them without a track
+        def legend(html_):
+            start = html_.index('<div class="arc-side">') + len('<div class="arc-side">')
+            return html_[start:html_.index('<div class="arc-inreg">', start)]
+
+        def words(html_):
+            return [li.elements()[-1].text() for li in Doc(legend(html_)).find_all('li')]
+
+        archive_page = self.html('map/')
+        for name, url in zip(RG_PAGES, RG_URLS):
+            with self.subTest(region=name):
+                panel = archive_page[archive_page.index('<div class="arc-panel" id="region-%s">' % RG_SLUG[name]):]
+                self.assertTrue(legend(self.html(url)).startswith('<div class="arc-legend"><p class="t-label">Legend</p>'))
+                self.assertEqual(legend(self.html(url)), legend(panel))
+        self.assertEqual(words(self.html(RG_URLS[0])), ['Backcountry Ski', 'Climbing', 'Hiking', 'Planned route'])
+        self.assertEqual(words(self.html(RG_URLS[1])), ['Hiking', 'Mountain Biking'])
+        listed = [li['data-key'] for li in self.doc(RG_URLS[1]).by_id('arc-rows-synthetic-shore').find_all('li', cls='arc-row')]
+        self.assertEqual(listed, ['synb-rg-shore', 'synb-rg-shore-walk'])               # no hike among them
+        self.assertEqual(self.doc(RG_URLS[1]).by_id('all-reports').find_all('a', attrs={'data-act': 'hike'}), [])
+
+    def test_only_region_builds_the_region_pages_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_region_site(tmp)
+            out, pages = run_build(tmp, only={'region'})
+            self.assertEqual([p.url for p in pages], RG_URLS)
+            self.assertEqual([f for f in files_of(out) if f.endswith('.html')], ['regions/synthetic-reach/index.html', 'regions/synthetic-shore/index.html'])
+            for url in RG_URLS:
+                # the same page as in the whole build: a region page needs no other module to have run
+                self.assertEqual(read(os.path.join(out, page_path(url))), self.html(url))
+            self.assertEqual(read(os.path.join(out, 'sitemap.xml')), build.sitemap(pages))
+            self.assertEqual(re.findall(r'<loc>([^<]+)</loc>', read(os.path.join(out, 'sitemap.xml'))), [U + u for u in RG_URLS])
+            # and a partial build that leaves the module out writes none
+            out, pages = run_build(tmp, only={'archive', 'home'})
+            self.assertEqual(sorted(p.url for p in pages), ['', 'map/'])
+            self.assertFalse(os.path.exists(os.path.join(out, 'regions')))
+            # the Map page of that build still links to the pages a full build writes (region_page_href asks the site, not the build)
+            self.assertIn('href="../regions/synthetic-reach/"', read(os.path.join(out, 'map', 'index.html')))
+
+    def test_a_build_without_region_maps_writes_no_region_page(self):
+        # the first fixture of this file: its site meta names no region map
+        fx = built()
+        self.assertEqual([p.url for p in fx.pages if p.url.startswith('regions')], [])
+        self.assertFalse(os.path.exists(os.path.join(fx.out, 'regions')))
+        self.assertNotIn('regions/', read(os.path.join(fx.out, 'sitemap.xml')))
+        for rel in files_of(fx.out):
+            if rel.endswith('.html'):
+                self.assertNotIn('regions/', read(os.path.join(fx.out, rel)), rel)
+
+
+# ================================================================ a region map whose reports are all gone (round 3)
+
+RG_WRAITH, RG_WRAITH_SLUG = 'Synthetic Wraith', 'synthetic-wraith'
+RG_WRAITH_MAP = ['synb-rg-wraith', 'synb-rg-vanished']        # what the map was drawn with: a report that is a draft now, one that is gone
+
+
+def write_wraith_site(root):
+    """The site with region maps (write_region_site) and one region map more, for Synthetic Wraith, as tools/render.py
+    left it when the region had two reports. Since then one has been made a draft (it is still in content/, and never
+    in the output) and the other removed. The map, its entry in rendered/site/meta.json and the region's name in
+    'regions' and 'all_regions' stay as they are until the next render: no trip of the site is on that map or filed
+    under that region."""
+    write_region_site(root)
+    draft = add_trip(root, 'synb-rg-wraith', title='Synthetic Wraith Walk', activity='hike', date='2024-02-02', region=RG_WRAITH, draft=True,
+                     track=True)
+    write(os.path.join(draft, 'track.gpx'), gpx('Synthetic wraith walk'))
+    site = os.path.join(root, 'rendered', 'site')
+    meta = json.loads(read(os.path.join(site, 'meta.json')))
+    meta['regions'].append(RG_WRAITH)
+    meta['all_regions'].append(RG_WRAITH)
+    pins = ''.join('<a class="mk-pin" href="@@ROOT@@trips/%s/" data-key="%s" aria-label="Synthetic pin"><title>Synthetic pin</title>'
+                   '<circle class="mk-hit" cx="9" cy="9" r="12" style="fill: transparent"/></a>' % (s, s) for s in RG_WRAITH_MAP)
+    for size, (w, h) in (('desktop', (718, 620)), ('phone', (390, 480))):
+        key = 'region-%s-%s' % (RG_WRAITH_SLUG, size)
+        meta['maps'][key] = {'w': w, 'h': h, 'png': key + '.webp', 'base': key + '.base.svg', 'region': RG_WRAITH, 'trips': list(RG_WRAITH_MAP)}
+        write(os.path.join(site, key + '.svg.html'), '<svg width="%d" height="%d" viewBox="0 0 %d %d">%s</svg>' % (w, h, w, h, pins))
+        write(os.path.join(site, key + '.webp'), 'real ' + key)
+        write(os.path.join(site, key + '.base.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d"/>' % (w, h))
+    write(os.path.join(site, 'meta.json'), json.dumps(meta))
+
+
+def also_items_c7ed3ee(site):
+    """sitegen.pages.home.also_items as it was at commit c7ed3ee (the body of fb425ab, Phase 4), copied line for line:
+    every mapped region that is not one of the home page's two gets an item, with or without a panel on the Map page."""
+    is_report, slug, HOME_REGIONS, HERE = home_page.is_report, home_page.slug, home_page.HOME_REGIONS, home_page.HERE
+    esc, link = core.esc, core.link
+    mapped = set(core.site_meta().get('regions') or [])
+    counts = {}
+    for t in site['published']:
+        r = t.get('region')
+        if r and is_report(t) and t['kind'] != 'series':
+            counts[r] = counts.get(r, 0) + 1
+    item = '<li><a href="%s"><span class="hom-also-w">%s</span>%s</a></li>'
+    out = []
+    for r in sorted((r for r in mapped if r not in HOME_REGIONS), key=lambda r: (-counts.get(r, 0), r)):
+        k = counts.get(r, 0)
+        out.append(item % (core.region_map_href(HERE, r) or link(HERE, 'map/#region-' + slug(r)), esc(r),
+                           ('<span class="hom-also-c">%d</span>' % k) if k else ''))
+    unmapped = [r for r in counts if r not in mapped and r not in HOME_REGIONS]
+    if unmapped:
+        more = '%d more region%s' % (len(unmapped), '' if len(unmapped) == 1 else 's')
+        out.append(item % (link(HERE, 'map/#other-places'), esc(more), ''))
+    out += [item % (link(HERE, t['url']), esc(t['title']), '<span class="hom-also-c">SERIES</span>')
+            for t in site['published'] if t['kind'] == 'series']
+    return out
+
+
+class WraithRegionSiteTests(unittest.TestCase):
+    """Round 3 of the region pages, on a built site: the home page's Also row names a mapped region only while the Map
+    page has a panel for it. With the map of a region whose reports are all gone still in rendered/site/, the site
+    passes the checks `build.py --check` runs; with home.also_items as it was at commit c7ed3ee the same site has one
+    broken anchor, the Also row's link to a panel the Map page does not write.
+
+    The home page draws the maps of home.HOME_REGIONS only, and has an Also row only when it draws one: the builds here
+    run with Synthetic Reach as the home page's one region."""
+
+    WRAITH_LINK = 'map/#region-' + RG_WRAITH_SLUG
+
+    def build(self, writer=write_wraith_site, also_items=None):
+        """A build of the site in a temp root of its own: (the output folder, its content/trips folder)."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        writer(tmp.name)
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(home_page, 'HOME_REGIONS', (RG_RANGE,)))
+            if also_items is not None:
+                stack.enter_context(mock.patch.object(home_page, 'also_items', also_items))
+            out, _pages = run_build(tmp.name)
+        return out, os.path.join(tmp.name, 'content', 'trips')
+
+    def also(self, out):
+        row = Doc(read(os.path.join(out, 'index.html'))).find('div', cls='hom-also')
+        self.assertIsNotNone(row, 'the home page has no Also row')
+        return [(a['href'], a.find('span', cls='hom-also-w').text(), a.find('span', cls='hom-also-c').text() if a.find('span', cls='hom-also-c') else None)
+                for a in row.find_all('a')]
+
+    def test_the_site_passes_the_site_check(self):
+        out, trips_dir = self.build()
+        self.assertEqual(sitecheck.check(out, trips_dir), [])
+        # the state the check passes in: the map is in the site meta and published, and nothing of the site is on it
+        meta = json.loads(read(os.path.join(os.path.dirname(os.path.dirname(trips_dir)), 'rendered', 'site', 'meta.json')))
+        self.assertIn(RG_WRAITH, meta['regions'])
+        self.assertEqual(meta['maps']['region-%s-desktop' % RG_WRAITH_SLUG]['trips'], RG_WRAITH_MAP)
+        self.assertTrue(os.path.isfile(os.path.join(out, 'assets', 'maps', 'region-%s-desktop.webp' % RG_WRAITH_SLUG)))
+        self.assertTrue(os.path.isdir(os.path.join(trips_dir, 'synb-rg-wraith')))                # the draft is still content
+        for slug in RG_WRAITH_MAP:
+            self.assertFalse(os.path.exists(os.path.join(out, 'trips', slug)), slug)
+        # no page names the region, links to it or holds an anchor for it
+        ids = {n['id'] for n in Doc(read(os.path.join(out, 'map', 'index.html'))).root.walk() if n['id']}
+        self.assertNotIn('region-' + RG_WRAITH_SLUG, ids)
+        self.assertFalse(os.path.exists(os.path.join(out, 'regions', RG_WRAITH_SLUG)))
+        for rel in files_of(out):
+            if rel.endswith('.html'):
+                text = read(os.path.join(out, rel))
+                self.assertNotIn(RG_WRAITH_SLUG, text, rel)
+                self.assertNotIn(RG_WRAITH, text, rel)
+        # the Also row: the Shore to its own page with its two reports, the Schemes (a planned route only) to their panel
+        # on the Map page without a count, the one region without a region map, the journal
+        self.assertEqual(self.also(out), [('regions/synthetic-shore/', RG_COAST, '2'), ('map/#region-synthetic-schemes', RG_PLANS, None),
+                                          ('map/#other-places', '1 more region', None), ('trips/synb-rg-journal/', 'Synthetic Reach Journal', 'SERIES')])
+        self.assertIn('region-synthetic-schemes', ids)
+        self.assertIn('other-places', ids)
+
+    def test_at_commit_c7ed3ee_the_same_site_had_a_broken_anchor(self):
+        out, trips_dir = self.build(also_items=also_items_c7ed3ee)
+        self.assertEqual(sitecheck.check(out, trips_dir), ['BROKEN ANCHOR index.html -> ' + self.WRAITH_LINK])
+        self.assertEqual(self.also(out), [('map/#region-synthetic-shore', RG_COAST, '2'), ('map/#region-synthetic-schemes', RG_PLANS, None),
+                                          (self.WRAITH_LINK, RG_WRAITH, None),
+                                          ('map/#other-places', '1 more region', None), ('trips/synb-rg-journal/', 'Synthetic Reach Journal', 'SERIES')])
+        # the Map page of that build is the Map page of today's: it never had the panel
+        now, _trips = self.build()
+        self.assertEqual(read(os.path.join(out, 'map', 'index.html')), read(os.path.join(now, 'map', 'index.html')))
+        # the two builds differ in the home page alone, and there in that item and in the address of the Shore
+        self.assertEqual(files_of(out), files_of(now))
+        self.assertEqual([rel for rel in files_of(out) if read_bytes(os.path.join(out, rel)) != read_bytes(os.path.join(now, rel))], ['index.html'])
+        item = '<li><a href="%s"><span class="hom-also-w">%s</span></a></li>' % (self.WRAITH_LINK, RG_WRAITH)
+        before = read(os.path.join(out, 'index.html'))
+        self.assertEqual(before.count(item), 1)
+        self.assertEqual(before.replace(item, '').replace('href="map/#region-synthetic-shore"', 'href="regions/synthetic-shore/"'),
+                         read(os.path.join(now, 'index.html')))
+
+    def test_the_old_row_and_the_new_agree_while_every_region_map_has_a_panel(self):
+        # the site with region maps as it is (no map without a trip): both rows land, and differ in the Shore's address
+        old, trips_dir = self.build(writer=write_region_site, also_items=also_items_c7ed3ee)
+        self.assertEqual(sitecheck.check(old, trips_dir), [])
+        new, trips_dir = self.build(writer=write_region_site)
+        self.assertEqual(sitecheck.check(new, trips_dir), [])
+        self.assertEqual(read(os.path.join(old, 'index.html')).replace('href="map/#region-synthetic-shore"', 'href="regions/synthetic-shore/"'),
+                         read(os.path.join(new, 'index.html')))
+        self.assertEqual(self.also(new), [('regions/synthetic-shore/', RG_COAST, '2'), ('map/#region-synthetic-schemes', RG_PLANS, None),
+                                          ('map/#other-places', '1 more region', None), ('trips/synb-rg-journal/', 'Synthetic Reach Journal', 'SERIES')])
+
+
 class CombinedGpxTests(unittest.TestCase):
     """Contract 10.1: the combined file of a multi-day trip is written exactly when a day has a track file, the condition
     under which its page offers "Download all GPX" (multiday.has_gpx), and it holds every <trk ...>...</trk> block of
@@ -1519,8 +2010,10 @@ class CardCopyBuildTests(BuiltCase):
                 pic = node.parent
                 self.assertEqual((pic.tag, pic.classes, [n.tag for n in pic.elements()]), ('picture', ['cover-pic'], ['source', 'img']))
                 self.assertEqual(sorted(node.attrs), ['media', 'sizes', 'srcset'])
-                self.assertEqual((node['media'], node['sizes']), (core.CARD_PHONE_MEDIA, core.CARD_PHONE_SLOT))
-                self.assertEqual((node['media'], node['sizes']), ('(max-width: 559.98px)', '112px'))
+                # the source declares the slot as 106 px (core.CARD_PHONE_SIZES: contract-phase5.md section 5), the
+                # <img> behind it keeps a string that ends with the real 112 px
+                self.assertEqual((node['media'], node['sizes']), (core.CARD_PHONE_MEDIA, core.CARD_PHONE_SIZES))
+                self.assertEqual((node['media'], node['sizes']), ('(max-width: 559.98px)', '106px'))
                 up = '../' * rel.count('/')
                 base = up + 'trips/synb-story/photos/'
                 self.assertEqual(node['srcset'], '%s01.th.webp 427w, %s01.sm.webp 800w, %s01.webp 1600w' % (base, base, base))
@@ -1530,6 +2023,8 @@ class CardCopyBuildTests(BuiltCase):
                 img = pic.find('img')
                 self.assertEqual((img['srcset'], img['loading']), ('%s01.sm.webp 800w, %s01.webp 1600w' % (base, base), 'lazy'))
                 self.assertTrue(img['sizes'].endswith(', 112px'))
+                self.assertTrue(img['sizes'].endswith(', ' + core.CARD_PHONE_SLOT))
+                self.assertNotIn('106px', img['sizes'])
                 card = pic.parent.parent
                 self.assertEqual((pic.parent.classes, card.classes[:1], card['data-slug']), (['tcard-img'], ['tcard'], 'synb-story'))
         # every card of the report is wrapped: none of them is left with the bare <img>

@@ -58,11 +58,15 @@ def section_url(act):
 _SITE_META = []
 
 
+def read_site_meta():
+    """rendered/site/meta.json (region + ski-panel overview maps) as it is on disk now."""
+    return read_json(os.path.join(ROOT, 'rendered', 'site', 'meta.json'), {'maps': {}, 'regions': []})
+
+
 def site_meta():
-    """rendered/site/meta.json (region + ski-panel overview maps), read once."""
+    """rendered/site/meta.json, read once."""
     if not _SITE_META:
-        p = os.path.join(ROOT, 'rendered', 'site', 'meta.json')
-        _SITE_META.append(read_json(p, {'maps': {}, 'regions': []}))
+        _SITE_META.append(read_site_meta())
     return _SITE_META[0]
 
 
@@ -77,6 +81,77 @@ def region_map_href(here, region):
     if ('region-%s-desktop' % s) not in sm.get('maps', {}) and region not in sm.get('all_regions', []):
         return None
     return link(here, 'map/#region-' + s)
+
+
+def listed_trips(site):
+    """The trips a region group lists and counts: every report, and the tick-list goals that are still future routes
+    (site['active_goals']: a completed or archived goal keeps its page and leaves these lists, as on Home and the
+    section pages)."""
+    goals_ = site.get('active_goals')
+    if goals_ is None:
+        goals_ = site.get('planned')
+    if goals_ is None:   # a bare site dict (register_site in a test): every planned route counts as active
+        goals_ = [t for t in site['trips'] if t['kind'] == 'planned']
+    active = {t['slug'] for t in goals_}
+    return [t for t in site['trips'] if t['kind'] != 'planned' or t['slug'] in active]
+
+
+def region_groups(site, meta=None):
+    """[(name, slug, trips newest-first with planned last)] for the regions that have a region map (meta 'regions';
+    meta None: site_meta()), ordered by number of published trips, then name. The trips are the ones the map's own
+    entry names, or failing that the listed trips filed under the region; a series is on no region map."""
+    meta = site_meta() if meta is None else meta
+    out = []
+    trips = listed_trips(site)
+    for name in meta.get('regions') or []:
+        slug = content.slugify(name)
+        m = (meta.get('maps') or {}).get('region-%s-desktop' % slug) or {}
+        keys = set(m.get('trips') or [t['slug'] for t in trips if t['region'] == name and t['kind'] != 'series'])
+        ts = [t for t in trips if t['slug'] in keys]
+        ts.sort(key=lambda t: t['kind'] == 'planned')  # stable: keeps newest-first, planned last
+        if ts:
+            out.append((name, slug, ts))
+    out.sort(key=lambda r: (-sum(1 for t in r[2] if t['kind'] != 'planned'), r[0]))
+    return out
+
+
+def region_pages(site, meta=None):
+    """[(name, slug, ts)] for the regions that get a page of their own (regions/<slug>/, sitegen.pages.region): a region
+    with a region map (meta 'regions' and a 'region-<slug>-desktop' or '-phone' entry under 'maps'; meta None:
+    site_meta()) and at least one published report filed under it. ts is every listed trip (listed_trips) whose `region`
+    is exactly the name, newest first with planned routes last: what the content says, not what the map was last drawn
+    with, so a report without a track, a journal, or a report newer than the last render is on its region's page, and
+    the page's count is the count the Trips page gives the region. A region of planned routes only has no page, nor has
+    a name without a slug; of two names with one slug only the first has one. Most published reports first, then A-Z."""
+    meta = site_meta() if meta is None else meta
+    maps = meta.get('maps') or {}
+    trips = listed_trips(site)
+    out, seen = [], set()
+    for name in meta.get('regions') or []:
+        slug = content.slugify(name)
+        if not slug or slug in seen:
+            continue
+        if ('region-%s-desktop' % slug) not in maps and ('region-%s-phone' % slug) not in maps:
+            continue
+        ts = [t for t in trips if t.get('region') == name]
+        ts.sort(key=lambda t: t['kind'] == 'planned')  # stable: keeps newest-first, planned last
+        if not any(t['kind'] != 'planned' for t in ts):
+            continue
+        seen.add(slug)
+        out.append((name, slug, ts))
+    out.sort(key=lambda r: (-sum(1 for t in r[2] if t['kind'] != 'planned'), r[0]))
+    return out
+
+
+_REGION_PAGES = {}   # region name -> slug, for the regions with a page; register_site() fills it
+
+
+def region_page_href(here, region):
+    """Link to the region's own page, or None when it has none (no region map, or the site was registered without a
+    site meta: then a caller links to map/ as before, see region_map_href). Asked by the exact name, as the page lists
+    by it: a second spelling of a region is not on the page, so it keeps its link to map/."""
+    slug = _REGION_PAGES.get(region) if region else None
+    return link(here, 'regions/%s/' % slug) if slug else None
 
 
 def prefix(url):
@@ -701,6 +776,11 @@ def thumb_width(p):
 
 CARD_PHONE_SLOT = '112px'                    # a card's cover on a phone: the last item of every card sizes string
 CARD_PHONE_MEDIA = '(max-width: 559.98px)'   # where that slot applies: below the cards' first breakpoint (560 px)
+# What the phone <source> declares for that slot: 106 px, the widest whole number at which a 3x phone is still served
+# by the 320 px short edge of a .th copy (3 x 106 = 318). Declared at the real 112 px, a 3x phone wanted 336 px, so for
+# a portrait or square cover (a .th copy 320 px wide) it took the 600 px copy instead: 154 KB where 42 KB do, measured
+# on the first Featured card of a region page. A landscape cover's copy is 427 px wide and is chosen either way.
+CARD_PHONE_SIZES = '%dpx' % (THUMB_EDGE // 3)
 
 
 def _cover_srcset(t, p, here):
@@ -715,16 +795,17 @@ def _cover_srcset(t, p, here):
 
 def _card_source(t, p, here, sizes):
     """The <source> that offers a card cover's .th copy to phones, or ''. A card's slot is CARD_PHONE_SLOT wide below
-    560 px, and there the 427 px copy is plenty at any pixel density. From 560 px up the slot grows to 400 px: a 1x
-    screen would then be handed the .th copy at almost one source pixel per screen pixel, visibly softer than the
-    800 px copy it had always had, so wider screens are not offered it at all. Only for a card sizes string (one that
-    ends with CARD_PHONE_SLOT), a photo with both copies and a recorded size."""
+    560 px, and there the .th copy (427 px wide for a landscape cover, 320 px for a portrait or square one) is plenty;
+    the source declares the slot as CARD_PHONE_SIZES so that a 3x phone takes it for every shape. From 560 px up the
+    slot grows to 400 px: a 1x screen would then be handed the .th copy at almost one source pixel per screen pixel,
+    visibly softer than the 800 px copy it had always had, so wider screens are not offered it at all. Only for a card
+    sizes string (one that ends with CARD_PHONE_SLOT), a photo with both copies and a recorded size."""
     if not (p.get('th') and p.get('sm') and p.get('w') and p.get('h') and sizes.endswith(', ' + CARD_PHONE_SLOT)):
         return ''
     base = link(here, t['url'])
     small_w = int(round(p['w'] * 800.0 / max(p['w'], p['h'])))
     return ('<source media="%s" srcset="%s %dw, %s %dw, %s %dw" sizes="%s">'
-            % (CARD_PHONE_MEDIA, base + p['th'], thumb_width(p), base + p['sm'], small_w, base + p['file'], p['w'], CARD_PHONE_SLOT))
+            % (CARD_PHONE_MEDIA, base + p['th'], thumb_width(p), base + p['sm'], small_w, base + p['file'], p['w'], CARD_PHONE_SIZES))
 
 
 def cover_img(t, here, sizes, eager=False, cls=''):
@@ -1517,15 +1598,21 @@ def _report_head(t, canon, description, image):
     return out
 
 
-def register_site(site):
+def register_site(site, meta=None):
     """build.py hands over the loaded site, so document() can find the trip a page belongs to (the phone app bar's
-    glyph + title) and the header can name the Other sub-types that exist, without every page module passing them."""
+    glyph + title), the header can name the Other sub-types that exist, and a region link knows which regions have a
+    page (region_page_href), without every page module passing them. meta: the site meta (rendered/site/meta.json)
+    that decides the region pages; build.py passes the one on disk. Without it no region has a page, so a site
+    registered in a test never reads the checkout's own rendered/ folder."""
     _TRIPS_BY_URL.clear()
     _TRIPS_BY_URL.update({t['url']: t for t in site['trips']})
     _HAS_PCT[0] = any(t['slug'] == PCT_SLUG for t in site['trips'])
     feat = site.get('featured') or []
     _SITE_SHARE[0] = share_photo(feat[0]) if feat else None
     _OTHER_SUBS[:] = other_subtypes(site.get('published') or [t for t in site['trips'] if t['kind'] != 'planned'])
+    _REGION_PAGES.clear()
+    if meta is not None:
+        _REGION_PAGES.update({name: slug for name, slug, _ts in region_pages(site, meta)})
 
 
 def main_nav():
