@@ -10,6 +10,8 @@ import os
 import time
 import unicodedata
 import unittest
+from html.parser import HTMLParser
+from unittest import mock
 
 import helpers
 import test_sitecheck as base
@@ -78,19 +80,55 @@ class MalformedFileTests(Fixture):
         swap(files, page, block[0], '[' * 100000)
         self.assertEqual(self.sc.metadata(self.built(files), page), ['META %s: application/ld+json is not valid JSON (nested too deeply)' % page])
 
+    # A declaration html.parser used to give up on: Python through 3.12.11 raises on it (AssertionError; 3.9 raises
+    # NotImplementedError), later releases read it as a comment and go on (3.12.15, which the CI runner had on
+    # 2026-10-12, when the two tests below failed there for expecting the older behaviour of every Python).
+    GIVEN_UP_ON = '<![foo]>'
+    UNREADABLE = 'META about/index.html: the <head> could not be read as HTML'
+
+    def gives_up(self, error):
+        """The head parser as a Python whose html.parser raises `error` on GIVEN_UP_ON, whatever this Python does."""
+        marker, feed = self.GIVEN_UP_ON, HTMLParser.feed
+
+        def raising(parser, data):
+            if marker in data:
+                raise error('unknown status keyword in marked section')
+            return feed(parser, data)
+        return mock.patch.object(self.sc._Head, 'feed', raising)
+
     def test_a_head_the_html_parser_gives_up_on_is_a_line(self):
         files = tiny()
-        base.head_add(files, 'about/index.html', '<![foo]>')
-        self.assertEqual(self.sc.metadata(self.built(files), 'about/index.html'), ['META about/index.html: the <head> could not be read as HTML'])
+        base.head_add(files, 'about/index.html', self.GIVEN_UP_ON)
+        for error in (AssertionError, NotImplementedError):
+            with self.subTest(error=error.__name__), self.gives_up(error):
+                out = self.built(files)
+                self.assertEqual(self.sc.metadata(out, 'about/index.html'), [self.UNREADABLE])
+                self.assertEqual(self.sc.metadata(out, 'trips/alpha/index.html'), [])     # only the head that holds it
+
+    def test_the_same_head_is_a_line_or_is_read_by_this_python(self):
+        # the real parser, as it comes: it gives up (older releases) or reads the declaration as a comment (newer
+        # ones). Either way nothing is raised, and a head that was read is checked like any other
+        files = tiny()
+        base.head_add(files, 'about/index.html', self.GIVEN_UP_ON)
+        out = self.built(files)
+        head = out.head('about/index.html')
+        self.assertTrue(head.found)
+        self.assertEqual(self.sc.metadata(out, 'about/index.html'), [self.UNREADABLE] if head.unreadable else [])
+        if not head.unreadable:
+            self.assertEqual(head.titles, 1)
 
     def test_none_of_them_raises_from_check(self):
         files = tiny()
         files['sitemap.xml'] = files['sitemap.xml'].replace('encoding="UTF-8"', 'encoding="x-nope"')
         files[self.sc.SEARCH_INDEX] = '[' * 100000
-        base.head_add(files, 'about/index.html', '<![foo]>')
+        base.head_add(files, 'about/index.html', self.GIVEN_UP_ON)
+        others = ['SITEMAP sitemap.xml', 'INDEX %s' % self.sc.SEARCH_INDEX]
+        with self.gives_up(AssertionError):
+            lines = self.check(files)
+        self.assertEqual([ln.split(':')[0] for ln in lines], ['META about/index.html'] + others)
+        # with this Python's own parser: the same lines, with or without the one for the head
         lines = self.check(files)
-        self.assertEqual([ln.split(':')[0] for ln in lines],
-                         ['META about/index.html', 'SITEMAP sitemap.xml', 'INDEX %s' % self.sc.SEARCH_INDEX])
+        self.assertIn([ln.split(':')[0] for ln in lines], (['META about/index.html'] + others, others))
 
 
 class ScannerTests(Fixture):

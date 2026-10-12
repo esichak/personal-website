@@ -852,7 +852,9 @@ menu button below 1140px.
     XML (…)`, for instance when a track uses a prefix that its day file's `<gpx>` tag does not declare.
   - A folder the build did not write is checked the same way (`validate.py --site DIR` takes any folder), and a
     malformed file in it is a problem line, never an exception or a stalled check (tests/test_sitecheck_hostile.py). A
-    head that `html.parser` gives up on is `META <page>: the <head> could not be read as HTML`. A sitemap or a feed
+    head that `html.parser` gives up on is `META <page>: the <head> could not be read as HTML` (a malformed `<![…]>`
+    declaration, on Python through 3.12.11; later releases read it as a comment and the head is checked as usual, so
+    the tests force the failure rather than rely on the input). A sitemap or a feed
     with a DOCTYPE or an entity declaration is `SITEMAP sitemap.xml: not well-formed XML (DOCTYPE and entity
     declarations are not accepted)` (`FEED feed.xml: …` likewise, and the combined GPX is held to the same rule). JSON
     nested too deeply to parse is `… not valid JSON (nested too deeply)`, in a search index (`INDEX …`) and in a

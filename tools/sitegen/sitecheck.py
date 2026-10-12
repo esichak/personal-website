@@ -345,7 +345,9 @@ class _Head(HTMLParser):
             try:
                 self.feed(head)
                 self.close()
-            except (AssertionError, NotImplementedError):   # html.parser gives up on a malformed <![...]> declaration
+            # html.parser gave up on a malformed <![...]> declaration through Python 3.12.11; later releases read it
+            # as a comment, and then the head is checked like any other
+            except (AssertionError, NotImplementedError):
                 self.unreadable = True
 
     def handle_starttag(self, tag, attrs):
