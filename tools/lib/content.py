@@ -355,6 +355,72 @@ def _highlights(raw, t, where):
     return out
 
 
+_DAY_RANGE = re.compile(r'^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$', re.ASCII)
+_DAY_NUMBER = re.compile(r'^\d+(?:\.\d+)?$', re.ASCII)
+
+
+def _region_days(raw, t, where):
+    """region_days on a journal (kind: series): which of its days lie in which region, so that a region's map draws them
+    and its list names the journal. The journal itself is filed under one `region:` of its own and spans many.
+
+        region_days:
+          Lake Tahoe: 68-75, 147-153
+          Eastern Sierra: [59-63]
+
+    -> [{'region': 'Lake Tahoe', 'days': [day dicts, in the journal's order]}, ...] in the order written. A day is named
+    by its label, the number the page shows (Day 148), not by its file name: '148' is that day, '68-75' every day whose
+    label is a number from 68 to 75 (5.2 lies between 5 and 6). A day may be listed under more than one region. Absent
+    or empty -> []. Anything else that is not this shape, a day or range that matches no day, a range written backwards,
+    a region without days, or the block on a trip that is not a journal is a ContentError."""
+    if raw is None or raw == {} or raw == []:
+        return []
+    if not isinstance(raw, dict):
+        raise ContentError('%s: region_days must be a mapping of a region to its days, such as "Lake Tahoe: 68-75, 147-153", got %r'
+                           % (where, raw))
+    if t['kind'] != 'series':
+        raise ContentError('%s: region_days is for a journal (kind: series); this trip is kind: %s' % (where, t['kind']))
+    if not t['days']:
+        raise ContentError('%s: region_days needs day files (days/NNN.md); this trip has none' % where)
+    numbered = [(float(d['label']), d) for d in t['days'] if _DAY_NUMBER.match(str(d['label']))]
+    out = []
+    for region, value in raw.items():
+        name = str(region).strip() if region is not None else ''
+        if not name:
+            raise ContentError('%s: region_days has an entry without a region name' % where)
+        items = value if isinstance(value, list) else [value]
+        parts = []
+        for item in items:
+            if item is None:
+                continue   # a trailing comma's empty item, or a region left without a value
+            if isinstance(item, bool) or not isinstance(item, (str, int, float)):
+                raise ContentError('%s: region_days: %s must list days such as 68-75, 147-153, got %r' % (where, name, value))
+            parts += [p.strip() for p in str(item).split(',') if p.strip()]
+        if not parts:
+            raise ContentError('%s: region_days: %s names no days; write them as 68-75, 147-153 or take the line out' % (where, name))
+        chosen = set()
+        for part in parts:
+            m = _DAY_RANGE.match(part)
+            if m:
+                lo, hi = float(m.group(1)), float(m.group(2))
+                if lo > hi:
+                    raise ContentError('%s: region_days: %s has the range %s, which runs backwards' % (where, name, part))
+                hit = [d['id'] for n, d in numbered if lo <= n <= hi]
+                if not hit:
+                    raise ContentError('%s: region_days: %s has the range %s, which holds no day of this journal' % (where, name, part))
+            else:
+                hit = [d['id'] for d in t['days'] if str(d['label']) == part]
+                if not hit and _DAY_NUMBER.match(part):
+                    hit = [d['id'] for n, d in numbered if n == float(part)]
+                if not hit:
+                    raise ContentError('%s: region_days: %s names day %r, which is no day of this journal (days are named '
+                                       'by the number the page shows, as in Day 148)' % (where, name, part))
+            chosen.update(hit)
+        if any(o['region'] == name for o in out):
+            raise ContentError('%s: region_days lists the region %r twice' % (where, name))
+        out.append({'region': name, 'days': [d for d in t['days'] if d['id'] in chosen]})
+    return out
+
+
 def _stats(st):
     st = dict(st or {})
     out = {'distance_km': st.get('distance_km'), 'gain_m': st.get('gain_m'), 'loss_m': st.get('loss_m'),
@@ -468,6 +534,7 @@ def load_trip(folder):
     # optional, never invented: when the report went online and when it last changed (docs/CONTENT_GUIDE.md)
     t['published_at'], t['updated_at'] = _publication(meta, t, where)
     t['journal_highlights'] = _highlights(meta.get('journal_highlights'), t, where)
+    t['region_days'] = _region_days(meta.get('region_days'), t, where)
     # kind: planned trips are tick-list goals: goal.json (or the defaults for a legacy planned route)
     t['goal'] = goals.load_goal(folder, slug, kind)
     t['season'] = season_of(t['date'], act)

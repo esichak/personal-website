@@ -1131,8 +1131,8 @@ activity_label, cat, subtype, kind (trip|multi-day|series|planned), date, end_da
 party, route_shape, featured, draft, beta[{label,value}], conditions{}, map{}, body_md, photos[{file, sm, th, w, h, alt,
 caption}], days[…], url ('trips/<slug>/'), track, rendered, stats{distance_km, gain_m, loss_m, high_m, low_m, moving_s,
 elapsed_s}, season, has_writeup, cover_photo, cover_focal (x, y), card_summary, cover{photo, source
-('explicit'|'parent'|'day'), day, focal}, aliases, published_at, updated_at, journal_highlights, goal (None unless kind
-is planned)`.
+('explicit'|'parent'|'day'), day, focal}, aliases, published_at, updated_at, journal_highlights, region_days, goal
+(None unless kind is planned)`.
 `photos`: `sm` and `th` are the paths of the 800 px copy and the card-size copy when those files exist beside the photo,
 else None (`content._photos`).
 `cover`: `content.resolve_cover(t)`, None when the trip has no photo at all. `content.LEAD_MIN_AR` (1.2) is the 6:5 line
@@ -1144,6 +1144,31 @@ names; a number is zero-padded to the width of those names) as the matching day 
 absent or empty, and the key is always present. A value that is not a list, a non-empty list on a trip that is not
 `kind: series` (or on a series with no day files), an id with no day file, or a repeat is a `content.ContentError`
 naming `content/trips/<slug>/index.md`. Only `series.highlights` reads it.
+`region_days`: the optional block of a journal's index.md that says which of its days lie in which region
+(`Lake Tahoe: 68-75, 147-153`), as `[{'region': name, 'days': [day dicts in the journal's order]}, ...]` in the order
+written; `[]` when absent or empty, and the key is always present (`content._region_days`). A day is named by its
+label, the number the page shows; a range takes every day whose label is a number inside it. The value may be text, a
+number or an inline list. A value of another shape, a day or range that matches no day, a range written backwards, a
+region without days, a region listed twice, or a non-empty block on a trip that is not `kind: series` is a
+`content.ContentError`. Three places read it:
+  - `render.journal_parts(trips)` → `{region: [(journal, its listed days that have a track)]}`. `render_site` adds
+    those days to the region's own map (never to a ski map, and they do not count towards `MIN_REGION_TRIPS`): one
+    line per day, keyed to the journal's slug. The map stays framed by the region's own trips: when a region has
+    journal days, its specs carry `bbox`, the box `render_map` would have worked out from the own tracks and pins, so
+    the days are drawn whole and the map's edge cuts them off. A run of consecutive days (`render.day_runs`) that
+    starts inside that box gets one pin, at its start, linking to the journal page at that day
+    (`render.journal_pins(t, days, frame)`); a run that comes in from outside has a line and no pin. The map's entry in
+    `rendered/site/meta.json` gains `'journals': [{'slug', 'days': [day ids]}]`; `'trips'` stays the region's own
+    reports and planned routes, so `core.region_groups` and every count read what they read before. The days are part
+    of the site maps' hash.
+  - `archive.journal_parts(site, name)` → `[(journal, days)]` for one region, from content, not from the map: the
+    region's list (`archive.region_panel(..., site=site)`, on map/ and on the region's page) gets one
+    `li.arc-row.arc-row--journal` per journal (`archive.journal_row`), placed by the date of its last day there, with
+    the journal's slug as `data-key`, so base.js ties the row to the journal's lines and pins as it does for a report.
+    No count includes the row. The legend names the journal's activity only when the map's entry lists the journal.
+  - `checks._journal_region_findings`: a region no report is filed under is an error; a region without a region map,
+    and a map drawn with other days than the block lists, are warnings (`tests/test_region_days.py` holds all three
+    readers).
 `published_at`, `updated_at`: the optional lines of index.md that say when a report first went online on this site and
 when its content last changed materially, kept exactly as written; None when absent or empty. Accepted: a date
 `YYYY-MM-DD`, or a date and time with an explicit offset (`2026-10-03T18:30:00-07:00`, or `Z`; the seconds are
@@ -1238,11 +1263,12 @@ goes in:
 python3.12 -W error -m unittest discover -s tests          # 3.12, the version CI uses
 ```
 
-On 2026-10-11, after the review before publication, the suite (2,424 tests in 40 files) passed with both commands,
-on 3.9.6 and 3.12.11 in this checkout, in about 70 s each, with no test skipped and none marked as an expected
-failure. CI runs the plain command, without `-W error`. GitHub's runner image has Node.js (22 on `ubuntu-latest` in
-October 2026), so the tests that run a Node harness run there too; they skip only where `node` is not installed (53
-tests then). They have only been run under Node 24 and 25.
+On 2026-10-12 the suite (2,459 tests in 41 files) passed with both commands, on 3.9.6 and 3.12.11 in this checkout,
+in about 75 s each, with no test skipped and none marked as an expected failure. CI runs the plain command, without
+`-W error`, on the patch release of Python 3.12 that the runner installs (3.12.15 on 2026-10-12, when two tests that
+relied on how 3.12.11 parses a malformed declaration failed there; a test must not depend on the patch release).
+GitHub's runner image has Node.js, so the tests that run a Node harness run there too, and passed there; they skip
+only where `node` is not installed (53 tests then).
 
 `tests/run_orders.py` is a helper, not a test module (discovery never loads it), for checking that the suite does not
 depend on the order of its test modules: nothing that one module registers with `sitegen.core` (the site, the regions

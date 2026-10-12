@@ -14,7 +14,8 @@ is still the build of `main`.
 
 Section 14, on Phase 5 (region pages), was added later the same day. Sections 1 to 13 describe the site at the end
 of Phase 4, except for the few lines that say otherwise. Section 15, the review before publication, was added on
-2026-10-11.
+2026-10-11. The branch was published on 2026-10-12; the log's entry of that day has what the first deploy run and the
+live site showed.
 
 ## 1. Where things stand
 

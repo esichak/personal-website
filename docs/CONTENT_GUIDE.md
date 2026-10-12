@@ -246,6 +246,8 @@ is the value found in the file. `photos[1]` and `beta[0]` count entries from 0: 
 | `content/trips/<slug>/index.md: journal_highlights names day …` | an id has no `days/NNN.md` (id shown as the parser read it, so `059` appears as `59`) | Use the day file's name, not the day number: Day 5.2 is `006`. `ls content/trips/<slug>/days` lists them. |
 | `content/trips/<slug>/index.md: journal_highlights lists day … twice` | the same day is listed twice (`059` and `59` are the same day) | Remove the repeat. |
 | `content/trips/<slug>/index.md: journal_highlights is for a journal …` | the list is on a trip that is not `kind: series` (its kind is shown) | Remove the line; only the PCT uses it. |
+| `content/trips/<slug>/index.md: region_days …` | the journal's `region_days` block is not readable: it is not a list of regions with their days, a day or a range matches no day of the journal, a range runs backwards, a region has no days, or the block is on a trip that is not a journal (the message says which) | Write it as in 11.7: `Lake Tahoe: 68-75, 147-153`, with the day numbers the journal page shows. |
+| `content/trips/<slug>/index.md: region_days names the region 'Lake Taho', which no report is filed under (did you mean 'Lake Tahoe'?)` | the region in the block is not the `region:` of any report, letter for letter | Spell it as the reports do. |
 
 Any trip's files. The file named is `content/trips/<slug>/index.md`, or the `days/NN.md` that holds the line, unless
 the row says otherwise:
@@ -297,6 +299,8 @@ A warning line reads `WARNING <file>: <message>`. A warning never stops a build.
 | `date 2027-09-01 is in the future (today is 2026-10-10)` | usually a typo in the year. A date one day ahead is accepted | Fix the date. |
 | `no track.gpx: the page has no map, no profile and no GPX download` | a single-day report without a track | Nothing, when the trip has no recording: the page is built without those parts (7.2). Otherwise add the track. |
 | `none of the 2 days has a GPX (days/NN.gpx): the page shows an empty map and offers no downloads` | a multi-day trip or a journal with no `NN.gpx` beside any of its `days/NN.md` | The page is built either way, with an empty map. `add_trip.py --day-of <slug>` writes a day's `NN.md` and `NN.gpx` together ([ADDING-TRIPS.md](../ADDING-TRIPS.md)). |
+| `region_days: the region map of Lake Tahoe was last drawn without these days; run python3 tools/render.py --site and commit rendered/site/` | the journal's `region_days` block lists days for a region whose map was drawn before, or with other days (`… with other days of this journal`), or the block no longer lists days the map still draws (`the region map of … still draws days of this journal …`) | Run the command (internet needed) and commit `rendered/site/` with the change (11.7). Until then the list names the journal and the map shows what it was last drawn with. |
+| `region_days: 'Yosemite' has no region map (one is drawn from three reports with a track), so these days are shown on no map` | the block names a region that has reports but no region map | Nothing, or take the line out: the days appear once the region has its map. |
 | `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug>` | the trip was added with `--no-render`, or its render did not finish. Until then the report's map area is empty (7.2) | Run the command it gives (needs the internet), then stage `rendered/trips/<slug>` and `rendered/site` with the trip (step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md)). |
 | `photos[1] (photos/02.webp) has no alt text; describe the photo in a sentence` | `alt: ""`, which is what `add_trip.py` writes | Write the description. On the cover it is also the share image's description (section 9). |
 | `photos[1] (photos/02.webp) has no w and h, so the page cannot hold its place while it loads; record the pixel size` | a photo entry typed by hand | Add `w:` and `h:`, the file's size in pixels. |
@@ -1018,14 +1022,16 @@ Two things make a page, and they come from different places.
 
 The map on the page is not made from that list. It is the picture `render.py` last drew, so a new report's line and
 pin appear on it after the next render, exactly as on the Map page. The Map page's own list for a region still names
-the trips its map was drawn with. So that list has no report without a track and no journal, and between an edit and
-the next render it can differ from the region's page in other trips as well.
+the trips its map was drawn with. So that list has no report without a track and no journal filed under the region,
+and between an edit and the next render it can differ from the region's page in other trips as well. (A journal's
+days that lie in the region are another matter: 11.7.)
 
 - A region without a region map has no page. It is where it has always been: in the Map page's "Not on a region map"
   list, at `map/#region-<slug>`. Utah, Arizona, Idaho, Minnesota, Washington and Yosemite are there today. A new
   region is listed there once the command of the `region '…' is not in rendered/site/meta.json …` warning has been
   run (5.3).
-- The PCT's region, Pacific Crest Trail, has no region map, because a journal is drawn on none. So it has no page.
+- The PCT's region, Pacific Crest Trail, has no region map, because a journal as a whole is drawn on none. So it has
+  no page. The days of the journal that lie in another region can be drawn on that region's map (11.7).
 
 ### 11.2 What the page shows
 
@@ -1201,3 +1207,33 @@ for everything the page lists: a new report, a draft, a changed `region:`, `feat
 `render.py` (internet needed) and a commit of `rendered/site/` are needed for what the map draws, for a new region to
 get its map and with it its page, and for a renamed region to get them back. A region page has no files of its own,
 so there is nothing else to stage for it.
+
+### 11.7 A journal's days on a region map: `region_days`
+
+The PCT journal is one trip filed under a region of its own, so no region map drew any of it, although it walks
+through Lake Tahoe and the Sierra. The `region_days` block in the journal's `index.md` says which of its days lie in
+which region:
+
+```yaml
+region_days:
+  Lake Tahoe: 67-76, 147-153
+  Eastern Sierra: 58-65
+```
+
+- **A day is named by the number the journal page shows** (Day 148), not by its file name. `147-153` is every day
+  from 147 to 153 that the journal has; single days and ranges are separated by commas. A day may be listed under
+  two regions.
+- **The region is spelled as the reports spell it**, letter for letter. A name no report is filed under stops the
+  build with a message that suggests the nearest one (5.2).
+- **On the map**, each listed day that has a GPX is drawn in the journal's activity colour, where it crosses the map.
+  The map keeps its frame: it is fitted to the region's own reports, and a day that runs past its edge is cut off
+  there. So list every day that crosses the map, the first and the last included, and the line runs from edge to
+  edge (Lake Tahoe above: days 67 and 76 are the ones that come in at the bottom and leave at the top). A pin marks a
+  start: an unbroken run of days that starts inside the region gets one, at its start, and it opens the journal at
+  that day (the Tahoe Rim Trail, Day 147). A run that walks in from outside, as the PCT does, has a line and no pin.
+- **In the region's list**, on the Map page and on the region's page, the journal has one row: its title, the number
+  of the listed days and the distance those days add up to, whole days, also where a day leaves the map. The row opens the journal at the first of those days.
+  It is not a report of the region: no count includes it, and it is not in the table of reports.
+- **It needs a render.** After changing the block, run `python3 tools/render.py --site` (internet needed) and commit
+  `rendered/site/` with `index.md`. Until then the row is there and the map shows what it was last drawn with;
+  `validate.py` says so (5.3). A region without a region map shows the days on no map.

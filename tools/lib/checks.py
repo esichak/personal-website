@@ -18,9 +18,10 @@ Notes are optional fields that are simply absent; they are counted, and listed o
 Per trip folder the work is: (a) read index.md and the day files raw; (b) check the raw values, so a wrong type is
 named by its file and field, and the folder's own files (iCloud conflict copies, the track files); (c) only when (b)
 found nothing, load the trip the way the build does; (d) look at the loaded trip for the warnings and notes. Then the
-checks that need every trip: content/home.json, goal outings, write-up links, repeated titles, region spellings, and
-two that read rendered/site/meta.json (a region the site maps do not list; a trip they still draw although it is a
-draft, is gone, or has lost its track).
+checks that need every trip: content/home.json, goal outings, write-up links, repeated titles, region spellings, the
+regions a journal's region_days name, and those that read rendered/site/meta.json (a region the site maps do not list;
+a trip they still draw although it is a draft, is gone, or has lost its track; a region map drawn with other journal
+days than region_days lists).
 
 The file names in findings are always written content/trips/<slug>/..., whichever folder was read, exactly as
 content.py writes them, so a run over a temporary folder (the tests, `tools/validate.py --content DIR`) reads the same.
@@ -53,6 +54,7 @@ INDEX_KEYS = (
     'title', 'activity', 'subtype', 'kind', 'date', 'end_date', 'start_time', 'timezone', 'place', 'region', 'party',
     'route_shape', 'stats', 'featured', 'draft', 'beta', 'map', 'photos',
     'cover_photo', 'cover_focal_x', 'cover_focal_y', 'card_summary', 'search_aliases', 'journal_highlights',
+    'region_days',
     'published_at', 'updated_at',
     'conditions',   # read into the trip dict by content.load_trip; no page shows it yet
     'strava_id',    # written by the first bulk import, on 156 trips and every day file; nothing reads it
@@ -1016,6 +1018,68 @@ def _site_map_findings(live, by_slug, drafts, rendered_dir, out):
                                  'page) until python3 tools/render.py has been run and rendered/site/ committed' % why)
 
 
+def _journal_region_findings(live, rendered_dir, out):
+    """A journal's region_days (content.py) name regions and the days of the journal that lie in them. A region that no
+    report is filed under is a mistyped name: the days would be drawn and listed nowhere (an error). A region without a
+    region map shows them on no map either (render.py draws a region map from three reports with a track). And a region
+    map drawn before the days were listed, or with other days, shows what it was drawn with until the site maps are
+    drawn again; so does one that still draws days the journal no longer lists there."""
+    regions = {t['region'] for t in live if t['kind'] in ('trip', 'multi-day') and t.get('region')}
+    try:
+        with open(os.path.join(rendered_dir or '', 'site', 'meta.json'), encoding='utf-8') as fh:
+            meta = json.load(fh)
+        maps, mapped = meta.get('maps'), meta.get('regions')
+    except (OSError, ValueError, AttributeError):
+        maps = mapped = None
+    if not isinstance(maps, dict) or not isinstance(mapped, list):
+        maps = mapped = None      # no such file, or not one this check can read: only the names are checked
+
+    def drawn_days(name, slug):
+        entry = maps.get('region-%s-desktop' % content.slugify(name))
+        js = entry.get('journals') if isinstance(entry, dict) else None
+        for j in js if isinstance(js, list) else []:
+            if isinstance(j, dict) and j.get('slug') == slug:
+                return j.get('days')
+        return None
+
+    again = 'run python3 tools/render.py --site and commit rendered/site/'
+    listed = set()
+    for t in live:
+        if t['kind'] != 'series':
+            continue
+        for rd in t.get('region_days') or []:
+            name = rd['region']
+            listed.add((t['slug'], name))
+            if name not in regions:
+                near = difflib.get_close_matches(name, sorted(regions), 1)
+                _err(out, _index(t['slug']), 'region_days names the region %r, which no report is filed under%s'
+                     % (name, (' (did you mean %r?)' % near[0]) if near else ''))
+                continue
+            if maps is None:
+                continue
+            if name not in mapped:
+                _warn(out, _index(t['slug']), 'region_days: %r has no region map (one is drawn from three reports with a '
+                                              'track), so these days are shown on no map' % name)
+                continue
+            want = [d['id'] for d in rd['days'] if d['track']]
+            have = drawn_days(name, t['slug'])
+            if want and have != want:
+                _warn(out, _index(t['slug']), 'region_days: the region map of %s was last drawn %s; %s'
+                      % (name, 'without these days' if have is None else 'with other days of this journal', again))
+    if maps is None:
+        return
+    slugs = {t['slug'] for t in live if t['kind'] == 'series'}
+    for key, entry in sorted(maps.items()):
+        js = entry.get('journals') if isinstance(entry, dict) else None
+        if not key.endswith('-desktop') or not isinstance(js, list):
+            continue
+        for j in js:
+            slug, name = (j.get('slug'), entry.get('region')) if isinstance(j, dict) else (None, None)
+            if slug in slugs and (slug, name) not in listed:
+                _warn(out, _index(slug), 'the region map of %s still draws days of this journal that region_days no longer '
+                                         'lists there; %s' % (name, again))
+
+
 # ---------------------------------------------------------------- the run
 
 class _FixedDay:
@@ -1113,7 +1177,8 @@ def survey(trips_dir=None, home_json=None, rendered_dir=None, today=None):
                  ('content/trips', _outing_findings, (loaded, by_slug)),
                  ('content/trips', _link_findings, (records, set(by_slug), drafts)),
                  ('content/trips', _title_findings, (live,)),
-                 ('content/trips', _region_spellings, (live,))]
+                 ('content/trips', _region_spellings, (live,)),
+                 ('content/trips', _journal_region_findings, (live, rendered_dir))]
     if rendered_dir:
         site_wide.append(('content/trips', _region_findings, (live, rendered_dir)))
         site_wide.append(('content/trips', _site_map_findings, (live, by_slug, drafts, rendered_dir)))

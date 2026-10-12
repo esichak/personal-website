@@ -2117,7 +2117,7 @@ class UnknownKeyTests(Fixture):
                  'stats': '\n  distance_km: 1.0', 'featured': 'false', 'draft': 'false', 'beta': '\n  - label: A\n    value: B',
                  'map': '\n  peaks: [A]', 'photos': '', 'cover_focal_x': '50', 'cover_focal_y': '50', 'card_summary': 'Text.',
                  'search_aliases': '[A]', 'journal_highlights': '[]', 'cover_photo': '', 'conditions': '', 'strava_id': '"123"',
-                 'published_at': '', 'updated_at': ''}
+                 'published_at': '', 'updated_at': '', 'region_days': ''}
         write(s.index(HIKE), '---\n%s\n---\n' % '\n'.join('%s: %s' % (k, value.get(k, 'Text')) for k in checks.INDEX_KEYS))
         self.assertEqual([w for w in self.warnings() if 'unknown key' in w], [])
         self.assertEqual(self.errors(), [])

@@ -498,10 +498,13 @@ def start_of(t):
     return p[0][0], p[0][1]
 
 
-def site_tracks(t, width=2.5, opacity=0.9):
+def site_tracks(t, width=2.5, opacity=0.9, days=None):
+    """A trip's lines on a region map. days: only these days of it (a journal's days in the region, journal_parts)."""
     out = []
     if t['kind'] == 'planned':
         lines = goal_lines(t)
+    elif days is not None:
+        lines = [fit_reader.read_gpx(d['track']) for d in days]
     else:
         paths = [t['track']] if t['track'] else [d['track'] for d in t['days'] if d['track']]
         lines = [fit_reader.read_gpx(p) for p in paths]
@@ -512,6 +515,51 @@ def site_tracks(t, width=2.5, opacity=0.9):
         out.append({'track': tr, 'style': style, 'cat': t['cat'], 'width': width, 'opacity': opacity, 'trim': False,
                     'i0': 0, 'i1': len(tr.raw) - 1, 'key': t['slug'], 'thin': style == 'planned'})
     return out
+
+
+def journal_parts(trips):
+    """{region: [(journal, its days in that region that have a track)]}: a journal (kind: series) spans many regions
+    and is filed under none of them; its region_days (content.py) say which days lie where, and those days are drawn
+    on that region's map. A region whose listed days hold no track has no entry."""
+    parts = {}
+    for t in trips:
+        if t['kind'] != 'series':
+            continue
+        for rd in t.get('region_days') or []:
+            days = [d for d in rd['days'] if d['track']]
+            if days:
+                parts.setdefault(rd['region'], []).append((t, days))
+    return parts
+
+
+def day_runs(t, days):
+    """The days split into runs that follow one another in the journal: [[day, ...], ...]. A journal that comes through
+    a region twice (the PCT in July, the Tahoe Rim Trail in September) has two runs there, and each gets a pin."""
+    order = {d['id']: i for i, d in enumerate(t['days'])}
+    runs = []
+    for d in days:
+        if runs and order[d['id']] == order[runs[-1][-1]['id']] + 1:
+            runs[-1].append(d)
+        else:
+            runs.append([d])
+    return runs
+
+
+def journal_pins(t, days, frame=None):
+    """The pins of a journal's days in a region: one for each run of days that starts in the region, at the start of the
+    run's first day, linking to that day on the journal page. A pin marks a start, so a run that comes in from outside
+    (the PCT walking through) has none: its line is on the map and its row in the region's list is its link.
+    frame: the (s, w, n, e) box of the region's own trips, which the map is framed by; None: every run has its pin."""
+    pins = []
+    for run in day_runs(t, days):
+        d = run[0]
+        p = fit_reader.read_gpx(d['track'])[0]
+        if frame is not None and not (frame[0] <= p[0] <= frame[2] and frame[1] <= p[1] <= frame[3]):
+            continue
+        pins.append({'lat': p[0], 'lon': p[1], 'cat': t['cat'], 'key': t['slug'],
+                     'title': '%s, Day %s' % (t['title'], d['label']),
+                     'href': '@@ROOT@@' + t['url'] + '#' + content.day_anchor(d['label'])})
+    return pins
 
 
 def render_site(trips, force=False):
@@ -527,6 +575,7 @@ def render_site(trips, force=False):
         groups.setdefault(t['region'], []).append(t)
     jobs = []
     mapped = []
+    parts = journal_parts(trips)
     for region, ts in groups.items():
         # a report without a track has no line and no start to pin: it stays in the region's list (all_regions below) and
         # out of the maps
@@ -534,11 +583,15 @@ def render_site(trips, force=False):
         # overview maps only where there is something to overview; one-off trips elsewhere are listed without a map
         if len(ts) >= MIN_REGION_TRIPS:
             mapped.append(region)
-            jobs.append(('region-' + content.slugify(region), region, ts, [(718, 620, 'desktop'), (390, 480, 'phone')]))
+            # the region's own map also draws the journal days that lie in it; they are no report of the region, so they
+            # do not count towards MIN_REGION_TRIPS, and the ski maps do not take them
+            jobs.append(('region-' + content.slugify(region), region, ts, [(718, 620, 'desktop'), (390, 480, 'phone')],
+                         parts.get(region, [])))
         ski = [t for t in ts if t['activity'] == 'ski']
         if len(ski) >= 2:
-            jobs.append(('ski-' + content.slugify(region), region, ski, [(506, 680, 'desktop'), (390, 480, 'phone')]))
-    h = hashlib.sha1((str(VERSION) + json.dumps([(j[0], [(t['slug'], t['title'], t['activity'], t['kind'], trip_inputs(t)) for t in j[2]])
+            jobs.append(('ski-' + content.slugify(region), region, ski, [(506, 680, 'desktop'), (390, 480, 'phone')], []))
+    h = hashlib.sha1((str(VERSION) + json.dumps([(j[0], [(t['slug'], t['title'], t['activity'], t['kind'], trip_inputs(t)) for t in j[2]],
+                                                   [(t['slug'], t['title'], [d['id'] for d in days], trip_inputs(t)) for t, days in j[4]])
                                                   for j in jobs], sort_keys=True)).encode()).hexdigest()
     mf = os.path.join(folder, 'meta.json')
     if not force and os.path.exists(mf) and json.load(open(mf)).get('hash') == h:
@@ -548,15 +601,24 @@ def render_site(trips, force=False):
     set_out(folder)
     meta = {'hash': h, 'maps': {}}
     del OSM_FAILED[:]
-    for key, region, ts, sizes in jobs:
+    for key, region, ts, sizes, journals in jobs:
         t0 = time.time()
         pins = []
         for t in ts:
             lat, lon = start_of(t)
             pins.append({'lat': lat, 'lon': lon, 'cat': t['cat'], 'key': t['slug'], 'title': t['title'], 'href': '@@ROOT@@' + t['url']})
         tracks = [x for t in ts for x in site_tracks(t)]
+        frame = {}
+        if journals:
+            # a journal passes through: the map stays framed by the region's own trips (the box render_map would work
+            # out from them), and the journal's days are drawn where they cross it, cut off at the map's edge
+            own = geo.bbox_of([[(p[0], p[1]) for p in x['track'].raw] for x in tracks] + [[(pn['lat'], pn['lon']) for pn in pins]])
+            frame = {'bbox': own}
+            for t, days in journals:
+                pins += journal_pins(t, days, own)
+                tracks += site_tracks(t, days=days)
         specs = [dict(OVERVIEW, name='%s-%s' % (key, v), w=w, h=h_, pins=pins, pad=0.10, priority_peaks=[p for t in ts for p in (t['map'].get('peaks') or [])][:6],
-                      aria='Map of %s trips in %s' % ('ski' if key.startswith('ski-') else 'all', region),
+                      aria='Map of %s trips in %s' % ('ski' if key.startswith('ski-') else 'all', region), **frame,
                       **({'scale_corner': 'bl', 'reserve': [(w - 208, h_ - 36, w, h_)], 'pad_bottom_px': 40} if v == 'phone' else {})) for w, h_, v in sizes]
         for s in specs:
             s['tracks'] = [dict(x) for x in tracks]
@@ -566,6 +628,9 @@ def render_site(trips, force=False):
             m = render_map(s)
             meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'region': region,
                                        'trips': [t['slug'] for t in ts], 'clusters': m.get('clusters')}
+            if journals:
+                # the journal days this map draws; 'trips' stays the region's own reports and planned routes
+                meta['maps'][s['name']]['journals'] = [{'slug': t['slug'], 'days': [d['id'] for d in days]} for t, days in journals]
         print('rendered site map %-28s %5.0fs' % (key, time.time() - t0))
     for f in os.listdir(folder):
         if f.endswith('.meta.json'):

@@ -1,5 +1,5 @@
 {
- "hash": "90e258b91b05b714866c2d3c52b2c07551c8b13d",
+ "hash": "a312ee942234d4609a82bff5d69a74635bc0a761",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
@@ -261,9 +261,10 @@
     {
      "x": 428.3999082974943,
      "y": 434.8053338383494,
-     "n": 1,
+     "n": 2,
      "keys": [
-      "freel-jobs-job-sister-loop"
+      "freel-jobs-job-sister-loop",
+      "pacific-crest-trail-2024"
      ]
     },
     {
@@ -329,6 +330,30 @@
      "n": 1,
      "keys": [
       "one-hell-of-a-first-ski-tour"
+     ]
+    }
+   ],
+   "journals": [
+    {
+     "slug": "pacific-crest-trail-2024",
+     "days": [
+      "068",
+      "069",
+      "070",
+      "071",
+      "072",
+      "073",
+      "074",
+      "075",
+      "076",
+      "077",
+      "144",
+      "145",
+      "146",
+      "147",
+      "148",
+      "149",
+      "150"
      ]
     }
    ]
@@ -573,9 +598,10 @@
     {
      "x": 244.27427097302296,
      "y": 312.5715272401161,
-     "n": 1,
+     "n": 2,
      "keys": [
-      "freel-jobs-job-sister-loop"
+      "freel-jobs-job-sister-loop",
+      "pacific-crest-trail-2024"
      ]
     },
     {
@@ -626,6 +652,30 @@
      "keys": [
       "avy-1-field-day",
       "one-hell-of-a-first-ski-tour"
+     ]
+    }
+   ],
+   "journals": [
+    {
+     "slug": "pacific-crest-trail-2024",
+     "days": [
+      "068",
+      "069",
+      "070",
+      "071",
+      "072",
+      "073",
+      "074",
+      "075",
+      "076",
+      "077",
+      "144",
+      "145",
+      "146",
+      "147",
+      "148",
+      "149",
+      "150"
      ]
     }
    ]
@@ -1095,6 +1145,21 @@
       "mammoth-caldera-burn-skimo-race"
      ]
     }
+   ],
+   "journals": [
+    {
+     "slug": "pacific-crest-trail-2024",
+     "days": [
+      "059",
+      "060",
+      "061",
+      "062",
+      "063",
+      "064",
+      "065",
+      "066"
+     ]
+    }
    ]
   },
   "region-eastern-sierra-phone": {
@@ -1160,6 +1225,21 @@
      "keys": [
       "post-skimo-shakeout",
       "mammoth-caldera-burn-skimo-race"
+     ]
+    }
+   ],
+   "journals": [
+    {
+     "slug": "pacific-crest-trail-2024",
+     "days": [
+      "059",
+      "060",
+      "061",
+      "062",
+      "063",
+      "064",
+      "065",
+      "066"
      ]
     }
    ]

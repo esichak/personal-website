@@ -936,3 +936,83 @@ counts the planned route in with reports, on the public site as well. Left as th
 all low: a year link followed between search actions leaves an entry that Back passes through with nothing changing
 on screen; Enter on a box holding only spaces or punctuation makes an entry whose list is the plain one; "Best match"
 can be picked with an empty box, where it orders nothing.
+
+## Publication (2026-10-12)
+
+Eric asked for the branch to be published. `main` on GitHub was fast-forwarded from `a9baab9` to `e8d44dc` (no pull
+request; the branch `phase1-curated-homepage` stays where it was).
+
+- **The first run of the deploy job failed at the unit tests**, so nothing was deployed and the old site stayed up.
+  The runner had Python 3.12.15 where this Mac has 3.12.11, and two tests of `tests/test_sitecheck_hostile.py` put a
+  malformed `<![foo]>` declaration into a page's head and expected `html.parser` to give up on it. Python does through
+  3.12.11 and no longer does in 3.12.15, where the declaration is read as a comment. Every other test passed there,
+  the Node-dependent ones included, under the runner's own Node.
+- **The fix is `d7272e0`, tests only.** The two tests force the parser's failure, for both errors older Pythons
+  raise, and a third takes the real parser as it comes. Before the push the runner's two failures were reproduced
+  here by putting `Lib/html/parser.py` of the CPython tag `v3.12.15` first on `PYTHONPATH`; with it the suite and the
+  checked build then passed, as they did on 3.9.6 and 3.12.11.
+- **The second run passed**: 2,425 tests in about 100 s on the runner, the build (357 pages) and its check, and the
+  deploy. The site was live about two and a half minutes after the push.
+- **The live site was compared with a local build of the same commit**: all 3,411 files, the 1,812 pages, tracks,
+  data files, scripts and styles by SHA-256 and the 1,599 images by size. In Chrome 155 at 1440 px and at 390 px, 15
+  pages loaded with no failed request and no console error; search with Back and Forward, a journal day link, GPX
+  downloads, the units switch and the 404 page under `/personal-website/` behaved as in the local runs; Lighthouse
+  gave accessibility, best practices and SEO 100 in 8 runs. All 186 sitemap addresses and the feed's 30 items
+  answered, and every share image exists at its declared size.
+- **Seen on the live site and left**: `robots.txt` is served under the project path, where crawlers do not read it
+  (the sitemap can be submitted directly); every share image is a WebP, which some link previews may not draw; on a
+  phone a report shows no link to its region page; the two bundles have unversioned addresses (report, 15.5).
+- Not run: Safari, Firefox, a real phone, a share preview in a real app.
+
+## Journal days on the region maps (2026-10-12)
+
+Asked for by Eric after the publication: the Lake Tahoe and Eastern Sierra maps did not show his PCT and Tahoe Rim
+Trail hikes. They are days of the PCT journal, which is one trip filed under a region of its own, and the renderer
+drew a journal on no region map.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/content.py` | `_region_days`: the `region_days` block of a journal's `index.md`, which names the days of the journal that lie in a region, by the day numbers the page shows. `t['region_days']`. |
+| `tools/render.py` | `journal_parts`, `day_runs`, `journal_pins`; `site_tracks(days=)`. `render_site` draws the listed days on the region's own map, keeps the map framed by the region's own trips (the specs carry that `bbox`), gives a run of days that starts inside the region a pin, and records the days in the map's entry as `journals`. |
+| `tools/sitegen/pages/archive.py`, `region.py` | `journal_parts`, `journal_row`: one row for the journal in the region's list, on the Map page and on the region's page; the legend names its activity once the map draws it. |
+| `tools/lib/checks.py` | `region_days` is a known key; `_journal_region_findings`: a region no report is filed under is an error; a region without a region map, and a map drawn with other days than the block lists, are warnings. |
+| `content/trips/pacific-crest-trail-2024/index.md` | `region_days`: Lake Tahoe 67-76 and 147-153, Eastern Sierra 58-65. The days were chosen by computing which days' tracks cross each map; Eric chose to keep both maps' present area. |
+| `rendered/site/` | `meta.json` and the four line overlays of the Lake Tahoe and Eastern Sierra maps (`*.svg.html`). No base image changed: the frames are the ones the maps had. |
+| `tests/test_region_days.py` (new), `tests/test_checks.py`, `tests/test_region_page.py` | The block, the renderer with the drawing stubbed, the list row and the validator rules. |
+| `README.md`, `docs/CONTENT_GUIDE.md` (5.2, 5.3, 11.1, new 11.7), `docs/DEVELOPING.md` | The block for the author and for a developer. |
+
+### Behaviour
+
+- **On the map.** Each listed day that has a GPX is drawn in the journal's activity colour where it crosses the map,
+  and cut off at the map's edge: on both maps the PCT now runs from edge to edge, and the Tahoe Rim Trail is the loop
+  around the lake. A journal day never moves or widens a region's map. A run of days that starts inside the region
+  has a pin at its start (the Tahoe Rim Trail, Day 147); a run that walks in from outside has none.
+- **In the list.** One row per region, "Pacific Crest Trail 2024", with the number of listed days and the distance
+  they add up to, linking to the first of them on the journal page. Hovering it picks out the journal's lines on the
+  map. No count of reports includes it.
+- **Unchanged.** Every count, the "All reports" tables, the home page, the Trips page, the search indexes, the feed
+  and the sitemap. Regions without journal days render as before, byte for byte.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests` | 2,459 tests in 41 files, OK, on Python 3.9.6 and 3.12.11 with `-W error`; also with the modules reversed. |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without `goal.json`), 467 notes. Before the render it also gave the new warning that the Lake Tahoe map was drawn without the listed days. |
+| `python3 tools/render.py --site` | Run three times as the design changed (the last with `--force`); needs the internet. Against the published files only `meta.json` and the four overlays differ. |
+| `python3 tools/build.py --out <scratch> --link --check` | OK: 357 pages. |
+| In Chrome 155 at 1440 px and 390 px | Both region pages: the lines are drawn and cut at the map's edge, the row is in the list and highlights the lines, and its link and the pin's land on their day of the journal with the write-ups filter switched off. Before and after pictures were compared side by side. |
+| Not run | Safari, Firefox, a real phone. |
+
+### Remaining issues and author inputs
+
+- The row's distance is that of the listed days, whole, also where a day leaves the map.
+- Where the Tahoe Rim Trail starts, its pin shares a cluster with one report's, under the key "Several reports start
+  here" (report, 15.4, point 7, is the same question for the planned route).
+- Two previews were made and not kept: an Eastern Sierra map widened to the whole High Sierra put two peak labels on
+  other summits of the same names, and its OpenStreetMap answer (about 200 MB) took longer than the renderer's
+  180-second limit allows.
+- Journal days 141 to 145 (the John Muir Trail) and the Sierra days south of the Eastern Sierra map are on no region
+  map: they lie south of it, but for the last few kilometres of day 145, which were left out.

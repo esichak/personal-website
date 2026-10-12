@@ -178,7 +178,7 @@ def page(name, slug, ts, site, meta, regs):
             % (link(here, 'trips/'), slug, icon('arrow-right', 16)))
     body = (head(name, here, pub, planned)
             + '<section class="arc-map reg-map wrap" aria-labelledby="reg-map-h"><h2 class="sr" id="reg-map-h">Map</h2>%s</section>'
-            % archive.region_panel(name, slug, ts, here, meta, True, page=True, drawn=map_trips(name, site, meta) or None)
+            % archive.region_panel(name, slug, ts, here, meta, True, page=True, drawn=map_trips(name, site, meta) or None, site=site)
             + featured(slug, here, pub, feat)
             + archive.archive_section(site, here, published=pub, active=planned)
             + find

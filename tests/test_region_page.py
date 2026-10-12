@@ -2079,8 +2079,9 @@ class LegendTests(RegionFixture):
                 self.assertEqual(args[:2], (name, SLUG[name]))
                 self.assertEqual(helpers.slugs(args[2]), helpers.slugs(self.group(name)))     # the list is the page's own, as before
                 self.assertEqual(args[3:], (self.here(name), self.meta, True))
-                self.assertEqual(sorted(kw), ['drawn', 'page'])
+                self.assertEqual(sorted(kw), ['drawn', 'page', 'site'])
                 self.assertIs(kw['page'], True)
+                self.assertIs(kw['site'], self.site)      # for the journals that have days in the region (journal_parts)
                 self.assertEqual(helpers.slugs(kw['drawn']), helpers.slugs(self.region.map_trips(name, self.site, self.meta)))
         self.assertEqual(helpers.slugs(calls[RANGE][1]['drawn']), self.DRAWN)
 

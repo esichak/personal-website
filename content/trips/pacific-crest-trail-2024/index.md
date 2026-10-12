@@ -13,6 +13,9 @@ cover_photo: photos/d059-01.webp
 cover_focal_x: 45
 cover_focal_y: 55
 search_aliases: [PCT]
+region_days:
+  Lake Tahoe: 67-76, 147-153
+  Eastern Sierra: 58-65
 ---
 
 
