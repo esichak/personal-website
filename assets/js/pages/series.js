@@ -76,8 +76,14 @@
   var live = document.getElementById('ser-live');
   if (!box) return;
   box.closest('.ser-only').hidden = false;
-  // what the filter hides: track-only days and months without a write-up (series.css .is-wu)
-  var hidden = Array.prototype.map.call(log.querySelectorAll('.ser-day:not(.has-wu), .ser-month:not(.has-wu)'), function (el) { return el.id; });
+  // what the filter hides: track-only days and months without a write-up (series.css .is-wu), and with each of them
+  // every id inside it (a day's number and title, a month's heading): those were link targets while the filter started
+  // switched off (the public site before Phase 3), so an address that names one reveals its day or month as well
+  var hidden = [];
+  Array.prototype.forEach.call(log.querySelectorAll('.ser-day:not(.has-wu), .ser-month:not(.has-wu)'), function (el) {
+    if (el.id && hidden.indexOf(el.id) === -1) hidden.push(el.id);   // a hidden day is also an id inside its hidden month
+    Array.prototype.forEach.call(el.querySelectorAll('[id]'), function (c) { if (hidden.indexOf(c.id) === -1) hidden.push(c.id); });
+  });
   function apply(announce) {
     var on = box.checked;
     log.classList.toggle('is-wu', on);

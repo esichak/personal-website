@@ -10,6 +10,11 @@ its recorded size and alt text, and there is none without a feature (4.1); the l
 same candidates and sizes; the three feature-card sizes strings end with core.PHONE_FULL (5.2); a recent card's cover
 that has a card-size .th copy offers it to phones in a <source> of its own, and no <img> and no preload on the page
 lists it (5.3 as replaced by 10.5; a .th file is an empty placeholder the test writes).
+
+Review gate (fix A), in LatestAnchorTests and LatestAnchorBuiltTests: the 'Recent outings' section carries
+id="latest-h", the id the public home page's 'Latest reports' list had, so that a saved address ending in #latest-h
+lands on the newest reports again. The id is on the page once and only while the section is; on a site built from
+the synthetic fixture of tests/test_build_site.py the site checks find no id twice and a link to it resolves.
 """
 import json
 import os
@@ -23,6 +28,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo 
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from sitegen import core  # noqa: E402,F401
+from sitegen import sitecheck  # noqa: E402
 from sitegen.pages import archive, home  # noqa: E402
 
 import helpers  # noqa: E402
@@ -902,6 +908,182 @@ class RegionLinkTests(HomeFixture):
                          .replace('href="regions/synthetic-coast/"', 'href="map/#region-synthetic-coast"'), without)
         # one h1 and no heading inside a link's way: the h3 keeps its class and level
         self.assertEqual(len(Doc(with_pages).find_all('h3', cls='hom-reg-n')), 2)
+
+
+# ---------------------------------------------------------------- review gate, fix A: the old address #latest-h
+
+OLD_ID = 'latest-h'              # the id of the 'Latest reports' list on the home page that is public today
+SECTION = '<section class="wrap sec hom-recent" id="latest-h" aria-labelledby="recent-h">'
+
+
+def holders(doc, id_):
+    """Every element of a parsed page, or inside an element of one, that carries this id."""
+    return [n for n in getattr(doc, 'root', doc).walk() if n['id'] == id_]
+
+
+class LatestAnchorTests(HomeFixture):
+    """home.recent(site) and home.page(site): where the old id is, how often, and when it is not there at all."""
+
+    def page(self, featured_slugs, site=None):
+        site = site or self.site
+        site['featured'] = [site['by_slug'][s] for s in featured_slugs]
+        core.register_site(site)
+        p = home.page(site)
+        return p, Doc(p.html)
+
+    def test_the_recent_section_carries_the_old_id_beside_its_label(self):
+        self.site['featured'] = []
+        html_ = home.recent(self.site)
+        self.assertTrue(html_.startswith(SECTION), html_[:120])
+        (sec,) = Doc(html_).root.elements()                      # the section is the whole of what recent() returns
+        self.assertEqual((sec.tag, sec['id'], sec['aria-labelledby'], sec.classes), ('section', OLD_ID, 'recent-h', ['wrap', 'sec', 'hom-recent']))
+        # its label is still its own heading, under the id it had
+        (h2,) = holders(sec, 'recent-h')
+        self.assertEqual((h2.tag, h2.text()), ('h2', 'Recent outings'))
+        # and it is the element that holds the newest reports: an address to it lands on them
+        cards = sec.find('ul', cls='hom-rcards').find_all('li', cls='tcard')
+        self.assertEqual([c['data-slug'] for c in cards], self.published[:6])
+        self.assertEqual(holders(sec, OLD_ID), [])               # nothing inside it has the id as well
+        self.assertEqual(html_.count(OLD_ID), 1)
+
+    def test_the_id_is_on_the_page_once(self):
+        for featured in ([], ['ski-report'], ['ski-report', 'journal-series', 'loop-hike']):
+            with self.subTest(featured=featured):
+                p, doc = self.page(featured)
+                (sec,) = holders(doc, OLD_ID)
+                self.assertEqual((sec.tag, sec['aria-labelledby'], sec.classes), ('section', 'recent-h', ['wrap', 'sec', 'hom-recent']))
+                self.assertEqual(p.html.count('id="%s"' % OLD_ID), 1)
+                self.assertEqual(p.html.count(SECTION), 1)
+                self.assertEqual(len(holders(doc, 'recent-h')), 1)
+                # it is in <main>, after the features and before the sections that follow
+                main = doc.by_id('main')
+                self.assertIs(sec.parent, main)
+                order = [n['aria-labelledby'] or n['aria-label'] for n in main.elements() if n.tag == 'section']
+                self.assertEqual(order, ['Introduction'] + (['feat-h'] if featured else []) + ['recent-h', 'act-h'])
+                # and the page uses no id twice
+                ids = [n['id'] for n in doc.root.walk() if n['id']]
+                self.assertEqual(sorted(i for i in set(ids) if ids.count(i) > 1), [])
+
+    def test_no_second_element_has_the_id_and_nothing_else_is_named_after_it(self):
+        # the old page had the id on the list's heading and named it from two more places (aria-labelledby on the
+        # section and on the list); here it is the section's id and nothing refers to it
+        p, doc = self.page(['ski-report'])
+        self.assertEqual(p.html.count(OLD_ID), 1)                # the one attribute: no other id, label reference or link
+        for attr in ('aria-labelledby', 'aria-describedby', 'aria-controls', 'for', 'href'):
+            self.assertEqual([n for n in doc.root.walk() if OLD_ID in (n[attr] or '')], [], attr)
+        self.assertEqual([n.tag for n in doc.find_all('h2') if n['id'] == OLD_ID], [])
+        # the heading keeps recent-h, which the section names: the section's accessible name is unchanged
+        self.assertEqual(doc.by_id(OLD_ID)['aria-labelledby'], 'recent-h')
+        self.assertEqual(doc.by_id('recent-h').text(), 'Recent outings')
+
+    def test_without_a_recent_row_the_section_and_the_id_are_absent(self):
+        # every published report is featured: nothing is left for the shelf, so there is no section to carry the id
+        site2 = helpers.make_site([self.site['by_slug'][s] for s in ('ski-report', 'loop-hike', 'planned-route')])
+        site2['featured'] = list(site2['published'])
+        self.assertEqual(home.recent_trips(site2), [])
+        self.assertEqual(home.recent(site2), '')
+        p, doc = self.page(['ski-report', 'loop-hike'], site2)
+        self.assertNotIn(OLD_ID, p.html)
+        self.assertNotIn('recent-h', p.html)
+        self.assertNotIn('hom-recent', p.html)
+        self.assertEqual(holders(doc, OLD_ID), [])
+        self.assertIsNotNone(doc.by_id('feat-h'))                 # the page is otherwise there
+        # nor on a site with nothing published at all
+        site3 = helpers.make_site([self.site['by_slug']['planned-route']])
+        p, doc = self.page([], site3)
+        self.assertEqual(home.recent(site3), '')
+        self.assertNotIn(OLD_ID, p.html)
+        # one report that is not featured is enough for the section, and the id, to be there
+        p, doc = self.page(['ski-report'], site2)
+        self.assertEqual([c['data-slug'] for c in doc.by_id(OLD_ID).find_all('li', cls='tcard')], ['loop-hike'])
+        self.assertEqual(p.html.count('id="%s"' % OLD_ID), 1)
+
+    def test_a_link_to_the_old_address_resolves_on_this_page_and_not_without_the_id(self):
+        # the site checks on the page as generated: a same-page link, a link from another page and the full address all
+        # land; with the id taken off again (the page of commit dbce17b) each of them is reported
+        p, _doc = self.page(['ski-report'])
+        here = '<a href="#latest-h">Latest reports</a>'
+        there = '<p><a href="../#latest-h">Latest reports</a> <a href="%s#latest-h">The same, in full</a></p>' % core.SITE_URL
+        linked = p.html.replace('</main>', here + '</main>', 1)
+        self.assertNotEqual(linked, p.html)
+        out = sitecheck.of({'index.html': linked, 'other/index.html': there}, site_url=core.SITE_URL)
+        self.assertEqual(sitecheck.anchors(out, 'index.html'), [])
+        self.assertEqual(sitecheck.links(out, 'other/index.html'), [])
+        self.assertEqual(sitecheck.duplicate_ids(out, 'index.html'), [])
+        without = sitecheck.of({'index.html': linked.replace(' id="latest-h"', '', 1), 'other/index.html': there}, site_url=core.SITE_URL)
+        self.assertEqual(sitecheck.anchors(without, 'index.html'), ['BROKEN ANCHOR index.html -> #latest-h'])
+        self.assertEqual(sitecheck.links(without, 'other/index.html'),
+                         ['BROKEN ANCHOR other/index.html -> ../#latest-h', 'BROKEN ANCHOR other/index.html -> %s#latest-h' % core.SITE_URL])
+        # and a second element with the id would be reported as well
+        twice = sitecheck.of({'index.html': p.html.replace('id="recent-h"', 'id="latest-h"', 1)}, site_url=core.SITE_URL)
+        self.assertEqual(sitecheck.duplicate_ids(twice, 'index.html'), ['DUPLICATE IDS index.html: latest-h'])
+
+
+class LatestAnchorBuiltTests(unittest.TestCase):
+    """The same on a built site: tools/build.py on the synthetic repository of tests/test_build_site.py (its write_site
+    and run_build, in a temp folder of this class), then the checks `build.py --check` runs."""
+
+    @classmethod
+    def setUpClass(cls):
+        import test_build_site as fixture        # the module, for its fixture: none of its tests is loaded from here
+        cls.tmp = tempfile.TemporaryDirectory()
+        fixture.write_site(cls.tmp.name)
+        cls.out, cls.pages = fixture.run_build(cls.tmp.name)
+        cls.trips_dir = os.path.join(cls.tmp.name, 'content', 'trips')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def read(self, rel):
+        with open(os.path.join(self.out, *rel.split('/')), encoding='utf-8') as fh:
+            return fh.read()
+
+    def test_the_built_home_page_has_the_section_with_the_id_once(self):
+        html_ = self.read('index.html')
+        self.assertEqual((html_.count(SECTION), html_.count('id="latest-h"'), html_.count(OLD_ID)), (1, 1, 1))
+        doc = Doc(html_)
+        sec = doc.by_id(OLD_ID)
+        self.assertEqual((sec.tag, sec['aria-labelledby'], doc.by_id('recent-h').text()), ('section', 'recent-h', 'Recent outings'))
+        self.assertGreater(len(sec.find_all('li', cls='tcard')), 0)
+        self.assertIn(OLD_ID, sitecheck.read(self.out).ids('index.html'))
+        # no other page of the site has the id: the address is the home page's
+        out = sitecheck.read(self.out)
+        self.assertEqual([page for page in out.pages if OLD_ID in out.ids(page)], ['index.html'])
+
+    def test_the_site_checks_find_no_id_twice(self):
+        out = sitecheck.read(self.out)
+        self.assertIn('index.html', out.pages)
+        self.assertEqual(sitecheck.duplicate_ids(out), [])
+        self.assertEqual(sitecheck.duplicate_ids(out, 'index.html'), [])
+        self.assertEqual(sitecheck.anchors(out, 'index.html'), [])
+        self.assertEqual(sitecheck.check(self.out, self.trips_dir), [])            # and nothing else is wrong with the build
+
+    def test_a_link_to_the_old_address_from_the_built_home_page_resolves(self):
+        # the built pages, with a link to #latest-h put on the home page (the old page's 'Latest reports' button) and on
+        # the Trips page: the link check finds both targets
+        home_html, trips_html = self.read('index.html'), self.read('trips/index.html')
+        linked = {'index.html': home_html.replace('</main>', '<a class="btn" href="#latest-h">Latest reports</a></main>', 1),
+                  'trips/index.html': trips_html.replace('</main>', '<a href="../#latest-h">Latest reports</a></main>', 1)}
+        self.assertNotEqual(linked['index.html'], home_html)
+        self.assertNotEqual(linked['trips/index.html'], trips_html)
+        out = sitecheck.of(linked, site_url=core.SITE_URL)
+        self.assertEqual(sitecheck.anchors(out, 'index.html'), [])
+        self.assertEqual([ln for ln in sitecheck.links(out, 'trips/index.html') if 'latest-h' in ln], [])
+        self.assertEqual(sitecheck.duplicate_ids(out, 'index.html'), [])
+        # on the folder itself, with the link written into the built file and taken out again
+        path = os.path.join(self.out, 'index.html')
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(linked['index.html'])
+        try:
+            self.assertEqual(sitecheck.anchors(sitecheck.read(self.out), 'index.html'), [])
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(linked['index.html'].replace(' id="latest-h"', '', 1))
+            self.assertEqual(sitecheck.anchors(sitecheck.read(self.out), 'index.html'), ['BROKEN ANCHOR index.html -> #latest-h'])
+        finally:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(home_html)
+        self.assertEqual(sitecheck.check(self.out, self.trips_dir), [])
 
 
 if __name__ == '__main__':

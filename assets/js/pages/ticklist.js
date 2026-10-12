@@ -51,7 +51,8 @@
   // it by then. adoptForm(st, form, traversal) is the state the page starts from, by the rules of trips.js: st is the
   // URL's state; form is what the controls hold, { q, region, status, priority, month, sort }. A key the URL sets keeps
   // the URL's value; a key it leaves alone takes its control's value when that is off the default. After Back /
-  // Forward (traversal) the browser fills the selects itself, so only the text is taken (the box is autocomplete="off").
+  // Forward (traversal) a browser may fill the selects itself, so only the text is taken (the form is
+  // autocomplete="off", which asks browsers not to).
   var SELECTS = ['region', 'status', 'priority', 'month', 'sort'];
   function adoptForm(st, form, traversal) {
     var out = {};
@@ -107,6 +108,10 @@
   } catch (e) { /* no Performance API: a first visit */ }
   var state = adoptForm(parseState(location.search, allowed), found, traversal);
   var timer = null, lastPush = 0;
+  // History, by the rule of trips.js (X.historyStep): entryUrl is the address this history entry stood for when the
+  // visitor last settled on it, nowUrl the address it carries at this moment (typing rewrites it). Both are kept in the
+  // page's own spelling, as address() builds them, and never read back from location (the browser spells an apostrophe %27)
+  var entryUrl = null, nowUrl = null;
 
   function anyFilter() { return X.tokens(state.q).length > 0 || FACETS.some(function (k) { return state[k] !== DEFAULTS[k]; }); }
   function setControls() {
@@ -129,7 +134,7 @@
     var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     p.setAttribute('d', 'M5.5 5.5l13 13M18.5 5.5l-13 13'); p.setAttribute('fill', 'none'); p.setAttribute('stroke', 'currentColor'); p.setAttribute('stroke-width', '1.75');
     x.appendChild(p); b.appendChild(x);
-    b.addEventListener('click', function () { state[key] = DEFAULTS[key]; apply(true); q.focus(); });
+    b.addEventListener('click', function () { state[key] = DEFAULTS[key]; apply('pick'); q.focus(); });
     li.appendChild(b);
     return li;
   }
@@ -176,30 +181,52 @@
     if (noneBtn) noneBtn.hidden = !filtered;
     noneEl.hidden = k > 0;
   }
-  function write(push, keepHash) {
-    var qs;
-    try { qs = serialize(state); } catch (e) { return; }
-    var url = location.pathname + (qs ? '?' + qs : '') + (keepHash ? location.hash : '');
-    if (push && Date.now() - lastPush < 600) push = false;
-    try { history[push ? 'pushState' : 'replaceState'](null, '', url); if (push) lastPush = Date.now(); } catch (e) { /* file:// */ }
+  // the canonical URL for the state, without a fragment
+  function address() {
+    var qs = serialize(state);
+    return location.pathname + (qs ? '?' + qs : '');
   }
-  function apply(push, keepHash) { setControls(); render(); write(push, keepHash); }
-  function clearAll() { state.q = ''; FACETS.forEach(function (k) { state[k] = DEFAULTS[k]; }); apply(true); q.focus(); }
+  // the fragment is kept on the first (load-time) write and dropped once the visitor acts. kind: 'type', 'pick' or
+  // 'submit' (X.historyStep); settle: this write is what the entry now stands for (load)
+  function write(kind, keepHash, settle) {
+    var next;
+    try { next = address(); } catch (e) { return; }
+    if (entryUrl === null) entryUrl = nowUrl = next;   // the first write: the entry stands for the view the page opened on
+    var step = X.historyStep(kind, entryUrl, nowUrl, next, Date.now() - lastPush < 600);
+    try {
+      if (step.restore) history.replaceState(null, '', entryUrl);
+      history[step.push ? 'pushState' : 'replaceState'](null, '', next + (keepHash ? location.hash : ''));
+      if (step.push) lastPush = Date.now();
+      nowUrl = next;
+      // every deliberate change is what the entry now stands for; only typing leaves it standing for the view from before
+      if (step.push || settle || kind !== 'type') entryUrl = next;
+    } catch (e) { /* file:// */ }
+  }
+  function apply(kind, keepHash, settle) { setControls(); render(); write(kind, keepHash, settle); }
+  function clearAll() { state.q = ''; FACETS.forEach(function (k) { state[k] = DEFAULTS[k]; }); apply('pick'); q.focus(); }
   function focusSearch() { q.focus(); form.scrollIntoView({ block: 'start' }); }
 
   form.hidden = false;
-  form.addEventListener('submit', function (e) { e.preventDefault(); clearTimeout(timer); var changed = state.q !== q.value; state.q = q.value; apply(changed); });
-  q.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { state.q = q.value; apply(false); }, 150); });
-  actBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.activity === b.dataset.filter) return; state.activity = b.dataset.filter; apply(true); }); });
-  scopeBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.scope === b.dataset.scope) return; state.scope = b.dataset.scope; apply(true); }); });
-  viewBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.view === b.dataset.view) return; state.view = b.dataset.view; apply(true); }); });
-  ['region', 'status', 'priority', 'month', 'sort'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { state[k] = sel[k].value; apply(true); }); });
-  if (gpxBtn) gpxBtn.addEventListener('click', function () { state.gpx = !state.gpx; apply(true); });
+  form.addEventListener('submit', function (e) { e.preventDefault(); clearTimeout(timer); state.q = q.value; apply('submit'); });
+  q.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { state.q = q.value; apply('type'); }, 150); });
+  actBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.activity === b.dataset.filter) return; state.activity = b.dataset.filter; apply('pick'); }); });
+  scopeBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.scope === b.dataset.scope) return; state.scope = b.dataset.scope; apply('pick'); }); });
+  viewBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.view === b.dataset.view) return; state.view = b.dataset.view; apply('pick'); }); });
+  ['region', 'status', 'priority', 'month', 'sort'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { state[k] = sel[k].value; apply('pick'); }); });
+  if (gpxBtn) gpxBtn.addEventListener('click', function () { state.gpx = !state.gpx; apply('pick'); });
   clearBtn.addEventListener('click', clearAll);
   Array.prototype.forEach.call(noneEl.querySelectorAll('[data-clear]'), function (b) { b.addEventListener('click', clearAll); });
-  window.addEventListener('popstate', function () { state = parseState(location.search, allowed); setControls(); render(); });
-  window.addEventListener('hashchange', function () { if (location.hash === '#search') focusSearch(); });
-  apply(false, true);
+  window.addEventListener('popstate', function () {
+    state = parseState(location.search, allowed);
+    try { entryUrl = nowUrl = address(); } catch (e) { /* keep what was */ }   // the entry stands for what it shows
+    setControls();
+    render();
+  });
+  window.addEventListener('hashchange', function () {
+    entryUrl = nowUrl;   // a jump to a fragment made a new entry for the view on screen: that view is what it stands for
+    if (location.hash === '#search') focusSearch();
+  });
+  apply('type', true, true);
   if (hash === '#search') {
     focusSearch();
     if (document.readyState !== 'complete') window.addEventListener('load', function () { setTimeout(focusSearch, 0); }, { once: true });

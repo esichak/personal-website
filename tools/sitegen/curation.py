@@ -31,13 +31,26 @@ def _err(msg):
     return CurationError('%s: %s' % (FILE, msg))
 
 
+def _once(pairs):
+    """json.load's object hook: a key written twice in one object is refused (json itself keeps the last and says
+    nothing, so a list pasted under the old one would silently win or lose)."""
+    out = {}
+    for k, v in pairs:
+        if k in out:
+            raise _err('"%s" is written twice; keep one' % k)
+        out[k] = v
+    return out
+
+
 def load_manifest(path=HOME_JSON):
     """The parsed manifest, or None when the file does not exist."""
     if not os.path.exists(path):
         return None
     try:
         with open(path, encoding='utf-8') as fh:
-            data = json.load(fh)
+            data = json.load(fh, object_pairs_hook=_once)
+    except CurationError:
+        raise
     except ValueError as ex:
         raise _err('not valid JSON (%s)' % ex)
     if not isinstance(data, dict):

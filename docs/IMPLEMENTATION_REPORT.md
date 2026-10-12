@@ -13,7 +13,8 @@ All work is on the branch `phase1-curated-homepage`. Phases 1, 2, 2T and 3 are c
 is still the build of `main`.
 
 Section 14, on Phase 5 (region pages), was added later the same day. Sections 1 to 13 describe the site at the end
-of Phase 4, except for the few lines that say otherwise.
+of Phase 4, except for the few lines that say otherwise. Section 15, the review before publication, was added on
+2026-10-11.
 
 ## 1. Where things stand
 
@@ -25,6 +26,7 @@ of Phase 4, except for the few lines that say otherwise.
 | 3 | Story layout for reports, related reports, copy link, the PCT journal page, journal-day search | Committed (`6f6091d`) |
 | 4 | Validation, measured loading changes, share metadata and structured data, privacy notes, author docs, this report | Committed (`fb425ab`, and `c7ed3ee`, which corrects one row of this report) |
 | 5 | Optional expansion. Scope decided on 2026-10-10: region pages only (section 14). Collections, a summit index, reading bookmarks and an interactive map were not built | The commit that adds section 14 |
+| Review | The review gate that closes the prompt pack: six items checked against the public site, and the defects it found fixed (section 15) | The commit that adds section 15 |
 
 What Phase 4 added, in short:
 
@@ -34,7 +36,7 @@ What Phase 4 added, in short:
 - **Built-site checks.** `build.py --check` still verifies every link, image and anchor, and now also each page's
   metadata, the sitemap, the feed, the two search indexes and the bytes of every published GPX file. It takes about
   1 second where the old link check took about 13.
-- **Loading changes, each one made because a measurement asked for it** (section 3): phones are offered the 800 px
+- **Loading changes, each one made because a measurement asked for it** (section 2.4): phones are offered the 800 px
   photo copy for full-width photos of ordinary shape, cards on phones get a 320 px copy, the search forms no longer
   appear late and push the page down, and the published stylesheet no longer carries its comments.
 - **Share metadata and structured data** from content only (section 8): image size and description on every page that
@@ -81,9 +83,9 @@ except font files. "n/a": the page did not exist in the original site.
 
 | Page | LCP ms original | before | after | CLS original | before | after | KB original | before | after |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Home | 1620 | 5872 | 1744 | 0.000 | 0.000 | 0.000 | 114 | 1022 | 344 |
+| Home | 1620 | 5872 | 1744 | 0.000 | 0.000 | 0.000 | 115 | 1022 | 344 |
 | Trips | n/a | 2132 | 1508 | n/a | 0.142 | 0.035 | n/a | 834 | 229 |
-| Matterhorn report | 1660 | 4084 | 1748 | 0.000 | 0.000 | 0.000 | 428 | 358 | 179 |
+| Matterhorn report | 1660 | 4084 | 1748 | 0.000 | 0.000 | 0.000 | 427 | 358 | 179 |
 | Peak Bagging report | 1652 | 6244 | 1896 | 0.037 | 0.036 | 0.036 | 825 | 867 | 308 |
 | PCT journal | 1820 | 4200 | 1768 | 0.036 | 0.036 | 0.036 | 164 | 438 | 248 |
 | Map | 1740 | 1764 | 1632 | 0.041 | 0.041 | 0.041 | 206 | 224 | 214 |
@@ -94,7 +96,7 @@ except font files. "n/a": the page did not exist in the original site.
 | Page | Image KB original | before | after | Images original | before | after | Requests original | before | after |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Home | 24 | 928 | 260 | 1 | 4 | 4 | 17 | 9 | 9 |
-| Trips | n/a | 734 | 138 | n/a | 9 | 6 | n/a | 16 | 13 |
+| Trips | n/a | 735 | 138 | n/a | 9 | 6 | n/a | 16 | 13 |
 | Matterhorn report | 366 | 278 | 108 | 4 | 2 | 2 | 10 | 8 | 8 |
 | Peak Bagging report | 759 | 782 | 232 | 3 | 3 | 3 | 9 | 9 | 9 |
 | PCT journal | 39 | 293 | 112 | 1 | 2 | 2 | 6 | 7 | 7 |
@@ -107,9 +109,9 @@ What the table says:
 
 - **The redesign had made photo-led pages slow on a phone, and Phase 4 undid that without removing the photos.**
   Phases 1 to 3 put a photograph first on the home page and on story reports. A 3x phone was then sent the 1600 px
-  files: the home page went from 114 KB to 1,022 KB and its lab LCP from 1.6 s to 5.9 s. After Phase 4 the same page
+  files: the home page went from 115 KB to 1,022 KB and its lab LCP from 1.6 s to 5.9 s. After Phase 4 the same page
   is 344 KB with an LCP of 1.7 s, and every one of the nine pages is between 1.4 and 1.9 s.
-- **The pages are lighter than the original where the original already had photos** (Matterhorn 428 to 179 KB, Peak
+- **The pages are lighter than the original where the original already had photos** (Matterhorn 427 to 179 KB, Peak
   Bagging 825 to 308 KB, the short report 471 to 166 KB) and heavier where the redesign added a photograph that was
   not there before (Home, the PCT journal).
 - **Run-to-run spread is small on this profile.** The three runs of a page differ by at most 52 ms in the after
@@ -127,18 +129,19 @@ One cold load per page, no throttling.
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Home | 300 | 356 | 584 | 0.001 | 0.000 | 0.000 | 226 | 605 | 595 |
 | Trips | n/a | 404 | 440 | n/a | 0.050 | 0.002 | n/a | 895 | 887 |
-| Matterhorn report | 284 | 340 | 372 | 0.000 | 0.000 | 0.000 | 408 | 427 | 418 |
+| Matterhorn report | 284 | 340 | 372 | 0.000 | 0.000 | 0.000 | 408 | 427 | 417 |
 | Peak Bagging report | 296 | 284 | 372 | 0.001 | 0.000 | 0.000 | 155 | 534 | 524 |
 | PCT journal | 324 | 340 | 352 | 0.001 | 0.001 | 0.001 | 323 | 494 | 485 |
-| Map | 344 | 372 | 368 | 0.031 | 0.031 | 0.031 | 272 | 290 | 281 |
+| Map | 344 | 372 | 368 | 0.031 | 0.031 | 0.031 | 272 | 290 | 280 |
 | Multi-day (Haute Route) | 316 | 352 | 348 | 0.001 | 0.001 | 0.001 | 217 | 236 | 227 |
 | Short report | 316 | 324 | 424 | 0.001 | 0.000 | 0.000 | 296 | 315 | 306 |
 | Tick list | n/a | 308 | 348 | n/a | 0.080 | 0.001 | n/a | 67 | 57 |
 
 - **Timing measures the font stylesheet, not the build.** In all 25 desktop runs of the three builds, first paint
   came 39 to 89 ms after the stylesheet from Google Fonts arrived, and in 21 of them the LCP is that first paint.
-  That one request, to a server outside the build, took 236 to 347 ms, and 524 ms in the final run of Home, which
-  is the 584 ms in the table (every other LCP is between 284 and 440 ms). With one run per page, the differences
+  That one request, to a server outside the build, had arrived 236 to 347 ms after navigation start (it took 232
+  to 325 ms), and 524 ms after it in the final run of Home (it took 516 ms), which is the 584 ms in the table
+  (every other LCP is between 284 and 440 ms). With one run per page, the differences
   between builds in the LCP columns say nothing about the builds. What they do say is taken up in section 12,
   decision 3.
 - **Bytes are what they were before the phase, less about 10 KB of stylesheet.** The image bytes are identical,
@@ -166,8 +169,8 @@ original), the JavaScript bundle's structure, the font request, the PCT journal'
 
 ### 2.5 The layout shift that is left
 
-Three pages shift once, late in the load, by the same amount in all three builds: the PCT journal (0.036), the Peak
-Bagging report (0.036) and the Map page (0.041). The Tick list shifts by 0.107 on a 390 px phone, a little over the
+Three pages shift once, late in the load, by the same amount in all three builds to within 0.001: the PCT journal
+(0.036), the Peak Bagging report (0.036 to 0.037) and the Map page (0.041). The Tick list shifts by 0.107 on a 390 px phone, a little over the
 0.1 target. On the Tick list this is one shift at the moment the web fonts replace the fallback fonts: with the
 fallback the filter row wraps onto one more line, with the web font it fits, and everything below moves up 52 px.
 It was confirmed by switching a loaded page between the two font stacks; revealing the form moves nothing.
@@ -204,6 +207,10 @@ because Lighthouse's own request for `robots.txt` timed out; two repeats scored 
 went from 0.365 to 0.000 on the Tick list and from 0.099 to 0.000 on Trips (0.019 on one repeat of the Tick list).
 One informational accessibility audit is unchanged from the original site: on Home and on an activity page, some
 links are named by their title and details rather than by all of their visible text.
+
+The "after" pass was made on the afternoon of 2026-10-10, on the working tree as it stood then, before the last
+fixes of the phase; it was not repeated on the committed code at the time. The review before publication ran
+Lighthouse again on its final build, on 15 pages with these 12 among them (section 15).
 
 ### 2.8 Build and check time
 
@@ -245,8 +252,9 @@ build (see section 11).
 ### 5.1 Automated checks
 
 `python3 -m unittest discover -s tests` runs 2,021 tests in 36 files in about 25 seconds, on Python 3.9
-(local) and 3.12 (CI), with `-W error` on both. Three Node harnesses run the pure JavaScript helpers (253
-checks); the Python runners skip them when `node` is absent, as on CI.
+(local) and 3.12 (the version CI uses), with `-W error` on both; the CI job runs the plain command, without that
+flag. Three Node harnesses run the pure JavaScript helpers (253 checks); the Python runners skip them when `node` is
+absent. GitHub's runner does have Node (see 5.3), so on CI those tests run.
 
 | Area (plan row) | Where it is tested | State |
 | --- | --- | --- |
@@ -294,7 +302,7 @@ what was observed.
 | Bottom bar: safe areas, no overlap | Partly run | The bar is 65 px and the page's last line ends 56 px above it; no focused element sits under a sticky bar. Safe-area insets cannot be observed in desktop Chrome: not run on a device. |
 | Before and after screenshots | Run | 36 views (12 pages, each at 1440 px, at 390 px, and at 390 px scrolled to the bottom) were captured from the build before the phase and from the final build, and compared pixel by pixel outside the scrollbar. 31 are identical to the captures made before the phase. Two differ where intended: on Trips and the Tick list at 390 px the `All` filter chip is 6 px wider and pushes the chips after it, and the Trips search placeholder, which was clipped in the middle of a letter, ends in an ellipsis. Three differ from the stored earlier captures only in pixel values (the desktop home page's photos, two card photos on Trips by one level in 256, and 13 pixels of an arrow icon); for those three views a fresh cold capture of the build before the phase is pixel-identical to the final build, so the difference lies in the earlier captures and not in the builds. Why those captures differ was not established; they were taken in a browser session that had loaded other pages first. An earlier pass of the same comparison is what found the softer desktop card photos and the layout moves listed below. |
 | Network panel: image selection and priority | Run | Read from the loads of 2.1 and from the walk: on the phone profile the lead image is the 800 px copy with high priority, cards load the 320 px copy, and no 1600 px file was requested on Home, Trips or the two story pages. |
-| Lighthouse (not a plan row) | Run | Accessibility, best practices and SEO 100 on 12 pages, mobile and desktop, before and after (one mobile run of the Map page scored SEO 92 because the local server timed out on `robots.txt`; two repeats scored 100). |
+| Lighthouse (not a plan row) | Run | Accessibility, best practices and SEO 100 on 12 pages, mobile and desktop, before and after (one mobile run of the Map page scored SEO 92 because the local server timed out on `robots.txt`; two repeats scored 100). The "after" pass predates the last fixes of the phase (2.7). |
 
 Defects the walks found, and what became of them:
 
@@ -311,7 +319,7 @@ Defects the walks found, and what became of them:
 | Five of the 44 px target fixes had moved layout (the view switch and the section pages' filter band 2 px taller, the footer 20 px taller, the Trips year links spaced wider, one home-page link 2 px wider) | Fixed before commit: those targets reach 44 px through hit areas that change no box, and every box on the compared pages is where it was before the phase, except the `All` filter chip, which is 6 px wider on phones on purpose. Found by the same comparison. |
 | A failed search was not retried when the same words were typed again (older than Phase 4) | Fixed. |
 | Forced colours: the Map legend lost its colours and the units switch grew bars | Fixed in CSS; checked with Chrome's emulation only. |
-| Five smaller observations from the first walk (the section row's order differs from the page's, 26 browse links precede the search box on Trips, "Show all journal days" reveals rows above the button, the offline count wording, the open menu button is still named "Menu") | Left as they are: each is a design choice or a wording question for the author, listed in section 12. |
+| Five smaller observations from the first walk (the section row's order differs from the page's, 26 browse links precede the search box on Trips, "Show all journal days" reveals rows above the button, the offline count wording, the open menu button is still named "Menu") | Left as they are: each is a design choice or a wording question for the author. Section 12, decision 10, lists three of them; the 26 browse links before the search box and the rows revealed above "Show all journal days" are recorded only here. |
 
 ### 5.3 Compatibility checks
 
@@ -324,10 +332,10 @@ Measured by comparing whole builds file by file, leaving aside the iCloud confli
 | Write-ups | The text of every write-up is identical on all 345 pages the original had. |
 | Feed, sitemap, robots | `feed.xml` and `robots.txt` are identical to the original; `sitemap.xml` gained the two new pages. |
 | Titles, canonicals, descriptions | Identical on every original page except the planned route's description, which Phase 2T rewrote on purpose. |
-| Anchors | Five ids of the original pages are gone, all internal: `toc-h` (the removed Contents list, 53 pages), `ph-h` (12 pages whose only photo became the lead photo; `#photos` moved onto it), and three home-page ids (`feat-l`, `feat-t`, `latest-h`). One in-page link of the old home page (`#latest-h`) has no target now. Every documented anchor is present: `map/#all-reports`, `map/#other-places`, the region and year anchors, and the PCT's `#day-…` and `#month-…` ids including `#day-5-2`. |
+| Anchors | Five ids of the original pages are gone, all internal: `toc-h` (the removed Contents list, 53 pages), `ph-h` (12 pages whose only photo became the lead photo; `#photos` moved onto it), and three home-page ids (`feat-l`, `feat-t`, `latest-h`). One in-page link of the old home page (`#latest-h`) had no target at the end of Phase 4; the review before publication restored it (section 15). Every documented anchor is present: `map/#all-reports`, `map/#other-places`, the region and year anchors, and the PCT's `#day-…` and `#month-…` ids including `#day-5-2`. |
 | Project-prefix URLs | Every build was served and walked under `/personal-website/`; 2,827 internal URLs across 12 pages all answered 200 with no redirect and no missing fragment. Links are relative (`core.link`), and `build.py --check` fails a link that leaves the folder. |
 | Python 3.9 against 3.12 | The two builds are identical file for file. |
-| What CI would see | A copy of exactly the 5,198 files this commit holds, taken from the staged index, on a case-sensitive volume, with Python 3.12, UTC, the C locale, and no `node`, `git`, `cwebp` or `sips` available: all tests pass (the Node-dependent ones skip), the build and its check pass, and the output is identical to the measured build. This ran on macOS; the CI job on Linux has not run, because nothing was pushed. |
+| What CI would see | Rehearsed, not run: nothing was pushed, so the job has never run. A copy of exactly the 5,198 files this commit holds, taken from the staged index, on a case-sensitive volume on macOS, with Python 3.12, UTC and the C locale: all tests pass, the build and its check pass, and the output is identical to the measured build. That rehearsal had no `node`, `git`, `cwebp` or `sips` on the path, so its 25 Node-dependent tests skipped. The runner is not like that: GitHub's `ubuntu-latest` image lists Node.js 22, so those tests will run there. The review before publication (section 15) ran them under Node 24 and 25, which pass; Node 22 was not available here. |
 
 ### 5.4 Author documentation
 
@@ -486,7 +494,7 @@ None of these blocks a commit of Phase 4. Each is listed with what is in place n
    (lab LCP on a slow phone returns to 4 to 6 s); or add a copy of about 1200 px for every photo, which would give
    a 3x phone one source pixel per device pixel for roughly half the bytes of the full file (new files under
    `content/`, like the card copies).
-2. **The 105 new `.th.webp` files** under `content/trips/*/photos/` (2.3 MB) are derivatives made by
+2. **The 105 new `.th.webp` files** under `content/trips/*/photos/` (2.2 MB) are derivatives made by
    `tools/thumbs.py`. They need to be committed with the phase for cards to use them; without them the pages fall
    back to the 800 px copy.
 3. **Font loading.** Keep `display=swap` (today), switch to `optional`, or self-host with a preload (2.5). The
@@ -516,9 +524,11 @@ None of these blocks a commit of Phase 4. Each is listed with what is in place n
 
 ## 13. Next smallest step
 
-Review the Phase 4 and Phase 5 commits on `phase1-curated-homepage` (section 14 covers Phase 5). When the branch is
-merged to `main` and pushed, look at the live pages on a phone and paste one report's address into a share-preview
-tool: those are the two checks no local run could make.
+Review the Phase 4 and Phase 5 commits on `phase1-curated-homepage` (section 14 covers Phase 5), then read section
+15, the review before publication: its open points 1 and 3 have to be settled before a push. When the branch is
+merged to `main` and pushed, watch the first run of the deploy job, which has never run and is the first run of the
+tests on Linux and under the runner's Node. Then look at the live pages on a phone and paste one report's address
+into a share-preview tool: those are the checks no local run could make.
 
 ## 14. Phase 5: region pages
 
@@ -571,7 +581,7 @@ Phone profile, median of three cold loads. KB is everything transferred except f
 | Page | LCP ms | CLS | KB | HTML KB (gzip) | Image KB | Requests |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Lake Tahoe (86 reports) | 1592 | 0.000 | 185 | 42 | 76 | 19 |
-| Santa Cruz (45 reports) | 1580 | 0.000 | 166 | 52 | 47 | 22 |
+| Santa Cruz (45 reports) | 1580 | 0.000 | 165 | 52 | 47 | 22 |
 | Oregon (3 reports) | 1544 | 0.000 | 89 | 7 | 22 | 13 |
 
 Desktop profile, one cold load each.
@@ -589,7 +599,7 @@ The four existing pages, Phase 4 commit against Phase 5, phone profile:
 | Home | 1744 | 1756 | 344 | 344 | 0.000 |
 | Trips | 1496 | 1492 | 229 | 229 | 0.035 |
 | Map | 1640 | 1640 | 214 | 215 | 0.041 |
-| A report (Back at Tallac) | 1596 | 1596 | 193 | 194 | 0.000 |
+| A report (Back at Tallac) | 1596 | 1596 | 193 | 193 | 0.000 |
 
 What the tables say:
 
@@ -601,10 +611,12 @@ What the tables say:
   on the phone profile, and 154 KB of that was one card photo drawn 112 px wide: a portrait cover, whose 320 px
   copy a 3x phone passed over for the 600 px one. With the slot declared as 106 px the phone takes the 320 px copy
   (42 KB) and the page is 185 KB. Read from the requests of a 3x phone scrolling the whole Trips page, 25 portrait
-  covers and one near-square cover now load the small copy, 78 landscape covers load what they loaded before, and
-  the covers together come to 2.22 MB where they were 3.46 MB. At 1x and 2x nothing changes.
+  covers and one near-square cover now load the small copy, 78 landscape covers load what they loaded before, two
+  panoramas load the 800 px copy as before, and the covers together come to 2.22 MB where they were 3.46 MB. At 1x and 2x nothing changes.
 - **Lighthouse** (13.4.1, Lake Tahoe and Oregon, mobile and desktop): accessibility, best practices and SEO 100 in
-  all four runs, with no failed audit.
+  all four runs, with no failed audit. These runs were made on the build before the second round of fixes and were
+  not repeated on the commit; the review before publication ran both pages again on its final build, with the same
+  result (section 15).
 
 ### 14.4 Browser checks
 
@@ -673,3 +685,181 @@ preview, field performance.
    slot has. Side by side at device-pixel level the copy is softer in fine texture; at card size it was not judged
    blurred. `core.CARD_PHONE_SIZES` is the one value to change back.
 
+## 15. Review before publication
+
+Added 2026-10-11. The prompt pack ends with a review gate: confirm that homepage features remain manually
+controllable, that PCT day links and existing GPX downloads still work, that mobile photography is visible, that
+tick-list goals remain distinct from completed reports, that new public source material is approved, and that the
+implementation log contains actual test evidence; then review the diff and the screenshots before publishing. This
+section records that review. It compared the branch with the site that is public today: `main` (`a9baab9`) was built
+with its own code, the branch beside it, both from the real content, and both were served under `/personal-website/`.
+The six items were checked on the Phase 5 commit (`dbce17b`). What the review then changed is listed in 15.2, and
+the final build differs from the build of that commit in six files, by those changes only.
+
+### 15.1 The six items
+
+| Item | Result | Evidence |
+| --- | --- | --- |
+| Homepage features remain manually controllable | Confirmed | On the real content, with no Python edit: the manifest's three trips in its order; reordering reorders the cards and the first is the lead; one to six cards; an empty list shows none and nothing takes their place; the newest report is not featured unless listed. Each of the 15 kinds of invalid manifest tried stops the build with a message naming the file and the fault, before the output folder is touched (a marker file survived every one); the draft case ran on a synthetic site, because the real content has no draft. The guide's instructions, followed literally, are the ones that worked. Cover photo and focal point are front-matter lines. |
+| PCT day links and existing GPX downloads still work | Confirmed | All 3,294 files of the public site exist in the branch build. All 351 GPX files are byte-identical and are served with those bytes. All 462 day and month ids of the PCT page are on the same elements with the same label, date and title. In a browser: 17 days and 5 months opened by address, by click and from a search result, each landing clear of the sticky bars; 19 GPX files fetched from their controls at two widths, 38 of 38 identical to the public site's. |
+| Mobile photography is visible | Confirmed, with one point for the author | On a 390 px phone the public home page has one photograph and shows none; the branch shows seven, one in the first screen. The lead photograph is in the first screen of each story report measured, where the public site's first photo is about two screens down and, on two of the three, outside the first two screens. Across 36 page loads at four widths, 1,008 of 1,008 displayed photographs loaded. The point: the journal's default view hides three days that have photographs and no write-up (15.4). |
+| Tick-list goals remain distinct from completed reports | Confirmed, with one exception that is on the public site today | The one goal is in no count of reports, not in the feed, the search indexes, the featured or recent cards, "More like this" or the structured data, and cannot be featured. Its page says what it is and has no control that changes it. On a synthetic site, completing a goal left the goal a goal, linked the report both ways and left both tracks byte for byte. The exception: one numbered pin on a region map counts the planned route in with reports (15.4). |
+| New public source material is approved | Inventory made; approval is the author's | 15.3 lists everything a push would make public that is not public today, on the site and in the repository. Nothing secret or private was found in it. Nothing in the branch records an approval. |
+| The implementation log contains actual test evidence | Confirmed, after corrections | Every test count and harness count the log states was reproduced at its own commit, on Python 3.9 and 3.12 (14 commits, 28 runs). The real-site numbers of the Phase 4 and 5 entries were recomputed at the branch tip, and 297 cells of the measurement tables were checked against the stored run data. Two statements were wrong and are corrected (15.2). |
+
+The plan's own gates for Phases 1, 2, 2T and 3 were walked in a browser at the same time and hold, apart from the
+one old anchor fixed below.
+
+### 15.2 What the review found, and what was done
+
+Fixed in the commit that adds this section:
+
+- **An old home-page address had no target.** The public home page has a "Latest reports" list at `#latest-h`. The
+  branch's "Recent outings" section now carries that id, so the address lands on the newest reports again. It was the
+  only fragment link of the public site, out of 3,352, without a target in the branch.
+- **Journal links into a hidden day.** The journal page's default view hides days without a write-up. An address
+  naming such a day opened it; an address naming its title or number (`#day-30-t`), or a hidden month's heading, did
+  not. Now 475 of the 478 ids of the public page end up in view, tested one by one; the other three have no box on
+  the public site either.
+- **Back after a search.** On the Trips page and on the Tick list, pressing Enter after the typing pause made no
+  history entry, so Back left the page instead of returning to the list before the search. A submitted search now
+  gets an entry of its own on both pages, by one rule they share. The first version of this fix was itself wrong in
+  two cases (a search containing an apostrophe added an entry at every Enter; after arrow keys through the
+  activities, Back landed on a filter only passed through). A second reviewer found both by replaying sequences in a
+  browser, and they were corrected and replayed again.
+- **"Best match" without a search.** Clearing the search no longer leaves the sort on "Best match", and an address
+  that says so without a search is put right when it is opened or returned to.
+- **Menus that showed another view's value.** When Chrome loads a page again from history (after a jump back over
+  several entries, or once it has dropped the page from its cache), it refills form controls after the page's script
+  has set them. A Sort, Year, Region or Status menu on Trips or the Tick list, or the journal's "write-ups only"
+  box, could then show a value the list did not follow. The two forms and the box now ask browsers to leave them
+  alone. The journal's box had this fault on the public site as well.
+- **A manifest key written twice** was read silently, the last one winning. It is an error now.
+- **One test quoted a real write-up.** Its sample text is synthetic now, and a test scans for such quotes.
+- **The 404 page** now offers the Trips page.
+- **Two wrong statements in these documents.** They said the CI runner has no Node; GitHub's `ubuntu-latest` image
+  lists Node.js 22, so the Node-dependent tests will run there. They also did not say that the Lighthouse passes of
+  Phases 4 and 5 were made on working trees from before the last fixes. Both are corrected (the Node statement in 5.1 and 5.3; the Lighthouse one in 2.7, the
+  row of 5.2 and 14.3), with seven table cells that were 1 KB off through double rounding, a size given as 2.3 MB that is 2.2 MB,
+  three loose wordings in 2.3, 2.5 and 14.3, one row of 5.3 that the review made out of date, and two
+  cross-references.
+
+How the fixes were checked. Each fix has unit tests, and the page scripts are also played under Node against a
+stand-in for the browser. Mutants of the changed lines were run on scratch copies: 234 over four passes, nearly all
+of one line, 221 failing a behaviour check and 13 shown equivalent in behaviour (12 of those still fail a test that
+reads the source; the thirteenth changes nothing a caller can reach). The history rules were then replayed in Chrome
+155 with real key presses, clicks and touch, at 1440 px and 390 px, with the back/forward cache on and off, each
+sequence beside the same sequence on `dbce17b`: 19 sequences with variants on Trips and 16 with variants on the Tick
+list follow the plan's rule (section 8.4 of the plan), and the last pass compared 1,588 step records on Trips with
+the build before it without a difference in state. The final build passes the tests on Python 3.9 and 3.12 and the
+CI rehearsal of 5.3 (the log has the numbers).
+
+Lighthouse 13.4.1 was run on 15 pages, mobile and desktop, on the final build (30 runs), after a full pass on the
+build of the fourth pass that gave the same results. Accessibility, best practices and SEO are 100 in every run. In
+those three categories the one audit that fails is the informational one of 2.7, with weight 0, on Home, Hiking and
+Ski. In the tool's fourth category, which it calls agentic browsing, one audit is below 1: the layout shift of the
+Map page's mobile run, 0.051. No console error or warning on the 15 pages at 1440 px or 390 px.
+
+### 15.3 What a push would make public
+
+**On the site** (117 new paths, none removed):
+
+- 10 pages: Trips, the Tick list and the eight region pages, built from trips already on the site. The sitemap
+  gains their ten addresses.
+- 2 search indexes (`trips/search.json`, `trips/journal.json`). All their text is already on the public pages.
+- 105 card-size copies of photos already published; none carries EXIF, GPS or other metadata.
+- Every existing page changes (navigation, layout, head tags). No new track and no new photograph: all 351 GPX
+  files, 1,494 photos and map images, the feed and `robots.txt` are byte-identical.
+- New in page heads: share-image detail on 124 pages and a `BlogPosting` block on 67, naming the author and the
+  site's own About page, with no dates. The share image changes on 17 pages.
+- No email address, phone number, street address, local path, key or third-party account link anywhere in the
+  build. The only external request is Google Fonts, as today.
+
+**In the repository**, which is public (213 files in the 14 commits: 178 added, 35 changed; nothing under
+`rendered/`, no GPX; the review's own commit adds four files under `tests/` and changes 29 files already counted):
+
+- `content/`: `home.json`, eight lines in three `index.md` files (cover photo, focal point, one search alias), and
+  the 105 copies.
+- `docs/`: the two guides, this report, the log, the privacy notes and the plan are new; `DEVELOPING.md` changed.
+- `ADDING-TRIPS.md`, which was an untracked file before.
+- `tools/` (13 new, 16 changed), `tests/` (46 new), `assets/` (6 new, 12 changed), `README.md` (changed),
+  `.gitignore`, and one added step in the deploy workflow.
+- In all added lines and in every intermediate version of every file, the review's own changes included: no real
+  email address (four made-up ones on the reserved `example.test` domain in test fixtures), no path with a user
+  name, no key or password, no coordinates outside synthetic fixtures. All 14 commits carry the same author address
+  as `main`'s.
+
+### 15.4 Open points
+
+For the author to decide; none was found to block publication. Points 1 and 3, and the older commits named in 11,
+have to be decided before the push, because a pushed file or commit message stays in the public history of a public
+repository. The others, the photo choices of point 2 among them, can also be settled afterwards.
+
+1. **Files that become public for the first time.** `ADDING-TRIPS.md` (it says where the checkout lives under the
+   home folder, as `docs/TICK_LIST_GUIDE.md` also does in one line, that the folder syncs through iCloud Drive, and
+   that Claude Code is used to add trips);
+   `docs/PRIVACY_NOTES.md` with `tools/privacy_audit.py` (they name no trip or place, but describe what the already
+   public tracks add up to, and the tool can list it); and the plan, which names another person's site as its
+   design reference and lists four of its addresses.
+2. **Choices made for the author.** The three cover photos, their focal points and the PCT search alias; with them
+   the site-wide share image, which is the PCT cover. The Phase 3 entry of the log already says that these lead
+   photos are not yet the author's choices.
+3. **The commits** end with a co-author line naming the AI tool; `main`'s commits have none.
+4. **The tick-list route's GPX** has no recorded source or approval. It is already public and unchanged; its page
+   now says the source is not recorded.
+5. **The deploy job has never run.** It gained a unit-test step, and the runner's Node (22) is a version nothing
+   here was tested with; the tests pass under Node 24 and 25, and a scan of the scripts for newer language features
+   found none. A failing job leaves the public site as it is. Pinning Node in the workflow would remove the doubt.
+6. **The journal's default view** shows the 32 days with a write-up. Three of the other days have photographs
+   (five, one of them also the page's lead photo) that a reader sees only after "Browse all recordings" or the
+   toggle. And at an address that names a hidden day, the reader's "write-ups only" choice does not survive a
+   reload: the address wins, as designed.
+7. **A map pin counts a planned route.** On one region map a numbered pin counts the planned route in with the
+   reports that start there, under the key "Several reports start here". It is in the rendered map, on the public
+   site today; that region's page is a third place that shows it. A render, or other words in the key, would settle
+   it.
+8. **On a phone, search results on the Trips page start below the fold**: the box sits under the browse links.
+9. **Trips says 15 regions, the Map page 14**: the journal's own region is counted on one and not the other.
+10. **Trips and the Tick list, low points left as they are.** Most are in `dbce17b` as well. The others come from
+    two of the review's changes (a submitted search gets its own entry; an address with Best match and no search is
+    rewritten when Back or Forward lands on it), and the reviewers rated each "can wait" or "for the author to
+    decide".
+    - A year link followed between search actions (on the Tick list, the skip link), and "Best match" picked from
+      the menu while the box is empty, each leave a history entry that Back passes through with nothing changing on
+      screen. When the link is followed before the search, the entry it made is put back without its fragment, and
+      that is one such entry more than in `dbce17b`. Whether "Best match" should be offered at all without a search
+      is a design choice.
+    - Enter on a box holding only spaces or punctuation makes an entry whose list is the plain one.
+    - A filter clicked within about 150 ms of the last key drops the typed words: the click is applied before the
+      typing pause has taken them. On the Tick list the skip link does the same (seen in the test stand-in only).
+    - Words typed before the page's script has arrived (a slow connection) become the view the page opened on, so
+      Enter adds no entry for them and Back leaves the page; with part of the word typed after the script arrived,
+      Back lands on the half-typed word.
+11. **Small things.** Activity pages other than Hiking count a planned route and do not list it (no effect today);
+    journal label links land under the sticky month bar, as on the public site; older commits of the branch still
+    hold the quoted write-up sentences that are public anyway; fixtures state made-up dates under real trip slugs;
+    Chrome's Issues panel has two notes: an autofill note for the Region menu on Trips and the Tick list, and one
+    about images sized by the stylesheet (route tiles on Home and Trips; pager glyphs on report pages at phone
+    width, as on the public site), neither with a visible effect or a failed audit.
+12. **Rated by a reviewer, left, and not listed above.** On a landscape phone the sticky header and the bottom bar
+    cover about a third of the height while a write-up is read. The first photograph is 6.7 phone screens down on
+    the multi-day report, as on the public site, and 2.4 on a region page, below the map and its list. A 3x phone
+    draws the lead photo from the 800 px copy (section 12, decision 1; the review screenshots are at pixel ratio 2
+    and cannot show it). The smallest region page lists its three reports twice, beside the map and again under
+    "All reports", and shows no photograph. The Hiking page loads 800 px files for its 114 px journal thumbnails,
+    as on the public site. Links on Home, Hiking and Ski are named without all of their visible text (2.7).
+
+### 15.5 Not run, and going back
+
+- Not run: the deploy job, so nothing on Linux or under the runner's Node 22; Safari, Firefox and a real phone;
+  screen readers; a real share preview; `tools/render.py`; the page-load measurements of sections 2 and 14.3 on the
+  final build, whose script is 106,809 bytes where it was 100,323 at `dbce17b` (29.0 KB gzipped where it was
+  27.2 KB). After the push the first run of the deploy job is the test under Node 22: watch it.
+- The Lighthouse reports and screenshots are in the git-ignored `.cache/` folder of the author's checkout. The raw
+  page-load runs behind the tables of 2.2, 2.3 and 14.3 are in a session scratch folder that is not kept. None of
+  it is in the repository.
+- After a deploy, a visitor who had the site open in the ten minutes before may get new pages with the cached old
+  stylesheet until it expires: the asset addresses carry no version. It passes by itself.
+- Going back, not rehearsed: every path of today's site exists in the new build and `main` is still `a9baab9`, so
+  a build of that commit is the present site. After a fast-forward there is no merge commit to revert: going back
+  means reverting the new commits on `main`, or a forced push of `main` back to `a9baab9`.

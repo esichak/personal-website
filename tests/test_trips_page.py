@@ -358,6 +358,18 @@ class ExplorerPageTests(ExplorerFixture):
         labelled = (labels and 'Search trips' in labels[0].text()) or q['aria-label'] == 'Search trips'
         self.assertTrue(labelled, 'the search input must be labelled "Search trips"')
 
+    def test_the_form_asks_browsers_not_to_refill_its_controls(self):
+        # the address is the state: a browser that refills the selects and the write-up box on Back / Forward does it
+        # after trips.js has set them, with the values of another history entry (review gate, round 4)
+        form = self.form
+        self.assertEqual(form['autocomplete'], 'off')
+        self.assertEqual(form.by_id('trx-q')['autocomplete'], 'off')
+        self.assertEqual(self.page.html.count('<form '), 1)
+        controls = form.find_all('select') + [i for i in form.find_all('input') if i['type'] == 'checkbox']
+        self.assertGreaterEqual(len(controls), 4)
+        for c in controls:                      # none opts back in
+            self.assertNotIn('autocomplete', c.attrs)
+
     def test_the_form_is_shown_by_an_inline_script_right_after_it(self):
         # contract-phase4.md 5.1 and 10: the form still ships hidden (without JavaScript it stays so); core.reveal('search')
         # is the element right after </form> and before the noscript note, so with JavaScript the form is in place at

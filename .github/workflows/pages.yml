@@ -1,6 +1,6 @@
 # Build the static site with tools/build.py and publish it to GitHub Pages.
 # Maps and profiles are pre-rendered into rendered/ on Eric's Mac (tools/render.py), so this job needs no network
-# access beyond checkout and runs in well under a minute.
+# access beyond checkout. Most of its time is expected to be the unit tests (about a minute locally).
 name: Deploy site
 
 on:

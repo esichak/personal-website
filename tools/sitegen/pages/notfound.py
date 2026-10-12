@@ -28,11 +28,16 @@ def page(site):
             '<a class="btn btn--ink nf-home" href="%s">Go to the home page%s</a>'
             '</div>'
             '<nav class="nf-nav" aria-label="Ways back"><h2 class="t-label nf-l">Reports</h2>%s'
-            '<h2 class="t-label nf-l nf-l2">Site</h2><ul class="abo-act"><li><a class="abo-act-a" href="%s"><span class="nf-ic" aria-hidden="true">%s</span>'
+            '<h2 class="t-label nf-l nf-l2">Site</h2><ul class="abo-act">'
+            '<li><a class="abo-act-a" href="%s"><span class="nf-ic" aria-hidden="true">%s</span>'
+            '<span class="abo-act-w"><span class="abo-act-n">Trips</span>'
+            '<span class="t-mono-s abo-act-m">SEARCH AND FILTER</span></span>%s</a></li>'
+            '<li><a class="abo-act-a" href="%s"><span class="nf-ic" aria-hidden="true">%s</span>'
             '<span class="abo-act-w"><span class="abo-act-n">Map &amp; archive</span>'
             '<span class="t-mono-s abo-act-m">ALL %d REPORTS</span></span>%s</a></li></ul></nav>'
             '</div></div>'
             % (link(here, ''), icon('arrow-right', 18), act_rows(site, here, dist=False),
+               link(here, 'trips/'), icon('search', 20), icon('chevron-right', 20, 'abo-act-c'),
                link(here, 'map/'), icon('map', 20), len(site['published']), icon('chevron-right', 20, 'abo-act-c')))
     extra = base_tag() + '<meta name="robots" content="noindex">'
     # canonical=False: document() would derive canonical / og:url from `here` (''), the home page; a 404 names no page

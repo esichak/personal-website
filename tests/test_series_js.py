@@ -15,6 +15,13 @@ Four kinds of test:
 - What the source itself must hold to: it exports for node before touching the DOM, its page code goes through the
   tested helpers, and it never writes markup. Always runs.
 
+Review gate (fix B): the script lists, with each hidden day and month, every id inside it (a day's number and title,
+a month's heading), so an address that names one turns the filter off as an address to the day or month does. The
+ids are read off the generated page (INNER, inner_ids), the harness plays visits and hash changes to them, and the
+script with its collecting lines changed one at a time must fail those checks (BROKEN_COLLECTING). Round 3: each id is
+in that list once, also a hidden day that is met again as an id inside its hidden month (ONCE, a check of the harness
+like any other; in round 2 it was a known gap).
+
 The stand-in is not a browser: layout, real scrolling, focus and the back/forward cache are still checked by hand
 (docs/WEBSITE_IMPLEMENTATION_LOG.md).
 """
@@ -71,6 +78,38 @@ BAD_LAND = ("landAfterLoad: function (filtered, hash) { return real.landAfterLoa
             "landAfterLoad: function (filtered, hash, nav) { return real.landAfterLoad(filtered, hash, nav === 'reload' ? nav : ''); }",
             'landAfterLoad: function (filtered, hash, nav) { return real.landAfterLoad(true, hash, nav); }',
             "landAfterLoad: function (filtered, hash, nav) { return !!filtered && !!hash && (!nav || nav === 'navigate'); }")
+# The helpers right, their signature not: an argument more, an argument fewer, an export more (the harness's last pure
+# check, 'signatures', must say so; every helper's own check passes first)
+BAD_SIGNATURE = ('startFiltered: function (defaultOn, hash, hiddenIds, inside) { return real.startFiltered(defaultOn, hash, hiddenIds); }',
+                 'revealId: function (filtered, hash) { return real.revealId(filtered, hash, arguments[2]); }',
+                 'hashTarget: function (hash, hiddenIds) { return real.hashTarget(hash); }',
+                 'landAfterLoad: function (filtered, hash) { return real.landAfterLoad(filtered, hash, arguments[2]); }',
+                 'insideHidden: function (id, hiddenIds) { return hiddenIds.indexOf(id) !== -1; }')
+# series.js with the lines that collect what the filter hides changed in one way each: (what the change does, the text as
+# it is, the text instead). The helpers are untouched, so only the harness's "dom:" checks can tell.
+_COLLECT = "    Array.prototype.forEach.call(el.querySelectorAll('[id]'), function (c) { if (hidden.indexOf(c.id) === -1) hidden.push(c.id); });\n"
+# the line that lists a hidden day or month itself, once (round 3), and the harness check that holds it to that
+_OWN = "    if (el.id && hidden.indexOf(el.id) === -1) hidden.push(el.id);"
+ONCE = 'dom: every id the filter hides is listed once, a hidden day inside a hidden month too'
+BROKEN_COLLECTING = (
+    ('a hidden day or month is listed every time it is met, as in round 2', _OWN, '    if (el.id) hidden.push(el.id);'),
+    ('the ids inside a hidden day or month are not collected, as before', _COLLECT, ''),
+    ('every id of the day log is collected', "el.querySelectorAll('[id]')", "log.querySelectorAll('[id]')"),
+    ('an id inside is collected every time it is met', 'function (c) { if (hidden.indexOf(c.id) === -1) hidden.push(c.id); }',
+     'function (c) { hidden.push(c.id); }'),
+    ('the hidden day or month itself is left out', 'hidden.push(el.id);', 'void 0;'),
+    ('the id of the day or month stands in for the ids inside it', 'hidden.push(c.id); });', 'hidden.push(el.id); });'),
+    ('only the first id inside is collected', "Array.prototype.forEach.call(el.querySelectorAll('[id]'), function (c) {",
+     "Array.prototype.slice.call(el.querySelectorAll('[id]'), 0, 1).forEach(function (c) {"),
+    ('only the last id inside is collected', "Array.prototype.forEach.call(el.querySelectorAll('[id]'), function (c) {",
+     "Array.prototype.slice.call(el.querySelectorAll('[id]'), -1).forEach(function (c) {"),
+    ('only days are looked into', "    Array.prototype.forEach.call(el.querySelectorAll('[id]'),",
+     "    if (el.id.indexOf('day-') === 0) Array.prototype.forEach.call(el.querySelectorAll('[id]'),"),
+    ('only months are looked into', "    Array.prototype.forEach.call(el.querySelectorAll('[id]'),",
+     "    if (el.id.indexOf('month-') === 0) Array.prototype.forEach.call(el.querySelectorAll('[id]'),"),
+)
+# the cases the harness kept as known gaps in round 2 ('gap:<name>'); each is a regular check now, and no name is left
+FORMER_GAPS = ('once',)
 # what the harness's stand-in browser can be told to fail at (its FAULT argument): each stands for a gutted listener
 FAULTS = ('hashchange', 'click', 'change', 'store', 'navigation')
 
@@ -369,6 +408,12 @@ WRITE_UP = 'Synthetic write-up for a test.'
 HIDDEN = ['day-1', 'day-40', 'day-5-zero', 'month-2024-06']
 SHOWN = ['day-2', 'day-5-2', 'month-2024-04', 'month-2024-05']
 ELSEWHERE = ['days', 'title', 'stats', 'map', 'highlights', 'ser-only', 'ser-live']
+# the ids inside a day (its number, its title) and inside a month (its heading): link targets of the public site's journal
+INNER = {'day': ('-n', '-t'), 'month': ('-h',)}
+# what the script must take for hidden: each hidden day and month (HIDDEN) and every id inside one. Day 40 is inside
+# June, so its number and title are inside a hidden day and inside a hidden month at once
+HIDDEN_INSIDE = ['day-1-n', 'day-1-t', 'day-40-n', 'day-40-t', 'day-5-zero-n', 'day-5-zero-t', 'month-2024-06-h']
+ALL_HIDDEN = sorted(HIDDEN + HIDDEN_INSIDE)
 
 
 def hook_days():
@@ -437,6 +482,14 @@ def filtered_out(doc, state, selectors):
         log.attrs['class'] = before
 
 
+def inner_ids(doc, id_):
+    """The ids inside the element with this id, in page order (an element without an id is passed through)."""
+    node = doc.by_id(id_)
+    if node is None:
+        raise AssertionError('the journal page has no element with the id %s' % id_)
+    return [d['id'] for d in node.walk() if d['id']]
+
+
 def page_model(page_html, hooks, code, css):
     """The journal page as tests/series_js_harness.js needs it for its "dom:" checks: every element, the answer to each
     selector the script uses, what the stylesheet hides while the filter is on, and the elements and ids the checks
@@ -458,7 +511,10 @@ def page_model(page_html, hooks, code, css):
         return where(next((a for a in (scope.find_all('a') if scope is not None else []) if a['href'] == href), None), what)
 
     box = doc.by_id('ser-only')
-    return {
+    gone = [n for n in filtered_out(doc, state, selectors) if n['id']]
+    entries = set(n['id'] for n in gone)
+    hidden_ids = sorted(set(d['id'] for n in gone for d in [n] + list(n.walk()) if d['id']))
+    model = {
         'pathname': '/personal-website/trips/%s/' % SLUG,
         'total': len(hook_days()),
         'elements': [{'tag': n.tag, 'id': n['id'] or '', 'classes': n.classes, 'attrs': n.attrs, 'parent': at.get(id(n.parent), -1)}
@@ -467,7 +523,16 @@ def page_model(page_html, hooks, code, css):
                           if lk.fn in ('querySelector', 'querySelectorAll', 'closest', 'matches')),
         'filterClass': state,
         'filteredOut': [at[id(n)] for n in filtered_out(doc, state, selectors)],
-        'ids': {'hiddenDay': 'day-1', 'hiddenMonth': 'month-2024-06', 'shownDay': 'day-2', 'shownMonth': 'month-2024-04'},
+        'ids': {'hiddenDay': 'day-1', 'hiddenMonth': 'month-2024-06', 'shownDay': 'day-2', 'shownMonth': 'month-2024-04',
+                # the ids inside them, read off the page: a day's number and title, a month's heading and (for the hidden
+                # month) the title of a hidden day in it
+                'inHiddenDay': inner_ids(doc, 'day-1'),
+                'inHiddenMonth': inner_ids(doc, 'month-2024-06')[:1] + [i for i in inner_ids(doc, 'month-2024-06') if i.endswith('-t')][:1],
+                'inShown': inner_ids(doc, 'day-2') + inner_ids(doc, 'month-2024-04')[:1]},
+        # everything the stylesheet takes out of the page while the filter is on, by id; and of those, the ids that
+        # are inside a hidden day or month without being one
+        'hiddenIds': hidden_ids,
+        'hiddenInside': [i for i in hidden_ids if i not in entries],
         'handles': {
             'log': where(doc.by_id('days'), 'day log (#days)'),
             'box': where(box, 'toggle (#ser-only)'),
@@ -479,6 +544,7 @@ def page_model(page_html, hooks, code, css):
             'shownLink': link(doc.find(cls='rep-actions'), '#day-2', 'title action linking to #day-2'),
         },
     }
+    return model
 
 
 # The same script, spelled three other ways (each is still valid JavaScript: SeriesJsNodeTests runs them). Only what
@@ -601,6 +667,47 @@ class SeriesJsPageHookTests(JournalPageCase):
         self.assertIn(sorted(HIDDEN), lists)
         self.assertEqual(sorted(self.page_ids('ser-day') + self.page_ids('ser-month')), sorted(HIDDEN + SHOWN))
 
+    def test_a_day_and_a_month_hold_the_ids_an_old_link_may_name(self):
+        # the page's side of fix B: a day's number and title and a month's heading carry ids of their own (they were link
+        # targets on the public site, where the filter starts switched off), named after the day or month they are in
+        doc = Doc(self.html)
+        for cls, tags in (('ser-day', (('p', 'ser-n'), ('h4', 'ser-t'))), ('ser-month', (('h3', 'ser-mh-t'),))):
+            kind = 'day' if cls == 'ser-day' else 'month'
+            for node in doc.find_all(cls=cls):
+                with self.subTest(entry=node['id']):
+                    want = [node['id'] + suffix for suffix in INNER[kind]]
+                    # the ids that are this entry's own: not a day of the month, nor an id inside such a day
+                    entry = parse_selector('.ser-day, .ser-month')
+                    own = [i for i in inner_ids(doc, node['id']) if closest(doc.by_id(i), entry) is node]
+                    self.assertEqual(own, want)
+                    self.assertEqual([(doc.by_id(i).tag, cls_ in doc.by_id(i).classes) for i, (_tag, cls_) in zip(want, tags)],
+                                     [(tag, True) for tag, _cls in tags])
+        # what the filter hides, with everything inside: the days and months of HIDDEN and the ids of HIDDEN_INSIDE
+        self.assertEqual(sorted(set(i for h in HIDDEN for i in [h] + inner_ids(doc, h))), ALL_HIDDEN)
+        self.assertEqual(sorted(i for i in ALL_HIDDEN if i not in HIDDEN), sorted(HIDDEN_INSIDE))
+        # a hidden day inside a hidden month: its ids are inside both
+        self.assertIn('day-40-t', inner_ids(doc, 'month-2024-06'))
+        self.assertIn('day-40-t', inner_ids(doc, 'day-40'))
+        # and no id of a written day or month, or of the rest of the page, is among them
+        for id_ in SHOWN + ELSEWHERE + [s + suffix for s in SHOWN for suffix in INNER['day' if s.startswith('day-') else 'month']]:
+            self.assertIn('id="%s"' % id_, self.html)
+            self.assertNotIn(id_, ALL_HIDDEN)
+
+    def test_the_page_model_names_what_the_filter_hides_with_the_ids_inside(self):
+        # the model the harness checks the script's own list against is read off the page and the stylesheet
+        with open(SERIES_CSS, encoding='utf-8') as fh:
+            model = page_model(self.html, self.hooks, self.code, fh.read())
+        self.assertEqual(model['hiddenIds'], ALL_HIDDEN)
+        self.assertEqual(model['hiddenInside'], sorted(HIDDEN_INSIDE))
+        self.assertEqual(model['ids']['inHiddenDay'], ['day-1-n', 'day-1-t'])
+        self.assertEqual(model['ids']['inHiddenMonth'], ['month-2024-06-h', 'day-40-t'])
+        self.assertEqual(model['ids']['inShown'], ['day-2-n', 'day-2-t', 'month-2024-04-h'])
+        # the script asks each hidden element for the ids inside it: the model answers that selector with every element
+        # that has an id, and the stand-in keeps the ones inside the element asked
+        doc = Doc(self.html)
+        self.assertEqual(len(model['selectors']['[id]']), len([n for n in doc.root.walk() if 'id' in n]))
+        self.assertGreater(len(model['selectors']['[id]']), len(ALL_HIDDEN))
+
     def test_the_stylesheet_hides_what_the_script_lists(self):
         # the filter is a class the script sets and the stylesheet acts on: what series.css takes out of the page under
         # that class must be what series.js believes is hidden, or a link to a "hidden" entry is handled wrongly
@@ -692,6 +799,20 @@ class SeriesJsSourceTests(unittest.TestCase):
             self.assertEqual(m.group(1), '=', m.group(0))
             self.assertIn(m.group(2).strip(), ("''", '""'), m.group(0))
 
+    def test_the_helpers_keep_their_signatures(self):
+        # fix B changed the list the page hands over, not the helpers: the same four, with the same arguments
+        for declaration in ('function hashTarget(hash) {', 'function startFiltered(defaultOn, hash, hiddenIds) {',
+                            'function revealId(filtered, hash, hiddenIds) {', 'function landAfterLoad(filtered, hash, navType) {'):
+            with self.subTest(declaration=declaration):
+                self.assertEqual(self.code.count(declaration), 1)
+        self.assertIn('var api = { hashTarget: hashTarget, startFiltered: startFiltered, revealId: revealId, landAfterLoad: landAfterLoad };', self.code)
+        # and the page still hands them the one list, at the same two places: on load and when a link is followed
+        page_code = self.code[self.code.index('module.exports'):]
+        self.assertIn('var id = revealId(box.checked, window.location.hash, hidden);', page_code)
+        self.assertRegex(page_code, r"box\.checked = startFiltered\(pref === null \? box\.dataset\.default === 'wu' : pref === '1', window\.location\.hash, hidden\);")
+        self.assertEqual(len(re.findall(r'(?<![\w$.])(?:startFiltered|revealId)\s*\(', page_code)), 2)
+        self.assertEqual(len(re.findall(r'\bvar hidden\b', page_code)), 1)
+
     def test_the_page_code_decides_through_the_tested_helpers(self):
         # contract 10.6: the decisions are the pure exports the harness checks; the code that runs on the page (everything
         # after the export) must call each of them, not repeat the rule beside it
@@ -759,6 +880,21 @@ class SeriesJsNodeTests(unittest.TestCase):
             with self.subTest(landAfterLoad=replacement):
                 r = self.run_stub(ONE_WRONG % (json.dumps(SERIES_JS), replacement))
                 self.assertRejected(r, 'landAfterLoad', passing=('exports', 'hashTarget', 'startFiltered', 'revealId'))
+
+    def test_harness_rejects_a_changed_signature(self):
+        # the harness itself: the real helpers behind another signature, or one export more, fail its last pure check and
+        # none of the checks of what the helpers answer
+        for replacement in BAD_SIGNATURE:
+            with self.subTest(changed=replacement.split(':')[0]):
+                r = self.run_stub(ONE_WRONG % (json.dumps(SERIES_JS), replacement))
+                self.assertRejected(r, 'signatures', passing=('exports',) + HELPERS + ('inner ids',))
+
+    def test_harness_rejects_helpers_that_work_the_inner_ids_out_themselves(self):
+        # the harness itself: the list decides, as before. A helper that takes an id for hidden because it begins like a
+        # hidden day's would hide Day 12 for Day 1 (checked since Phase 3) and is stopped there
+        prefix = ("startFiltered: function (d, hash, hidden) { var t = real.hashTarget(hash);"
+                  " return !!d && !hidden.some(function (h) { return t.id === h || t.id.indexOf(h + '-') === 0; }); }")
+        self.assertRejected(self.run_stub(ONE_WRONG % (json.dumps(SERIES_JS), prefix)), 'startFiltered', passing=('exports', 'hashTarget'))
 
     def test_pure_helpers_match_the_contract(self):
         # contract 5, Reader mode + 10.6: hashTarget(hash) -> {kind, id}; startFiltered(defaultOn, hash, hiddenIds);
@@ -841,8 +977,30 @@ class SeriesJsOnPageTests(JournalPageCase):
                 self.assertIn('id="%s"' % id_, self.html)
                 self.assertEqual(got[id_], ['other', id_, True, '', '', False, False])
 
-    def run_dom(self, *fault):
-        """The harness on the real script with the model of the generated page (and a fault for its stand-in browser)."""
+    def test_with_the_ids_inside_in_the_list_the_helpers_take_them_for_hidden(self):
+        # fix B on the page's own ids: handed everything the filter hides (ALL_HIDDEN), an address to the number or the
+        # title of a hidden day, or to the heading of a hidden month, starts unfiltered and is revealed later; the same
+        # ids of a written day or month keep the filter and are landed on
+        doc = Doc(self.html)
+        inside = dict((id_, inner_ids(doc, id_)) for id_ in HIDDEN + SHOWN)
+        every = [i for ids in inside.values() for i in ids]
+        got = self.ask(sorted(set(every)), ALL_HIDDEN)
+        for entry, ids in sorted(inside.items()):
+            for id_ in ids:
+                with self.subTest(entry=entry, id=id_):
+                    kind = 'day' if id_.startswith('day-') else 'month'
+                    hidden = id_ in ALL_HIDDEN            # a hidden day, or an id inside a hidden day or month
+                    self.assertEqual(got[id_], [kind, id_, not hidden, id_ if hidden else '', '', True, False])
+        # the hidden ones are exactly HIDDEN_INSIDE and the hidden days themselves (each is an id inside its month)
+        self.assertEqual(sorted(i for i in set(every) if got[i][2] is False),
+                         sorted(HIDDEN_INSIDE + [h for h in HIDDEN if h.startswith('day-')]))
+        # handed the days and months alone, as before the fix, no id inside one is hidden
+        before = self.ask(HIDDEN_INSIDE, HIDDEN)
+        self.assertEqual([before[i][2:4] for i in HIDDEN_INSIDE], [[True, '']] * len(HIDDEN_INSIDE))
+
+    def run_dom(self, *fault, script=SERIES_JS):
+        """The harness on the real script with the model of the generated page (and a fault for its stand-in browser).
+        script: another copy of series.js to run on that page."""
         with open(SERIES_CSS, encoding='utf-8') as fh:
             model = page_model(self.html, self.hooks, self.code, fh.read())
         tmp = tempfile.TemporaryDirectory()
@@ -850,7 +1008,7 @@ class SeriesJsOnPageTests(JournalPageCase):
         path = os.path.join(tmp.name, 'page.json')
         with open(path, 'w', encoding='utf-8') as fh:
             json.dump(model, fh)
-        return subprocess.run([self.node, HARNESS, SERIES_JS, path] + list(fault), cwd=TESTS, stdout=subprocess.PIPE,
+        return subprocess.run([self.node, HARNESS, script, path] + list(fault), cwd=TESTS, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, universal_newlines=True, timeout=60)
 
     def passed(self, r):
@@ -866,7 +1024,71 @@ class SeriesJsOnPageTests(JournalPageCase):
         self.assertEqual(r.returncode, 0, 'the "dom:" checks failed:\n%s\n%s' % (r.stdout, r.stderr))
         pure = subprocess.run([self.node, HARNESS], cwd=TESTS, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               universal_newlines=True, timeout=60)
-        self.assertGreaterEqual(self.passed(r) - self.passed(pure), 15, 'the "dom:" checks did not run')
+        self.assertGreaterEqual(self.passed(r) - self.passed(pure), 36, 'the "dom:" checks did not run')
+
+    def test_the_listener_checks_notice_a_change_to_what_the_script_collects(self):
+        # the harness itself, for fix B: series.js with the lines that list what the filter hides changed in one way each
+        # fails a "dom:" check, and no check of the helpers (they are the same)
+        src = source()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        for n, (what, old, new) in enumerate(BROKEN_COLLECTING):
+            with self.subTest(broken=what):
+                self.assertEqual(src.count(old), 1, 'assets/js/pages/series.js no longer has this text once: %r' % old)
+                path = os.path.join(tmp.name, 'series_%d.js' % n)
+                with open(path, 'w', encoding='utf-8') as fh:
+                    fh.write(src.replace(old, new))
+                check = subprocess.run([self.node, '--check', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=60)
+                self.assertEqual(check.returncode, 0, check.stderr)
+                r = self.run_dom(script=path)
+                self.assertNotEqual(r.returncode, 0, 'the harness passed a script in which %s' % what)
+                self.assertEqual(len(re.findall(r'(?m)^FAIL dom: ', r.stderr)), 1, r.stderr[:400])
+                self.assertEqual(len(re.findall(r'(?m)^FAIL ', r.stderr)), 1)
+                self.assertNotIn('the page model has no answer', r.stderr)
+                self.assertNotIn('checks passed', r.stdout)
+        # the unchanged script, copied the same way, passes
+        path = os.path.join(tmp.name, 'series.js')
+        shutil.copy(SERIES_JS, path)
+        self.assertEqual(self.run_dom(script=path).returncode, 0)
+
+    # ------------------------------------------------------------ round 3: each id once
+
+    def test_every_id_the_filter_hides_is_listed_once(self):
+        # a hidden day inside a hidden month is met twice, as an id inside its month and as a hidden day, and listed
+        # once: the script asks whether the id is already there before it adds the day or month itself, as it does for
+        # the ids inside
+        src = source()
+        self.assertEqual(src.count(_OWN), 1, 'assets/js/pages/series.js no longer has this line once: %r' % _OWN)
+        self.assertEqual(len(re.findall(r'\bhidden\.push\(', self.code)), 2)         # the day or month, and an id inside it
+        self.assertEqual(len(re.findall(r'if \((?:el\.id && )?hidden\.indexOf\((?:el|c)\.id\) === -1\) hidden\.push\(', self.code)), 2)
+        # the harness holds the list of the generated page to it, in a check of its own (ONCE) ...
+        with open(HARNESS, encoding='utf-8') as fh:
+            self.assertEqual(fh.read().count("check('%s'," % ONCE), 1)
+        self.assertEqual(self.run_dom().returncode, 0)
+        # ... which is the check that fails, and the only one, when the script lists the day or month every time
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = os.path.join(tmp.name, 'series.js')
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(src.replace(_OWN, '    if (el.id) hidden.push(el.id);'))
+        r = self.run_dom(script=path)
+        self.assertNotEqual(r.returncode, 0, 'the harness passed a script that lists a hidden day twice')
+        self.assertEqual(re.findall(r'(?m)^FAIL (.*)$', r.stderr), [ONCE])
+        self.assertIn('ids listed more than once', r.stderr)
+        self.assertNotIn('checks passed', r.stdout)
+
+    def test_no_case_is_left_as_a_known_gap(self):
+        # round 2 kept "each id once" as a case the script did not handle ('gap:once', an expected failure). It is a
+        # regular check now, so the harness knows no gap by that name, nor by any other
+        for name in FORMER_GAPS + ('no-such-case',):
+            with self.subTest(gap=name):
+                r = self.run_dom('gap:' + name)
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn('unknown gap: ' + name, r.stderr)
+                self.assertEqual(re.findall(r'(?m)^FAIL (.*)$', r.stderr), [])        # every check before it passed
+                self.assertNotIn('checks passed', r.stdout)
+        with open(HARNESS, encoding='utf-8') as fh:
+            self.assertRegex(fh.read(), r'(?m)^  const GAPS = \{\};$')
 
     def test_the_listener_checks_notice_a_gutted_listener(self):
         # the harness itself: with one event never delivered, the session store forgetting, or every load passed off as

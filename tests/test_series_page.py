@@ -1425,6 +1425,8 @@ class ToggleTests(JournalPageFixture):
         self.assertIs(self.main.by_id('days').find('div', cls='ser-only'), box)   # in the day log's head, as before
         inp = box.find('input')
         self.assertEqual((inp['id'], inp['type']), ('ser-only', 'checkbox'))
+        # the script sets the box; a browser must not refill it afterwards on Back / Forward (review gate, round 5)
+        self.assertEqual(inp['autocomplete'], 'off')
         self.assertEqual((inp['data-total'], inp['data-wu']), ('6', '3'))
         self.assertEqual(inp['data-default'], 'wu')
         self.assertNotIn('checked', inp)

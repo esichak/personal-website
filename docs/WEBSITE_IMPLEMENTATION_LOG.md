@@ -81,9 +81,9 @@ workspace `CLAUDE.md`), unrelated to this phase.
 | Invalid manifests | Duplicate, unknown, draft, planned, >6, malformed JSON, non-list each stop the build with the named error (unit tests). |
 | Screenshots (built-in browser, `/personal-website/` prefix) | After: 1440, 1024, 768, 390 and 320 px: three cards in order at every width, every card with its photo, both hero actions visible on phones, recent outings 3/2/1 per row with route-tile fallbacks. Before (baseline build, 1440 and 390 px): one map-first feature (the newest flagged report, Dunderberg Peak), no photo and no actions on the phone, ten-row table. Files are not committed; they were handed over with the phase report. |
 | Long titles | Two 90–120-character titles injected into the supporting cards at 768 px: wrapped cleanly. |
-| Keyboard and link names | Focusable links per card are chip, title and action (photo links `tabindex=-1`, `aria-hidden`); visible focus from `base.css`. Title links are described by their DATE · PLACE line (`aria-describedby`) and action links carry the trip title for screen-reader link lists. |
-| No JavaScript | The home page is static HTML; `site.js` only adds the phone menu and the unit toggle. |
-| Page weight (estimate from built file sizes, not a measured transfer) | Phone picks (smallest srcset candidate per image): about 1.2 MB in total (HTML 205 KB, CSS 141 KB, JS 36 KB, images 826 KB), against about 0.9 MB before; within the plan's 1–1.5 MB budget. The six recent-outing thumbnails take the 800 px copies (no smaller derivative exists yet; Phase 4 may measure whether one is worth adding). |
+| Keyboard and link names (read from the markup, not walked) | Focusable links per card are chip, title and action (photo links `tabindex=-1`, `aria-hidden`); visible focus from `base.css`. Title links are described by their DATE · PLACE line (`aria-describedby`) and action links carry the trip title for screen-reader link lists. |
+| No JavaScript (read from the markup, not run with scripting off) | The home page is static HTML; `site.js` only adds the phone menu and the unit toggle. |
+| Page weight (estimate from built file sizes, not a measured transfer) | Phone picks (smallest srcset candidate per image): about 1.2 MB in total (HTML 205 KB, CSS 141 KB, JS 36 KB, images 826 KB), against about 0.9 MB before; within the plan's 1–1.5 MB budget. (Phase 4 measured it and the assumption did not hold: a 3x phone does not take the smallest candidate. The measured weights are in the report, 2.2.) The six recent-outing thumbnails take the 800 px copies (no smaller derivative exists yet; Phase 4 may measure whether one is worth adding). |
 | Not run | Lighthouse/performance measurements, screen readers, real devices, 200% zoom, reduced-motion emulation. |
 
 ### Review
@@ -263,7 +263,7 @@ in `content/`.
 
 | Check | Result |
 | --- | --- |
-| `python3 -m unittest discover -s tests` | 436 tests OK (188 from Phases 1–2 plus 248 for this phase: 54 GPX inspector, 72 goal sidecar, 52 importer CLI, 65 tick-list page / goal pages / boundaries, 5 Node wrappers; the ticklist.js harness runs 59 checks). The matrix covers plan 20.10's list: metadata-only idea, route-only GPX, multi-segment track (nothing bridged), alternatives needing `--select`, no / partial elevation, no timestamps, waypoint-only, sparse geometry, duplicate checksum, rejected inputs, dry run, byte-identical publication, failed render fallback, legacy planned route, status / reference / evidence rules, attempts before completion, completion without date or report, active counts, draft exclusion, read-only pages, goals absent from published / feed / search / features. |
+| `python3 -m unittest discover -s tests` | 436 tests OK at commit `dacc841` (188 at `a0eb1cd`; 188 from Phases 1–2 plus 248 for this phase: 54 GPX inspector, 72 goal sidecar, 52 importer CLI, 65 tick-list page / goal pages / boundaries, 5 Node wrappers; the ticklist.js harness runs 59 checks). The matrix covers plan 20.10's list: metadata-only idea, route-only GPX, multi-segment track (nothing bridged), alternatives needing `--select`, no / partial elevation, no timestamps, waypoint-only, sparse geometry, duplicate checksum, rejected inputs, dry run, byte-identical publication, failed render fallback, legacy planned route, status / reference / evidence rules, attempts before completion, completion without date or report, active counts, draft exclusion, read-only pages, goals absent from published / feed / search / features. |
 | Security review of the commit (automated) | Three findings fixed in the follow-up commit: a published third-party GPX is served from the site's own origin as XML, so files carrying a processing instruction (xml-stylesheet), XHTML / SVG / MathML content, a `<script>` or a `javascript:` URL are now refused; the DOCTYPE / ENTITY scan could be bypassed by a non-UTF-8 file, so only UTF-8 files are accepted and every `<!` but comments and CDATA is refused; the element extractor used a regex that a comment containing `<trk` could shift, so it now slices by the XML parser's own byte positions. The import report also lists what a file carries besides its geometry (metadata, extensions, links, named waypoints, timestamps, comments) before a copy is approved. A second review of that commit found the byte scan could be bypassed by what only an XML parser decodes (a character reference in a namespace URI, `<s:script>` under a prefix, `&#106;avascript:` in an href, an encoding declaration a browser honours), so the same checks now also run on the parsed document: declared encoding must be UTF-8, no DOCTYPE or processing instruction, no XHTML / SVG / MathML / XLink namespace however spelled, no script-like element under any prefix, no `on*` attribute, no `javascript:` / `vbscript:` / `data:` value once decoded. Garmin extensions, `xsi:schemaLocation` and CDATA still pass. A third review noted that the document assembled for a chosen element of a multi-route file was validated only as slices (its `<gpx>` start tag came from a regex that a `>` inside an attribute or a `<gpx` inside a comment could cut short), so the head now ends where the parser says the root start tag ends, the closing tag uses the root's real name, and the assembled document is inspected again as a whole and must hold exactly the chosen geometry. |
 | `python3 tools/build.py --out <scratch> --link --check` | 348 pages (347 + `tick-list/`), link check OK, 13 s. The one existing planned route builds as a legacy goal with the defaults. |
 | Importer, in a temporary content folder | Dry run writes nothing; a published track's bytes equal the source (SHA-256 recorded); no local path in any written file; a duplicate checksum, an existing slug, a traversal slug, `--status completed` without an outing, an unknown report slug, a review packet inside the checkout and reopening a completed goal are each refused; attempted then completed outings set the status and keep both events; the packet carries the research prompt; export lists non-draft goals only. |
@@ -345,7 +345,7 @@ listed as not run). The other three:
 - A copy-link action on goal pages (plan 20.9): added with the copy-link control in Phase 3.
 - The checkbox finding described the earlier commit; the switch button was already in place.
 
-Checks run for this round (2026-10-10): 493 tests OK (480 at the fix commit, 13 more with the published-copy report); the ticklist.js harness 60 checks and the trips.js harness 50;
+Checks run for this round (2026-10-10): 493 tests OK (480 at the fix commit `029ad39`, 13 more with the published-copy report); the ticklist.js harness 60 checks and the trips.js harness 50;
 `build.py --out <scratch> --link --check` 348 pages, link check OK. On the synthetic demo site (now seven goals,
 including one completed then reopened and one whose attempt names a multi-day report) in the built-in browser: no
 horizontal overflow at 320, 390, 768, 1024 and 1440 px on the tick list, a goal page and the map page; one, two and
@@ -595,7 +595,7 @@ report is `docs/IMPLEMENTATION_REPORT.md`; this entry records what changed and w
 | `.gitignore` | iCloud conflict copies under `rendered/` and `assets/`. No tracked file is ignored. |
 | `README.md`, `ADDING-TRIPS.md`, `docs/CONTENT_GUIDE.md`, `docs/TICK_LIST_GUIDE.md`, `docs/DEVELOPING.md` | Corrected by following them literally on scratch content; see the report, section 5.4. |
 | `docs/IMPLEMENTATION_REPORT.md` (new) | The final report. |
-| `content/trips/*/photos/*.th.webp` (105 new files, 2.3 MB) | Card-size copies of the covers that had none, made by `tools/thumbs.py`. |
+| `content/trips/*/photos/*.th.webp` (105 new files, 2.2 MB) | Card-size copies of the covers that had none, made by `tools/thumbs.py`. |
 | Tests | 16 new test files; 11 changed ones and the two Node harnesses; see Checks. |
 
 ### Behaviour
@@ -622,7 +622,7 @@ report is `docs/IMPLEMENTATION_REPORT.md`; this entry records what changed and w
   none in its description, and has no stats strip when it has no stats. A track that is removed takes its renders
   off the site at the next build; the shared region maps keep its line until `tools/render.py` is run, and the
   validator says so.
-- **Accessibility.** Focus never lands under a sticky bar; hidden map markers take no focus; the copy-link fallback
+- **Accessibility.** In the walks no focused control was under a sticky bar; hidden map markers take no focus; the copy-link fallback
   behaves under Tab and Escape; with JavaScript off the header shows only working links, all of them; the targets
   the walks found small are 44 px.
 - **Tools.** `--out` cannot empty the checkout or a folder that is not a build; `--only` rejects unknown modules;
@@ -639,11 +639,11 @@ report is `docs/IMPLEMENTATION_REPORT.md`; this entry records what changed and w
 | `python3 tools/build.py --out <scratch> --link --check` | OK: 349 pages, 168 trips, about 4 s. |
 | A copying build (no `--link`) with `--check`, and `validate.py --site` on it | OK, `site: 0 problems`. All 341 published single and day GPX files are byte for byte their sources; the 10 combined files hold every day's tracks unchanged. |
 | Builds under Python 3.9 and 3.12 compared file by file | Identical. |
-| CI rehearsal: a copy of exactly the 5,198 files the commit holds (taken from the staged index), on a case-sensitive volume, Python 3.12, `TZ=UTC`, `LANG=C`, with nothing on the path but Python (no `node`, `git`, `cwebp` or `sips`) | 2,021 tests OK (25 skipped, the Node-dependent ones); `build.py --check` OK; the 3,403 files of the output are identical, file for file, to the build that was measured. It ran on macOS, not Linux, and the CI job itself has not run, since nothing was pushed. |
+| CI rehearsal: a copy of exactly the 5,198 files the commit holds (taken from the staged index), on a case-sensitive volume, Python 3.12, `TZ=UTC`, `LANG=C`, with nothing on the path but Python (no `node`, `git`, `cwebp` or `sips`) | 2,021 tests OK (25 skipped, the Node-dependent ones); `build.py --check` OK; the 3,403 files of the output are identical, file for file, to the build that was measured. It ran on macOS, not Linux, and the CI job itself has not run, since nothing was pushed. GitHub's runner has Node (22 on `ubuntu-latest`), so the 25 tests skipped here will run there; see the review gate entry. |
 | The final build against the build of `6f6091d` | No path removed; 105 added (the `.th` copies). All 351 GPX files, the feed, the sitemap, `robots.txt` and both search indexes identical. Titles, canonicals, descriptions and write-up text identical on all 347 pages; no id lost. 163 pages differ in their HTML (share tags, structured data, photo `sizes`, the phone-only `<picture>` source around card covers, the inline reveal). Every `<img>` of a card cover is what it was. |
 | The final build against the original site (`a9baab9`) | See the report, section 5.3. |
 | Page-load measurement, three builds, nine pages, phone and desktop profiles | See the report, section 2. The after build was measured three times (36 cold loads each); the last set, on the final code, is the one reported. |
-| Lighthouse, 12 pages, mobile and desktop, before and after | Accessibility, best practices and SEO 100 throughout; see the report, 2.7. |
+| Lighthouse, 12 pages, mobile and desktop, before and after | Accessibility, best practices and SEO 100 on every page, except one mobile run of the Map page (SEO 92, a `robots.txt` timeout of the local server; two repeats 100). The after pass ran on the working tree of the afternoon, before the last fixes; see the report, 2.7. |
 | Before and after screenshots, 36 views (12 pages at 1440 px, 390 px and 390 px at the bottom), compared pixel by pixel | Final build against the captures made before the phase: 31 identical; 2 differ where intended (the `All` chip 6 px wider on phones, the Trips placeholder ending in an ellipsis); 3 differ in pixel values only, and for those a fresh cold capture of the build before the phase is pixel-identical to the final build. See the report, 5.2. |
 | Browser walks with real key presses | Two full walks (before the phase and after its first round), then targeted re-checks of the later fixes; see the report, 5.2. |
 | Author docs followed literally in scratch copies | Three writers, three independent readers, three fix passes, then a final pass against the frozen code; see the report, 5.4. |
@@ -744,10 +744,10 @@ measured results; this entry records what changed and what was run.
 | `python3 tools/validate.py` on the real content | 0 errors, 1 warning (the planned route without `goal.json`), 467 notes, as before the phase. |
 | `python3 tools/build.py --out <scratch> --link --check` | OK: 357 pages (349 and the eight region pages), 168 trips. |
 | Builds under Python 3.9 and 3.12 compared file by file | Identical. |
-| CI rehearsal: the 5,204 files the commit holds (from the staged index), case-sensitive volume, Python 3.12, `TZ=UTC`, `LANG=C`, nothing on the path but Python | 2,339 tests OK (29 skipped, the Node-dependent ones); `build.py --check` OK; the 3,411 files of the output identical to the local build. macOS, not Linux; the CI job itself has not run. |
+| CI rehearsal: the 5,204 files the commit holds (from the staged index), case-sensitive volume, Python 3.12, `TZ=UTC`, `LANG=C`, nothing on the path but Python | 2,339 tests OK (29 skipped, the Node-dependent ones); `build.py --check` OK; the 3,411 files of the output identical to the local build. macOS, not Linux; the CI job itself has not run. GitHub's runner has Node, so the 29 tests skipped here will run there; see the review gate entry. |
 | The final build against the Phase 4 build | No path removed; 8 added (the region pages). All 351 GPX files, the feed, `robots.txt` and both search indexes identical; the sitemap gained the eight addresses. Titles, canonicals, descriptions and write-up text identical on all 347 pages; no id or anchor lost. |
 | Page-load measurement, same method as Phase 4 | Three region pages and four existing pages, three phone runs and one desktop run each, on the build before the review fixes (44 loads, with the Phase 4 build beside it) and after the second round of fixes (28 loads). See the report, 14.3. |
-| Lighthouse, two region pages, mobile and desktop | Accessibility, best practices and SEO 100 in all four runs; no failed audit. |
+| Lighthouse, two region pages, mobile and desktop | Accessibility, best practices and SEO 100 in all four runs; no failed audit. The runs were made on the build before the second round of fixes and were not repeated on the committed code; the review gate ran both pages again on its final build, with the same result (see the review gate entry). |
 | Browser walk in Chrome 155 with real key presses and pointer events | Three passes (first build, after round 2, and the last fixes): widths 320 to 1440, keyboard order, target sizes pixel by pixel, cluster markers, JavaScript off, reduced motion and forced colours by emulation, boxes of every element on Home, Trips, the Map page and a report against the Phase 4 build. See the report, 14.4. |
 | Author docs | Written by one agent from the code, then read literally by an independent reader on synthetic sites, corrected, read again by a third, and the remaining over-precise passages tightened by hand. |
 | Mutants | Single-line changes on scratch copies: 202 in the first round (199 killed, 3 equivalent), 104 in the second (102, 2 equivalent), 49 in the third (48, 1 equivalent). |
@@ -784,3 +784,155 @@ Listed in `docs/IMPLEMENTATION_REPORT.md`, sections 14.6 and 14.7. In short: the
 three or four reports have thin pages by the rule as built; the Featured row is automatic; the 320 px card copy is
 slightly softer than the 600 px one on a 3x phone for portrait covers; and a few stale-map states that predate the
 phase still fail the check until the maps are drawn again.
+
+## Review gate before publication (2026-10-11)
+
+Starting point: Phases 1 to 5 committed on `phase1-curated-homepage`; `HEAD` was `dbce17b`, 14 commits ahead of
+`main` (`a9baab9`, which is also `origin/main`). After Phase 5 was committed, asked what to do next, Eric chose the
+review gate that closes the prompt pack. The gate compares the branch with the site that is public today: `main` was
+built with its own code (345 pages, 3,294 files) and the branch beside it (357 pages, 3,411 files), both from the real
+content, both served under `/personal-website/`. Nothing was pushed, merged or deployed, `tools/render.py` was not
+run, and no file under `content/` or `rendered/` changed. The report's section 15 has the six items with their
+evidence, the list of what a push would make public, and the open points; this entry records what changed and what
+was run.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/home.py` | The "Recent outings" section carries `id="latest-h"`, the id of the heading of the public home page's "Latest reports" list. |
+| `assets/js/pages/series.js` | The list of ids the write-ups filter hides also holds the ids inside a hidden day or month (a day's number and title, a month's heading), each once. |
+| `assets/js/pages/explore.js` | `historyStep(kind, entry, now, next, recent)`: the one rule for what a change of view does to the browser's history, pure, shared by the two list pages. |
+| `assets/js/pages/trips.js` | `clearedSort(sort, userSort)`, pure and exported; `address()`, `write(kind, keepHash, settle)`, `sortForSearch()`; the page keeps `entryUrl` and `nowUrl`; the `popstate` and `hashchange` handlers settle them, and `popstate` rewrites an entry whose sort it had to correct. See Behaviour. |
+| `assets/js/pages/ticklist.js` | The same page part as trips.js (`entryUrl`, `nowUrl`, `address()`, `write`, the three kinds of change), without the sort rule. |
+| `tools/sitegen/pages/trips.py`, `ticklist.py`, `series.py` | `autocomplete="off"` on the two filter forms and on the journal's "write-ups only" box. |
+| `tools/sitegen/curation.py` | `_once`: a key written twice in `content/home.json` is an error. |
+| `tools/sitegen/pages/notfound.py` | The 404 page's "Site" list offers Trips before "Map & archive". |
+| `docs/DEVELOPING.md`, `docs/CONTENT_GUIDE.md`, `docs/TICK_LIST_GUIDE.md`, `README.md`, `ADDING-TRIPS.md` | The behaviour above; what the CI runner has; where planned routes are counted and listed; a deploy takes "a few minutes", not "about a minute", now that the job runs the tests. |
+| `.github/workflows/pages.yml` | One comment line: the job is no longer said to run in well under a minute. No step changed. |
+| `docs/IMPLEMENTATION_REPORT.md`, this log | Section 15 and this entry; the corrections listed under Review. |
+| Tests | `tests/test_notfound_page.py`, `tests/test_fixture_text.py`, `tests/page_standin.js` (the stand-in for the browser that the trips and tick-list harnesses share) and `tests/js_fixtures.py` are new; 11 existing files under `tests/` changed. See Checks. |
+
+### Behaviour
+
+- **Home.** `…/#latest-h` lands on the newest reports again. It was the one fragment link of the public site, out of
+  3,352, whose target the branch had dropped.
+- **Journal.** An address that names an id inside a day or month the default view hides (`#day-30-t`, `#day-30-n`,
+  `#month-2024-07-h`) switches the filter off and lands, as an address naming the day or month itself already did.
+- **Trips and the Tick list, Back after a search.** Typing still rewrites the current history entry. Enter in the
+  search box adds an entry whenever the view differs from the one the entry stood for, also when the typing pause had
+  already written the words into the address, so Back returns to the list from before the search. Enter again adds
+  nothing. A filter, the sort, the view switch and Clear all add an entry as before.
+- **Trips, sort.** "Best match" does not stay when there is no search: after Clear all, after removing the search
+  chip, after emptying the box by hand, and for an address that arrives with `sort=relevance` and no search, on load
+  and on Back or Forward. A sort the visitor chose (Oldest first) stays.
+- **Controls after Back and Forward.** The two filter forms and the journal's box ask browsers not to refill them.
+  Chrome refilled them after the page's script whenever it loaded the page again from history, so a menu or the box
+  could show a value the list did not follow.
+- **Manifest.** `content/home.json: "featured_slugs" is written twice; keep one` stops the build and the validator.
+  Before, the second list silently won.
+- **404 page.** One more row, "Trips / SEARCH AND FILTER".
+- **Unchanged.** Every URL, title, description, write-up, GPX file, the feed, both search indexes and the sitemap.
+  Against the build of `dbce17b`, six files differ: `index.html`, `404.html`, `trips/index.html`,
+  `tick-list/index.html` and the journal page by the lines named above, and `assets/site.js`.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests` | 2,424 tests in 40 files, OK (2,339 in 38 before the review), on Python 3.9.6 and 3.12.11 with `-W error`; no test skipped and none marked as an expected failure. |
+| Module order | The suite also passes with its modules reversed and shuffled (`tests/run_orders.py`), and no test leaves a region page registered. |
+| Node harnesses (Node 25.8.2) | `trips_js_harness.js` 145 checks, 187 with its page model; `ticklist_js_harness.js` 91, 111 with its page model (new); `series_js_harness.js` 49, 85 with its page model; `maplist_js_harness.js` 13. All pass. |
+| `python3 tools/validate.py` on the real content | 0 errors, 1 warning (the planned route without `goal.json`), 467 notes, as before. |
+| `python3 tools/build.py --out <scratch> --link --check` | OK: 357 pages, 168 trips. Builds under Python 3.9 and 3.12 are identical file by file. |
+| The final build against the build of `dbce17b` | Six files differ. Compared tag by tag, the five pages differ by the lines named under Behaviour and by nothing else; the sixth is `assets/site.js`. |
+| The final build against the build of `main` | All 3,294 paths of the public site are present (117 new); all 351 GPX files, the feed and `robots.txt` are byte-identical. |
+| CI rehearsal: the 5,208 files a commit of this change holds (from a temporary index: `HEAD` plus the 33 files as they are at the end), case-sensitive volume, Python 3.12, `TZ=UTC`, `LANG=C`, the workflow's two commands | With only Python on the path: 2,424 tests OK, 53 skipped (the Node-dependent ones); `build.py --check` OK; the 3,411 files of the output identical to the local build. With Node 25 on the path as well, as a runner has Node: 2,424 OK, none skipped; the same build. macOS, not Linux, and not the runner's Node 22; the CI job itself has not run. |
+| Mutants | Changes on scratch copies, over four passes: 234 (221 of one line, 6 of two or three lines, 5 whole-fix reverts and 2 inserted quotes), of which 221 fail a behaviour check and 13 are equivalent in behaviour. The tests that read the source hold 12 of those; the thirteenth (in `historyStep`, `kind === 'pick'` written as `kind !== 'submit'`) passes every test, because the callers pass only the three kinds. Three more by hand for the three `autocomplete` attributes, each failing its test. |
+| Browser replays in Chrome 155, real key presses, clicks and touch, 1440 px and 390 px, back/forward cache on and off | Six passes; see Review. On the build of the sixth pass, from which the final build differs in comment lines of the script only: the Tick list 1,084 step records, Trips 1,588 against the build before it, the journal 284; no page exception or console error in 603 sequence runs. |
+| Lighthouse 13.4.1 | 30 runs (15 pages, mobile and desktop) on the final build, after a full pass on the build of the fourth pass and partial ones on the builds between: accessibility, best practices and SEO 100 in every run. In those three categories the one failed audit is the informational one of weight 0 on Home and two activity pages, as on `main`; in the tool's fourth category the Map page's mobile run has a layout shift of 0.051. No console error or warning on the 15 pages at 1440 px or 390 px. |
+| Screenshots | 39 views of `main` and 51 of the branch (phone and desktop), paired on a local review page; after the first fixes 18 views were taken again: 14 byte-identical, the 404 page's three replaced, and one differing by capture noise only (a capture of the unchanged commit taken the same day is byte-identical to it). Kept in the git-ignored `.cache/review/`, not in the repository. |
+| Author docs | After pass 6 two independent readers checked what the review had written: the changed passages of the guides against the code (88 statements, the history rules played under Node), and this entry and the report's section 15 against the stored results (235 statements, the counts recomputed). They found 17 and 29 defects. A third reader then checked the 46 corrections against the code and the evidence: 42 held, and the four that did not, with five smaller points, were corrected in turn (see Review). |
+| Rendering | Not run. No file under `rendered/` or `content/` changed. |
+| Not run | Safari and Firefox (two questions about them were answered from their source, by reasoning only); real phones; screen readers; a real share preview; the CI job; Node 22. |
+
+### Review
+
+- **Pass 1** (seven agents on `dbce17b`: curation and goals, compatibility with the public build, the inventory of
+  public material, the log's evidence, a browser walk of links and downloads, photographs and screenshots, and a
+  second reader of all six). Five of the six items held, two of them with one exception each (report, 15.1). The
+  sixth, approval of the new public material, is the author's and is open: the pass made the inventory. Found: the
+  home anchor; the journal's inner ids; the Back defect
+  after a typed search; "Best match" left behind by Clear all; a manifest key written twice read silently; a test that
+  quoted two sentences of a real write-up; no way to Trips from the 404 page. In the documents: the report and this
+  log said the CI runner has no Node, and gave the Lighthouse results of Phases 4 and 5 without saying they were made
+  before each phase's last fixes; seven table cells were 1 KB off, one size was given as 2.3 MB for 2.2 MB, three
+  numeric wordings were loose, and two cross-references pointed at the wrong section. All fixed or corrected; the
+  smaller points that were left are in the report, 15.4.
+- **Pass 2** (four agents on the fixes: tests with mutants, an adversarial reader, a browser walk with Lighthouse,
+  and a skeptic on what they found). Five
+  of the six fixes held. The history fix was wrong in two cases and incomplete in two: a search containing an
+  apostrophe added an entry at every Enter, because the page compared its own spelling of the address with the
+  browser's (`'` against `%27`); after arrow keys through the activities and a submitted search, Back landed on a
+  filter the visitor had only passed through; emptying the box by hand still left "Best match"; and Enter after a
+  year link rewrote the year link's entry. The id list of the journal held the days of hidden months twice. All
+  corrected: the page now keeps both addresses in its own spelling and never reads them back from `location`.
+- **Pass 3** (two agents: tests rewritten to the corrected rule, with 65 mutants, 58 killed by a harness check and 7
+  shown equivalent and held by the tests that read the source; 19 sequences of typing, Enter, filters, year links,
+  Back and Forward replayed in Chrome with real key presses at 1440 px, 13 of them also at 390 px with touch, each
+  compared with `dbce17b`). All 19 follow the plan's rule; 12 are better than `dbce17b` and 7 the same. One new
+  inconsistency: after "Best match" was picked from the menu with an empty box, Back onto that entry showed "Newest
+  first" under an address that still said `sort=relevance`. Corrected: the entry's address is rewritten when the
+  visitor lands on it, as a load of it already was.
+- **Pass 4** (three agents: tests with 25 mutants, 23 killed and 2 equivalent; an adversarial replay; Lighthouse).
+  The rewrite holds, and 398 step records against the logs of pass 3 show no regression. Lighthouse 13.4.1 on 15
+  pages, mobile and desktop (30 runs): accessibility, best practices and SEO 100 in every run, each audit equal to
+  the pass-2 report of the same page, and no console error or warning at either width. Found: when Chrome loads a
+  Trips entry again from history (a jump back over two entries, or after it has dropped the page from its cache), it
+  refills the form's controls after the page's script, with the values of the view that was on screen when the
+  visitor left, so the Sort, Year or write-up control could show another entry's value; the jump case was already in
+  `dbce17b`. Fixed with `autocomplete="off"` on the two filter forms.
+- **Pass 5** (two agents: a replay with a load probe, and Lighthouse on the changed pages). On 60 Trips documents
+  loaded again from history the controls now have the address's values at `DOMContentLoaded` and do not change
+  afterwards; the build before the fix had a control changed on 46 of 60 and `dbce17b` on 28 of 60. The Tick list had
+  the same fault and agrees in 27 of 27 runs. 1,104 step records against the build before show those differences
+  and five of driver noise (scroll positions, the order of popstates), which re-runs showed to vary within one
+  build. Found: the journal's "write-ups only" box is refilled in the same way, on the public site as well
+  (fixed with the same attribute). In the same pass a reading of ticklist.js showed that the Tick list still had the
+  Back defect fixed on Trips; the rule moved to explore.js and the Tick list follows it.
+- **Pass 6** (two agents: tests with 65 mutants, 61 killed and 4 equivalent; a replay). The Tick list: 16 sequences
+  with their variants and 14 extras, 41 in all, follow the rule on the build of this pass in every setting; `dbce17b` fails
+  it in 24 of them (Enter after the typing pause makes no entry and Back leaves the page). Trips: no state field
+  differs from the build before. The journal: 15 sequences, 130 documents loaded, the box never changed after
+  `DOMContentLoaded`, and box and list agree at every step. Three low points were found and left, none a regression
+  against `dbce17b` (report, 15.4): a filter clicked within about 150 ms of the last key drops the typed words;
+  words typed before the script arrives become the view the page opened on; at an address naming a hidden day the
+  journal's stored choice does not survive a reload.
+- **The documents** (two readers, after pass 6, then a third on their corrections). In the guides: two statements
+  were false (the journal's filter was said not to have existed on the public site, where it exists and starts
+  switched off, in two guides; a count of Node processes was stale), and twelve were incomplete, loose or
+  unsupported, 17 defects in all, among them what the Trips tests read after each step,
+  where the Tick list's `popstate` differs from the Trips page's, which pages count a planned route, and "about a
+  minute" for a deploy whose tests alone now take about that long. In this entry and the report: a Lighthouse pass
+  attributed to the final build that had run on the build of the fourth pass; the Phase 5 Lighthouse statements
+  left uncorrected; "all 478 ids" for 475 of 478; mutants called single-line that were not all so; open points
+  that had been left off the list; and what has to be decided before a push rather than after. The same false
+  sentence about the filter stood in a comment of series.js and of one test, and two comments in trips.js and
+  ticklist.js named `write()` where `address()` was meant: corrected, which changes comment lines of the bundle and
+  nothing else. Five rows of earlier entries of this log also gained a commit id, a forward pointer or a narrower
+  wording. Lighthouse was then run on all 15 pages of the final build. The third reader found 42 of the 46
+  corrections sound; the others (a count of Node processes corrected to a wrong number, the photo choices listed
+  as a matter for before the push, one sentence on which low points are new, one breakdown of the mutants) and five
+  smaller wordings were corrected in turn.
+
+### Remaining issues and author inputs
+
+Listed in `docs/IMPLEMENTATION_REPORT.md`, section 15.4. In short: of the files that become public for the first
+time, four are worth a read first (`ADDING-TRIPS.md`, the privacy notes and their tool, the plan), and that and the
+co-author lines of the commits have to be settled before a push; the cover photos, focal points and one search
+alias were chosen for the author and can be changed afterwards; the deploy job has never run, and the runner's Node is a
+version nothing here was tested with; the journal's default view hides three days that have photographs; one map pin
+counts the planned route in with reports, on the public site as well. Left as they are in the Trips page's history,
+all low: a year link followed between search actions leaves an entry that Back passes through with nothing changing
+on screen; Enter on a box holding only spaces or punctuation makes an entry whose list is the plain one; "Best match"
+can be picked with an empty box, where it orders nothing.

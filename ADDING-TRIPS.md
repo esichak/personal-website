@@ -247,7 +247,7 @@ yourself (`index.md`, a `days/NN.md`), compare it with the original first, becau
 newer text. Then delete the copy.
 
 Only the `main` branch is published. On every push to `main` GitHub runs the unit tests and `build.py --check`, and
-deploys when both pass; the trip is live about a minute later. A push to any other branch runs nothing and the site
+deploys when both pass; the trip is live a few minutes later. A push to any other branch runs nothing and the site
 stays as it was. `git branch --show-current` says which branch you are on. If it is not `main`, the push publishes
 nothing, and on a branch that was never pushed `git push` stops with
 `fatal: The current branch <name> has no upstream branch`. The trip goes live only when its commit is on `main` and

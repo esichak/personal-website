@@ -14,7 +14,8 @@ Adding a finished trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); homepage fea
   you do go, the outing is a separate report, added with `add_trip.py` from your own recording; the goal gets an
   `outings` entry pointing at that report, and the report (single-day, multi-day or a journal) gets an automatic "On the tick list" line pointing back.
   Nothing is counted twice: goals never enter report counts, completed mileage, the Trips page, search, the home
-  page or the RSS feed.
+  page's featured and recent cards or the RSS feed. Where a page mentions them it says so: "+ 1 PLANNED ROUTE" beside
+  a count of reports, a row under "Planned", or a row marked PLANNED at the end of a region's list.
 - **The minimum entry is a name and an activity.** A GPX, a region, notes and research are all optional. Saving an
   idea must take one command, not a questionnaire.
 - **Status is intent, not readiness.** `shortlisted` means you want to do it soon; it never means safe, in condition
@@ -99,7 +100,7 @@ message naming the field if a value is wrong (section 9). A `goal.json` beside a
 | `draft: true` | on creation | Off the site until removed. Not a goal status and not a privacy control. |
 | `place`, `region` | no | "Desolation Wilderness", "Lake Tahoe". Reuse an existing region name so the goal joins that group; without one it sits under "No region yet". Coordinates alone never become a place name. |
 | `route_shape` | no | `loop`, `out-and-back`, `point-to-point`, when you know it. |
-| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM): on the tick list, the goal page, the activity page's Planned rows and the map page's rows and table, where the top of the line is labelled "High point", not "GPS max". "Highest point in the file" is not "summit elevation". |
+| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM): on the tick list, the goal page, the Hiking page's Planned rows (the other activity pages count a planned route and do not list it) and the rows and table of the map page and of the goal's region page, where the top of the line is labelled "High point", not "GPS max". "Highest point in the file" is not "summit elevation". |
 | body | no | Planning notes, shown under the heading "Planning notes" (never "Trip report"). `add --notes` writes the first version. |
 
 **In `goal.json`:**
@@ -108,7 +109,7 @@ message naming the field if a value is wrong (section 9). A `goal.json` beside a
 | --- | --- | --- |
 | `status` | `idea` (default), `researching`, `shortlisted`, `attempted`, `completed` | Where the goal is in your head. Any direct change is allowed. `completed` needs an outing with outcome `completed` (and vice versa, until the goal is reopened); `attempted` needs an outing with outcome `attempted`. Set these with `log-outing`, not by hand; open a completed goal again with `update --reopen` (section 4.3). |
 | `priority` | `high`, `normal` (default), `someday` | Your ordering; the default sort on the list. Shown as "High priority" or "Someday"; normal shows nothing. |
-| `archived` | `true` / `false` (default) | Takes the goal out of the active list, the "+ N planned route" counts and the Planned rows on Home, the activity page, the About page and the map page's region lists; keeps its page, GPX and outcome. Separate from status, so an attempted or completed goal can be archived without losing its history. The region maps are drawings: its dashed line leaves them the next time `python3 tools/render.py --site` runs (needs internet). The same goes for a completed goal. |
+| `archived` | `true` / `false` (default) | Takes the goal out of the active list, the "+ N planned route" counts (Home, the activity pages, the About page, the map page and its region's page) and the Planned rows (the Hiking page, the map page's region lists and table, its region's page); keeps its page, GPX and outcome. Separate from status, so an attempted or completed goal can be archived without losing its history. The region maps are drawings: its dashed line leaves them the next time `python3 tools/render.py --site` runs (needs internet). The same goes for a completed goal. |
 | `tags` | list of short text | `scramble`, `ridge-traverse`, `couloir`, `backpacking`, and so on. Searchable on the list. |
 | `why` | one sentence | Your reason, in your words. Nobody else writes this. |
 | `added_at` | `YYYY-MM-DD` or `null` | The day the goal was saved; `add` sets it to today. Not a trip date. |
@@ -375,7 +376,7 @@ so `export > file.json` stays clean JSON): that is the list to review and `updat
      `content/trips/<slug>` alone.
    - For an intent change or an outing, the only file is `content/trips/<slug>/goal.json`.
 
-5. GitHub runs the tests and the same check on every push to the `main` branch, and publishes within about a minute.
+5. GitHub runs the tests and the same check on every push to the `main` branch, and publishes a few minutes later.
    A push to any other branch runs nothing. A bad field fails the deploy instead of publishing a broken list; the
    site just does not update until it is fixed. A warning does not hold a deploy back.
 

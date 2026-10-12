@@ -120,7 +120,10 @@ def controls(site):
         '<option value="%s">%s</option>' % (v, lab) for v, lab in SORTS)
     views = ''.join('<button type="button" role="radio" data-view="%s" aria-checked="%s" tabindex="%s">%s%s</button>'
                     % (v, 'true' if i == 0 else 'false', '0' if i == 0 else '-1', icon(ic, 16), lab) for i, (v, lab, ic) in enumerate(VIEWS))
-    return ('<form class="trx-form wrap" role="search" id="search" action="" hidden>'
+    # autocomplete="off" on the form: the address is the state and the script sets the controls from it. A browser that
+    # refills a form on Back / Forward does so after the script has run, with the values of the view that was on screen
+    # when the visitor left the page, which need not be the entry they come back to
+    return ('<form class="trx-form wrap" role="search" id="search" action="" autocomplete="off" hidden>'
             '<label class="sr" for="trx-q">Search trips</label>'
             '<input class="trx-q" type="search" id="trx-q" name="q" placeholder="Search by name, place, region, activity or peak" autocomplete="off" maxlength="200">'
             '<div class="trx-filters">'

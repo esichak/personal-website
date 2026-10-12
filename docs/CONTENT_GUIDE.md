@@ -234,6 +234,7 @@ is the value found in the file. `photos[1]` and `beta[0]` count entries from 0: 
 | `content/home.json: …` | `featured_slugs` is not a list | Wrap the slugs in `[ ]`, even for one slug. |
 | `content/home.json: …` | an entry is not text, or is empty | Every entry is a quoted slug; delete `""`. |
 | `content/home.json: …` | a slug is listed twice (named) | Remove the repeat. |
+| `content/home.json: "featured_slugs" is written twice; keep one` | the key stands twice inside the one pair of braces, for example a second `"featured_slugs": [...]` added after the first (a whole second `{...}` line pasted under the first is reported as malformed JSON, first row) | Delete one of the two lists. |
 | `content/home.json: unknown slug '…' in featured_slugs` | no such folder in `content/trips/` | Check the spelling against `ls content/trips/`. |
 | `content/home.json: …` | the slug is a draft (named) | Remove `draft: true` from that trip's `index.md`, or take it out of the list. |
 | `content/home.json: …` | the slug is a planned route (named) | Planned routes cannot be featured; take it out of the list. |
@@ -674,6 +675,10 @@ Without JavaScript there is no toggle and every day shows.
   month list, Back or Forward): the filter is switched off, screen readers hear "Showing all 150 days", and the page
   scrolls to the target. The same happens when a link to a hidden day or month is followed while the address already
   ends with that fragment.
+- An address that names a hidden day's title or number, or a hidden month's heading (`#day-5-2-t`, `#day-5-2-n`,
+  `#month-2024-07-h`), opens that day or month in the same way. No page links to these, but the public site has
+  always had these ids, and there the day log opens on every day (the filter is off until a reader switches it on),
+  so a saved link may name one.
 - A link to a written entry or to a month with write-ups leaves the filter as it is. When such a link opens the page
   with the filter on, the page scrolls to the target again after the filter has hidden the other days. It does not do
   that on a reload or on Back / Forward: the browser returns the reader to where they were, and the page leaves them

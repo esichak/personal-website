@@ -1,8 +1,17 @@
 """Phase 1: homepage curation from content/home.json (tools/sitegen/curation.py).
 
 Every manifest here is written to a temp path and passed as `path` / `trips_dir`; content/home.json is never touched.
+
+Review gate (fix D): a key written twice in the manifest is an error that names the key (json itself keeps the last
+one and says nothing), in the top-level object or in one inside it. DuplicateKeyTests holds curation.load_manifest to
+that; DuplicateKeyReportTests reads what the content checks (checks.run), tools/validate.py and tools/build.py say
+about such a manifest, on the synthetic repository of tests/test_build_site.py: one ERROR line, and the build stops
+before its output folder is touched.
 """
+import contextlib
+import importlib
 import inspect
+import io
 import json
 import os
 import sys
@@ -349,6 +358,210 @@ class RegisteredSiteTests(unittest.TestCase):
         CurationTests('test_initial_three_resolve_in_order').run(result)
         self.assertEqual((result.testsRun, result.errors, result.failures), (1, [], []))
         self.assertEqual(core._REGION_PAGES, {})
+
+
+# ---------------------------------------------------------------- review gate, fix D: a key written twice
+
+TWICE = 'content/home.json: "%s" is written twice; keep one'
+
+
+class DuplicateKeyTests(unittest.TestCase):
+    """curation.load_manifest on a manifest that names a key twice. The site and the temp folder are the fixture of
+    CurationTests (its setUp, used as RegisteredSiteTests uses it)."""
+
+    def setUp(self):
+        fixture = CurationTests('test_constants')
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        self.root, self.site, self.write_manifest = fixture.root, fixture.site, fixture.write_manifest
+
+    def error(self, raw):
+        """The message load_manifest refuses this manifest text with (the test fails when it is not refused)."""
+        path = self.write_manifest(raw, name='twice.json')
+        with self.assertRaises(curation.CurationError) as cm:
+            curation.load_manifest(path)
+        return str(cm.exception)
+
+    def test_featured_slugs_written_twice_is_refused_whichever_list_comes_last(self):
+        a, b = json.dumps(INITIAL), json.dumps(['peak-bagging-szn', 'extra-a'])
+        for first, last in ((a, b), (b, a), (a, a), (a, '[]'), ('[]', a), ('[]', '[]'), ('["no-such-trip"]', a), (a, '"not a list"')):
+            with self.subTest(first=first, last=last):
+                raw = '{"featured_slugs": %s, "featured_slugs": %s}' % (first, last)
+                # json alone reads this without a word and keeps the last list
+                self.assertEqual(json.loads(raw), {'featured_slugs': json.loads(last)})
+                self.assertEqual(self.error(raw), 'content/home.json: "featured_slugs" is written twice; keep one')
+                self.assertEqual(self.error(raw), TWICE % 'featured_slugs')
+                with self.assertRaises(curation.CurationError) as cm:
+                    curation.featured_for(self.site, path=self.write_manifest(raw, name='twice.json'))
+                self.assertEqual(str(cm.exception), TWICE % 'featured_slugs')
+
+    def test_it_is_refused_however_the_file_is_laid_out(self):
+        for raw in ('{\n  "featured_slugs": ["extra-a"],\n\n  "featured_slugs": ["extra-b"]\n}\n',
+                    '{"featured_slugs":["extra-a"],"note":"between","featured_slugs":["extra-b"]}',
+                    '{"featured_slugs": ["extra-a"], "featured_slugs": ["extra-a"], "featured_slugs": ["extra-a"]}',
+                    '{"featured_slugs": ["extra-a"], "featured\\u005fslugs": ["extra-b"]}'):      # the same key, escaped
+            with self.subTest(raw=raw):
+                self.assertEqual(self.error(raw), TWICE % 'featured_slugs')
+
+    def test_another_key_written_twice_names_that_key(self):
+        self.assertEqual(self.error('{"note": "one", "featured_slugs": ["extra-a"], "note": "two"}'), TWICE % 'note')
+        self.assertEqual(self.error('{"featured_slugs": ["extra-a"], "tick_list_slugs": [], "tick_list_slugs": []}'), TWICE % 'tick_list_slugs')
+        self.assertEqual(self.error('{"": 1, "": 2}'), TWICE % '')
+        # the first key that comes round a second time is the one named
+        self.assertEqual(self.error('{"b": 1, "a": 1, "a": 2, "b": 2}'), TWICE % 'a')
+        # a key that only looks alike is another key
+        path = self.write_manifest('{"featured_slugs": ["extra-a"], "Featured_slugs": [], "featured_slugs ": []}', name='alike.json')
+        self.assertEqual(sorted(curation.load_manifest(path)), ['Featured_slugs', 'featured_slugs', 'featured_slugs '])
+
+    def test_a_key_repeated_in_a_nested_object_is_caught_too(self):
+        self.assertEqual(self.error('{"featured_slugs": ["extra-a"], "notes": {"why": "one", "why": "two"}}'), TWICE % 'why')
+        self.assertEqual(self.error('{"featured_slugs": [{"slug": "extra-a", "slug": "extra-b"}]}'), TWICE % 'slug')
+        self.assertEqual(self.error('{"a": {"b": {"c": [1, {"deep": 1, "deep": 1}]}}, "featured_slugs": []}'), TWICE % 'deep')
+        # the same key in two different objects is written once in each
+        path = self.write_manifest('{"featured_slugs": ["extra-a"], "x": {"note": 1}, "y": {"note": 2, "featured_slugs": 3}}', name='apart.json')
+        self.assertEqual(curation.load_manifest(path), {'featured_slugs': ['extra-a'], 'x': {'note': 1}, 'y': {'note': 2, 'featured_slugs': 3}})
+
+    def test_a_manifest_with_distinct_keys_loads_as_before(self):
+        for data in ({'featured_slugs': INITIAL}, {'featured_slugs': []}, {}, {'featured_slugs': INITIAL, 'note': 'x', 'more': {'a': [1, {'b': None}]}},
+                     {'featured': INITIAL}):
+            with self.subTest(data=data):
+                raw = json.dumps(data)
+                loaded = curation.load_manifest(self.write_manifest(raw, name='once.json'))
+                self.assertEqual(loaded, json.loads(raw))
+                self.assertIs(type(loaded), dict)
+                self.assertEqual(list(loaded), list(data))               # in the order written
+        loaded = curation.load_manifest(self.write_manifest({'featured_slugs': INITIAL, 'more': {'a': 1}}, name='once.json'))
+        self.assertIs(type(loaded['more']), dict)
+        # and resolves as before, the unknown keys ignored here (the content checks warn about them)
+        path = self.write_manifest({'note': 'x', 'featured_slugs': ['peak-bagging-szn', 'extra-b']}, name='once.json')
+        self.assertEqual(slugs(curation.featured_for(self.site, path=path)), ['peak-bagging-szn', 'extra-b'])
+
+    def test_invalid_json_still_says_not_valid_json(self):
+        for raw in ('{"featured_slugs": [', '', 'featured_slugs: [a, b]', '{"featured_slugs": ["a",]}',
+                    '{"featured_slugs": ["a"], "featured_slugs": ["b"]',          # twice, and the object is never closed
+                    "{'featured_slugs': ['a'], 'featured_slugs': ['b']}"):
+            with self.subTest(raw=raw):
+                msg = self.error(raw)
+                self.assertTrue(msg.startswith('content/home.json: not valid JSON ('), msg)
+                self.assertTrue(msg.endswith(')'), msg)
+                self.assertNotIn('written twice', msg)
+        # and the message for a key written twice is that message alone, not wrapped as a JSON error
+        msg = self.error('{"featured_slugs": [], "featured_slugs": []}')
+        self.assertNotIn('not valid JSON', msg)
+        self.assertEqual(msg.count('content/home.json'), 1)
+
+    def test_the_other_refusals_keep_their_messages(self):
+        self.assertEqual(self.error('["extra-a"]'),
+                         'content/home.json: the top-level value must be a JSON object such as {"featured_slugs": [...]}')
+        with self.assertRaises(curation.CurationError) as cm:
+            curation.featured_for(self.site, path=self.write_manifest({'featured_slugs': ['extra-a', 'extra-a']}, name='dup.json'))
+        self.assertEqual(str(cm.exception), "content/home.json: duplicate slug 'extra-a' in featured_slugs")
+        self.assertIsNone(curation.load_manifest(os.path.join(self.root, 'absent.json')))
+
+
+class DuplicateKeyReportTests(unittest.TestCase):
+    """What a writer is told about a manifest with "featured_slugs" twice: by the content checks, by tools/validate.py
+    and by tools/build.py, which stops before it touches its output folder. The content is the synthetic repository of
+    tests/test_build_site.py (write_site) in a temp folder, with its home.json rewritten."""
+
+    LINE = 'ERROR content/home.json: "featured_slugs" is written twice; keep one'
+    RAW = '{\n  "featured_slugs": ["synb-story", "synb-tour"],\n  "featured_slugs": ["synb-tour"]\n}\n'
+
+    def setUp(self):
+        import test_build_site as fixture        # the module, for its fixture: none of its tests is loaded from here
+        self.fixture = fixture
+        self.build = importlib.import_module('build')
+        self.checks = importlib.import_module('checks')
+        self.validate = importlib.import_module('validate')
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = tmp.name
+        fixture.write_site(self.root)
+        self.content = os.path.join(self.root, 'content')
+        self.home = os.path.join(self.content, 'home.json')
+        self.out = os.path.join(self.root, '_site')
+
+    def twice(self):
+        with open(self.home, 'w', encoding='utf-8') as fh:
+            fh.write(self.RAW)
+
+    def run_checks(self):
+        return self.checks.run(os.path.join(self.content, 'trips'), self.home, os.path.join(self.root, 'rendered'), self.fixture.TODAY)
+
+    def captured(self, fn, *args):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = fn(*args)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_the_fixture_is_clean_until_the_key_is_written_twice(self):
+        self.assertEqual(self.checks.errors(self.run_checks()), [])
+        self.twice()
+        self.assertEqual(json.loads(self.RAW), {'featured_slugs': ['synb-tour']})          # what json would have kept
+        errors = self.checks.errors(self.run_checks())
+        self.assertEqual(errors, [{'level': 'error', 'file': 'content/home.json',
+                                   'text': 'content/home.json: "featured_slugs" is written twice; keep one'}])
+        self.assertEqual([self.checks.line(f) for f in errors], [self.LINE])
+        # one finding about the manifest, and no other: nothing is said about the slugs of a list that was not chosen
+        self.assertEqual([f['text'] for f in self.run_checks() if f['file'] == 'content/home.json'], [errors[0]['text']])
+
+    def test_validate_prints_the_one_error_line_and_exits_1(self):
+        argv = ['--content', self.content, '--today', self.fixture.TODAY.isoformat(), '-q']
+        code, out, err = self.captured(self.validate.main, argv)
+        self.assertEqual((code, err), (0, ''))
+        clean = out
+        self.assertRegex(clean, r'\Acontent: 0 errors, \d+ warnings, \d+ notes \(10 trips, 3 photos, 8 GPX files\)\n\Z')
+        self.twice()
+        code, out, err = self.captured(self.validate.main, argv)
+        self.assertEqual((code, err), (1, ''))
+        self.assertEqual(out, self.LINE + '\n' + clean.replace('content: 0 errors', 'content: 1 errors'))
+        code, out, _err = self.captured(self.validate.main, argv[:-1] + ['--json'])
+        self.assertEqual(code, 1)
+        self.assertEqual([f for f in json.loads(out) if f['level'] == 'error'],
+                         [{'level': 'error', 'file': 'content/home.json', 'text': self.LINE[len('ERROR '):]}])
+
+    def test_the_build_stops_with_that_line_before_the_output_folder_is_touched(self):
+        self.twice()
+        before = self.fixture.files_of(self.out)
+        self.assertEqual(before, ['stale/index.html', 'trips/synb-gone/synb-gone.gpx'])     # what an earlier build left
+        with self.fixture.redirected(self.root) as out_dir:
+            self.assertEqual(out_dir, self.out)
+            for argv in ([], ['--check'], ['--only', 'home']):
+                with self.subTest(argv=argv):
+                    code, out, err = self.captured(self.build.main, argv)
+                    self.assertEqual((code, out, err), (1, '', self.LINE + '\n'))
+                    self.assertEqual(self.fixture.files_of(self.out), before)
+            # a folder named with --out is not made either
+            other = os.path.join(self.root, 'elsewhere')
+            code, out, err = self.captured(self.build.main, ['--out', other])
+            self.assertEqual((code, out, err), (1, '', self.LINE + '\n'))
+            self.assertFalse(os.path.exists(other))
+        self.assertFalse(os.path.exists(os.path.join(self.out, self.build.BUILD_MARK)))
+
+    def test_the_build_itself_refuses_the_manifest_should_the_checks_be_passed(self):
+        # the second line of defence: build() reads the manifest (curation.featured_for) before it empties the output
+        # folder, so with the content checks standing aside the same message stops it, and nothing has been removed
+        self.twice()
+        before = self.fixture.files_of(self.out)
+        with self.fixture.redirected(self.root):
+            with mock.patch.object(self.checks, 'run', lambda *a, **kw: []):
+                code, out, err = self.captured(self.build.main, [])
+            self.assertEqual((code, out, err), (1, '', self.LINE + '\n'))
+            self.assertEqual(self.fixture.files_of(self.out), before)
+            with self.assertRaises(curation.CurationError) as cm:
+                self.build.build(verbose=False)
+            self.assertEqual(str(cm.exception), TWICE % 'featured_slugs')
+            self.assertEqual(self.fixture.files_of(self.out), before)
+
+    def test_with_the_key_once_the_same_content_builds(self):
+        # the control: the fixture as written builds, and the earlier build's files are replaced
+        with self.fixture.redirected(self.root):
+            code, _out, err = self.captured(self.build.main, [])
+        self.assertEqual((code, err), (0, ''))
+        files = self.fixture.files_of(self.out)
+        self.assertIn('index.html', files)
+        self.assertIn(self.build.BUILD_MARK, files)
+        self.assertNotIn('stale/index.html', files)
 
 
 if __name__ == '__main__':

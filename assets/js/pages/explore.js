@@ -1,6 +1,6 @@
 /* Shared helpers for the filterable lists (trips/ and tick-list/): text normalisation that mirrors
    tools/sitegen/search.py, the query-string state (parseState / serialize), matching and scoring over an index entry, a
-   snippet around a hit, and chip labels. Pure functions: no DOM. In the bundle they are window.Explore; under Node
+   snippet around a hit, chip labels, and the rule for history entries (historyStep). Pure functions: no DOM. In the bundle they are window.Explore; under Node
    (tests/trips_js_harness.js, tests/ticklist_js_harness.js) the file is a module. */
 (function () {
   'use strict';
@@ -78,7 +78,23 @@
     if (typeof value === 'boolean') return l || key;
     return (l || '') + n;
   }
-  var Explore = { norm: norm, tokens: tokens, parseState: parseState, serialize: serialize, match: match, score: score, snippet: snippet, chipLabel: chipLabel };
+  // What a change of view does to the browser's history. Typing rewrites the address of the current entry (no entry per
+  // keystroke); a deliberate change makes one new entry. kind: 'type' (the pause after typing, or the first write on
+  // load), 'pick' (a filter, the sort, the view, Clear all) or 'submit' (Enter in the search box). entry is the address
+  // this history entry stood for when the visitor last settled on it, now its address at this moment, next the address
+  // of the new view; recent: an entry was made a moment ago (arrow keys through a radio group make one, not one per
+  // step). Returns { push, restore }. A pick always adds an entry. A submitted search adds one whenever the view differs
+  // from the one the entry stood for, also when the pause has already written the typed words into the address; the
+  // entry is then put back to what it stood for (restore) before the new one is made, so that Back returns to the view
+  // from before the search and not to a second copy of its result.
+  function historyStep(kind, entry, now, next, recent) {
+    if (recent || kind === 'type') return { push: false, restore: false };
+    if (kind === 'pick') return { push: true, restore: false };
+    var push = next !== entry;
+    return { push: push, restore: push && now !== entry };
+  }
+  var Explore = { norm: norm, tokens: tokens, parseState: parseState, serialize: serialize, match: match, score: score, snippet: snippet, chipLabel: chipLabel,
+    historyStep: historyStep };
   if (typeof module === 'object' && module && module.exports) module.exports = Explore;
   else if (typeof window !== 'undefined') window.Explore = Explore;
 })();

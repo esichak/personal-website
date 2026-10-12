@@ -479,8 +479,10 @@ def day_log(t, here, months):
     toggle = ''
     if 0 < n_wu < n_days:
         # data-default="wu": series.js starts the filter on (written entries are the reader mode) unless the URL hash
-        # targets a day or month the filter would hide
-        toggle = ('<div class="ser-only" hidden><label class="ser-only-l"><input type="checkbox" id="ser-only" data-total="%d" data-wu="%d" data-default="wu">'
+        # targets a day or month the filter would hide. autocomplete="off": series.js sets the box (from the address and
+        # the reader's stored choice); a browser that refills it on Back / Forward does so after the script, without a
+        # change event, and the list would not follow the box
+        toggle = ('<div class="ser-only" hidden><label class="ser-only-l"><input type="checkbox" id="ser-only" autocomplete="off" data-total="%d" data-wu="%d" data-default="wu">'
                   '<span class="ser-only-long">Show days with write-ups only</span><span class="ser-only-short">Write-ups only</span>'
                   '</label></div>' % (n_days, n_wu))
     return ('<section class="ser-log wrap sec" id="days" aria-labelledby="days-h" style="--ser-act:%s">'

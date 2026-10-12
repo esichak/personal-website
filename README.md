@@ -55,7 +55,7 @@ with `other`). The script creates `content/trips/<slug>/` and renders its maps, 
    leaves conflict copies in this folder (`meta 3.json`, `index 2.md`). `.gitignore` hides the ones under `rendered/`
    and `assets/`, and the content check names one inside a trip's folder, but a copy can appear anywhere, which is
    why the list is read before the commit (ADDING-TRIPS.md, step 5, says what to do with one). Only a push to `main`
-   is published: GitHub runs the unit tests and `build.py --check`, and the site updates in about a minute. A push to
+   is published: GitHub runs the unit tests and `build.py --check`, and the site updates a few minutes later. A push to
    any other branch runs nothing, and on a branch that was never pushed `git push` stops with
    `fatal: The current branch <name> has no upstream branch`. `git branch --show-current` names the branch you are on.
 

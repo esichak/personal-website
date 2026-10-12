@@ -41,7 +41,7 @@ assets/css/base.css               tokens, type scale, layout, shared components
 assets/css/pages/<module>.css     page CSS (bundled after base.css into assets/site.css)
 assets/js/base.js (+ pages/*.js)  bundled into assets/site.js
 assets/css/pages/trips.css        the explorer: head, browse block, form, chips, year groups, .trx-grid and .trx--list
-assets/js/pages/explore.js        the pure helpers both lists share (norm, parseState, serialize, match, snippet, chipLabel): window.Explore
+assets/js/pages/explore.js        the pure helpers of the two lists (norm, tokens, parseState, serialize, match, score, snippet, chipLabel, historyStep): window.Explore
 assets/js/pages/trips.js          the explorer's behaviour: URL state, history, search.json / journal.json fetch, match / score,
                                   journal-day hits (node-testable)
 assets/js/pages/ticklist.js       the tick list's behaviour: scope, filters over data attributes, priority / added / name order (node-testable)
@@ -287,13 +287,34 @@ menu button below 1140px.
     `mtb` | `other`), `region` (slug), `year`, `format` (`trip` | `multi-day` | `series`), `writeup` (`1`), `sort`
     (`newest` | `oldest` | `relevance`), `view` (`cards` | `list`). Unknown keys are dropped and values the page does not
     offer fall back to the default (`parseState` in trips.js); the `<select>` option values, the chips' `data-filter` and
-    the cards' data attributes are the same strings. Typing applies after 150 ms with `replaceState`; every other
-    control, a chip's remove button and Clear all use `pushState` (Back steps through filters, never keystrokes);
-    `popstate` re-reads the URL; arrow-key steps through a radio group within 600 ms share one entry. The load-time
-    write keeps the fragment (`trips/#search` focuses the box after the first render and on a same-page click;
-    `trips/#y-2024` still scrolls); later writes drop it. A query switches the sort to relevance and clearing it back to
-    newest unless a sort was chosen explicitly (choosing Newest first counts); oldest and relevance move the visible cards
-    into the `#trx-sorted-sec` section (its h2 names the order), newest moves them back into their year groups.
+    the cards' data attributes are the same strings. The load-time write keeps the fragment (`trips/#search` focuses
+    the box after the first render and on a same-page click; `trips/#y-2024` still scrolls); later writes drop it,
+    except the rewrite of an entry that Back or Forward lands on (Sort, below), which keeps the fragment that entry
+    had.
+  - History: Back steps through deliberate changes, never keystrokes. `Explore.historyStep(kind, entry, now, next,
+    recent)` → `{push, restore}`, in explore.js and shared with the tick list (trips.js also exports it as
+    `TRX.historyStep`), decides each write. Typing (`'type'`, applied after 150 ms) rewrites the current entry with
+    `replaceState`. A filter, the sort menu, the view switch, a chip's remove button and Clear all (`'pick'`) add an
+    entry with `pushState`. Enter in the search box (`'submit'`) adds an entry whenever the view differs from the one
+    the entry stood for, also when the typing pause has already written the words into the address; the entry is then
+    first put back to the view it stood for (`restore`), so Back from a submitted search shows the list from before
+    the search and not a second copy of its result. Enter again on the same search adds nothing. A change within
+    600 ms of the last new entry rewrites that entry (`recent`: arrow keys through a radio group make one entry). The
+    page keeps two addresses for this: `entryUrl`, what the current entry stood for when the visitor last settled on
+    it, and `nowUrl`, what it carries at this moment. Both are built by `address()` and never read back from
+    `location`, which spells an apostrophe `%27`. `popstate` re-reads the URL, except when only the fragment changed
+    (a year link, and Back from one), and `hashchange` settles the entry on the view on screen.
+  - Sort: a query switches the sort to relevance unless a sort was chosen explicitly (choosing Newest first counts).
+    Without search words Best match does not stay (`sortForSearch`, which asks `TRX.clearedSort(sort, userSort)` →
+    `[sort, still chosen]`): emptying the box by hand, Clear all and removing the search chip go back to newest unless
+    the visitor chose Oldest first, which stays. An address with `sort=relevance` and no search is rewritten without
+    the sort, on load and when Back or Forward lands on it. The one way to that state is picking Best match in the
+    menu while the box holds no search words: the entry it makes says `sort=relevance`, and so does every entry a
+    filter or the view switch adds after it, while the list stays newest first (the renderer orders by relevance only
+    with a query). Each such entry is rewritten when Back or Forward lands on it from an entry with another query
+    string (after a jump to a year heading and back, the handler does not read the address); typing words and removing
+    them, or Clear all, also puts the sort back to newest. Oldest and relevance move the visible cards into the
+    `#trx-sorted-sec` section (its h2 names the order), newest moves them back into their year groups.
   - `search.json` is fetched the first time a non-empty query is applied; while it loads or after it failed the query
     hides nothing and does not count as a filter (the count stays `N REPORTS`) and `#trx-msg` (`role="status"`) says so.
     A failed index is asked for again once the search box has been cleared or changed, also when the same words are
@@ -346,9 +367,11 @@ menu button below 1140px.
     the note under the box reads `Loading search…` meanwhile, and the journal request is given up as failed after
     `DAYS_WAIT` (8 s), so the wait is bounded. The link is followed by script (`toDays`: scroll to `#trx-days`, focus
     its heading; `preventDefault`), because a `#trx-days` fragment in the address would not land on a list that is
-    filled after loading. The `popstate` handler ignores a navigation that left the query string unchanged (a jump to
-    a year heading; it compares `location.search` with what the browser held after the last write), so the automatic
-    sort a search puts in the URL is never taken for the visitor's own choice. `Show all` belongs to one query: any
+    filled after loading. The `popstate` handler does not re-read the address after a navigation that left the query
+    string unchanged (a jump to a year heading, and Back from one; it compares `location.search` with what the
+    browser held after the last write or the last Back or Forward onto another view): it only settles the entry on
+    the view on screen, as `hashchange` does, so the automatic sort a search puts in the URL is never taken for the
+    visitor's own choice. `Show all` belongs to one query: any
     other query (typing, Enter, Back / Forward) starts from five rows again; the button carries `aria-expanded`.
     `#trx-none` stays hidden while a day matches, and an empty `Best match first` head is hidden. The snippet is shown
     whole (trips.css `.trx-day-x` has no clamp). A day never gets a page or a trip entry of its own. Multi-day trips
@@ -360,9 +383,13 @@ menu button below 1140px.
     takes its control's value when that is off the default: a select, the ticked write-up box, the text typed. Text
     taken this way is sorted by relevance unless `TRX.ownSort(st, form, traversal)` says the visitor chose a sort, in
     the address or in the sort menu. `traversal` is true when the page was reached by Back or Forward
-    (`PerformanceNavigationTiming.type` is `back_forward`): the browser then puts the selects and the write-up box back
-    itself, to what it remembers, so they are not taken; the text is taken either way (the search box is
-    `autocomplete="off"`). The activity chips and the view switch are not read. Without JavaScript the form stays
+    (`PerformanceNavigationTiming.type` is `back_forward`): a browser may then have put the selects and the write-up box
+    back itself, to what it remembers, so they are not taken; the text is taken either way. The form is
+    `autocomplete="off"` (and so is the search box) so that browsers leave its controls alone: Chrome refills a form
+    after the deferred script has set the controls from the address, with the values of the view that was on screen
+    when the visitor left the page, which need not be the history entry they return to (seen after a jump back over
+    two entries, and whenever the page is loaded again from history). The activity chips and the view switch are not
+    read. Without JavaScript the form stays
     `hidden` (a `<noscript>` note says so) and the browse block and the year groups still hold every report: the block's
     activities lead to the section pages, its regions to `regions/<slug>/` when the region has a page
     (`core.region_page_href`, under Region pages below), else to `map/#region-<slug>` (`core.region_map_href`), else to
@@ -404,9 +431,13 @@ menu button below 1140px.
     added / text`); the route tile is its image, with 'Map not rendered yet' / 'Route not added yet' fallbacks.
   - ticklist.js state keys: `q, activity, region, status, priority, month, gpx (1), scope (active | shortlisted | completed
     | archived | all), sort (priority | added | name), view (cards | list)`; filtering is entirely from the cards' data
-    attributes (no index fetch); the history rules are trips.js's. The explorer's control classes (`.trx-*`) are reused.
+    attributes (no index fetch); the history rules are trips.js's (`Explore.historyStep`, with the page's own
+    `entryUrl` / `nowUrl`, `address()` and `write(kind, keepHash, settle)`), with two differences: there is no sort
+    rule to go with a search, and `popstate` re-reads the address also when only the fragment changed (the skip
+    link), which puts the box back to the address's words. The explorer's control classes (`.trx-*`) are reused.
     `TKL.goalShown(d, st, toks)` is the one predicate a card is shown by: the scope, then every filter, then every
-    search token in the card's `data-text`. The form is revealed as on trips/ (`core.reveal('search')`), and the script
+    search token in the card's `data-text`. The form is revealed as on trips/ (`core.reveal('search')`) and is
+    `autocomplete="off"` for the same reason, and the script
     starts from `TKL.adoptForm(st, form, traversal)` by the rules of trips.js: `form` is `{q, region, status, priority,
     month, sort}`, a key the URL leaves at its default takes its control's value, and after Back or Forward only the
     text is taken. Text taken this way changes no sort: the tick list has no relevance order.
@@ -602,10 +633,15 @@ menu button below 1140px.
   in `hiddenIds`. `landAfterLoad(filtered, hash, navType)` → true only when `filtered`, the hash names a day or a
   month, and `navType` (`PerformanceNavigationTiming.type`) is `''`, undefined or `'navigate'`; false for `'reload'`,
   `'back_forward'` and `'prerender'`. In the page:
-  - The hidden ids are those of `.ser-day:not(.has-wu)` and `.ser-month:not(.has-wu)`.
+  - The hidden ids are those of `.ser-day:not(.has-wu)` and `.ser-month:not(.has-wu)` and of every element with an id
+    inside one (a day's number `day-N-n` and title `day-N-t`, a month's heading `month-YYYY-MM-h`), each listed once.
+    The inner ids were link targets while the filter started switched off (the public site before Phase 3, which
+    made it start on), so an address that names one reveals its day or month.
   - On load the box is set to `startFiltered(default, location.hash, hidden)`, where `default` is the reader's stored
-    choice when there is one, else `data-default === 'wu'`. So a first load starts filtered unless the hash targets a
-    hidden day or month; then the filter stays off, the browser's own fragment scroll lands and nothing is announced.
+    choice when there is one, else `data-default === 'wu'`. So a first load starts filtered unless the hash names a
+    hidden id; then the filter stays off, the browser's own fragment scroll lands and nothing is announced. The box is
+    `autocomplete="off"` (series.py): Chrome otherwise refills it after the script when the page is loaded again by
+    Back or Forward, without a `change` event, and the list would not follow the box.
   - The reader's choice is `sessionStorage['ser-only:' + location.pathname]` (`'1'` | `'0'`), written when the toggle
     changes and on every `[data-ser-all]` click, also when the filter is already off (a link may have revealed the
     days; the choice must still hold after a reload). A reveal through a hash is not stored. Storage errors are
@@ -1200,9 +1236,11 @@ goes in:
 python3.12 -W error -m unittest discover -s tests          # 3.12, the version CI uses
 ```
 
-On 2026-10-10, at the end of Phase 5, the suite (2,339 tests) passed with the first of the two commands, on 3.9.6 in
-this checkout, in about 40 s, with no test skipped and none marked as an expected failure. CI runs the plain command,
-without `-W error`, and has no `node`, so the tests that run a Node harness skip there.
+On 2026-10-11, after the review before publication, the suite (2,424 tests in 40 files) passed with both commands,
+on 3.9.6 and 3.12.11 in this checkout, in about 70 s each, with no test skipped and none marked as an expected
+failure. CI runs the plain command, without `-W error`. GitHub's runner image has Node.js (22 on `ubuntu-latest` in
+October 2026), so the tests that run a Node harness run there too; they skip only where `node` is not installed (53
+tests then). They have only been run under Node 24 and 25.
 
 `tests/run_orders.py` is a helper, not a test module (discovery never loads it), for checking that the suite does not
 depend on the order of its test modules: nothing that one module registers with `sitegen.core` (the site, the regions
@@ -1216,13 +1254,24 @@ python3 tests/run_orders.py --shuffle 7     # shuffled with random.Random(7); an
 ```
 
 Four Node harnesses test the page scripts. Three test their pure functions: `tests/trips_js_harness.js` (trips.js),
-`tests/ticklist_js_harness.js` (explore.js and ticklist.js) and `tests/series_js_harness.js` (series.js, and with a page
-model the whole script against a stand-in for the browser). The fourth, `tests/maplist_js_harness.js`, runs base.js and
-archive.js as they are against a stand-in for a page with a region map and the list beside it, and plays a reader's
-pointer, focus and presses on it: which rows dim the map and which leave it as it is, and what `Show all N` and `Show
-fewer` focus and scroll to (Region pages, Script, above). `tests/test_trips_js.py`, `tests/test_ticklist_js.py`,
-`tests/test_series_js.py` and `tests/test_maplist_js.py` run them, also against modules and scripts with wrong answers
-that a harness must reject, and skip those tests when `node` is not installed; the build never runs node. By hand:
+`tests/ticklist_js_harness.js` (explore.js and ticklist.js) and `tests/series_js_harness.js` (series.js). Given a page
+model, each of the three also runs the whole script against a stand-in for the browser. `tests/test_trips_js.py` and
+`tests/test_ticklist_js.py` generate a Trips page and a Tick list page from synthetic sites and play a visitor's
+typing, Enter, filters, fragment links, Back and Forward on them. The Tick list checks read the history list, the
+position in it, the address, the box and the controls after every step (a test holds them to it); the Trips checks
+read the history list, the position and the address at the steps a sequence is about, and in the sequences about a
+corrected sort also the Sort menu and the order of the list. `tests/test_series_js.py` generates a journal page and
+plays a reader's presses, the toggle, hash changes, reloads and loads of each navigation type on the series harness's
+own stand-in, which keeps a session store and no history list. The stand-in for the Trips and Tick list pages is one
+file, `tests/page_standin.js` (a document grown from the generated page, a history list, a location spelled as the URL
+Standard spells it, timers and a clock); neither harness keeps a copy. `tests/js_fixtures.py` holds what the two
+Python files share, among it the wrong versions of `historyStep` that both harnesses must reject. Neither file is a
+test module. The fourth harness, `tests/maplist_js_harness.js`, runs base.js and archive.js as they are against a
+stand-in for a page with a region map and the list beside it, and plays a reader's pointer, focus and presses on it:
+which rows dim the map and which leave it as it is, and what `Show all N` and `Show fewer` focus and scroll to (Region
+pages, Script, above). `tests/test_trips_js.py`, `tests/test_ticklist_js.py`, `tests/test_series_js.py` and
+`tests/test_maplist_js.py` run them, also against modules and scripts with wrong answers that a harness must reject,
+and skip those tests when `node` is not installed; the build never runs node. By hand:
 
 ```bash
 node tests/trips_js_harness.js
@@ -1241,8 +1290,8 @@ What the test files cover:
   day anchors, write-ups verbatim, unchanged anchors and GPX names), `tests/test_journal_days.py` (day labels, the
   anchor checks, `core.recorded`, a journal of one day), `tests/test_series_js.py` with `tests/series_js_harness.js`
   (series.js's pure helpers, the hooks it looks up on a generated journal page, and the whole script run against a
-  stand-in for the browser, which starts about thirty short Node processes), the automatic cover pick in
-  `tests/test_cover.py`, and the journal-day cases in `tests/test_search.py`, `tests/test_trips_page.py` and
+  stand-in for the browser, which starts several dozen short Node processes: 58 since the review before
+  publication), the automatic cover pick in `tests/test_cover.py`, and the journal-day cases in `tests/test_search.py`, `tests/test_trips_page.py` and
   `tests/trips_js_harness.js`.
 - Phase 4:
   - `tests/test_checks.py`: `checks.run` on a small valid synthetic site that each test breaks in one way, asserting
@@ -1305,6 +1354,17 @@ What the test files cover:
   `tests/maplist_js_harness.js` (a row whose trip the map does not draw, `Show all N` and `Show fewer`), and
   `tests/test_a11y_static.py` (`MapListScriptTests`) reads the same two behaviours from base.js and archive.js
   without node.
+- The review before publication (2026-10-11): the Trips page's history and sort rules (`TripsPageScenarioTests` plays
+  the sequences, `TripsPageSourceTests` reads the handlers, both in `tests/test_trips_js.py`) and the same history
+  rule on the Tick list (`tests/test_ticklist_js.py`); the journal's hidden ids (`tests/test_series_js.py`); the
+  `autocomplete="off"` of the two filter forms and of the journal's box (the three page test files); the home page's
+  `latest-h` anchor (the id of the heading of the old home page's Latest reports list, kept on the Recent outings
+  section so that a saved `…/#latest-h` still lands; `LatestAnchorTests` in `tests/test_home.py`); a manifest key
+  written twice (`DuplicateKeyTests` in `tests/test_curation.py`); the 404 page (`tests/test_notfound_page.py`).
+  `tests/test_fixture_text.py` holds that no file under `tests/` quotes a write-up: it fails when eight consecutive
+  words of the text below a trip's or a day's front matter stand in a test file, and names the two files and the line,
+  not the words. Reword the test's sentence when it fires. Its check of the real `content/` is skipped where that
+  folder is absent.
 
 ## Measuring page loads
 This is the method the Phase 4 loading measurements used, written down so that a later change can be measured the same

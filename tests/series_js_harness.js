@@ -5,6 +5,9 @@
    hiding that entry, which hidden entry a followed link must reveal, and whether the page scrolls to the hash again once
    the filter has shortened it (only on a fresh visit, never on a reload or Back / Forward). Given a page model, also
    checks of the script's listeners (the "dom:" checks at the end of this file).
+   Review gate: an address that names an id inside a hidden day or month (a day's number and title, a month's heading)
+   reveals that day or month too; the helpers are as they were, the page hands them a longer list, with each id in it
+   once (round 3).
 
    Run by tests/test_series_js.py (skipped when node is missing); by hand:
    `node tests/series_js_harness.js [series.js [page-model.json [fault]]]`.
@@ -13,6 +16,8 @@
      run against a stand-in for the browser and the "dom:" checks are added.
    - fault: one thing that stand-in then fails to do (deliver an event, keep the session store, report the navigation
      type), to prove the "dom:" checks notice.
+     Or 'gap:<name>': also the check of that name, a case the page does not handle as said yet (GAPS, at the end:
+     none at present, so any name is refused).
    Every failed assertion throws, so the process exits non-zero. The ids are shaped like the page's own: a day article is
    day-<label> with a decimal label's dot as a dash (day-5-2), a month section is month-YYYY-MM, and the hidden list is what
    the filter hides (track-only days and months without a write-up). */
@@ -296,6 +301,57 @@ check('landAfterLoad survives a malformed escape', () => {
   assert.doesNotThrow(() => SER.landAfterLoad(true, '#%E0%A4%A', 'reload'));
 });
 
+// ---------------------------------------------------------------- ids inside a hidden day or month (review gate)
+
+// The page now lists, with each hidden day and month, every id inside it: a day's number (day-1-n) and title (day-1-t),
+// a month's heading (month-2024-06-h). The helpers are unchanged: they look an id up in the list they are handed, whole.
+const INSIDE = ['day-1', 'day-1-n', 'day-1-t', 'day-6', 'day-6-n', 'day-6-t', 'month-2024-06', 'month-2024-06-h'];
+check('inner ids: in the list, an id inside a hidden day or month is one the filter hides', () => {
+  for (const id of ['day-1-t', 'day-1-n', 'day-6-t', 'month-2024-06-h']) {
+    eq(SER.startFiltered(true, '#' + id, INSIDE), false, id);
+    eq(SER.revealId(true, '#' + id, INSIDE), id, id);
+    eq(SER.revealId(false, '#' + id, INSIDE), '', id + ', not filtered');
+    eq(SER.startFiltered(false, '#' + id, INSIDE), false, id + ', default off');
+  }
+});
+check('inner ids: the same ids of a written day or month are not in it, and keep the filter', () => {
+  for (const id of ['day-2-t', 'day-2-n', 'day-5-2-t', 'month-2024-04-h']) {
+    eq(SER.startFiltered(true, '#' + id, INSIDE), true, id);
+    eq(SER.revealId(true, '#' + id, INSIDE), '', id);
+  }
+});
+check('inner ids: the helpers do not work them out from the day or month they are in', () => {
+  // only the list decides: handed the days and months alone, as before the change, an inner id is not hidden
+  for (const id of ['day-1-t', 'day-1-n', 'month-2024-06-h']) {
+    eq(SER.startFiltered(true, '#' + id, HIDDEN), true, id);
+    eq(SER.revealId(true, '#' + id, HIDDEN), '', id);
+  }
+  eq(SER.startFiltered(true, '#day-1-title', INSIDE), true);      // whole ids, here too
+  eq(SER.revealId(true, '#day-1-', INSIDE), '');
+});
+check('inner ids: an id listed twice changes no answer', () => {
+  const twice = INSIDE.concat(INSIDE);
+  for (const id of ['day-1', 'day-1-t', 'month-2024-06-h', 'day-2', 'day-2-t', 'days']) {
+    eq(SER.startFiltered(true, '#' + id, twice), SER.startFiltered(true, '#' + id, INSIDE), id);
+    eq(SER.revealId(true, '#' + id, twice), SER.revealId(true, '#' + id, INSIDE), id);
+  }
+});
+check('inner ids: hashTarget and landAfterLoad take them for a day or a month', () => {
+  // so a fresh visit to a written day's title is landed on again once the filter has shortened the page
+  deq(SER.hashTarget('#day-2-t'), { kind: 'day', id: 'day-2-t' });
+  deq(SER.hashTarget('#month-2024-04-h'), { kind: 'month', id: 'month-2024-04-h' });
+  eq(SER.landAfterLoad(true, '#day-2-t', 'navigate'), true);
+  eq(SER.landAfterLoad(true, '#month-2024-04-h', 'navigate'), true);
+  eq(SER.landAfterLoad(true, '#day-2-t', 'reload'), false);
+  eq(SER.landAfterLoad(false, '#day-1-t', 'navigate'), false);
+});
+// last of the pure checks, so that a helper with a wrong answer is reported at its own check first
+check('signatures: the four helpers, with the arguments they took', () => {
+  deq(Object.keys(SER).sort(), ['hashTarget', 'landAfterLoad', 'revealId', 'startFiltered']);
+  deq([SER.hashTarget.length, SER.startFiltered.length, SER.revealId.length, SER.landAfterLoad.length], [1, 3, 3, 3],
+      'hashTarget(hash), startFiltered(defaultOn, hash, hiddenIds), revealId(filtered, hash, hiddenIds), landAfterLoad(filtered, hash, navType)');
+});
+
 // ---------------------------------------------------------------- the listeners, on a stand-in for the browser
 
 /* What the pure helpers cannot show: that the page code calls them at the right moments (contract sections 5 and 9, and
@@ -312,8 +368,14 @@ check('landAfterLoad survives a malformed escape', () => {
    reported as a fresh visit). Each must make a check below fail; tests/test_series_js.py runs them all. */
 const MODEL = process.argv[3] ? JSON.parse(fs.readFileSync(path.resolve(process.argv[3]), 'utf8')) : null;
 const SOURCE = MODEL ? fs.readFileSync(MODULE, 'utf8') : '';
-const FAULT = process.argv[4] || '';
+const GAP = /^gap:/.test(process.argv[4] || '') ? process.argv[4].slice(4) : '';
+const FAULT = GAP ? '' : process.argv[4] || '';
 assert.ok(['', 'hashchange', 'click', 'change', 'store', 'navigation'].indexOf(FAULT) !== -1, 'unknown fault: ' + FAULT);
+// Run in the page's own realm before the script: the lists the script then searches with indexOf. series.js keeps one,
+// the ids the filter hides, and searches it whenever an address names an id (startFiltered, revealId).
+const SPY = '(function () { var real = Array.prototype.indexOf, lists = [];'
+  + ' Array.prototype.indexOf = function () { var i = 0; while (i < lists.length && lists[i] !== this) i++;'
+  + ' if (i === lists.length) lists.push(this); return real.apply(this, arguments); }; return lists; })()';
 
 function load(opts) {
   opts = opts || {};
@@ -410,7 +472,9 @@ function load(opts) {
   const h = {};
   Object.keys(MODEL.handles).forEach((k) => { h[k] = els[MODEL.handles[k]]; });
 
-  vm.runInNewContext(SOURCE, { window: win, document: doc }, { filename: MODULE });
+  const context = vm.createContext({ window: win, document: doc });
+  const searched = vm.runInContext(SPY, context);
+  vm.runInContext(SOURCE, context, { filename: MODULE });
   flush();
 
   return {
@@ -420,6 +484,17 @@ function load(opts) {
     hash: () => win.location.hash,
     scrollY: () => win.scrollY,
     said: () => h.live.textContent,
+    // on the page: the element with this id is rendered (not under [hidden], not dropped by the filter's stylesheet rule)
+    rendered: (id) => {
+      const el = doc.getElementById(id);
+      assert.ok(el, 'the page has no element with the id ' + id);
+      return el.offsetParent !== null;
+    },
+    // the ids the script takes for hidden: the one list it searches, as it stands now (a copy)
+    hidden: () => {
+      eq(searched.length, 1, 'the script searched ' + searched.length + ' lists; this check expects the one list of hidden ids');
+      return Array.from(searched[0]);
+    },
     // true while only the written entries show; the checkbox and the class the stylesheet keys on must agree
     filtered: () => {
       eq(h.log.classList.contains(MODEL.filterClass), h.box.checked, 'the toggle and .' + MODEL.filterClass + ' disagree');
@@ -685,6 +760,134 @@ if (MODEL) {
     page.press(page.h.browse);               // the last word: every recording
     eq(page.again({ hash: '#days', navType: 'reload' }).filtered(), false, 'the older choice came back');
   });
+
+  // ---- review gate: an address that names an id inside a hidden day or month (its number, its title, a month's heading)
+
+  // ID.inHiddenDay: the number and the title of the hidden day; ID.inHiddenMonth: the heading of the hidden month and the
+  // title of a hidden day in it; ID.inShown: the same ids of a written day and of a month with write-ups
+  const IN_HIDDEN = ID.inHiddenDay.concat(ID.inHiddenMonth);
+
+  check('dom: the model names ids inside hidden and written entries', () => {
+    eq(ID.inHiddenDay.length, 2);
+    assert.ok(ID.inHiddenMonth.length >= 2 && ID.inShown.length >= 3);
+    const page = load();
+    eq(page.filtered(), true);
+    // while the filter is on, the first are not on the page and the others are: what an address to them lands on
+    for (const id of IN_HIDDEN) eq(page.rendered(id), false, id);
+    for (const id of ID.inShown) eq(page.rendered(id), true, id);
+    page.toggle(false);
+    for (const id of IN_HIDDEN.concat(ID.inShown)) eq(page.rendered(id), true, id + ', every day showing');
+  });
+  check('dom: a visit to the number or the title of a hidden day starts with every day, on that element', () => {
+    for (const id of ID.inHiddenDay) {
+      for (const navType of ['navigate', '', undefined, 'reload', 'back_forward']) {
+        const page = load({ hash: '#' + id, navType: navType });
+        eq(page.filtered(), false, id + ' ' + JSON.stringify(navType));
+        eq(page.rendered(id), true, 'the address names an element that is not on the page: ' + id);
+        eq(page.said(), '', 'a load that starts on every day announces nothing');
+        deq(page.scrolled, [], 'nothing was shortened: the browser\'s own jump to the fragment stands');
+      }
+      eq(load({ hash: '#' + id }).again().filtered(), true, 'a link that showed a hidden day is not a choice');
+    }
+  });
+  check('dom: a visit to the heading of a hidden month, or to a day inside it, starts with every day', () => {
+    for (const id of ID.inHiddenMonth) {
+      const page = load({ hash: '#' + id, navType: 'navigate' });
+      eq(page.filtered(), false, id);
+      eq(page.rendered(id), true, 'the address names an element that is not on the page: ' + id);
+      eq(page.said(), '');
+      deq(page.scrolled, []);
+    }
+  });
+  check('dom: a remembered "write-ups only" gives way to an address inside a hidden day', () => {
+    const page = load();
+    page.toggle(false);
+    page.toggle(true);                       // a choice: write-ups only
+    for (const id of IN_HIDDEN) eq(page.again({ hash: '#' + id }).filtered(), false, id);
+    eq(page.again().filtered(), true);
+  });
+  check('dom: a visit to the same ids of a written day or month keeps the filter and lands on the element', () => {
+    for (const id of ID.inShown) {
+      const page = load({ hash: '#' + id, navType: 'navigate' });
+      eq(page.filtered(), true, id);
+      eq(page.rendered(id), true, id);
+      eq(page.said(), '');
+      deq(Array.from(new Set(page.scrolled)), [id]);
+      deq(load({ hash: '#' + id, navType: 'reload' }).scrolled, [], id + ', on a reload');
+    }
+  });
+  check('dom: a hash change to an id inside a hidden day or month reveals it, says so and goes there', () => {
+    for (const id of IN_HIDDEN) {
+      const page = load();
+      eq(page.rendered(id), false, id);
+      page.go('#' + id);
+      eq(page.filtered(), false, id);
+      eq(page.said(), ALL, id);
+      deq(page.scrolled, [id]);
+      eq(page.rendered(id), true, id);
+      eq(page.again().filtered(), true, 'a link that showed a hidden day is not a choice');
+    }
+  });
+  check('dom: a hash change to the same ids of a written day or month leaves the filter on and says nothing', () => {
+    for (const id of ID.inShown) {
+      const page = load();
+      page.go('#' + id);
+      eq(page.filtered(), true, id);
+      eq(page.said(), '', 'nothing was hidden, so nothing is announced');
+      deq(page.scrolled, []);
+    }
+  });
+  check('dom: after the reader turns the filter on again, the same address reveals the day once more', () => {
+    const id = ID.inHiddenDay[1];
+    const page = load({ hash: '#' + id, navType: 'navigate' });
+    page.toggle(true);
+    eq(page.rendered(id), false);
+    page.go('#' + ID.shownDay);
+    eq(page.filtered(), true);
+    page.go('#' + id);
+    eq(page.filtered(), false);
+    eq(page.said(), ALL);
+    deq(page.scrolled.slice(-1), [id]);
+  });
+  // The list itself: a load with a fragment makes the script search it whatever the collecting code looks like.
+  const collected = () => load({ hash: '#' + ID.shownDay, navType: 'navigate' }).hidden();
+  check('dom: the ids the script takes for hidden are the hidden days and months and every id inside them', () => {
+    // MODEL.hiddenIds: what series.css takes out of the page while the filter is on, by id (tests/test_series_js.py)
+    deq(Array.from(new Set(collected())).sort(), MODEL.hiddenIds.slice().sort());
+    for (const id of IN_HIDDEN.concat([ID.hiddenDay, ID.hiddenMonth])) assert.ok(MODEL.hiddenIds.indexOf(id) !== -1, id);
+    for (const id of ID.inShown.concat([ID.shownDay, ID.shownMonth, 'days', 'ser-only', 'ser-live'])) eq(MODEL.hiddenIds.indexOf(id), -1, id);
+  });
+  check('dom: an id inside a hidden day of a hidden month is collected once', () => {
+    // MODEL.hiddenInside: the ids inside a hidden day or month that are not such a day or month themselves. The number
+    // and the title of a hidden day in a hidden month are met twice: inside the month, and inside the day
+    const list = collected();
+    assert.ok(MODEL.hiddenInside.length >= 6, 'the model names too few ids inside hidden entries');
+    for (const id of MODEL.hiddenInside) eq(list.filter((x) => x === id).length, 1, id);
+    for (const id of ID.inHiddenMonth) assert.ok(MODEL.hiddenInside.indexOf(id) !== -1, id + ' is not among them');
+  });
+  check('dom: every id the filter hides is listed once, a hidden day inside a hidden month too', () => {
+    // such a day is met twice as well: as an id inside its month, and as a hidden day in its own right
+    const list = collected();
+    deq(list.filter((id, i) => list.indexOf(id) !== i), [], 'ids listed more than once');
+    eq(list.length, MODEL.hiddenIds.length);
+    // the model has such a day: the one whose title is among the ids inside the hidden month
+    const days = ID.inHiddenMonth.filter((id) => /^day-.+-t$/.test(id)).map((id) => id.replace(/-t$/, ''));
+    assert.ok(days.length >= 1, 'the model names no hidden day inside the hidden month');
+    for (const id of days) {
+      assert.ok(MODEL.hiddenIds.indexOf(id) !== -1, id + ' is not hidden');
+      eq(list.filter((x) => x === id).length, 1, id);
+    }
+  });
+
+  // GAPS: a case in which the page does not do what is said of it. Run only when asked for ('gap:<name>', after every
+  // check above) by a test of tests/test_series_js.py that is marked as an expected failure; when the page is put
+  // right, the case becomes a check above. None at present: the one of round 2 (an id listed twice) is the check
+  // before this.
+  const GAPS = {};
+  if (process.argv[4] && /^gap:/.test(process.argv[4])) {
+    assert.ok(Object.prototype.hasOwnProperty.call(GAPS, GAP), 'unknown gap: ' + GAP);
+    check('gap: ' + GAP, GAPS[GAP]);
+  }
 }
 
 console.log('series_js_harness: ' + checks + ' checks passed');

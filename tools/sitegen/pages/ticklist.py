@@ -95,7 +95,8 @@ def controls(site):
         '<option value="%s">%s</option>' % (v, esc(lab)) for v, lab in SORTS)
     views = ''.join('<button type="button" role="radio" data-view="%s" aria-checked="%s" tabindex="%s">%s%s</button>'
                     % (v, 'true' if i == 0 else 'false', '0' if i == 0 else '-1', icon(ic, 16), lab) for i, (v, lab, ic) in enumerate(VIEWS))
-    return ('<form class="trx-form tkl-form wrap" role="search" id="search" action="" hidden>'
+    # autocomplete="off" on the form, as on the Trips page (trips.controls): the script sets the controls from the address
+    return ('<form class="trx-form tkl-form wrap" role="search" id="search" action="" autocomplete="off" hidden>'
             '<label class="sr" for="tkl-q">Search goals</label>'
             '<input class="trx-q" type="search" id="tkl-q" name="q" placeholder="Search by name, place, region, tag or note" autocomplete="off" maxlength="200">'
             '<div class="trx-filters">'

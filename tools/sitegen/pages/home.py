@@ -165,7 +165,9 @@ def recent(site):
     if not rows:
         return ''
     total = sum(1 for t in site['published'] if is_report(t))
-    return ('<section class="wrap sec hom-recent" aria-labelledby="recent-h">%s<ul class="hom-rcards tgrid">%s</ul>'
+    # id="latest-h": the address of the old home page's 'Latest reports' list (and of its hero button), kept so that a
+    # saved link to it still lands on the newest reports
+    return ('<section class="wrap sec hom-recent" id="latest-h" aria-labelledby="recent-h">%s<ul class="hom-rcards tgrid">%s</ul>'
             '<a class="btn hom-all" href="%s">All %d reports%s</a></section>'
             % (core.section_head('Recent outings', 'NEWEST FIRST', id_='recent-h'), ''.join(rcard(t) for t in rows),
                link(HERE, 'trips/'), total, icon('arrow-right', 18)))

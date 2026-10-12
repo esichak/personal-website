@@ -103,9 +103,9 @@
   // page lacks is left out). A key the URL sets keeps the URL's value, so a shared address still opens as it was
   // shared, and the control is put back to it. A key the URL leaves alone takes its control's value when that is off
   // the default: a select, the ticked write-up box, the text typed. traversal: the page was reached by Back / Forward,
-  // when the browser itself puts the selects and the box back to what it remembers, which need not be what this
-  // address says; they are then not taken. The text is taken either way (the box has autocomplete="off", so the
-  // browser never fills it).
+  // when a browser may put the selects and the box back to what it remembers, which need not be what this address
+  // says; they are then not taken. (The form is autocomplete="off" so that browsers leave the controls alone: Chrome
+  // refills them after this script has run.) The text is taken either way: the browser never fills the box.
   // ownSort: the sort is one the visitor chose, in the address or in the form. Without one, typed text means best match
   // first, as it does when typed after the script has arrived.
   var SELECTS = ['region', 'year', 'format', 'sort'];
@@ -135,8 +135,14 @@
   function mayLoad(indexState, failedFor, q) {
     return tokens(q).length > 0 && (indexState === 'idle' || (indexState === 'failed' && q !== failedFor));
   }
+  var historyStep = X.historyStep;   // what a change of view does to the browser's history: explore.js, shared with the tick list
+  // The sort Clear all leaves: the visitor's own choice stays, except Best match, which orders by a search that is no
+  // longer there. Returns [sort, whether it still counts as the visitor's choice].
+  function clearedSort(sort, userSort) {
+    return (userSort && sort !== 'relevance') ? [sort, true] : [DEFAULTS.sort, false];
+  }
   var TRX = { norm: norm, tokens: tokens, parseState: parseState, serialize: serialize, match: match, score: score, snippet: snippet, chipLabel: chipLabel, DEFAULTS: DEFAULTS,
-    adoptForm: adoptForm, ownSort: ownSort, stillFailed: stillFailed, mayLoad: mayLoad,
+    adoptForm: adoptForm, ownSort: ownSort, stillFailed: stillFailed, mayLoad: mayLoad, historyStep: historyStep, clearedSort: clearedSort,
     dayHits: dayHits, dayMeta: dayMeta, dayHref: dayHref, dayText: dayText, countText: countText, daysCount: daysCount, daysHead: daysHead,
     DAYS_SHOWN: DAYS_SHOWN, daysListed: daysListed, daysMoreText: daysMoreText, facetOk: facetOk, dayShown: dayShown, pending: pending, failText: failText, noteText: noteText,
     FAIL: FAIL, FAIL_REPORTS: FAIL_REPORTS, LOADING: LOADING };
@@ -190,6 +196,11 @@
   var daysAll = false, daysAllFor = null;         // 'Show all' belongs to one query: any other starts from the short list
   var daysFailedFor = null;                       // the query the journal index failed on (stillFailed, as failedFor)
   var lastSearch = location.search;              // the query string of the view on screen (write() and popstate keep it)
+  // History (historyStep): entryUrl is the address this history entry stood for when the visitor last settled on it,
+  // nowUrl the address it carries at this moment (typing rewrites it). Both are kept in the page's own spelling, as
+  // address() builds them, and never read back from location: the browser spells an apostrophe as %27, and a search for
+  // lover's would then look like a new view at every Enter.
+  var entryUrl = null, nowUrl = null;
   var bySlug = {};
   cards.forEach(function (c) { bySlug[c.dataset.slug] = c; });
 
@@ -255,6 +266,14 @@
     daysMore.setAttribute('aria-expanded', String(daysAll));
   }
   function searching() { return tokens(state.q).length > 0; }
+  // the sort that goes with the search box as it is now: best match while it holds words, unless the visitor chose a
+  // sort; without words, never best match (clearedSort), however the box was emptied or the address arrived
+  function sortForSearch() {
+    if (searching()) { if (!userSort) state.sort = 'relevance'; return; }
+    var kept = clearedSort(state.sort, userSort);
+    state.sort = kept[0];
+    userSort = kept[1];
+  }
   function anyFilter() {
     // the query counts as a filter only once the index has answered it (while it loads or after it failed nothing is hidden)
     return (searching() && indexState === 'ready') || FACETS.some(function (k) { return state[k] !== DEFAULTS[k]; });
@@ -280,8 +299,8 @@
     x.appendChild(p); b.appendChild(x);
     b.addEventListener('click', function () {
       state[key] = DEFAULTS[key];
-      if (key === 'q' && !userSort) state.sort = DEFAULTS.sort;
-      apply(true);
+      if (key === 'q') { var kept = clearedSort(state.sort, userSort); state.sort = kept[0]; userSort = kept[1]; }
+      apply('pick');
       q.focus();
     });
     li.appendChild(b);
@@ -379,16 +398,27 @@
     var h = document.getElementById('trx-days-h');
     if (h) h.focus({ preventScroll: true });
   }
-  // the canonical URL for the state; the fragment is kept on the first (load-time) write and dropped once the visitor acts
-  function write(push, keepHash) {
-    var qs;
-    try { qs = serialize(state); } catch (e) { return; }
-    var url = location.pathname + (qs ? '?' + qs : '') + (keepHash ? location.hash : '');
-    if (push && Date.now() - lastPush < 600) push = false;   // arrow keys through a radio group make one history entry, not one per step
+  // the canonical URL for the state, without a fragment
+  function address() {
+    var qs = serialize(state);
+    return location.pathname + (qs ? '?' + qs : '');
+  }
+  // the fragment is kept on the first (load-time) write and dropped once the visitor acts. kind: 'type', 'pick' or
+  // 'submit' (historyStep); settle: this write is what the entry now stands for (load)
+  function write(kind, keepHash, settle) {
+    var next;
+    try { next = address(); } catch (e) { return; }
+    if (entryUrl === null) entryUrl = nowUrl = next;   // the first write: the entry stands for the view the page opened on
+    var step = historyStep(kind, entryUrl, nowUrl, next, Date.now() - lastPush < 600);
     try {
-      history[push ? 'pushState' : 'replaceState'](null, '', url);
-      if (push) lastPush = Date.now();
+      if (step.restore) history.replaceState(null, '', entryUrl);
+      history[step.push ? 'pushState' : 'replaceState'](null, '', next + (keepHash ? location.hash : ''));
+      if (step.push) lastPush = Date.now();
       lastSearch = location.search;   // the browser's own spelling: it writes an apostrophe as %27
+      nowUrl = next;
+      // every deliberate change is what the entry now stands for, also a pick that rewrote the entry made a moment ago
+      // (arrow keys through the activities); only typing leaves it standing for the view from before
+      if (step.push || settle || kind !== 'type') entryUrl = next;
     } catch (e) { /* file:// */ }
   }
   // fetch what the search on screen needs: each index once, and again after a failure only when the query has changed
@@ -398,17 +428,19 @@
     if (mayLoad(indexState, failedFor, state.q)) loadIndex(render);
     if (mayLoad(daysState, daysFailedFor, state.q)) loadDays(render);
   }
-  function apply(push, keepHash) {
+  function apply(kind, keepHash, settle) {
     setControls();
     ask();
     render();
-    write(push, keepHash);
+    write(kind, keepHash, settle);
   }
   function clearAll() {
     state.q = DEFAULTS.q;
     FACETS.forEach(function (k) { state[k] = DEFAULTS[k]; });
-    if (!userSort) state.sort = DEFAULTS.sort;
-    apply(true);
+    var kept = clearedSort(state.sort, userSort);
+    state.sort = kept[0];
+    userSort = kept[1];
+    apply('pick');
     q.focus();
   }
   function focusSearch() { q.focus(); form.scrollIntoView({ block: 'start' }); }
@@ -417,10 +449,9 @@
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     clearTimeout(timer);
-    var changed = state.q !== q.value;
     state.q = q.value;
-    if (!userSort) state.sort = searching() ? 'relevance' : 'newest';
-    apply(changed);
+    sortForSearch();
+    apply('submit');
   });
   q.addEventListener('input', function () {
     clearTimeout(timer);
@@ -429,33 +460,46 @@
     daysFailedFor = stillFailed(daysFailedFor, q.value);
     timer = setTimeout(function () {
       state.q = q.value;
-      if (!userSort) state.sort = searching() ? 'relevance' : 'newest';
-      apply(false);
+      sortForSearch();
+      apply('type');
     }, 150);
   });
   if (daysSec) daysMore.addEventListener('click', function () { daysAll = !daysAll; render(); });
-  actBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.activity === b.dataset.filter) return; state.activity = b.dataset.filter; apply(true); }); });
-  viewBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.view === b.dataset.view) return; state.view = b.dataset.view; apply(true); }); });
-  ['region', 'year', 'format'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { state[k] = sel[k].value; apply(true); }); });
+  actBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.activity === b.dataset.filter) return; state.activity = b.dataset.filter; apply('pick'); }); });
+  viewBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.view === b.dataset.view) return; state.view = b.dataset.view; apply('pick'); }); });
+  ['region', 'year', 'format'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { state[k] = sel[k].value; apply('pick'); }); });
   // any choice in the sort menu, Newest first included, is the visitor's and stays while they type
-  if (sel.sort) sel.sort.addEventListener('change', function () { state.sort = sel.sort.value; userSort = true; apply(true); });
-  if (chk) chk.addEventListener('change', function () { state.writeup = chk.checked; apply(true); });
+  if (sel.sort) sel.sort.addEventListener('change', function () { state.sort = sel.sort.value; userSort = true; apply('pick'); });
+  if (chk) chk.addEventListener('change', function () { state.writeup = chk.checked; apply('pick'); });
   clearBtn.addEventListener('click', clearAll);
   Array.prototype.forEach.call(noneEl.querySelectorAll('[data-clear]'), function (b) { b.addEventListener('click', clearAll); });
   window.addEventListener('popstate', function () {
-    // a jump to a fragment (a year link) is not a change of view: re-reading the URL would take the automatic sort it
-    // carries for the visitor's own choice
-    if (location.search === lastSearch) return;
+    // a jump back to or from a fragment (a year link) is not a change of view: re-reading the URL would take the
+    // automatic sort it carries for the visitor's own choice. The entry the visitor is on now stands for that view
+    if (location.search === lastSearch) { entryUrl = nowUrl; return; }
     lastSearch = location.search;
     state = parseState(location.search, allowed);
     userSort = state.sort !== DEFAULTS.sort;
+    var arrived = state.sort;
+    if (!searching()) sortForSearch();                // an address with sort=relevance and no search
+    try {
+      entryUrl = nowUrl = address();                  // the entry stands for what it shows
+      // and its address says so: an entry that carried Best match without a search (the visitor picked it from the menu
+      // with an empty box) is rewritten, as the load rewrites such an address, so the menu and the address agree
+      if (state.sort !== arrived) { history.replaceState(null, '', nowUrl + location.hash); lastSearch = location.search; }
+    } catch (e) { /* keep what was */ }
     setControls();
     ask();
     render();
   });
   // the header's Search link is trips/#search: focus the box after the first render (a same-page click too)
-  window.addEventListener('hashchange', function () { if (location.hash === '#search') focusSearch(); });
-  apply(false, true);
+  window.addEventListener('hashchange', function () {
+    // a year link made a new entry for the view on screen: that view is what the entry stands for
+    entryUrl = nowUrl;
+    if (location.hash === '#search') focusSearch();
+  });
+  if (!searching()) sortForSearch();   // an address that arrives with sort=relevance and no search
+  apply('type', true, true);
   if (hash === '#search') {
     focusSearch();
     // the browser's own jump to the fragment runs after deferred scripts and moves focus off the box again: refocus after load

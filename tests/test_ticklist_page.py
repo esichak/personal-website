@@ -291,6 +291,17 @@ class TickListPageTests(TickListFixture):
         labels = [l for l in self.doc.find_all('label') if l['for'] == 'tkl-q']
         self.assertTrue(labels or q['aria-label'], 'the search input must be labelled')
 
+    def test_the_form_asks_browsers_not_to_refill_its_controls(self):
+        # as on the Trips page: the script sets the selects from the address, and a browser that refills them on Back /
+        # Forward does it afterwards, with another history entry's values
+        form = self.form
+        self.assertEqual(form['autocomplete'], 'off')
+        self.assertEqual(form.by_id('tkl-q')['autocomplete'], 'off')
+        selects = form.find_all('select')
+        self.assertGreaterEqual(len(selects), 2)
+        for s in selects:                       # none opts back in
+            self.assertNotIn('autocomplete', s.attrs)
+
     def test_the_form_is_shown_by_an_inline_script_right_after_it(self):
         # contract-phase4.md 5.1 and 10: the form still ships hidden (without JavaScript it stays so); core.reveal('search')
         # is the element right after </form> and before the noscript note, so with JavaScript the form is in place at
