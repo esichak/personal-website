@@ -1034,22 +1034,25 @@ def _journal_region_findings(live, rendered_dir, out):
     if not isinstance(maps, dict) or not isinstance(mapped, list):
         maps = mapped = None      # no such file, or not one this check can read: only the names are checked
 
-    def drawn_days(name, slug):
+    def drawn_days(name, slug, key):
         entry = maps.get('region-%s-desktop' % content.slugify(name))
         js = entry.get('journals') if isinstance(entry, dict) else None
         for j in js if isinstance(js, list) else []:
-            if isinstance(j, dict) and j.get('slug') == slug:
+            if isinstance(j, dict) and j.get('slug') == slug and j.get('key', slug) == key:
                 return j.get('days')
         return None
 
     again = 'run python3 tools/render.py --site and commit rendered/site/'
-    listed = set()
+    listed, named = set(), set()
     for t in live:
         if t['kind'] != 'series':
             continue
         for rd in t.get('region_days') or []:
             name = rd['region']
-            listed.add((t['slug'], name))
+            listed.add((t['slug'], name, rd['key']))
+            if name in named and name not in regions:
+                continue          # a mistyped region with several parts is one mistake: one line
+            named.add(name)
             if name not in regions:
                 near = difflib.get_close_matches(name, sorted(regions), 1)
                 _err(out, _index(t['slug']), 'region_days names the region %r, which no report is filed under%s'
@@ -1062,10 +1065,11 @@ def _journal_region_findings(live, rendered_dir, out):
                                               'track), so these days are shown on no map' % name)
                 continue
             want = [d['id'] for d in rd['days'] if d['track']]
-            have = drawn_days(name, t['slug'])
+            have = drawn_days(name, t['slug'], rd['key'])
+            what = ('%s (%s)' % (name, rd['title'])) if rd.get('title') else name
             if want and have != want:
                 _warn(out, _index(t['slug']), 'region_days: the region map of %s was last drawn %s; %s'
-                      % (name, 'without these days' if have is None else 'with other days of this journal', again))
+                      % (what, 'without these days' if have is None else 'with other days of this journal', again))
     if maps is None:
         return
     slugs = {t['slug'] for t in live if t['kind'] == 'series'}
@@ -1075,7 +1079,7 @@ def _journal_region_findings(live, rendered_dir, out):
             continue
         for j in js:
             slug, name = (j.get('slug'), entry.get('region')) if isinstance(j, dict) else (None, None)
-            if slug in slugs and (slug, name) not in listed:
+            if slug in slugs and (slug, name, j.get('key', slug)) not in listed:
                 _warn(out, _index(slug), 'the region map of %s still draws days of this journal that region_days no longer '
                                          'lists there; %s' % (name, again))
 

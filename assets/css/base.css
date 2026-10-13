@@ -353,6 +353,8 @@ picture.cover-pic { display: contents; }
 .mk-cluster { cursor: default; }
 .mk-cluster.is-linked { cursor: pointer; }
 .mk-pin:focus-visible { outline: none; }
+.mk-line { cursor: pointer; }
+.mk-line:focus-visible { outline: none; }   /* base.js picks its lines out while it has the focus, as for a pin */
 .mk-pin:focus-visible > circle:nth-of-type(2) { stroke: var(--ink); stroke-width: 3px; }  /* circle 1 is the transparent hit circle */
 .map.is-hl .mk-cat { opacity: .3 !important; transition: opacity .15s; }
 .map.is-hl .mk-cat.hl { opacity: 1 !important; }

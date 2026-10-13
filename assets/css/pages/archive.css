@@ -65,8 +65,8 @@
 .arc-inreg-h .t-mono-s { text-transform: uppercase; margin-left: auto; text-align: right; }
 .arc-row { border-bottom: 1px solid var(--rule); }
 .arc-row a { min-height: 60px; padding: 8px 0; display: flex; align-items: center; gap: 16px; color: var(--ink); }
-.arc-row a:hover { color: var(--ink); background: var(--surface); }
-.arc-row a:hover .arc-row-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.arc-row a:hover, .arc-row.is-map-hl a { color: var(--ink); background: var(--surface); }  /* is-map-hl: its pin or line on the map has the pointer (base.js) */
+.arc-row a:hover .arc-row-t, .arc-row.is-map-hl .arc-row-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 .arc-row-g { width: 64px; height: 48px; flex-shrink: 0; }
 .arc-row-b { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .arc-row-t { font: 500 15px/20px var(--sans); }

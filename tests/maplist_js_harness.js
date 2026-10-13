@@ -214,9 +214,9 @@ const DRAWN = ['t1', 't2', 't3', 't4', 't8', 't9', 'g1'];
 const NOT_DRAWN = ['n1', 'j1', 'n2', 't5'];
 const ROWS = ['t1', 'n1', 't2', 't3', 't4', 'j1', 'n2', 't5', 't8', 't9', 'g1'];
 
-function panel(page, slug, rows) {
+function panel(page, slug, rows, extra) {
   const el = (tag, attrs, children) => page.el(tag, attrs, children);
-  const marks = [
+  let marks = [
     el('g', { class: 'mk-cat', 'data-key': 't1' }), el('g', { class: 'mk-cat', 'data-key': 't2' }),
     el('g', { class: 'mk-cat mk-planned', 'data-key': 'g1' }),
     el('a', { class: 'mk-pin', href: '../../trips/t1/', 'data-key': 't1' }),
@@ -224,6 +224,7 @@ function panel(page, slug, rows) {
     el('g', { class: 'mk-cluster', 'aria-hidden': 'true', 'data-keys': 't2 t3' }),
     el('g', { class: 'mk-cluster', 'aria-hidden': 'true', 'data-keys': 't8 t9' }),
   ];
+  if (extra) marks = marks.concat(extra(el));          // what one check adds to the map (a journal part's lines)
   const map = el('div', { id: 'arc-map-' + slug, class: 'map arc-mapv' }, [el('div', { class: 'mv mv--desktop' }, [el('svg', {}, marks)])]);
   const items = rows.map((key, i) => el('li', { class: 'arc-row' + (i >= 8 && rows.length > 9 ? ' arc-more' : ''), 'data-key': key },
     [el('a', { href: '../../trips/' + key + '/', 'data-act': 'hike' })]));
@@ -348,6 +349,41 @@ check('highlight markers: a pin and a cluster marker still pick out their tracks
   deq(state(p), CLEAR);
   t.page.send(row(t.other, 'n1'), 'mouseenter');
   deq(state(t.other), CLEAR);
+});
+
+check('highlight lines: a line that is a link picks out its lines and marks its row, as a pin does', () => {
+  // a journal part on a region map: one line per day under the part's key, no pin, and one link over the lines
+  // (a.mk-line, mapkit.line_links); its row in the list carries the same key
+  const page = new Page('p-region');
+  const LOOP = 'j1:loop';
+  const CREST = 'j1:crest';
+  const p = panel(page, 'x', ['t1', 't2', LOOP, CREST], (el) => [
+    el('g', { class: 'mk-cat', 'data-key': LOOP }), el('g', { class: 'mk-cat', 'data-key': LOOP }),
+    el('g', { class: 'mk-cat', 'data-key': CREST }),
+    el('a', { class: 'mk-line', href: '../../trips/j1/#day-4', 'data-key': LOOP }),
+    el('a', { class: 'mk-line', href: '../../trips/j1/#day-1', 'data-key': CREST }),
+  ]);
+  [BASE, ARCHIVE].forEach((file) => page.run(file));
+  const loop = mark(p, 'mk-line', LOOP);
+  ['mouseenter', 'mouseleave', 'focusin', 'focusout'].forEach((type) => {
+    eq((loop.listeners[type] || []).length, 1, type + ' on the line link');       // a link: the keyboard reaches it too
+  });
+  deq(state(p), CLEAR);
+  [['mouseenter', 'mouseleave'], ['focusin', 'focusout']].forEach((pair) => {
+    page.send(loop, pair[0]);
+    deq(state(p), { dimmed: true, picked: ['track:' + LOOP, 'track:' + LOOP], rows: [LOOP] }, pair[0] + ' on the line link');
+    page.send(loop, pair[1]);
+    deq(state(p), CLEAR, pair[1] + ' on the line link');
+  });
+  // the other part's link picks out the other part alone
+  page.send(mark(p, 'mk-line', CREST), 'mouseenter');
+  deq(state(p), { dimmed: true, picked: ['track:' + CREST], rows: [CREST] });
+  page.send(mark(p, 'mk-line', CREST), 'mouseleave');
+  // and the part's row picks out its lines, as any row of a drawn trip does
+  page.send(row(p, LOOP), 'mouseenter');
+  deq(state(p), { dimmed: true, picked: ['track:' + LOOP, 'track:' + LOOP], rows: [] });
+  page.send(row(p, LOOP), 'mouseleave');
+  deq(state(p), CLEAR);
 });
 
 // ---------------------------------------------------------------- 'Show all' / 'Show fewer': archive.js

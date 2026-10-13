@@ -1,5 +1,5 @@
 {
- "hash": "a312ee942234d4609a82bff5d69a74635bc0a761",
+ "hash": "5ae262f8ec9658aa1eff15dee95bce0b40feef49",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
@@ -264,7 +264,7 @@
      "n": 2,
      "keys": [
       "freel-jobs-job-sister-loop",
-      "pacific-crest-trail-2024"
+      "pacific-crest-trail-2024:tahoe-rim-trail"
      ]
     },
     {
@@ -336,6 +336,8 @@
    "journals": [
     {
      "slug": "pacific-crest-trail-2024",
+     "key": "pacific-crest-trail-2024:pacific-crest-trail",
+     "title": "Pacific Crest Trail",
      "days": [
       "068",
       "069",
@@ -346,7 +348,15 @@
       "074",
       "075",
       "076",
-      "077",
+      "077"
+     ],
+     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-pacific-crest-trail-g64"
+    },
+    {
+     "slug": "pacific-crest-trail-2024",
+     "key": "pacific-crest-trail-2024:tahoe-rim-trail",
+     "title": "Tahoe Rim Trail",
+     "days": [
       "144",
       "145",
       "146",
@@ -354,7 +364,8 @@
       "148",
       "149",
       "150"
-     ]
+     ],
+     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-tahoe-rim-trail-g64"
     }
    ]
   },
@@ -601,7 +612,7 @@
      "n": 2,
      "keys": [
       "freel-jobs-job-sister-loop",
-      "pacific-crest-trail-2024"
+      "pacific-crest-trail-2024:tahoe-rim-trail"
      ]
     },
     {
@@ -658,6 +669,8 @@
    "journals": [
     {
      "slug": "pacific-crest-trail-2024",
+     "key": "pacific-crest-trail-2024:pacific-crest-trail",
+     "title": "Pacific Crest Trail",
      "days": [
       "068",
       "069",
@@ -668,7 +681,15 @@
       "074",
       "075",
       "076",
-      "077",
+      "077"
+     ],
+     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-pacific-crest-trail-g64"
+    },
+    {
+     "slug": "pacific-crest-trail-2024",
+     "key": "pacific-crest-trail-2024:tahoe-rim-trail",
+     "title": "Tahoe Rim Trail",
+     "days": [
       "144",
       "145",
       "146",
@@ -676,7 +697,8 @@
       "148",
       "149",
       "150"
-     ]
+     ],
+     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-tahoe-rim-trail-g64"
     }
    ]
   },
@@ -1149,6 +1171,8 @@
    "journals": [
     {
      "slug": "pacific-crest-trail-2024",
+     "key": "pacific-crest-trail-2024:pacific-crest-trail",
+     "title": "Pacific Crest Trail",
      "days": [
       "059",
       "060",
@@ -1158,7 +1182,8 @@
       "064",
       "065",
       "066"
-     ]
+     ],
+     "glyph": "region-eastern-sierra-pacific-crest-trail-2024-pacific-crest-trail-g64"
     }
    ]
   },
@@ -1231,6 +1256,8 @@
    "journals": [
     {
      "slug": "pacific-crest-trail-2024",
+     "key": "pacific-crest-trail-2024:pacific-crest-trail",
+     "title": "Pacific Crest Trail",
      "days": [
       "059",
       "060",
@@ -1240,7 +1267,8 @@
       "064",
       "065",
       "066"
-     ]
+     ],
+     "glyph": "region-eastern-sierra-pacific-crest-trail-2024-pacific-crest-trail-g64"
     }
    ]
   },

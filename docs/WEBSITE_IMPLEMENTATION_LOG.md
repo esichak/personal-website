@@ -1016,3 +1016,61 @@ drew a journal on no region map.
   180-second limit allows.
 - Journal days 141 to 145 (the John Muir Trail) and the Sierra days south of the Eastern Sierra map are on no region
   map: they lie south of it, but for the last few kilometres of day 145, which were left out.
+
+## Journal parts: rows that show and lines that answer the pointer (2026-10-13)
+
+Asked for by Eric the day after the journal days went on the maps: the PCT and Tahoe Rim Trail routes did not show up
+under the reports in the region's list, and nothing happened when he pointed at them on the map.
+
+### What was wrong
+
+- **The list.** The journal had one row per region, placed by the date of its last day there. Lake Tahoe's list folds
+  after 8 rows, and the row stood far down behind "Show all 86", so the open page did not show it. One row also could
+  not say that Lake Tahoe holds two walks, the PCT and the Tahoe Rim Trail.
+- **The map.** Only pins and numbered markers answer the pointer. The PCT walks in from outside the map and has no
+  pin, and the Tahoe Rim Trail has a single pin, at its start. So the lines themselves had nothing to point at: no
+  highlight, no name, no link.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/content.py` | `_region_days`: a region's value may be a mapping of named parts. Every entry is now a part: `{'region', 'title', 'key', 'days'}`; a named part's key is `<slug>:<slugified name>`. |
+| `tools/render.py` | `site_tracks(part=)`, `journal_pins(t, part, frame)`, `part_href`, `part_name`, `part_glyph`: a part's lines are keyed to the part and carry a link to its first day and its name; each part gets a 64×48 drawing of its own days; the map's `journals` entries carry `key`, `title` and `glyph`. |
+| `tools/lib/mapkit.py` | `line_links`, `LINE_HIT`: one `a.mk-line` per key over the lines that carry an `href`, with a transparent 14 px stroke to point at, written under the pins. |
+| `assets/js/base.js`, `assets/css/base.css`, `assets/css/pages/archive.css` | A line link is wired as a pin is (hover, focus, the row marked). A row marked from the map now looks like a hovered row; until now the mark had no style in a region's list. |
+| `tools/sitegen/pages/archive.py` | `journal_row` per part, after the reports and never folded away; `part_glyph`: the row shows the part's own drawing. |
+| `tools/build.py` | `copy_part_drawings`: the drawings are published as `assets/maps/<name>.svg`. |
+| `tools/lib/checks.py` | The stale-map warning compares part by part and names the part. |
+| `content/trips/pacific-crest-trail-2024/index.md` | Lake Tahoe: "Pacific Crest Trail" 67-76 and "Tahoe Rim Trail" 147-153; Eastern Sierra: "Pacific Crest Trail" 58-65. The same days as before, now named. |
+| `rendered/site/` | `meta.json`, the four line overlays of the two maps, and three new part drawings. No base image changed. |
+| `tests/test_region_days.py`, `tests/maplist_js_harness.js`, `tests/test_a11y_static.py` | Named parts, part keys, line links, the drawings and their publication, the rows' place and that they are never folded, the marked row, and a harness check that a line link picks out its lines and marks its row. |
+| `README.md`, `docs/CONTENT_GUIDE.md` (5.2, 5.3, 11.7), `docs/DEVELOPING.md` | The named form, the line links and the rows. |
+
+### Behaviour
+
+- **In the list.** Lake Tahoe shows "Pacific Crest Trail" (Jun 27 to Jul 6, 2024, 10 journal days) and "Tahoe Rim
+  Trail" (Sep 15 to 21, 2024, 7 journal days) directly after its first 8 reports, whether the list is folded or not;
+  the Eastern Sierra shows "Pacific Crest Trail" (Jun 18 to 25, 2024, 8 journal days) after its 7 reports. Each row
+  has the drawing of its own days and opens the journal at the part's first day.
+- **On the map.** Pointing at a part's line picks out all of its days, dims the rest, marks its row and shows its name;
+  a click opens the journal at the part's first day. Pointing at the row picks out the line. A pin or numbered marker
+  on the line answers before the line does, and where the two Lake Tahoe parts share the trail the Tahoe Rim Trail
+  does.
+- **Unchanged.** Every count, the "Show all 86" button, the tables of reports, the maps' frames and base images, the
+  home page, the Trips page, the search indexes, the feed and the sitemap.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -W error -m unittest discover -s tests`, Python 3.9.6 and 3.12 | 2,470 tests, OK on both |
+| The suite and `build.py --check` on Python 3.12 with the `html.parser` of CPython 3.12.15, the deploy runner's release | 2,470 tests, OK; link check OK |
+| `python3 tests/run_orders.py --reverse` | 2,470 tests, OK |
+| `node tests/maplist_js_harness.js` | 14 checks passed |
+| `python3 tools/validate.py` | 0 errors, 1 warning (a planned route without `goal.json`, as before) |
+| `python3 tools/build.py --check` | 357 pages, link check OK |
+| `python3 tools/render.py --site --force` | all region and ski maps redrawn; only the two regions' overlays and `meta.json` differ, plus the three new drawings |
+| Browser, local build, a real pointer | Lake Tahoe: both lines answer (highlight, row marked, name), both rows visible in the folded list with their own drawings; Eastern Sierra: the same for its one part |
+
+Not run: Safari, Firefox, a real phone (a tap on a line opens the journal; there is no hover on touch).

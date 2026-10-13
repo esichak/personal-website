@@ -156,6 +156,21 @@ def gpx_root_tag(text):
     return m.group(0) if m else ''
 
 
+def copy_part_drawings():
+    """A journal part's drawing for its row in a region's list (rendered/site/<name>-g64.svg.html, render.part_glyph), written
+    out as the standalone assets/maps/<name>-g64.svg, as a trip's glyph is (drawing_svg). The names written."""
+    out = []
+    os.makedirs(os.path.join(OUT, 'assets', 'maps'), exist_ok=True)
+    for f in sorted(glob.glob(os.path.join(ROOT, 'rendered', 'site', '*-g64.svg.html'))):
+        svg = None if conflict_copy(f) else drawing_svg(f, 'g64')
+        if svg:
+            name = os.path.basename(f)[:-len('.html')]
+            with open(os.path.join(OUT, 'assets', 'maps', name), 'w', encoding='utf-8') as fh:
+                fh.write(svg)
+            out.append(name)
+    return out
+
+
 def copy_trip_assets(t):
     out = os.path.join(OUT, 'trips', t['slug'])
     os.makedirs(out, exist_ok=True)
@@ -289,6 +304,7 @@ def build(verbose=True, only=None):
     for f in glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.png')) + glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.webp')) + glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.base.svg')):
         if not conflict_copy(f):
             copy(f, os.path.join(OUT, 'assets', 'maps', os.path.basename(f)))
+    copy_part_drawings()
     for t in trips:
         copy_trip_assets(t)
     with open(os.path.join(OUT, 'feed.xml'), 'w', encoding='utf-8') as fh:

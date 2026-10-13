@@ -141,46 +141,53 @@ def region_row(t, here, more=False):
 
 
 def journal_parts(site, name):
-    """[(journal, its days in the region `name`)]: the published journals whose region_days (content.py) list days under
-    that region. A journal is filed under a region of its own and is no report of this one; the days are what the
-    region's map draws of it (render.journal_parts) and what its list names in one row (journal_row)."""
+    """[(journal, part)]: the parts of the published journals that lie in the region `name`, as their region_days
+    (content.py) list them, in the order written. A journal is filed under a region of its own and is no report of this
+    one; a part is what the region's map draws of it (render.journal_parts) and what its list names in one row
+    (journal_row)."""
     out = []
     for t in (site or {}).get('published') or []:
         if t['kind'] != 'series':
             continue
         for rd in t.get('region_days') or []:
             if rd['region'] == name and rd['days']:
-                out.append((t, rd['days']))
+                out.append((t, rd))
     return out
 
 
-def journal_row(t, days, here, more=False):
-    """A journal's days in a region as one row of the region's list: the journal's title, how many of its days lie here
-    and the distance they add up to (from the day files' own stats). The link goes to the first of those days on the
-    journal page. The row carries the journal's key, as its lines and pins on the region map do, so hovering one
-    highlights the other. It is not a report of the region: no count includes it."""
-    bits = [core.nb(plural(len(days), 'JOURNAL DAY'))]
+def part_glyph(name, here):
+    """A journal part's own drawing (render.part_glyph, published by build.py as assets/maps/<name>.svg) as an <img>,
+    as core.glyph is for a trip. '' when the name is None, is not a plain file name, or the drawing is not rendered."""
+    if not isinstance(name, str) or not re.match(r'[A-Za-z0-9_-]+\Z', name):
+        return ''
+    if not os.path.exists(os.path.join(core.ROOT, 'rendered', 'site', name + '.svg.html')):
+        return ''
+    w, h = core.GLYPH_SIZES['g64']
+    return ('<img class="gl gl--g64 arc-row-g" src="%s%s.svg" width="%d" height="%d" alt="" loading="lazy" decoding="async">'
+            % (link(here, 'assets/maps/'), esc(name), w, h))
+
+
+def journal_row(t, part, here, drawing=None):
+    """One part of a journal as a row of a region's list: the part's own name when it has one (Tahoe Rim Trail), else
+    the journal's title; then the dates of its first and last day, how many journal days it is and the distance they add
+    up to (from the day files' own stats). The link goes to the first of those days on the journal page. The row
+    carries the part's key, as its lines on the region map do, so hovering one picks out the other. It is not a report
+    of the region: no count includes it, and it is never folded away behind 'Show all'.
+    drawing: the name of the part's own drawing (the map's 'journals' entry names it); without one the row shows the
+    journal's, which is the whole journal."""
+    days = part['days']
+    dates = [d['date'] for d in days if d['date']]
+    bits = [core.nb(core.frange(min(dates), max(dates), caps=True))] if dates else []
+    bits.append(core.nb(plural(len(days), 'JOURNAL DAY')))
     km = [d['stats'].get('distance_km') for d in days if d['stats'].get('distance_km')]
     mi_, km_ = core.dist_vals(sum(km)) if km else ('', '')
     if mi_:
         bits.append(U(core.nb(mi_ + ' MI'), core.nb(km_ + ' KM')))
-    g = core.glyph(t, here, 'g64', cls=' arc-row-g')
-    return ('<li class="arc-row arc-row--journal%s" data-key="%s"><a href="%s#%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
+    g = part_glyph(drawing, here) or core.glyph(t, here, 'g64', cls=' arc-row-g')
+    return ('<li class="arc-row arc-row--journal" data-key="%s"><a href="%s#%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
             '<span class="t-mono-s arc-row-m"><span class="arc-row-i">%s</span><span class="sr">%s · </span><span>%s</span></span></span></a></li>'
-            % (' arc-more' if more else '', t['slug'], link(here, t['url']), content.day_anchor(days[0]['label']), t['activity'], g,
-               core.title_html(t['title']), icon(core.act_icon(t), 14), esc(core.act_word(t)), core.SEP.join(bits)))
-
-
-def _rows_with_journals(ts, parts):
-    """The region's rows in order: ts as it is (newest first, planned routes last) with each journal part put in by the
-    date of its last day here. [(trip, None) | (journal, days)]."""
-    rows = [(t, None) for t in ts]
-    for jt, days in parts:
-        when = max((d['date'] for d in days if d['date']), default=None) or jt.get('end_date') or jt.get('date')
-        at = next((k for k, (t, d_) in enumerate(rows)
-                   if d_ is None and (t['kind'] == 'planned' or (when and t['date'] and t['date'] < when))), len(rows))
-        rows.insert(at, (jt, days))
-    return rows
+            % (esc(part['key']), link(here, t['url']), content.day_anchor(days[0]['label']), t['activity'], g,
+               core.title_html(part.get('title') or t['title']), icon(core.act_icon(t), 14), esc(core.act_word(t)), core.SEP.join(bits)))
 
 
 def region_panel(name, slug, ts, here, meta, first, page=False, drawn=None, site=None):
@@ -193,22 +200,25 @@ def region_panel(name, slug, ts, here, meta, first, page=False, drawn=None, site
     drawn: the trips the map draws, when they are not ts (a region page lists by the region field, and a report without
     a track or newer than the last render is on the list and not on the map): the legend is the key to the map, so it
     names their activities and symbols, not the list's.
-    site: the site, for the journals that have days in this region (journal_parts): each gets one row in the list, and
-    the legend names a journal's activity when the map draws its days (the map's 'journals' entry). None: no such rows."""
+    site: the site, for the journals that have days in this region (journal_parts): each part gets one row, after the
+    reports and before the planned routes, and those rows are shown whether the list is folded or not. The legend
+    names a journal's activity when the map draws its days (the map's 'journals' entry). None: no such rows."""
     md = meta['maps'].get('region-%s-desktop' % slug) or {}
     parts = journal_parts(site, name)
     on_map = {j.get('slug') for j in (md.get('journals') or []) if isinstance(j, dict)}
-    key_ts = (ts if (drawn is None or not page) else drawn) + [jt for jt, _days in parts if jt['slug'] in on_map]
+    key_ts = (ts if (drawn is None or not page) else drawn) + [jt for jt, _part in parts if jt['slug'] in on_map]
     map_id = 'arc-map-' + slug
     anchor = ts[0]  # map_block needs a trip dict only for per-trip renders; site maps read rendered/site/
     mp = core.map_block(anchor, here, [('region-%s-desktop' % slug, 'desktop'), ('region-%s-phone' % slug, 'phone')],
                         'assets/maps/', 'rg-' + slug, eager=first, cls='arc-mapv', site_maps=True, attrib=False)
     mp = share_casings(mp.replace('<div class="map', '<div id="%s" class="map' % map_id, 1), 'arc-' + slug)
     cap = '<div class="arc-cap">%s</div>' % core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])
-    listed_ = _rows_with_journals(ts, parts)
-    fold = len(listed_) > SHOW + 1
-    rows = ''.join(region_row(t, here, i >= SHOW and fold) if days is None else journal_row(t, days, here, i >= SHOW and fold)
-                   for i, (t, days) in enumerate(listed_))
+    fold = len(ts) > SHOW + 1
+    rows = [region_row(t, here, i >= SHOW and fold) for i, t in enumerate(ts)]
+    # the journal rows go in after the reports: before the first planned route of the list as it was handed over
+    at = next((i for i, t in enumerate(ts) if t['kind'] == 'planned'), len(ts))
+    drawings = {j['key']: j.get('glyph') for j in (md.get('journals') or []) if isinstance(j, dict) and isinstance(j.get('key'), str)}
+    rows = ''.join(rows[:at] + [journal_row(jt, part, here, drawings.get(part['key'])) for jt, part in parts] + rows[at:])
     n_pub = sum(1 for t in ts if t['kind'] != 'planned')  # 'Show all 86' matches the tab's count (a planned route is not a report)
     show_all = (('<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-%s" hidden>Show all %d%s</button>'
                  % (slug, n_pub, icon('chevron-down', 16))) if fold else '')

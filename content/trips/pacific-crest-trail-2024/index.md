@@ -14,8 +14,11 @@ cover_focal_x: 45
 cover_focal_y: 55
 search_aliases: [PCT]
 region_days:
-  Lake Tahoe: 67-76, 147-153
-  Eastern Sierra: 58-65
+  Lake Tahoe:
+    Pacific Crest Trail: 67-76
+    Tahoe Rim Trail: 147-153
+  Eastern Sierra:
+    Pacific Crest Trail: 58-65
 ---
 
 

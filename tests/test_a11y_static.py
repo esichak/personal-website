@@ -2052,7 +2052,8 @@ class ScriptTests(unittest.TestCase):
         loops = [x for x in self.js.each_callbacks(lambda s: '.mk-pin' in s or '.mk-cluster' in s) if self.js.listeners(x[1], x[2], x[3])]
         self.assertEqual(len(loops), 1, [x[0] for x in loops])
         selector, el, start, end = loops[0]
-        self.assertEqual([s.strip() for s in selector.split(',')], ['.mk-pin[data-key]', '.mk-cluster'])
+        # a line that is a link (a journal's days on a region map, which have no pin) is wired as a pin is
+        self.assertEqual([s.strip() for s in selector.split(',')], ['.mk-pin[data-key]', '.mk-cluster', '.mk-line[data-key]'])
         events = [event for event, _pos in self.js.listeners(el, start, end)]
         self.assertEqual(sorted(e for e in events if e.startswith('mouse')), ['mouseenter', 'mouseleave'])
         for event, pos in self.js.listeners(el, start, end):

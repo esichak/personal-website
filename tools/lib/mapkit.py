@@ -630,6 +630,24 @@ def join_ways(ways):
 LAST_OSM = {}
 
 
+LINE_HIT = 14   # px: the width of the invisible stroke along a line that is a link (the line itself is drawn 2.5 wide)
+
+
+def line_links(links):
+    """['<a class="mk-line" ...>...</a>', ...]: one link per key over every line drawn under it. links:
+    {key: {'href', 'title', 'ids': [the id of each line's <path> in the map's <defs>]}}. The link draws nothing: a
+    transparent stroke LINE_HIT wide along each line takes the pointer, the <title> is the browser's tooltip, and the
+    name is the title. It carries the key its lines carry (g.mk-cat[data-key]), so base.js picks the lines out while
+    the pointer or the focus is on it, as it does for a pin."""
+    out = []
+    for key, ln in links.items():
+        uses = ''.join('<use href="#%s" class="mk-hit" style="fill: none; stroke: transparent; stroke-width: %d; pointer-events: stroke"/>'
+                       % (i, LINE_HIT) for i in ln['ids'])
+        out.append('<a class="mk-line" href="%s" data-key="%s" aria-label="%s"><title>%s</title>%s</a>'
+                   % (esc(ln['href']), esc(key), esc(ln['title']), esc(ln['title']), uses))
+    return out
+
+
 def render_map(spec):
     """spec keys: name, w, h, tracks:[{track, style, cat, i0,i1, pin, highlight, day}], bbox?, pad, detail,
     osm: detail level or None, legend, scale, north, graticule, miles, chevrons, startend, gpsmax, waypoints,
@@ -982,6 +1000,12 @@ def render_map(spec):
                 layers['track'].append('%s<defs><path id="%s" d="%s"/></defs><use href="#%s" class="mk-case" style="stroke-width: %g"/>'
                                        '<use href="#%s" class="gl-trk" style="stroke: %s; stroke-width: %g"/></g>'
                                        % (g_open, tid, d, tid, wdt + 3, tid, col, wdt))
+                if t.get('href'):
+                    # a line that is its own link (a journal's days on a region map have no pin): line_links() below
+                    # draws one link per key over all of its lines
+                    ln = spec.setdefault('_line_links', {}).setdefault(t.get('key') or t['href'],
+                                                                         {'href': t['href'], 'title': t.get('title') or '', 'ids': []})
+                    ln['ids'].append(tid)
             else:
                 layers['track'].append('%s<path class="gl-trk" style="stroke: %s; stroke-width: %g" d="%s"/></g>' % (g_open, col, wdt, d))
         elif style == 'planned':
@@ -1468,6 +1492,9 @@ def render_map(spec):
                         break
                 if done_:
                     break
+
+    # lines that are links, under the pins: where a pin sits on such a line the pin is what is pressed
+    layers['pins'] += line_links(spec.get('_line_links') or {})
 
     # clustered pins
     if spec.get('pins'):

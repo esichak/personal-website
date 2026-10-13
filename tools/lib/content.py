@@ -361,17 +361,24 @@ _DAY_NUMBER = re.compile(r'^\d+(?:\.\d+)?$', re.ASCII)
 
 def _region_days(raw, t, where):
     """region_days on a journal (kind: series): which of its days lie in which region, so that a region's map draws them
-    and its list names the journal. The journal itself is filed under one `region:` of its own and spans many.
+    and its list names them. The journal itself is filed under one `region:` of its own and spans many.
 
         region_days:
-          Lake Tahoe: 68-75, 147-153
-          Eastern Sierra: [59-63]
+          Lake Tahoe:
+            Pacific Crest Trail: 67-76
+            Tahoe Rim Trail: 147-153
+          Eastern Sierra: 58-65
 
-    -> [{'region': 'Lake Tahoe', 'days': [day dicts, in the journal's order]}, ...] in the order written. A day is named
-    by its label, the number the page shows (Day 148), not by its file name: '148' is that day, '68-75' every day whose
-    label is a number from 68 to 75 (5.2 lies between 5 and 6). A day may be listed under more than one region. Absent
-    or empty -> []. Anything else that is not this shape, a day or range that matches no day, a range written backwards,
-    a region without days, or the block on a trip that is not a journal is a ContentError."""
+    -> one part per line of days, in the order written:
+       [{'region': 'Lake Tahoe', 'title': 'Pacific Crest Trail', 'key': '<slug>:pacific-crest-trail', 'days': [...]}, ...].
+    A region holds either its days, which is one part without a title of its own (title None; its key is the
+    journal's slug), or named parts, each with its days: a part is one line on the map and one row in the region's
+    list, and its key is what ties the two together. `days` are the journal's own day dicts in its order. A day is
+    named by its label, the number the page shows (Day 148), not by its file name: '148' is that day, '68-75' every
+    day whose label is a number from 68 to 75 (5.2 lies between 5 and 6). A day may be listed more than once. Absent or
+    empty -> []. Anything else that is not this shape, a day or range that matches no day, a range written backwards,
+    a region or a part without days, a name with no letter or digit, or the block on a trip that is not a journal is
+    a ContentError."""
     if raw is None or raw == {} or raw == []:
         return []
     if not isinstance(raw, dict):
@@ -382,16 +389,14 @@ def _region_days(raw, t, where):
     if not t['days']:
         raise ContentError('%s: region_days needs day files (days/NNN.md); this trip has none' % where)
     numbered = [(float(d['label']), d) for d in t['days'] if _DAY_NUMBER.match(str(d['label']))]
-    out = []
-    for region, value in raw.items():
-        name = str(region).strip() if region is not None else ''
-        if not name:
-            raise ContentError('%s: region_days has an entry without a region name' % where)
+
+    def days_of(name, value):
+        """The day dicts a value names; name: how the messages call the line ('Lake Tahoe', 'Lake Tahoe: Tahoe Rim Trail')."""
         items = value if isinstance(value, list) else [value]
         parts = []
         for item in items:
             if item is None:
-                continue   # a trailing comma's empty item, or a region left without a value
+                continue   # a trailing comma's empty item, or a line left without a value
             if isinstance(item, bool) or not isinstance(item, (str, int, float)):
                 raise ContentError('%s: region_days: %s must list days such as 68-75, 147-153, got %r' % (where, name, value))
             parts += [p.strip() for p in str(item).split(',') if p.strip()]
@@ -415,9 +420,32 @@ def _region_days(raw, t, where):
                     raise ContentError('%s: region_days: %s names day %r, which is no day of this journal (days are named '
                                        'by the number the page shows, as in Day 148)' % (where, name, part))
             chosen.update(hit)
-        if any(o['region'] == name for o in out):
+        return [d for d in t['days'] if d['id'] in chosen]
+
+    out, regions = [], set()
+    for region, value in raw.items():
+        name = str(region).strip() if region is not None else ''
+        if not name:
+            raise ContentError('%s: region_days has an entry without a region name' % where)
+        if name in regions:
             raise ContentError('%s: region_days lists the region %r twice' % (where, name))
-        out.append({'region': name, 'days': [d for d in t['days'] if d['id'] in chosen]})
+        regions.add(name)
+        if not isinstance(value, dict):
+            out.append({'region': name, 'title': None, 'key': t['slug'], 'days': days_of(name, value)})
+            continue
+        if not value:
+            raise ContentError('%s: region_days: %s names no days; write them as 68-75, 147-153 or take the line out' % (where, name))
+        keys = set()
+        for title, days in value.items():
+            title = str(title).strip() if title is not None else ''
+            key = slugify(title)
+            if not key:
+                raise ContentError('%s: region_days: %s has a part without a name (a name needs a letter or a digit)' % (where, name))
+            if key in keys:
+                raise ContentError('%s: region_days: %s names the part %r twice' % (where, name, title))
+            keys.add(key)
+            out.append({'region': name, 'title': title, 'key': '%s:%s' % (t['slug'], key),
+                        'days': days_of('%s: %s' % (name, title), days)})
     return out
 
 

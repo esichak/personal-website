@@ -170,7 +170,8 @@
       row.addEventListener('focusout', off);
     });
   });
-  document.querySelectorAll('.mk-pin[data-key], .mk-cluster').forEach(function (el) {
+  // a line that is a link (a.mk-line: a journal's days on a region map, which have no pin) is treated as a pin is
+  document.querySelectorAll('.mk-pin[data-key], .mk-cluster, .mk-line[data-key]').forEach(function (el) {
     var map = el.closest('.map[id]') || el.closest('.map');
     if (!map) return;
     var keys = el.classList.contains('mk-cluster') ? (el.dataset.keys || '').split(' ').filter(Boolean) : [el.dataset.key];
