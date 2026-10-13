@@ -581,16 +581,24 @@ def day_runs(t, days):
     return runs
 
 
+RESUME_M = 5000.0  # a listed day that starts within this of where the part's last listed day ended goes on with the same walk
+
+
 def journal_pins(t, part, frame=None):
     """The pins of one part of a journal in a region: one for each run of its days that starts in the region, at the
     start of the run's first day (of the stretch the part takes of it, when it takes one), linking to that day on the
     journal page. A pin marks a start, so a run that comes in from outside (the PCT walking through) has none: its line
-    is on the map, and is its own link (site_tracks).
+    is on the map, and is its own link (site_tracks). Nor has a run that goes on from where the part's last listed day
+    ended (within RESUME_M): the days between them, left out of the part (days off in a town), start nothing new.
     frame: the (s, w, n, e) box of the region's own trips, which the map is framed by; None: every run has its pin."""
-    pins = []
+    pins, end = [], None
     for run in day_runs(t, part['days']):
         d = run[0]
         p = part_points(t, part, d)[0]
+        resumed = end is not None and geo.hav(end, p) <= RESUME_M
+        end = part_points(t, part, run[-1])[-1]
+        if resumed:
+            continue
         if frame is not None and not (frame[0] <= p[0] <= frame[2] and frame[1] <= p[1] <= frame[3]):
             continue
         pins.append({'lat': p[0], 'lon': p[1], 'cat': t['cat'], 'key': part['key'],

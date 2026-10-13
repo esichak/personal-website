@@ -1218,7 +1218,7 @@ which region:
 ```yaml
 region_days:
   Lake Tahoe:
-    Pacific Crest Trail: 67-76
+    Pacific Crest Trail: 67-69, 72-74, 76
     Tahoe Rim Trail: 146/2, 147-153
   Eastern Sierra:
     Pacific Crest Trail: 58-65
@@ -1241,6 +1241,11 @@ region_days:
   still counts as one of the part's journal days, with its date. A lost signal of a few kilometres is not a split,
   and the site never draws a line across a gap in a recording, so a day needs this only when one of its stretches
   does not belong to the part. A stretch the recording does not have stops the build (5.2).
+- **List the days of the route, not every day in between.** Every listed day is drawn in the route's line, picked out
+  with it and counted in its row, whatever was recorded that day. A day off the trail (a walk on a rest day, a ride
+  in town) is a day of the journal and not of the route: leave it out, as days 70, 71 and 75 are above, and the
+  line is the trail alone. The route is still one walk: the days after such a gap go on from where the days before
+  it stopped.
 - **The region is spelled as the reports spell it**, letter for letter. A name no report is filed under stops the
   build with a message that suggests the nearest one (5.2).
 - **On the map**, each listed day that has a GPX is drawn in the journal's activity colour, where it crosses the map.
@@ -1249,7 +1254,8 @@ region_days:
   edge (Lake Tahoe above: days 67 and 76 are the ones that come in at the bottom and leave at the top). A pin marks a
   start: an unbroken run of days that starts inside the region gets one, at its start, and it opens the journal at
   that day (the Tahoe Rim Trail, at the start of its stretch of Day 146). A run that walks in from outside, as the
-  PCT does, has a line and no pin.
+  PCT does, has a line and no pin. Days left out in between do not make a new start: a day that begins within 5 km
+  of where the part's last listed day ended goes on with the same run (Day 72 after Day 69), and gets no pin.
 - **The line itself is a link.** A part's line answers the pointer as a report's pin does: pointing at it (or
   reaching it with Tab) picks out all of the part's days, dims the rest, marks the part's row in the list and shows
   its name ("Tahoe Rim Trail: Pacific Crest Trail 2024, Day 146 to Day 153"); a click or tap opens the journal at the

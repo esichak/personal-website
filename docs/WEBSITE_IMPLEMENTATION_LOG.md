@@ -1128,3 +1128,56 @@ distance, and taken the route's pin away, since a pin marks a run of days that s
 | Browser, local build | Lake Tahoe: the route's line holds the new stretch as one unbroken line inside the map, the loop is closed, the line answers the pointer there, the row reads 8 journal days and 209 mi |
 
 Not run: Safari, Firefox, a real phone.
+
+## Days off taken out of the Lake Tahoe PCT route (2026-10-13)
+
+Asked for by Eric with a screenshot of the Map page: with the pointer on the Pacific Crest Trail route, three red
+marks lit up that are no part of the trail's line, and he asked which activities they were.
+
+### What they were
+
+The route listed days 67 to 76 as one range, and three of those ten journal days were not walked on the trail. Each
+is a recording of its own that joins neither the day before it nor the day after it:
+
+| Day | Date | The day file's figures |
+| --- | --- | --- |
+| 70 | Jun 30, 2024 | 6.5 km, 1:28 moving in 7:11 |
+| 71 | Jul 1, 2024 | 40.2 km, 1:18 moving in 3:12 |
+| 75 | Jul 5, 2024 | 12.9 km, 1:47 moving in 5:01 |
+
+The trail itself is continuous without them: Day 72 starts 1.5 km from where Day 69 ended, and Day 76 starts 0.5 km
+from where Day 74 ended. The Tahoe Rim Trail route and the Eastern Sierra route were checked the same way and hold
+no such day.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `content/trips/pacific-crest-trail-2024/index.md` | Lake Tahoe, Pacific Crest Trail: `67-69, 72-74, 76`. |
+| `tools/render.py` | `journal_pins`, `RESUME_M` (5 km): a run of days that starts within that distance of where the part's previous run ended goes on with the same walk and gets no pin. Without it, leaving the three days out would have given the route two pins, at the places where the walk went on. |
+| `rendered/site/` | `meta.json`, the two line overlays of the Lake Tahoe map and the route's small drawing. |
+| `tests/test_region_days.py` | The resumed run. |
+| `docs/CONTENT_GUIDE.md` (11.7), `docs/DEVELOPING.md` | List the days of the route, not every day in between; the pin rule. |
+
+### Behaviour
+
+- **On the map.** The three lines are no longer drawn on the Lake Tahoe map at all: they were only ever drawn as
+  days of this route. The route is the trail from the map's bottom edge to its top edge, and has no pin, as before.
+- **In the list.** "Pacific Crest Trail", Jun 27 to Jul 6, 2024, 7 journal days, 165 mi (was 10 journal days and
+  202 mi, which counted the three days' 59.6 km).
+- **Unchanged.** The journal page, where days 70, 71 and 75 are the days they were; the Tahoe Rim Trail route; the
+  Eastern Sierra map.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -W error -m unittest discover -s tests`, Python 3.9.6 and 3.12.11 | 2,481 tests, OK on both |
+| The suite on Python 3.12 with the `html.parser` of CPython 3.12.15, the deploy runner's release | 2,481 tests, OK |
+| `python3 tests/run_orders.py --reverse` | 2,481 tests, OK |
+| `python3 tools/validate.py` | 0 errors, 1 warning (a planned route without `goal.json`, as before); before the render it also gave the stale-map warning for Lake Tahoe (Pacific Crest Trail) |
+| `python3 tools/build.py --check` | 357 pages, link check OK |
+| `python3 tools/render.py --site` | all region and ski maps redrawn; `meta.json`, the two Lake Tahoe overlays and the route's drawing differ, nothing else |
+| Browser, local build, Map page | with the pointer on the route, 7 lines are picked out and they are the trail alone; the row reads 7 journal days and 165 mi; the route has no pin |
+
+Not run: Safari, Firefox, a real phone.

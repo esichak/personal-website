@@ -366,6 +366,32 @@ class RendererTests(RenderGoalsFixture):
         self.assertEqual(self.render.journal_pins(k, self.part(k), OWN_BOX), [])
         self.assertEqual(len(self.render.journal_pins(k, self.part(k))), 1)      # without a frame it has its pin
 
+    def test_a_run_that_goes_on_where_the_part_stopped_starts_nothing_new(self):
+        # days 1 and 2 walk north to 38.917; day 3 is a day off somewhere else and is left out of the part; day 4 goes on
+        def journal_with_day_4_at(lat, slug):
+            j = self.journal({REGION: {'Synthetic Crest': '1-2, 4'}}, slug=slug)
+            with open(os.path.join(self.trips_dir, slug, 'days', '004.gpx'), 'w', encoding='utf-8') as fh:
+                fh.write(gf.gpx(gf.trk([gf.line(lat, -120.100, 6)], 'Synthetic day 4')))
+            return j
+        self.assertEqual(self.render.RESUME_M, 5000.0)
+        for lat, starts in ((38.917, ['1']),            # at the very place
+                            (38.947, ['1']),            # 3.3 km on (the other end of a lake, the far side of a road)
+                            (38.977, ['1', '4']),       # 6.7 km on: another walk
+                            (39.100, ['1', '4'])):
+            with self.subTest(day_4_starts_at=lat):
+                j = journal_with_day_4_at(lat, 'syn-d-resume-%d' % round(lat * 1000))
+                pins = self.render.journal_pins(j, self.part(j))
+                self.assertEqual([p['title'].rsplit('Day ', 1)[1] for p in pins], starts)
+        # the days that follow one another are still one run, wherever each starts (a hitch between two days)
+        k = self.journal({REGION: '2-3'}, slug='syn-d-hitch')
+        self.assertEqual([p['title'] for p in self.render.journal_pins(k, self.part(k))], ['Synthetic Journal, Day 2'])
+        # a run that goes on has no pin inside the frame either; one that starts anew inside it has
+        inside = journal_with_day_4_at(38.947, 'syn-d-resume-box')
+        self.assertEqual(self.render.journal_pins(inside, self.part(inside), (38.900, -120.2, 39.0, -120.0)), [])
+        anew = journal_with_day_4_at(38.977, 'syn-d-anew-box')
+        self.assertEqual([p['title'] for p in self.render.journal_pins(anew, self.part(anew), (38.900, -120.2, 39.0, -120.0))],
+                         ['Synthetic Crest: Synthetic Journal, Day 4'])
+
     def test_a_parts_lines_are_a_link_to_its_first_day(self):
         j = self.journal({REGION: {'Synthetic Loop': '4-5'}, 'Synthetic Coast': '1'})
         loop, coast = self.part(j, 0), self.part(j, 1)

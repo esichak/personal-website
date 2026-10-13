@@ -1169,7 +1169,9 @@ on a trip that is not `kind: series` is a `content.ContentError`. A part is the 
     framed by the region's own trips: when a region has journal parts, its specs carry `bbox`, the box `render_map`
     would have worked out from the own tracks and pins, so the days are drawn whole and the map's edge cuts them off.
     A run of consecutive days (`render.day_runs`) that starts inside that box gets one pin, at its start
-    (`render.journal_pins(t, part, frame)`); a run that comes in from outside has a line and no pin. Each part also
+    (`render.journal_pins(t, part, frame)`); a run that comes in from outside has a line and no pin, and neither has
+    a run that starts within `render.RESUME_M` (5 km) of where the part's previous run ended: the days between them
+    were left out of the part (days off), and the walk goes on. Each part also
     gets a 64×48 drawing of all its days, `rendered/site/<map key>-<part key>-g64.svg.html` (`render.part_glyph`).
     A day the part takes a stretch of is read through `render.part_points`, so its line, the pin of a run it starts
     and the drawing hold that stretch alone.
