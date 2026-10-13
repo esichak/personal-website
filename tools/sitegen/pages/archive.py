@@ -7,6 +7,7 @@ from sitegen import core
 from sitegen.core import esc, U, link, icon
 
 import content
+import geo
 
 HERE = 'map/'
 SHOW = 8  # "In this region" rows shown before the "Show all" toggle (JS only; without JS every row shows)
@@ -167,19 +168,32 @@ def part_glyph(name, here):
             % (link(here, 'assets/maps/'), esc(name), w, h))
 
 
+def part_day_km(t, part, d):
+    """The distance one day adds to a journal part, in km: the day file's own figure, or, for a day the part takes one
+    stretch of, the length of that stretch along its track (content.day_points; a ContentError when the track has no
+    such stretch). None when there is no figure."""
+    n = (part.get('stretches') or {}).get(d['id'])
+    if n is None:
+        return d['stats'].get('distance_km')
+    pts = content.day_points(d, n, 'content/trips/%s/index.md' % t['slug'])
+    return geo.cumdist(pts)[-1] / 1000.0 if pts else None
+
+
 def journal_row(t, part, here, drawing=None):
     """One part of a journal as a row of a region's list: the part's own name when it has one (Tahoe Rim Trail), else
     the journal's title; then the dates of its first and last day, how many journal days it is and the distance they add
     up to (from the day files' own stats). The link goes to the first of those days on the journal page. The row
     carries the part's key, as its lines on the region map do, so hovering one picks out the other. It is not a report
     of the region: no count includes it, and it is never folded away behind 'Show all'.
+    A day the part takes one stretch of ('146/2') is a journal day like the others, and counts with the length of that
+    stretch, measured along its track (part_day_km): the day file's distance is the whole day's.
     drawing: the name of the part's own drawing (the map's 'journals' entry names it); without one the row shows the
     journal's, which is the whole journal."""
     days = part['days']
     dates = [d['date'] for d in days if d['date']]
     bits = [core.nb(core.frange(min(dates), max(dates), caps=True))] if dates else []
     bits.append(core.nb(plural(len(days), 'JOURNAL DAY')))
-    km = [d['stats'].get('distance_km') for d in days if d['stats'].get('distance_km')]
+    km = [k for k in (part_day_km(t, part, d) for d in days) if k]
     mi_, km_ = core.dist_vals(sum(km)) if km else ('', '')
     if mi_:
         bits.append(U(core.nb(mi_ + ' MI'), core.nb(km_ + ' KM')))

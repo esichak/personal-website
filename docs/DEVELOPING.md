@@ -1148,13 +1148,19 @@ absent or empty, and the key is always present. A value that is not a list, a no
 naming `content/trips/<slug>/index.md`. Only `series.highlights` reads it.
 `region_days`: the optional block of a journal's index.md that says which of its days lie in which region, as a list
 of parts in the order written: `[{'region': name, 'title': str or None, 'key': str, 'days': [day dicts in the
-journal's order]}, ...]`; `[]` when absent or empty, and the key is always present (`content._region_days`). A region's
+journal's order], 'stretches': {day id: n}}, ...]`; `[]` when absent or empty, and the key is always present
+(`content._region_days`). A region's
 value is either its days (`Eastern Sierra: 58-65`: one part, `title` None, `key` the journal's slug) or a mapping of
 named parts (`Tahoe Rim Trail: 147-153`: `title` the name, `key` `'<slug>:<slugified name>'`). A day is named by its
-label, the number the page shows; a range takes every day whose label is a number inside it. Days may be text, a
-number or an inline list. A value of another shape, a day or range that matches no day, a range written backwards, a
-region or part without days, a region listed twice, a part named twice or without a name, or a non-empty block on a
-trip that is not `kind: series` is a `content.ContentError`. A part is the unit everywhere below: its key is the
+label, the number the page shows; a range takes every day whose label is a number inside it. `146/2` lists the day
+with one stretch of its recording: `stretches` maps the day's id to that number (`{}` when the part has none), and
+`content.day_points(day, n)` gives the stretch's fixes, where a stretch is what `geo.stretches` splits a recording
+into (two consecutive fixes more than `geo.STRETCH_GAP_M`, 20 km, apart). The loader reads no track, so a stretch the
+track does not have is a `ContentError` from `day_points`: the validator reports it as an error, and the renderer and
+the build stop on it. Days may be text, a number or an inline list. A value of another shape, a day or range that matches no day, a range written backwards, a
+region or part without days, a region listed twice, a part named twice or without a name, a stretch of a range or
+without a number from 1, a day listed whole and as a stretch (or as two stretches) in one part, or a non-empty block
+on a trip that is not `kind: series` is a `content.ContentError`. A part is the unit everywhere below: its key is the
 `data-key` of its lines, its pin, its link and its row. Four places read it:
   - `render.journal_parts(trips)` → `{region: [part with the journal under 'trip' and only the days that have a
     track]}`. `render_site` adds each part's days to the region's own map (never to a ski map, and they do not count
@@ -1165,8 +1171,10 @@ trip that is not `kind: series` is a `content.ContentError`. A part is the unit 
     A run of consecutive days (`render.day_runs`) that starts inside that box gets one pin, at its start
     (`render.journal_pins(t, part, frame)`); a run that comes in from outside has a line and no pin. Each part also
     gets a 64×48 drawing of all its days, `rendered/site/<map key>-<part key>-g64.svg.html` (`render.part_glyph`).
+    A day the part takes a stretch of is read through `render.part_points`, so its line, the pin of a run it starts
+    and the drawing hold that stretch alone.
     The map's entry in `rendered/site/meta.json` gains `'journals': [{'slug', 'key', 'title', 'days': [day ids],
-    'glyph': the drawing's name}]`; `'trips'` stays the region's own reports and planned routes, so
+    'glyph': the drawing's name}]`, with `'stretches': {day id: n}` on a part that takes one; `'trips'` stays the region's own reports and planned routes, so
     `core.region_groups` and every count read what they read before. The parts are part of the site maps' hash.
   - `mapkit.line_links`: tracks that carry an `href` have no pin to follow, so `render_map` writes one
     `<a class="mk-line" href data-key aria-label>` per key into the pins layer, holding a `<title>` and one
@@ -1180,11 +1188,14 @@ trip that is not `kind: series` is a `content.ContentError`. A part is the unit 
     `li.arc-row.arc-row--journal` per part (`archive.journal_row`), after the reports and before the first planned
     route, never `arc-more` (so "Show all" does not fold it away), with the part's key as `data-key`. Its image is
     the part's own drawing when the map's entry names one and it is rendered (`archive.part_glyph`; `build.py`
-    publishes it as `assets/maps/<name>.svg`, `copy_part_drawings`), else the journal's glyph. No count includes
+    publishes it as `assets/maps/<name>.svg`, `copy_part_drawings`), else the journal's glyph. Its distance is
+    the sum of the day files' `distance_km`, except that a day taken as a stretch counts with the stretch's length
+    along its track (`archive.part_day_km`: the one place a page measures a track itself). No count includes
     the row. The legend names the journal's activity only when the map's entry lists the journal.
   - `checks._journal_region_findings`: a region no report is filed under is an error; a region without a region map,
-    and a map drawn with other days than a part lists (compared part by part, by key), are warnings
-    (`tests/test_region_days.py` holds all four readers).
+    and a map drawn with other days or another stretch than a part lists (compared part by part, by key), are
+    warnings; a stretch the day's track does not have is an error (`tests/test_region_days.py` holds all four
+    readers).
 `published_at`, `updated_at`: the optional lines of index.md that say when a report first went online on this site and
 when its content last changed materially, kept exactly as written; None when absent or empty. Accepted: a date
 `YYYY-MM-DD`, or a date and time with an explicit offset (`2026-10-03T18:30:00-07:00`, or `Z`; the seconds are

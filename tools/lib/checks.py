@@ -1035,12 +1035,13 @@ def _journal_region_findings(live, rendered_dir, out):
         maps = mapped = None      # no such file, or not one this check can read: only the names are checked
 
     def drawn_days(name, slug, key):
+        """(the day ids, {day id: stretch}) the region's map drew of this part; (None, {}) when it drew nothing of it."""
         entry = maps.get('region-%s-desktop' % content.slugify(name))
         js = entry.get('journals') if isinstance(entry, dict) else None
         for j in js if isinstance(js, list) else []:
             if isinstance(j, dict) and j.get('slug') == slug and j.get('key', slug) == key:
-                return j.get('days')
-        return None
+                return j.get('days'), j.get('stretches') or {}
+        return None, {}
 
     again = 'run python3 tools/render.py --site and commit rendered/site/'
     listed, named = set(), set()
@@ -1050,6 +1051,17 @@ def _journal_region_findings(live, rendered_dir, out):
         for rd in t.get('region_days') or []:
             name = rd['region']
             listed.add((t['slug'], name, rd['key']))
+            for d in rd['days']:
+                # '146/2': the day's track must have that stretch (the loader reads no track, so this is where it is seen)
+                n = (rd.get('stretches') or {}).get(d['id'])
+                if n is not None:
+                    try:
+                        content.day_points(d, n)
+                    except content.ContentError as e:
+                        _err(out, _index(t['slug']), str(e))
+                    except Exception as e:      # a track that cannot be read at all: the GPX checks say why
+                        _err(out, _index(t['slug']), 'region_days takes stretch %d of day %s, whose track cannot be read (%s)'
+                             % (n, d['label'], type(e).__name__))
             if name in named and name not in regions:
                 continue          # a mistyped region with several parts is one mistake: one line
             named.add(name)
@@ -1065,11 +1077,13 @@ def _journal_region_findings(live, rendered_dir, out):
                                               'track), so these days are shown on no map' % name)
                 continue
             want = [d['id'] for d in rd['days'] if d['track']]
-            have = drawn_days(name, t['slug'], rd['key'])
+            cut = {i: n for i, n in (rd.get('stretches') or {}).items() if i in want}
+            have, had = drawn_days(name, t['slug'], rd['key'])
             what = ('%s (%s)' % (name, rd['title'])) if rd.get('title') else name
-            if want and have != want:
+            if want and (have != want or had != cut):
                 _warn(out, _index(t['slug']), 'region_days: the region map of %s was last drawn %s; %s'
-                      % (what, 'without these days' if have is None else 'with other days of this journal', again))
+                      % (what, 'without these days' if have is None else 'with other days of this journal' if have != want
+                         else 'with another stretch of one of these days', again))
     if maps is None:
         return
     slugs = {t['slug'] for t in live if t['kind'] == 'series'}

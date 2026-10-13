@@ -37,6 +37,23 @@ def cumdist(pts):
     return out
 
 
+STRETCH_GAP_M = 20000.0  # two fixes farther apart than this were not walked between: a drive, in the middle of one recording
+
+
+def stretches(pts, gap_m=STRETCH_GAP_M):
+    """The stretches of one recording: [(a, b)] index ranges [a, b) of pts, split wherever two consecutive fixes are more
+    than gap_m apart. A day recorded before and after a drive is two stretches; a lost signal of a few kilometres is
+    not a split. A recording without such a break is one stretch, and no fixes is none."""
+    out, a = [], 0
+    for i in range(1, len(pts)):
+        if hav(pts[i - 1], pts[i]) > gap_m:
+            out.append((a, i))
+            a = i
+    if pts:
+        out.append((a, len(pts)))
+    return out
+
+
 # ---------------------------------------------------------------- projection
 class Proj:
     """Local equirectangular fitted to a bbox inside a w x h frame (px)."""

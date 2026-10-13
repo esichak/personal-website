@@ -246,7 +246,8 @@ is the value found in the file. `photos[1]` and `beta[0]` count entries from 0: 
 | `content/trips/<slug>/index.md: journal_highlights names day …` | an id has no `days/NNN.md` (id shown as the parser read it, so `059` appears as `59`) | Use the day file's name, not the day number: Day 5.2 is `006`. `ls content/trips/<slug>/days` lists them. |
 | `content/trips/<slug>/index.md: journal_highlights lists day … twice` | the same day is listed twice (`059` and `59` are the same day) | Remove the repeat. |
 | `content/trips/<slug>/index.md: journal_highlights is for a journal …` | the list is on a trip that is not `kind: series` (its kind is shown) | Remove the line; only the PCT uses it. |
-| `content/trips/<slug>/index.md: region_days …` | the journal's `region_days` block is not readable: it is not a list of regions with their days, a day or a range matches no day of the journal, a range runs backwards, a region or a part has no days, a region is listed twice, a part is named twice or has no name, or the block is on a trip that is not a journal (the message says which, and names the part as `Lake Tahoe: Tahoe Rim Trail`) | Write it as in 11.7: a region with its days (`Eastern Sierra: 58-65`) or with named parts under it, with the day numbers the journal page shows. |
+| `content/trips/<slug>/index.md: region_days …` | the journal's `region_days` block is not readable: it is not a list of regions with their days, a day or a range matches no day of the journal, a range runs backwards, a region or a part has no days, a region is listed twice, a part is named twice or has no name, a stretch is written of a range or without a number from 1 (`146/0`), a day is listed both whole and as a stretch, or the block is on a trip that is not a journal (the message says which, and names the part as `Lake Tahoe: Tahoe Rim Trail`) | Write it as in 11.7: a region with its days (`Eastern Sierra: 58-65`) or with named parts under it, with the day numbers the journal page shows. |
+| `content/trips/<slug>/index.md: region_days takes stretch 3 of day 146, whose track has 2 (a stretch ends where two fixes lie more than 20 km apart)` | the block takes a stretch the day's recording does not have (`146/3`), or a stretch of a day without a track (`… whose track holds no fixes`) | Count the stretches from 1 in the order they were recorded (11.7), or list the day whole. |
 | `content/trips/<slug>/index.md: region_days names the region 'Lake Taho', which no report is filed under (did you mean 'Lake Tahoe'?)` | the region in the block is not the `region:` of any report, letter for letter | Spell it as the reports do. |
 
 Any trip's files. The file named is `content/trips/<slug>/index.md`, or the `days/NN.md` that holds the line, unless
@@ -299,7 +300,7 @@ A warning line reads `WARNING <file>: <message>`. A warning never stops a build.
 | `date 2027-09-01 is in the future (today is 2026-10-10)` | usually a typo in the year. A date one day ahead is accepted | Fix the date. |
 | `no track.gpx: the page has no map, no profile and no GPX download` | a single-day report without a track | Nothing, when the trip has no recording: the page is built without those parts (7.2). Otherwise add the track. |
 | `none of the 2 days has a GPX (days/NN.gpx): the page shows an empty map and offers no downloads` | a multi-day trip or a journal with no `NN.gpx` beside any of its `days/NN.md` | The page is built either way, with an empty map. `add_trip.py --day-of <slug>` writes a day's `NN.md` and `NN.gpx` together ([ADDING-TRIPS.md](../ADDING-TRIPS.md)). |
-| `region_days: the region map of Lake Tahoe was last drawn without these days; run python3 tools/render.py --site and commit rendered/site/` | the journal's `region_days` block lists days for a region whose map was drawn before, or with other days (`… with other days of this journal`), or the block no longer lists days the map still draws (`the region map of … still draws days of this journal …`) | Run the command (internet needed) and commit `rendered/site/` with the change (11.7). The message names the part when the region has named parts (`the region map of Lake Tahoe (Tahoe Rim Trail) …`). Until then the list has the rows and the map shows what it was last drawn with. |
+| `region_days: the region map of Lake Tahoe was last drawn without these days; run python3 tools/render.py --site and commit rendered/site/` | the journal's `region_days` block lists days for a region whose map was drawn before, or with other days (`… with other days of this journal`) or another stretch of a day (`… with another stretch of one of these days`), or the block no longer lists days the map still draws (`the region map of … still draws days of this journal …`) | Run the command (internet needed) and commit `rendered/site/` with the change (11.7). The message names the part when the region has named parts (`the region map of Lake Tahoe (Tahoe Rim Trail) …`). Until then the list has the rows and the map shows what it was last drawn with. |
 | `region_days: 'Yosemite' has no region map (one is drawn from three reports with a track), so these days are shown on no map` | the block names a region that has reports but no region map | Nothing, or take the line out: the days appear once the region has its map. |
 | `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug>` | the trip was added with `--no-render`, or its render did not finish. Until then the report's map area is empty (7.2) | Run the command it gives (needs the internet), then stage `rendered/trips/<slug>` and `rendered/site` with the trip (step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md)). |
 | `photos[1] (photos/02.webp) has no alt text; describe the photo in a sentence` | `alt: ""`, which is what `add_trip.py` writes | Write the description. On the cover it is also the share image's description (section 9). |
@@ -1218,7 +1219,7 @@ which region:
 region_days:
   Lake Tahoe:
     Pacific Crest Trail: 67-76
-    Tahoe Rim Trail: 147-153
+    Tahoe Rim Trail: 146/2, 147-153
   Eastern Sierra:
     Pacific Crest Trail: 58-65
 ```
@@ -1231,6 +1232,15 @@ region_days:
 - **A day is named by the number the journal page shows** (Day 148), not by its file name. `147-153` is every day
   from 147 to 153 that the journal has; single days and ranges are separated by commas. A day may be listed under
   two regions.
+- **One stretch of a day: `146/2`.** A day that was recorded in two places, with a drive in between, falls into
+  stretches: one ends and the next begins wherever two recorded points lie more than 20 km apart. `146/2` is the
+  second stretch of day 146 (Day 146 finishes a section of the PCT in the morning and starts the Tahoe Rim Trail in
+  the afternoon; the Tahoe Rim Trail takes the afternoon). Stretches are counted from 1 in the order recorded. The
+  part then takes that stretch alone: on the map, for its pin, in its small drawing and in its distance, which for
+  that day is the length of the stretch measured along its track (the day's own figure is for the whole day). The day
+  still counts as one of the part's journal days, with its date. A lost signal of a few kilometres is not a split,
+  and the site never draws a line across a gap in a recording, so a day needs this only when one of its stretches
+  does not belong to the part. A stretch the recording does not have stops the build (5.2).
 - **The region is spelled as the reports spell it**, letter for letter. A name no report is filed under stops the
   build with a message that suggests the nearest one (5.2).
 - **On the map**, each listed day that has a GPX is drawn in the journal's activity colour, where it crosses the map.
@@ -1238,10 +1248,11 @@ region_days:
   there. So list every day that crosses the map, the first and the last included, and the line runs from edge to
   edge (Lake Tahoe above: days 67 and 76 are the ones that come in at the bottom and leave at the top). A pin marks a
   start: an unbroken run of days that starts inside the region gets one, at its start, and it opens the journal at
-  that day (the Tahoe Rim Trail, Day 147). A run that walks in from outside, as the PCT does, has a line and no pin.
+  that day (the Tahoe Rim Trail, at the start of its stretch of Day 146). A run that walks in from outside, as the
+  PCT does, has a line and no pin.
 - **The line itself is a link.** A part's line answers the pointer as a report's pin does: pointing at it (or
   reaching it with Tab) picks out all of the part's days, dims the rest, marks the part's row in the list and shows
-  its name ("Tahoe Rim Trail: Pacific Crest Trail 2024, Day 147 to Day 153"); a click or tap opens the journal at the
+  its name ("Tahoe Rim Trail: Pacific Crest Trail 2024, Day 146 to Day 153"); a click or tap opens the journal at the
   part's first day. Where a pin or a numbered marker lies on the line, that marker answers first, and where two
   parts share a trail the one written later in the block does.
 - **In the region's list**, on the Map page and on the region's page, each part has one row: its name, the dates of

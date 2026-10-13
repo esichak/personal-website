@@ -357,6 +357,7 @@ def _highlights(raw, t, where):
 
 _DAY_RANGE = re.compile(r'^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$', re.ASCII)
 _DAY_NUMBER = re.compile(r'^\d+(?:\.\d+)?$', re.ASCII)
+_DAY_STRETCH = re.compile(r'^(.*?)\s*/\s*(\S*)$')      # '146/2': the second stretch of day 146 (geo.stretches)
 
 
 def _region_days(raw, t, where):
@@ -370,15 +371,21 @@ def _region_days(raw, t, where):
           Eastern Sierra: 58-65
 
     -> one part per line of days, in the order written:
-       [{'region': 'Lake Tahoe', 'title': 'Pacific Crest Trail', 'key': '<slug>:pacific-crest-trail', 'days': [...]}, ...].
+       [{'region': 'Lake Tahoe', 'title': 'Pacific Crest Trail', 'key': '<slug>:pacific-crest-trail', 'days': [...],
+         'stretches': {}}, ...].
     A region holds either its days, which is one part without a title of its own (title None; its key is the
     journal's slug), or named parts, each with its days: a part is one line on the map and one row in the region's
     list, and its key is what ties the two together. `days` are the journal's own day dicts in its order. A day is
     named by its label, the number the page shows (Day 148), not by its file name: '148' is that day, '68-75' every
-    day whose label is a number from 68 to 75 (5.2 lies between 5 and 6). A day may be listed more than once. Absent or
-    empty -> []. Anything else that is not this shape, a day or range that matches no day, a range written backwards,
-    a region or a part without days, a name with no letter or digit, or the block on a trip that is not a journal is
-    a ContentError."""
+    day whose label is a number from 68 to 75 (5.2 lies between 5 and 6). A day may be listed more than once.
+    '146/2' is one stretch of a day: the second of the stretches its recording falls into where two fixes lie more
+    than geo.STRETCH_GAP_M apart (a morning on one trail, a drive, an afternoon on another). The day is in `days` like
+    any other, and `stretches` maps its id to that number, {'143': 2}; day_points gives the stretch's fixes. Whether
+    the track has such a stretch is not looked at here (the loader reads no track): day_points and the validator do.
+    Absent or empty -> []. Anything else that is not this shape, a day or range that matches no day, a range written
+    backwards, a stretch of a range or one that is not a number from 1, a day listed both whole and as a stretch or
+    as two stretches, a region or a part without days, a name with no letter or digit, or the block on a trip that is
+    not a journal is a ContentError."""
     if raw is None or raw == {} or raw == []:
         return []
     if not isinstance(raw, dict):
@@ -391,7 +398,8 @@ def _region_days(raw, t, where):
     numbered = [(float(d['label']), d) for d in t['days'] if _DAY_NUMBER.match(str(d['label']))]
 
     def days_of(name, value):
-        """The day dicts a value names; name: how the messages call the line ('Lake Tahoe', 'Lake Tahoe: Tahoe Rim Trail')."""
+        """(the day dicts a value names, {day id: the stretch it takes of that day}); name: how the messages call the
+        line ('Lake Tahoe', 'Lake Tahoe: Tahoe Rim Trail')."""
         items = value if isinstance(value, list) else [value]
         parts = []
         for item in items:
@@ -402,9 +410,18 @@ def _region_days(raw, t, where):
             parts += [p.strip() for p in str(item).split(',') if p.strip()]
         if not parts:
             raise ContentError('%s: region_days: %s names no days; write them as 68-75, 147-153 or take the line out' % (where, name))
-        chosen = set()
+        chosen, whole, stretch = set(), set(), {}
         for part in parts:
-            m = _DAY_RANGE.match(part)
+            cut = _DAY_STRETCH.match(part)
+            if cut:
+                label, n = cut.group(1), cut.group(2)
+                if _DAY_RANGE.match(label):
+                    raise ContentError('%s: region_days: %s has %s: a stretch is of one day, not of a range' % (where, name, part))
+                if not re.match(r'^[1-9]\d*$', n, re.ASCII):
+                    raise ContentError('%s: region_days: %s has %s: after the / comes the number of the stretch, counted '
+                                       'from 1 (146/2 is the second stretch of day 146)' % (where, name, part))
+                part = label
+            m = None if cut else _DAY_RANGE.match(part)
             if m:
                 lo, hi = float(m.group(1)), float(m.group(2))
                 if lo > hi:
@@ -419,8 +436,18 @@ def _region_days(raw, t, where):
                 if not hit:
                     raise ContentError('%s: region_days: %s names day %r, which is no day of this journal (days are named '
                                        'by the number the page shows, as in Day 148)' % (where, name, part))
+            for i in hit:
+                n = int(cut.group(2)) if cut else None
+                if (i in whole and n is not None) or (i in stretch and stretch[i] != n):
+                    label = next(str(d['label']) for d in t['days'] if d['id'] == i)
+                    raise ContentError('%s: region_days: %s lists day %s twice, whole and as a stretch or as two stretches; '
+                                       'a part takes a day whole or one stretch of it' % (where, name, label))
+                if n is None:
+                    whole.add(i)
+                else:
+                    stretch[i] = n
             chosen.update(hit)
-        return [d for d in t['days'] if d['id'] in chosen]
+        return [d for d in t['days'] if d['id'] in chosen], stretch
 
     out, regions = [], set()
     for region, value in raw.items():
@@ -431,7 +458,8 @@ def _region_days(raw, t, where):
             raise ContentError('%s: region_days lists the region %r twice' % (where, name))
         regions.add(name)
         if not isinstance(value, dict):
-            out.append({'region': name, 'title': None, 'key': t['slug'], 'days': days_of(name, value)})
+            days, stretch = days_of(name, value)
+            out.append({'region': name, 'title': None, 'key': t['slug'], 'days': days, 'stretches': stretch})
             continue
         if not value:
             raise ContentError('%s: region_days: %s names no days; write them as 68-75, 147-153 or take the line out' % (where, name))
@@ -444,9 +472,28 @@ def _region_days(raw, t, where):
             if key in keys:
                 raise ContentError('%s: region_days: %s names the part %r twice' % (where, name, title))
             keys.add(key)
-            out.append({'region': name, 'title': title, 'key': '%s:%s' % (t['slug'], key),
-                        'days': days_of('%s: %s' % (name, title), days)})
+            days, stretch = days_of('%s: %s' % (name, title), days)
+            out.append({'region': name, 'title': title, 'key': '%s:%s' % (t['slug'], key), 'days': days, 'stretches': stretch})
     return out
+
+
+def day_points(day, stretch=None, where=None):
+    """The fixes of a journal day's track, as fit_reader.read_gpx gives them, or of one stretch of it: stretch is the
+    number a region_days part gives the day ('146/2' -> 2, counted from 1; geo.stretches). None: the whole day.
+    A day that has no such stretch, or no track to take one from, is a ContentError; where: the file its message names."""
+    import fit_reader   # here, not at the top: loading the content reads no track
+    import geo
+    pts = fit_reader.read_gpx(day['track']) if day.get('track') else []
+    if stretch is None:
+        return pts
+    cuts = geo.stretches(pts)
+    if not 1 <= stretch <= len(cuts):
+        raise ContentError('%sregion_days takes stretch %d of day %s, whose track %s'
+                           % ((where + ': ') if where else '', stretch, day['label'],
+                              'has %d (a stretch ends where two fixes lie more than %d km apart)' % (len(cuts), geo.STRETCH_GAP_M // 1000)
+                              if cuts else 'holds no fixes'))
+    a, b = cuts[stretch - 1]
+    return pts[a:b]
 
 
 def _stats(st):

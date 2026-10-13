@@ -500,14 +500,15 @@ def start_of(t):
 
 def site_tracks(t, width=2.5, opacity=0.9, part=None):
     """A trip's lines on a region map. part: one part of a journal (journal_parts): only its days are drawn, under the
-    part's key, and the lines are a link to the first of those days (the journal has no pin of its own to follow)."""
+    part's key, and the lines are a link to the first of those days (the journal has no pin of its own to follow). A day
+    the part takes one stretch of ('146/2', content.day_points) is drawn with that stretch alone."""
     out = []
     key = t['slug']
     link = {}
     if t['kind'] == 'planned':
         lines = goal_lines(t)
     elif part is not None:
-        lines = [fit_reader.read_gpx(d['track']) for d in part['days']]
+        lines = [part_points(t, part, d) for d in part['days']]
         key = part['key']
         link = {'href': part_href(t, part), 'title': part_name(t, part)}
     else:
@@ -522,16 +523,27 @@ def site_tracks(t, width=2.5, opacity=0.9, part=None):
     return out
 
 
+def drawn_stretches(part):
+    """{day id: stretch number} for the days a part is drawn with one stretch of: its 'stretches', for the days it has."""
+    ids = {d['id'] for d in part['days']}
+    return {i: n for i, n in sorted((part.get('stretches') or {}).items()) if i in ids}
+
+
 def part_glyph(key, part):
     """The name of a journal part's drawing in rendered/site/ (64×48, all of the part's days, not only what the map's frame
     shows): key is the region map's ('region-lake-tahoe'). build.py publishes it as assets/maps/<name>.svg."""
     return '%s-%s-g64' % (key, content.slugify(part['key']))
 
 
+def part_points(t, part, d):
+    """The fixes of one day of a journal part: the whole day, or the one stretch of it the part takes."""
+    return content.day_points(d, (part.get('stretches') or {}).get(d['id']), 'content/trips/%s/index.md' % t['slug'])
+
+
 def journal_parts(trips):
     """{region: [part]}: a journal (kind: series) spans many regions and is filed under none of them; its region_days
     (content.py) say which days lie where, and those days are drawn on that region's map. A part is the content's own
-    ({'region', 'title', 'key', 'days'}) with the journal under 'trip' and only the days that have a track. A part
+    ({'region', 'title', 'key', 'days', 'stretches'}) with the journal under 'trip' and only the days that have a track. A part
     whose listed days hold no track has no entry."""
     parts = {}
     for t in trips:
@@ -571,13 +583,14 @@ def day_runs(t, days):
 
 def journal_pins(t, part, frame=None):
     """The pins of one part of a journal in a region: one for each run of its days that starts in the region, at the
-    start of the run's first day, linking to that day on the journal page. A pin marks a start, so a run that comes in
-    from outside (the PCT walking through) has none: its line is on the map, and is its own link (site_tracks).
+    start of the run's first day (of the stretch the part takes of it, when it takes one), linking to that day on the
+    journal page. A pin marks a start, so a run that comes in from outside (the PCT walking through) has none: its line
+    is on the map, and is its own link (site_tracks).
     frame: the (s, w, n, e) box of the region's own trips, which the map is framed by; None: every run has its pin."""
     pins = []
     for run in day_runs(t, part['days']):
         d = run[0]
-        p = fit_reader.read_gpx(d['track'])[0]
+        p = part_points(t, part, d)[0]
         if frame is not None and not (frame[0] <= p[0] <= frame[2] and frame[1] <= p[1] <= frame[3]):
             continue
         pins.append({'lat': p[0], 'lon': p[1], 'cat': t['cat'], 'key': part['key'],
@@ -616,6 +629,7 @@ def render_site(trips, force=False):
             jobs.append(('ski-' + content.slugify(region), region, ski, [(506, 680, 'desktop'), (390, 480, 'phone')], []))
     h = hashlib.sha1((str(VERSION) + json.dumps([(j[0], [(t['slug'], t['title'], t['activity'], t['kind'], trip_inputs(t)) for t in j[2]],
                                                    [(pt['key'], pt['title'], pt['trip']['title'], [d['id'] for d in pt['days']], trip_inputs(pt['trip']))
+                                                    + ((sorted((pt.get('stretches') or {}).items()),) if pt.get('stretches') else ())
                                                     for pt in j[4]])
                                                   for j in jobs], sort_keys=True)).encode()).hexdigest()
     mf = os.path.join(folder, 'meta.json')
@@ -658,8 +672,10 @@ def render_site(trips, force=False):
                                        'trips': [t['slug'] for t in ts], 'clusters': m.get('clusters')}
             if journals:
                 # the journal days this map draws, part by part; 'trips' stays the region's own reports and planned routes
-                meta['maps'][s['name']]['journals'] = [{'slug': pt['trip']['slug'], 'key': pt['key'], 'title': pt['title'],
-                                                        'days': [d['id'] for d in pt['days']], 'glyph': part_glyph(key, pt)}
+                # 'stretches' ({day id: number}) only on a part that takes one stretch of a day
+                meta['maps'][s['name']]['journals'] = [dict({'slug': pt['trip']['slug'], 'key': pt['key'], 'title': pt['title'],
+                                                             'days': [d['id'] for d in pt['days']], 'glyph': part_glyph(key, pt)},
+                                                            **({'stretches': drawn_stretches(pt)} if drawn_stretches(pt) else {}))
                                                        for pt in journals]
         print('rendered site map %-28s %5.0fs' % (key, time.time() - t0))
     for f in os.listdir(folder):

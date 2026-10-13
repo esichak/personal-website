@@ -1074,3 +1074,57 @@ under the reports in the region's list, and nothing happened when he pointed at 
 | Browser, local build, a real pointer | Lake Tahoe: both lines answer (highlight, row marked, name), both rows visible in the folded list with their own drawings; Eastern Sierra: the same for its one part |
 
 Not run: Safari, Firefox, a real phone (a tap on a line opens the journal; there is no hover on touch).
+
+## One stretch of a journal day on a region map (2026-10-13)
+
+Asked for by Eric after the journal parts were published: Day 146 of the PCT journal belongs to the Tahoe Rim Trail
+too. He finished a section of the PCT in the morning, drove to Lake Tahoe and started the Tahoe Rim Trail in the
+afternoon, all in one recording, and wanted the afternoon on the Lake Tahoe map as part of that route, without the
+straight line the recording has across the drive.
+
+### What the track holds
+
+Day 146 is one recording of 884 fixes with one break of about 168 km between two consecutive fixes: 6.7 km before it
+and 27.6 km after it, which end where Day 147 starts. The site never drew a line across such a break (mapkit splits a
+track wherever two fixes are more than 2 km apart), so the map was not the difficulty. Listing the day whole would
+have put the morning into the route's small drawing, 168 km away from the loop, added its 6.7 km to the route's
+distance, and taken the route's pin away, since a pin marks a run of days that starts inside the region.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/geo.py` | `stretches`, `STRETCH_GAP_M` (20 km): a recording falls into stretches where two consecutive fixes lie farther apart than that. |
+| `tools/lib/content.py` | `_region_days`: `146/2` lists a day with one stretch of its recording; every part carries `'stretches': {day id: n}`. `day_points(day, n)`: the fixes of the day or of that stretch; a stretch the track does not have is a `ContentError`. |
+| `tools/render.py` | `part_points`, `drawn_stretches`: a part's line, the pin of a run it starts and its small drawing take the stretch alone; the stretch is part of the site maps' hash and is recorded in the map's `journals` entry. |
+| `tools/sitegen/pages/archive.py` | `part_day_km`: in the part's row, a day taken as a stretch counts with the stretch's length along its track; the day file's distance is the whole day's. |
+| `tools/lib/checks.py` | A stretch the day's track does not have is an error; a map drawn with another stretch than the block lists is a warning. |
+| `content/trips/pacific-crest-trail-2024/index.md` | Lake Tahoe, Tahoe Rim Trail: `146/2, 147-153`. |
+| `rendered/site/` | `meta.json`, the two line overlays of the Lake Tahoe map and the Tahoe Rim Trail's small drawing. Nothing of the Eastern Sierra map changed, and no base image. |
+| `tests/test_region_days.py` | The splitter, `day_points`, the form and what is refused, the line, the pin, the drawing, the hash, the row's distance and the validator's two rules. |
+| `README.md`, `docs/CONTENT_GUIDE.md` (5.2, 5.3, 11.7), `docs/DEVELOPING.md` | The form for the author and for a developer. |
+
+### Behaviour
+
+- **On the map.** The Tahoe Rim Trail's line now includes the afternoon of Day 146, which closes the loop on its
+  south-east side. Nothing is drawn of the morning or of the drive. The route's pin stands at the start of that
+  stretch, and its link and name start at Day 146 ("Tahoe Rim Trail: Pacific Crest Trail 2024, Day 146 to Day 153").
+- **In the list.** "Tahoe Rim Trail", Sep 14 to 21, 2024, 8 journal days, 209 mi (336 km): the seven days it had
+  (192 mi) and the 27.6 km of the stretch. Its small drawing is the closed loop.
+- **Unchanged.** The Pacific Crest Trail part, the Eastern Sierra map and list, every count, and the journal page
+  itself, where Day 146 is the one day it was.
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| `python3 -W error -m unittest discover -s tests`, Python 3.9.6 and 3.12.11 | 2,480 tests, OK on both |
+| The suite on Python 3.12 with the `html.parser` of CPython 3.12.15, the deploy runner's release | 2,480 tests, OK |
+| `python3 tests/run_orders.py --reverse` | 2,480 tests, OK |
+| `node tests/maplist_js_harness.js` | 14 checks passed |
+| `python3 tools/validate.py` | 0 errors, 1 warning (a planned route without `goal.json`, as before); before the render it also gave the stale-map warning for Lake Tahoe (Tahoe Rim Trail) |
+| `python3 tools/build.py --check` | 357 pages, link check OK |
+| `python3 tools/render.py --site` | all region and ski maps redrawn; `meta.json`, the two Lake Tahoe overlays and the Tahoe Rim Trail drawing differ, nothing else |
+| Browser, local build | Lake Tahoe: the route's line holds the new stretch as one unbroken line inside the map, the loop is closed, the line answers the pointer there, the row reads 8 journal days and 209 mi |
+
+Not run: Safari, Firefox, a real phone.

@@ -1,5 +1,5 @@
 {
- "hash": "5ae262f8ec9658aa1eff15dee95bce0b40feef49",
+ "hash": "1a1108182b209e7cd5561b0b8675e09bd4c41780",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
@@ -210,7 +210,7 @@
     {
      "x": 430.5886463744859,
      "y": 321.2594787587818,
-     "n": 7,
+     "n": 8,
      "keys": [
       "ltcc-beginner-rock-climbing",
       "castle-rock-village-idiot",
@@ -218,7 +218,8 @@
       "daggett-loop-with-kevin",
       "kingsbury-stinger-loop",
       "kingsbury-stinger-shuttle",
-      "heavenly-uphill-2025-04-09"
+      "heavenly-uphill-2025-04-09",
+      "pacific-crest-trail-2024:tahoe-rim-trail"
      ]
     },
     {
@@ -261,10 +262,9 @@
     {
      "x": 428.3999082974943,
      "y": 434.8053338383494,
-     "n": 2,
+     "n": 1,
      "keys": [
-      "freel-jobs-job-sister-loop",
-      "pacific-crest-trail-2024:tahoe-rim-trail"
+      "freel-jobs-job-sister-loop"
      ]
     },
     {
@@ -357,6 +357,7 @@
      "key": "pacific-crest-trail-2024:tahoe-rim-trail",
      "title": "Tahoe Rim Trail",
      "days": [
+      "143",
       "144",
       "145",
       "146",
@@ -365,7 +366,10 @@
       "149",
       "150"
      ],
-     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-tahoe-rim-trail-g64"
+     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-tahoe-rim-trail-g64",
+     "stretches": {
+      "143": 2
+     }
     }
    ]
   },
@@ -557,7 +561,7 @@
     {
      "x": 245.82828560705315,
      "y": 231.99059782880988,
-     "n": 8,
+     "n": 9,
      "keys": [
       "ltcc-beginner-rock-climbing",
       "castle-rock-village-idiot",
@@ -566,7 +570,8 @@
       "kingsbury-stinger-loop",
       "kingsbury-stinger-shuttle",
       "heavenly-uphill-2025-04-09",
-      "paddle-near-kingsbury"
+      "paddle-near-kingsbury",
+      "pacific-crest-trail-2024:tahoe-rim-trail"
      ]
     },
     {
@@ -609,10 +614,9 @@
     {
      "x": 244.27427097302296,
      "y": 312.5715272401161,
-     "n": 2,
+     "n": 1,
      "keys": [
-      "freel-jobs-job-sister-loop",
-      "pacific-crest-trail-2024:tahoe-rim-trail"
+      "freel-jobs-job-sister-loop"
      ]
     },
     {
@@ -690,6 +694,7 @@
      "key": "pacific-crest-trail-2024:tahoe-rim-trail",
      "title": "Tahoe Rim Trail",
      "days": [
+      "143",
       "144",
       "145",
       "146",
@@ -698,7 +703,10 @@
       "149",
       "150"
      ],
-     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-tahoe-rim-trail-g64"
+     "glyph": "region-lake-tahoe-pacific-crest-trail-2024-tahoe-rim-trail-g64",
+     "stretches": {
+      "143": 2
+     }
     }
    ]
   },

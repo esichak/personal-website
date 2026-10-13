@@ -9,7 +9,9 @@ days lie in which region, either as the region's days or as named parts:
         Synthetic Loop: 4
       Synthetic Coast: 6
 
-A part is one line on the region's map and one row in its list, tied together by the part's key. Then (a)
+A part is one line on the region's map and one row in its list, tied together by the part's key. A day may be listed
+as one stretch of its recording ('4/2': what was recorded after a drive, geo.stretches): it is then drawn, pinned,
+drawn small and measured with that stretch alone. Then (a)
 tools/render.py draws a part's days on that region's map, which stays framed by the region's own trips (a day is drawn
 where it crosses the map and cut off at its edge); the part's lines are a link to its first day on the journal page
 (mapkit.line_links), a run of consecutive days that starts inside the region also has a pin, and the days are recorded
@@ -27,6 +29,7 @@ import datetime
 import importlib
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -70,6 +73,69 @@ def journal(root, slug=JOURNAL, labels=LABELS, tracks=None, stats=None, **meta):
 
 def labels_of(part):
     return [d['label'] for d in part['days']]
+
+
+# A day recorded in two stretches: twelve fixes far to the south (37.000 ... 37.011), a drive, then twelve fixes that start
+# inside the walks' box and leave northwards (38.906 ... 38.917). 0.001 degrees of latitude is 111.19 m here.
+FAR = gf.line(37.000, -120.100, 12)
+NEAR = gf.line(38.906, -120.100, 12, t0=400)
+TWO_STRETCHES = gf.gpx(gf.trk([FAR + NEAR], 'Synthetic split day'))
+STRETCH_KM = 11 * 0.111195
+
+
+class StretchTests(unittest.TestCase):
+    """geo.stretches and content.day_points: a recording falls into stretches where two fixes lie far apart."""
+
+    def setUp(self):
+        self.geo = importlib.import_module('geo')
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = tmp.name
+
+    def day(self, text, label='4'):
+        path = os.path.join(self.root, 'day.gpx')
+        if text is not None:
+            with open(path, 'w', encoding='utf-8') as fh:
+                fh.write(text)
+        return {'id': '004', 'label': label, 'track': path if text is not None else None}
+
+    def test_a_recording_is_split_where_two_fixes_lie_far_apart(self):
+        s = self.geo.stretches
+        self.assertEqual(s([]), [])
+        self.assertEqual(s([(38.9, -120.1)]), [(0, 1)])
+        self.assertEqual(s(gf.SEG_A), [(0, 12)])                                # a walk: one stretch
+        self.assertEqual(s(FAR + NEAR), [(0, 12), (12, 24)])
+        self.assertEqual(s(FAR + NEAR + FAR), [(0, 12), (12, 24), (24, 36)])
+        self.assertEqual(self.geo.STRETCH_GAP_M, 20000.0)
+        # a lost signal of a few kilometres is no split (0.1 degrees of latitude is 11 km), a drive of 20 km and more is
+        self.assertEqual(s([(38.0, -120.1), (38.1, -120.1)]), [(0, 2)])
+        self.assertEqual(s([(38.0, -120.1), (38.2, -120.1)]), [(0, 1), (1, 2)])
+        self.assertEqual(s([(38.0, -120.1), (38.1, -120.1)], gap_m=5000), [(0, 1), (1, 2)])
+
+    def test_day_points_gives_the_day_or_one_stretch_of_it(self):
+        d = self.day(TWO_STRETCHES)
+        lats = lambda pts: [round(p[0], 3) for p in pts]   # noqa: E731
+        self.assertEqual(len(content.day_points(d)), 24)
+        self.assertEqual(lats(content.day_points(d, 1)), [round(p[0], 3) for p in FAR])
+        self.assertEqual(lats(content.day_points(d, 2)), [round(p[0], 3) for p in NEAR])
+        self.assertEqual(content.day_points(self.day(gf.SINGLE), 1), content.day_points(self.day(gf.SINGLE)))
+        self.assertEqual(content.day_points(self.day(None)), [])
+
+    def test_a_stretch_the_track_does_not_have_is_refused(self):
+        d = self.day(TWO_STRETCHES)
+        for n in (3, 0, -1):
+            with self.subTest(stretch=n):
+                with self.assertRaises(content.ContentError) as cm:
+                    content.day_points(d, n, WHERE)
+                self.assertEqual(str(cm.exception), '%s: region_days takes stretch %d of day 4, whose track has 2 (a stretch ends '
+                                                    'where two fixes lie more than 20 km apart)' % (WHERE, n))
+        with self.assertRaises(content.ContentError) as cm:
+            content.day_points(self.day(gf.SINGLE), 2)
+        self.assertEqual(str(cm.exception), 'region_days takes stretch 2 of day 4, whose track has 1 (a stretch ends where two '
+                                            'fixes lie more than 20 km apart)')
+        with self.assertRaises(content.ContentError) as cm:
+            content.day_points(self.day(None), 1, WHERE)
+        self.assertEqual(str(cm.exception), '%s: region_days takes stretch 1 of day 4, whose track holds no fixes' % WHERE)
 
 
 # ---------------------------------------------------------------- the block, as content.load_trip reads it
@@ -136,6 +202,19 @@ class LoaderTests(unittest.TestCase):
         t = self.load(region_days={'Synthetic Range': '1-3', 'Synthetic Coast': '3-4'})
         self.assertEqual([labels_of(p) for p in t['region_days']], [['1', '2', '3'], ['3', '4']])
 
+    def test_a_day_may_be_listed_as_one_stretch_of_its_recording(self):
+        t = self.load(region_days={'Synthetic Range': {'Synthetic Loop': '4/2, 1-2', 'Synthetic Crest': '6'}, 'Synthetic Coast': ' 5.2 / 1 '})
+        loop, crest, coast = t['region_days']
+        self.assertEqual(labels_of(loop), ['1', '2', '4'])              # a day like the others, in the journal's order
+        self.assertEqual(loop['stretches'], {'004': 2})                 # by the day's id, as the map's entry names days
+        self.assertEqual(crest['stretches'], {})                        # always there
+        self.assertEqual((labels_of(coast), coast['stretches']), (['5.2'], {'005': 1}))
+        # the same stretch twice is the same thing said twice
+        again = content._region_days({'Synthetic Range': '4/2, 4/2'}, t, WHERE)
+        self.assertEqual((labels_of(again[0]), again[0]['stretches']), (['4'], {'004': 2}))
+        # the loader reads no track: a stretch the track does not have is seen by day_points and the validator
+        self.assertEqual(content._region_days({'Synthetic Range': '4/99'}, t, WHERE)[0]['stretches'], {'004': 99})
+
     def test_what_is_refused_names_the_file_and_the_fault(self):
         base = self.load()
         cases = (
@@ -156,6 +235,22 @@ class LoaderTests(unittest.TestCase):
             ({'Synthetic Range': {'Synthetic Loop': '1', 'synthetic loop': '2'}}, "region_days: Synthetic Range names the part 'synthetic loop' twice"),
             ({'Synthetic Range': {'!!': '1'}}, 'region_days: Synthetic Range has a part without a name (a name needs a letter or a digit)'),
             ({'': '1'}, 'region_days has an entry without a region name'),
+            ({'Synthetic Range': '1-2/2'}, 'region_days: Synthetic Range has 1-2/2: a stretch is of one day, not of a range'),
+            ({'Synthetic Range': '4/0'}, 'region_days: Synthetic Range has 4/0: after the / comes the number of the stretch, counted '
+                                         'from 1 (146/2 is the second stretch of day 146)'),
+            ({'Synthetic Range': '4/b'}, 'region_days: Synthetic Range has 4/b: after the / comes the number of the stretch, counted '
+                                         'from 1 (146/2 is the second stretch of day 146)'),
+            ({'Synthetic Range': '4/'}, 'region_days: Synthetic Range has 4/: after the / comes the number of the stretch, counted '
+                                        'from 1 (146/2 is the second stretch of day 146)'),
+            ({'Synthetic Range': '7/1'}, "region_days: Synthetic Range names day '7', which is no day of this journal (days are named "
+                                         'by the number the page shows, as in Day 148)'),
+            ({'Synthetic Range': '4, 4/2'}, 'region_days: Synthetic Range lists day 4 twice, whole and as a stretch or as two '
+                                            'stretches; a part takes a day whole or one stretch of it'),
+            ({'Synthetic Range': '4/2, 2-4'}, 'region_days: Synthetic Range lists day 4 twice, whole and as a stretch or as two '
+                                              'stretches; a part takes a day whole or one stretch of it'),
+            ({'Synthetic Range': {'Synthetic Loop': '4/1, 4/2'}},
+             'region_days: Synthetic Range: Synthetic Loop lists day 4 twice, whole and as a stretch or as two stretches; a part '
+             'takes a day whole or one stretch of it'),
         )
         for raw, text in cases:
             with self.subTest(value=raw):
@@ -325,6 +420,66 @@ class RendererTests(RenderGoalsFixture):
                            'glyph': 'region-%s-syn-d-inside-synthetic-loop-g64' % slug},
                           {'slug': 'syn-d-inside', 'key': 'syn-d-inside:synthetic-crest', 'title': 'Synthetic Crest', 'days': ['001'],
                            'glyph': 'region-%s-syn-d-inside-synthetic-crest-g64' % slug}])
+
+    def split_journal(self, days, slug='syn-d-split'):
+        """A journal whose day 1 was recorded in two stretches (TWO_STRETCHES): far to the south, then from inside the
+        walks' box northwards. Day 2 goes on from there, as day_gpx(2) does."""
+        j = self.journal({REGION: {'Synthetic Loop': days}}, slug=slug)
+        with open(os.path.join(self.trips_dir, slug, 'days', '001.gpx'), 'w', encoding='utf-8') as fh:
+            fh.write(TWO_STRETCHES)
+        return j
+
+    def test_a_day_listed_as_a_stretch_is_drawn_and_pinned_with_that_stretch(self):
+        j = self.split_journal('1/2, 2')
+        part = self.part(j)
+        self.assertEqual(part['stretches'], {'001': 2})
+        first, second = self.render.site_tracks(j, part=part)
+        lats = [p[0] for p in first['track'].raw]
+        self.assertEqual((len(lats), round(min(lats), 3), round(max(lats), 3)), (12, 38.906, 38.917))      # the stretch, and no fix of the other
+        self.assertEqual(len(second['track'].raw), 12)                                                   # a whole day stays whole
+        # the run starts where the stretch starts, which is inside the box: a pin, named after the day
+        (pin,) = self.render.journal_pins(j, part, OWN_BOX)
+        self.assertEqual((round(pin['lat'], 3), pin['title'], pin['href']),
+                         (38.906, 'Synthetic Loop: Synthetic Journal, Day 1', '@@ROOT@@trips/syn-d-split/#day-1'))
+        # the same day taken whole starts 200 km to the south: its lines are on the map, and it has no pin
+        whole = self.split_journal('1-2', slug='syn-d-whole')
+        self.assertEqual(self.render.journal_pins(whole, self.part(whole), OWN_BOX), [])
+        self.assertEqual(len(self.render.site_tracks(whole, part=self.part(whole))[0]['track'].raw), 24)
+        # the other stretch
+        other = self.split_journal('1/1', slug='syn-d-other-stretch')
+        (line,) = self.render.site_tracks(other, part=self.part(other))
+        self.assertEqual(round(max(p[0] for p in line['track'].raw), 3), 37.011)
+        # a stretch the track does not have stops the render, with the file's name
+        bad = self.split_journal('1/3', slug='syn-d-bad-stretch')
+        with self.assertRaises(content.ContentError) as cm:
+            self.render.site_tracks(bad, part=self.part(bad))
+        self.assertIn('content/trips/syn-d-bad-stretch/index.md: region_days takes stretch 3 of day 1, whose track has 2', str(cm.exception))
+
+    def test_render_site_records_the_stretch_and_draws_it_small(self):
+        walks = self.walks()
+        j = self.split_journal('1/2, 2')
+        self.assertIs(self.render.render_site(walks + [j], force=True), True)
+        slug = content.slugify(REGION)
+        for size in ('desktop', 'phone'):
+            (entry,) = self.meta()['maps']['region-%s-%s' % (slug, size)]['journals']
+            self.assertEqual((entry['days'], entry['stretches']), (['001', '002'], {'001': 2}))
+        for spec in self.maps:
+            mine = [tr for tr in spec['tracks'] if tr['key'] == 'syn-d-split:synthetic-loop']
+            self.assertEqual([len(tr['track'].raw) for tr in mine], [12, 12])
+            self.assertGreater(min(p[0] for tr in mine for p in tr['track'].raw), 38.9)                 # nothing of the far stretch
+            self.assertEqual([p['key'] for p in spec['pins'] if p['key'].startswith('syn-d-split')], ['syn-d-split:synthetic-loop'])
+        def runs():
+            """How many separate runs each line of the part's drawing has (a recording gap splits a line in two)."""
+            with open(os.path.join(self.out, 'site', entry['glyph'] + '.svg.html'), encoding='utf-8') as fh:
+                return [d_.count('M') for d_ in re.findall(r' d="([^"]+)"', fh.read())]
+        self.assertEqual(runs(), [1, 1])                                 # the stretch and day 2, each one unbroken line
+        # the stretch is an input: taking the day whole, or the same stretch again, is seen
+        self.assertIs(self.render.render_site(walks + [self.split_journal('1/2, 2')]), False)
+        self.assertIs(self.render.render_site(walks + [self.split_journal('1-2')]), True)
+        (entry,) = self.meta()['maps']['region-%s-desktop' % slug]['journals']
+        self.assertNotIn('stretches', entry)                             # a part of whole days has no such key
+        self.assertEqual(runs(), [2, 1])                                 # the whole day: the far stretch is in the drawing too
+        self.assertIs(self.render.render_site(walks + [self.split_journal('1/2, 2')]), True)
 
     def test_each_part_gets_a_drawing_of_its_own(self):
         # the journal's glyph is the whole journal; a part's row in the region's list shows the part
@@ -589,6 +744,39 @@ class ListRowTests(MapPageFixture):
         for row in self.journal_rows(self.panel(RANGE)):
             self.assertEqual(drawings(row), [])
 
+    def test_a_stretch_counts_with_its_own_length(self):
+        # day 1 was recorded in two stretches; its day file says 10 km, which is the whole day
+        folder = journal(self.trips_dir, slug='syn-m-split', labels=('1', '2', '3'), stats={'1': 10.0, '2': 12.5},
+                         region_days={RANGE: {'Synthetic Loop': '1/2, 2', 'Synthetic Whole': '1-2', 'Synthetic Short': '1/2, 3'}})
+        with open(os.path.join(folder, 'days', '001.gpx'), 'w', encoding='utf-8') as fh:
+            fh.write(TWO_STRETCHES)
+        t = content.load_trip(folder)
+        loop, whole, short = t['region_days']
+        self.assertAlmostEqual(self.archive.part_day_km(t, loop, t['days'][0]), STRETCH_KM, places=2)     # measured along the stretch
+        self.assertEqual(self.archive.part_day_km(t, loop, t['days'][1]), 12.5)                           # a whole day: the day file's figure
+        self.assertEqual(self.archive.part_day_km(t, whole, t['days'][0]), 10.0)
+        self.assertIsNone(self.archive.part_day_km(t, short, t['days'][2]))                               # no figure, as before
+
+        def text(part):
+            row = Doc(self.archive.journal_row(t, part, 'map/')).find('li')
+            return row, self.meta_text(row)
+        row, got = text(loop)
+        self.assertEqual(row.find('a')['href'], '../trips/syn-m-split/#day-1')
+        self.assertIn('MAY 1–2, 2024', got)                                  # the day of the stretch is a day of the part
+        self.assertIn('2 JOURNAL DAYS', got)
+        mi, km = core_dist(STRETCH_KM + 12.5)
+        self.assertIn(mi + ' MI', got)
+        self.assertIn(km + ' KM', got)
+        mi_whole, _km = core_dist(22.5)
+        self.assertNotEqual(mi, mi_whole)
+        self.assertIn(mi_whole + ' MI', text(whole)[1])                       # the same days taken whole: the day files' sum
+        self.assertIn(core_dist(STRETCH_KM)[0] + ' MI', text(short)[1])       # a stretch alone still has its length
+        # a stretch the track does not have stops the build, with the file's name
+        bad = dict(loop, stretches={'001': 3})
+        with self.assertRaises(content.ContentError) as cm:
+            self.archive.journal_row(t, bad, 'map/')
+        self.assertIn('content/trips/syn-m-split/index.md: region_days takes stretch 3 of day 1', str(cm.exception))
+
     def test_a_row_whose_line_has_the_pointer_looks_like_a_hovered_row(self):
         # base.js marks the row of a pin or line under the pointer (is-map-hl); the list's stylesheet shows it
         with open(os.path.join(ROOT, 'assets', 'css', 'pages', 'archive.css'), encoding='utf-8') as fh:
@@ -765,6 +953,39 @@ class ValidatorTests(unittest.TestCase):
         self.maps(journals=[{'slug': JOURNAL, 'days': ['001', '002']}])
         self.assertEqual(self.findings(), ['WARNING %s: region_days: the region map of Synthetic Range was last drawn with other '
                                            'days of this journal; %s' % (WHERE, self.AGAIN)])
+
+    def test_a_stretch_is_compared_too(self):
+        self.journal({'Synthetic Range': '1/1, 2'})
+        drawn = {'slug': JOURNAL, 'days': ['001', '002']}
+        self.maps(journals=[dict(drawn, stretches={'001': 1})])
+        self.assertEqual(self.findings(), [])
+        # the same days, drawn whole or with another stretch
+        for other in (drawn, dict(drawn, stretches={'001': 2}), dict(drawn, stretches={'002': 1}), dict(drawn, stretches='nope')):
+            with self.subTest(journals=other):
+                self.maps(journals=[other])
+                self.assertEqual(self.findings(), ['WARNING %s: region_days: the region map of Synthetic Range was last drawn with '
+                                                   'another stretch of one of these days; %s' % (WHERE, self.AGAIN)])
+        # and a map drawn with a stretch of a day the block now takes whole
+        self.journal({'Synthetic Range': '1-2'})
+        self.maps(journals=[dict(drawn, stretches={'001': 1})])
+        self.assertEqual(self.findings(), ['WARNING %s: region_days: the region map of Synthetic Range was last drawn with '
+                                           'another stretch of one of these days; %s' % (WHERE, self.AGAIN)])
+
+    def test_a_stretch_the_track_does_not_have_is_an_error(self):
+        # the fixture's days are one short line each: one stretch
+        self.journal({'Synthetic Range': {'Synthetic Loop': '1/2, 2'}})
+        self.maps(journals=[{'slug': JOURNAL, 'key': JOURNAL + ':synthetic-loop', 'title': 'Synthetic Loop', 'days': ['001', '002'],
+                             'stretches': {'001': 2}}])
+        self.assertEqual(self.findings(), ['ERROR %s: region_days takes stretch 2 of day 1, whose track has 1 (a stretch ends where '
+                                           'two fixes lie more than 20 km apart)' % WHERE])
+        # without a site meta the stretch is still looked at
+        self.assertEqual(self.findings(rendered=False), ['ERROR %s: region_days takes stretch 2 of day 1, whose track has 1 (a stretch '
+                                                         'ends where two fixes lie more than 20 km apart)' % WHERE])
+
+    def test_a_stretch_of_a_day_without_a_track_is_an_error(self):
+        self.journal({'Synthetic Range': '1/1, 2'}, tracks=(False, True, True))
+        self.maps(journals=[{'slug': JOURNAL, 'days': ['002']}])
+        self.assertEqual(self.findings(), ['ERROR %s: region_days takes stretch 1 of day 1, whose track holds no fixes' % WHERE])
 
     def test_named_parts_are_compared_part_by_part(self):
         self.journal({'Synthetic Range': {'Synthetic Crest': '1-2', 'Synthetic Loop': '3'}})
