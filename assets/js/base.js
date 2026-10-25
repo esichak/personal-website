@@ -311,6 +311,8 @@
   }
   if (touch) {
     document.addEventListener('click', function (e) {
+      // openRow's own press of a list's 'Show all' (a picked pin whose row is folded) is no tap outside the map
+      if (opening) return;
       document.querySelectorAll('.map[id]').forEach(function (map) {
         if (!map._tap) return;
         if (map.contains(e.target) && e.target.closest && e.target.closest('.mk-pin, .mk-line, .mk-cluster')) return;

@@ -2524,3 +2524,159 @@ text-only zoom (no Firefox here; the hand check is in DEVELOPING.md now); a real
 - **Carried:** the gap1-01 and qa-04 sheets (Phase 12), the hero frame and the mile table's last row (Phase 10), the
   real-phone look (Phases 11 to 13A), the checkout and cache moves, `strava_id`, the rehearsal push (Phase 8), the
   place names, retitles and merges (Phase 9).
+
+## Phase 13C - Accessibility, copy and the VoiceOver pass (2026-10-25)
+
+The last of Phase 13's three sessions (`docs/personal-website-improvement-plan-2.md`, section 13, and Prompt 13C of
+`docs/claude-code-website-prompt-2.md`), built on branch `phase-13c-a11y-copy` from `phase-13b-legibility` at
+`7f2b52b`. Eric's standing instruction for this run is to go on with the plan's recommended answers, so decisions (c)
+and (d) took them (below). Nothing under `content/` or `rendered/` changed and `render.py` was not run. The disk had
+about 14 GB free, under the plan's 30 GB line: builds were linked into the session's scratch folder, and no worktree or
+copy of the checkout was made.
+
+### Author inputs
+
+- **(c) copy-11:** 'Backcountry Skiing' (the recommended answer). The URL and the `ski` folder are unchanged;
+  `tools/lib/strava.py` is untouched.
+- **(d) copy-14, ia-13:** the header keeps 'PCT', named 'PCT journal' for screen readers; the menu button stays 'Menu'
+  (aria-expanded says whether it is open); the crumb root stays 'Reports' to home.
+- **The VoiceOver pass (a11y-12): pending.** The script is ready in `docs/CHECKING_WITH_A_SCREEN_READER.md` (about 12
+  minutes on the Mac in Safari, 8 on an iPhone); its table goes into this entry when Eric has run it.
+- **Interface copy to read** (every new label and sentence on the site):
+  - 'Backcountry Skiing' (header, menu, footer, home tiles and legends, section page, search keywords).
+  - 'Map' for map/ everywhere: the header, menu and footer link, the page's H1 and `<title>` ('Map · Eric Sichak'),
+    the region pages' link back to it.
+  - 'By activity' for the menu's and footer's column of the five activities (and the 404's heading over them).
+  - The 404's map row: 'Map', '167 REPORTS BY REGION AND YEAR' (the number is the site's count).
+  - Destination links, one verb per kind: 'Read the report' (a written report), 'View the trip' (a track-only trip),
+    'Open the journal' (the PCT), 'Open the goal' (a tick-list goal). 'Open the map' and 'All <region> reports' stay.
+  - Map captions: 'Full track, not trimmed' / 'Full tracks, not trimmed', capitalised everywhere.
+  - The tick list's empty state: 'Nothing on the list yet.'
+  - The footer's training item: 'AVALANCHE TRAINING: AIARE 2' (About's own label), now on a line of its own.
+  - Read by screen readers only: 'PCT journal'; the units switch's 'MI: miles and feet' and 'KM: kilometers and
+    meters'; every abbreviated unit read as its word ('12.8 miles, 5,302 feet gain').
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/core.py` | `UNIT_WORDS`, `unit_word`, `caps_unit`: a unit shown abbreviated and read as its word, inside `U`'s unit span and `U_sub`, in `plain_stats`, `row_stats_line`, the goal stats, the Moving time's 'h:mm' and the mile key's '(1.6 km)'; `UNITS_LABELS` on the units switch; `PCT_NAME` as the aria-label of the header's and the menu's PCT link; 'Map', 'By activity', the footer's training label; `FULL_TRACK` / `FULL_TRACKS`; 'Open the goal'; `trip_row(level=3)`; NAV 'Backcountry Skiing'; the contours caption's unit word. |
+| `tools/lib/content.py` | ACTIVITIES: 'Backcountry Skiing'. |
+| `tools/sitegen/pages/section.py` | `row(level=)`, rows under a year at H4; 'Read the report' / 'View the trip'; 'Open the journal'; `core.FULL_TRACK`; GPS max/min through `caps_unit`. |
+| `tools/sitegen/pages/archive.py`, `region.py` | 'Map' (H1, title, page bar, the link back); 'Open the journal'; `core.FULL_TRACKS`; `caps_unit`. |
+| `tools/sitegen/pages/home.py`, `notfound.py`, `ticklist.py`, `about.py`, `multiday.py`, `series.py`, `report.py` | The verbs; the 404's 'By activity' and map row; `ticklist.EMPTY`; About's switch labels from `core.UNITS_LABELS`; `caps_unit` (the multi-day heights, gains and losses too) and `FULL_TRACK(S)`; the journal day label's hidden comma. |
+| `assets/css/base.css` | Forced colours keep `.keyrow--compact .disc` and `.fchip .chip-sw`; `@media (prefers-contrast: more)` (`--ink-3` to `--ink-2`, `--rule-strong` #5F5D57, `.pf-ax` and `.mk-lbl` in ink-2); `.ml > .mi::before { content: "·"; content: "·" / ""; }`. |
+| `assets/css/pages/home.css` | `.hom-reg-n a`: a 44 px box of its own (padding cancelled by negative margins) instead of a `::before`. |
+| `assets/css/pages/series.css` | Forced colours: the month bars (`.ser-rl i`) keep their colour with a CanvasText outline; an empty month link in GrayText; the day label's and stats line's dots drawn, not read. |
+| `assets/css/pages/archive.css`, `section.css`, `ticklist.css` | Comments only (the new words). |
+| `assets/js/base.js` | The touch pick survives the list's own press of 'Show all' (the walk's finding, below). |
+| `assets/js/pages/ticklist.js`, `archive.js` | 'Nothing on the list yet.'; a comment. |
+| Docs | DEVELOPING.md: the Copy bullets (FULL_TRACK, one word per destination), the destination verb table, the 13C accessibility notes (forced colours, more contrast and its two limits, unit words, the dot), the tablet profile and the coarse-pointer walk in "Measuring page loads"; CONTENT_GUIDE.md: the verbs, 'Map', 'backcountry skiing'; TICK_LIST_GUIDE.md: the empty state and where the command lives; new `docs/CHECKING_WITH_A_SCREEN_READER.md`. |
+| Tests | New `tests/test_phase13c.py` (unit words, the switch's names, forced colours, more contrast, the dot, one word per destination, the PCT name, Backcountry Skiing, the verbs, caption capitals, the empty list and footer line); `test_a11y_static` (the region link's own 44 px box, `test_headings_nest_without_skipping_a_level`); `test_section_page` (rows under a year are H4); `maplist_js_harness.js` (a pin whose row is folded); `helpers.seen_text`; the renames across 25 modules and two harnesses. |
+
+### Behaviour
+
+- **Which pages changed.** A `--link` build against one made from `7f2b52b` before any edit differs in every page (the
+  header, menu and footer words) and in the two bundles and `trips/search.json` (the ski label in the keywords);
+  nothing else.
+- **Home's region links (a11y-03).** 'Lake Tahoe' and 'Eastern Sierra' measure 44 px tall in Chrome at 390, 1280 and
+  1440 px (16 px before); the captures before and after at 390 and 1280 show the same layout, the copy aside.
+- **Headings (a11y-08).** On Hiking and Mountain biking the rows under a year are H4 under the year's H3; the Ski page
+  is as it was. A walk of every built page finds no skipped level.
+- **Units (a11y-05).** Chrome's accessibility tree of home reads '12.8 miles, 5,302 feet gain' and '3,167 miles
+  recorded' where it read '12.8 MI' and '3,167 MI RECORDED'; the switch reads 'MI: miles and feet'. Read the way a
+  screen reader reads them (hidden text and drawings left out, write-ups and titles too), the 363 built pages held
+  3,407 numbers followed by a bare abbreviation on 341 pages before this phase and hold none now; the Haute Route's
+  tree in Chrome has none of the 49 the review found.
+- **The dot (qa-01).** Home's tree held 64 '·' texts, now 4, all real text (the page title, the line under the site's
+  name, a label and the map credit); none in the cards. The PCT page's day labels and stats lines draw their dots the
+  same way, and a day's label is read 'Day 2, <date>'.
+- **Forced colours and more contrast (a11y-04, a11y-15).** As listed above. No ink-3 text sits on the sunk
+  background (the transfer note and tags are ink-2), so `multiday.css` needed nothing.
+- **Lighthouse** (13.5.0, mobile, the local build): home 100 / 100 / 100 (accessibility, best practices, SEO), as the
+  build before this phase also scored; the one zero-weight audit still failing is `label-content-name-mismatch` on the
+  five activity tiles, which is a11y-01, not planned. The Matterhorn report 100 / 100 / 100 with no failed audit.
+- **The tablet profile (gap1-08).** The six pages at 768 x 1024, 1024 x 768 and 1180 x 820 with touch emulation
+  (`.cache/plan2/phase13/tablet-*.jpeg`, `tablet-sheet.png`): no overflow or overlap; the Haute Route's title takes
+  three lines beside its actions at 1024 x 768.
+- **The coarse-pointer walk** (1024 x 768, touch, hover: none, pointer: coarse, Lake Tahoe and the Matterhorn report):
+  a numbered circle narrows the list ('22 REPORTS START HERE, Show all'); a list row opens its report; a photo opens
+  the viewer ('Photo 1 of 7' and its description) and a swipe goes to photo 2; a pin and a journal line are picked by
+  a first tap, their row opened, and followed by a second (the line to its day of the journal). The walk found one
+  bug, fixed here: a pin whose row sat behind 'Show all' lost its pick at once (the list's own scripted press of
+  'Show all' counted as a tap outside the map), so a second tap was another first tap and never followed the link.
+  Opening a row centres it, so the map can move under the finger between the two taps (72 px on the walk).
+- **validate.py**: 0 errors, 1 warning, 346 notes, as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **'Map', not 'Map & archive'.** The prompt allows either; the header row at 1000 px has no room for the longer
+  name, so the page, its H1 and every link say 'Map'.
+- **`core.table_row` keeps its own sr unit words.** Its cells show a bare number (the unit is in the column head), so
+  `unit_word` would put nothing on screen; nothing is read twice there.
+- **The region crumb and 'Open the map'** got no box of their own: Lighthouse does not flag them.
+- **Three destination verbs set on purpose by the 2026-10-08 plan are reversed:** 'Explore the journal', 'View trip'
+  and 'View goal' (CONTENT_GUIDE.md updated).
+- **Documented rules changed:** DEVELOPING.md's Copy section (one word per destination, the verb table,
+  FULL_TRACK), Accessibility (forced colours, more contrast and its limits, unit words, the dot), "Measuring page
+  loads" (the tablet profile and the walk, the review gate's capture sizes); CONTENT_GUIDE.md and TICK_LIST_GUIDE.md.
+
+### Review
+
+One independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It read Chrome's accessibility tree and the built pages, measured the home links, emulated forced colours and
+more contrast, and scanned the aria-labels of all 365 pages. It confirmed: no unit spoken twice, the hidden system's
+word hidden with it, `table_row`'s own words right to keep; no aria-label missing its visible text; no skipped
+heading; forced colours, more contrast and the dot as intended; the home link 44 px with its surroundings in the same
+places; none of the old words in the built pages; the touch fix right and complete (the other scripted clicks are key
+presses or run at load); no privacy problem. Its findings, all fixed:
+
+1. Units were still read as letters in places item 22 did not list: the multi-day heights, gains and losses
+   (`multiday.caps_elev`, the day profile's head) and the strip's second line in the other system (`core.U_sub`) on
+   reports, multi-day pages, the PCT, the section strips and About. They read their words now, and a test reads every
+   fixture page and finds no number before a bare abbreviation (it caught the mile key's '(1.6 km)' too).
+2. The H4 check in `test_a11y_static` could not fail (the fixture's lists are too short to be grouped by year). The
+   check is now in `test_section_page` on `section.year_groups`, and fails with `level=4` taken out.
+3. Old words in DEVELOPING.md (the menu's column, the footer's Site list, a related-reports example), CONTENT_GUIDE.md
+   (the captions' examples, the same example), a docstring and four CSS comments.
+4. The screen-reader script named a heading the report does not have, said one swipe reached the Units row, and
+   described a day's heading as two. Corrected against the built pages.
+5. A comment on the wrong constant; blank lines around `ticklist.EMPTY`.
+6. The log entry was not yet written (this entry).
+7. Older, not from this phase: the PCT page's day dots were read out (fixed, above); the Moving time's 'h:mm' was read
+   as letters (now 'hours and minutes'); the home tiles' names (a11y-01, not planned, left).
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 3,109 tests, OK, 107 s (3,092 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 3,109 tests, OK, 97 s |
+| `python3 tests/run_orders.py --reverse` | 3,109 tests, OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 46, profile 35, series 58, ticklist 103, trips 167, viewer 50 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `diff -rq` against a `--link` build of `7f2b52b` | every page, the two bundles, `trips/search.json` |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| Lighthouse 13.5.0 (Chrome DevTools, mobile) | home 100/100/100 (before this phase also 100), the Matterhorn report 100/100/100; reports in `.cache/plan2/phase13/lighthouse*/` |
+| Chrome accessibility snapshots | home before and after, the Haute Route after (`.cache/plan2/phase13/*-a11y-*.txt`) |
+| A scratch scan of the built pages as a screen reader reads them | 3,407 numbers before a bare unit abbreviation on 341 of 363 pages before the phase, 0 after |
+| Headless Chrome (scratch `p12tools/`, `p13tools/`) | the region link's box at 390, 1280, 1440 px; the tablet captures; the coarse-pointer walk, before and after the fix |
+| Screenshots | `.cache/plan2/phase13/`: home at 390 and 1280 before and after, the 18 tablet captures and their sheet |
+
+Not run: VoiceOver (Eric's, pending with the script ready); a real iPad or phone; Lighthouse on the live site (after
+the next deploy); Windows High Contrast itself (the forced-colours rules are checked in the stylesheet tests only);
+`render.py`.
+
+### Remaining issues and author inputs
+
+- **The VoiceOver pass** (`docs/CHECKING_WITH_A_SCREEN_READER.md`): about 20 minutes on the Mac and an iPhone.
+- **The interface copy** above: say if any word should change.
+- **a11y-01** (the activity tiles' names) stays as planned: not planned, revisit after the VoiceOver pass.
+- **The maps' own aria-labels** still give miles only; they are in the committed fragments and wait for Phase 15's
+  render.
+- **Carried:** the region pages' year heads (13B), the day bar's 11 px photo count (13B), the gap1-01 and qa-04
+  sheets (Phase 12), the hero frame and the mile table's last row (Phase 10), the real-phone look (Phases 11 to 13),
+  the checkout and cache moves, `strava_id`, the rehearsal push (Phase 8), the place names, retitles and merges
+  (Phase 9).

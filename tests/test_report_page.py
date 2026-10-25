@@ -1265,10 +1265,10 @@ class LonePortraitTests(ReportFixture):
 class MapCaptionTests(ReportFixture):
 
     def test_map_caption_starts_with_as_recorded_on_the_date(self):
-        # section 2.6: 'As recorded on <Mon D, YYYY>', then 'full track, not trimmed', 'North up'
+        # section 2.6: 'As recorded on <Mon D, YYYY>', then 'Full track, not trimmed', 'North up'
         t = self.by['syn-story']
         items = ml_items(Doc(need(self, self.report, 'map_caption')(t)))
-        self.assertEqual(items[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'full track, not trimmed', 'North up'])
+        self.assertEqual(items[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'Full track, not trimmed', 'North up'])
         self.assertEqual(items[0], 'As recorded on Jun 1, 2026')
 
     def test_caption_on_the_story_layout(self):
@@ -1276,14 +1276,14 @@ class MapCaptionTests(ReportFixture):
         for slug in STORY:
             with self.subTest(slug):
                 t = self.by[slug]
-                self.assertEqual(self.caption(slug)[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'full track, not trimmed', 'North up'])
+                self.assertEqual(self.caption(slug)[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'Full track, not trimmed', 'North up'])
 
     def test_caption_on_the_compact_layout(self):
         # section 2 (compact): the map caption's first item is 'As recorded on <date>'
         for slug in ('syn-words', 'syn-photos', 'syn-tall-only', 'syn-track'):
             with self.subTest(slug):
                 t = self.by[slug]
-                self.assertEqual(self.caption(slug)[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'full track, not trimmed', 'North up'])
+                self.assertEqual(self.caption(slug)[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'Full track, not trimmed', 'North up'])
 
     def test_caption_keeps_the_credit_line(self):
         # section 2.6: the existing caption otherwise (core.map_caption's terrain / OSM / not-for-navigation credit)
@@ -1297,10 +1297,10 @@ class MapCaptionTests(ReportFixture):
 
     def test_caption_of_an_undated_report_claims_no_date(self):
         # facts only from content (the single-day counterpart of section 10.5): without a date there is no 'As recorded'
-        # item of any wording: the caption is 'full track, not trimmed', 'North up', then the credit
+        # item of any wording: the caption is 'Full track, not trimmed', 'North up', then the credit
         items = self.caption('syn-undated')
-        self.assertEqual(items[:2], ['full track, not trimmed', 'North up'])
-        self.assertEqual(items, ['full track, not trimmed', 'North up'] + CREDIT)
+        self.assertEqual(items[:2], ['Full track, not trimmed', 'North up'])
+        self.assertEqual(items, ['Full track, not trimmed', 'North up'] + CREDIT)
         self.assertFalse(any('recorded' in i.lower() for i in items), items)
         self.assertNotIn('As recorded', self.page('syn-undated').html)
         self.assertEqual(ml_items(Doc(need(self, self.report, 'map_caption')(self.by['syn-undated']))), items)
@@ -1309,7 +1309,7 @@ class MapCaptionTests(ReportFixture):
         # the same caption on trips/<slug>/map/
         self.render('syn-undated')
         page = self.report.fullscreen_page(self.by['syn-undated'])
-        self.assertEqual(ml_items(Doc(page.html).find('div', cls='mapcap'))[:2], ['full track, not trimmed', 'North up'])
+        self.assertEqual(ml_items(Doc(page.html).find('div', cls='mapcap'))[:2], ['Full track, not trimmed', 'North up'])
         self.assertNotIn('As recorded', page.html)
 
     def test_full_screen_map_page_says_the_same(self):
@@ -1321,17 +1321,17 @@ class MapCaptionTests(ReportFixture):
         self.assertEqual(ml_items(Doc(page.html).find('div', cls='mapcap'))[0], 'As recorded on Jun 1, 2026')
 
     def test_multi_day_caption_says_as_recorded_and_the_date_range(self):
-        # the task (multi-day pages): 'As recorded ' + the date range, then 'full track, not trimmed', 'North up'
+        # the task (multi-day pages): 'As recorded ' + the date range, then 'Full track, not trimmed', 'North up'
         t = self.by['syn-tour']
         render_overview(self.tmp, t)
         doc = Doc(load_module(self, 'sitegen.pages.multiday').page(t, self.site).html)
         items = ml_items(doc.by_id('map').find('div', cls='mapcap'))
-        self.assertEqual(items[:3], ['As recorded ' + core.frange(t['date'], t['end_date']), 'full track, not trimmed', 'North up'])
+        self.assertEqual(items[:3], ['As recorded ' + core.frange(t['date'], t['end_date']), 'Full track, not trimmed', 'North up'])
         self.assertEqual(items[0], 'As recorded Mar 10–11, 2026')
 
     def test_undated_multi_day_caption_has_no_as_recorded_item(self):
         # section 10.5: a multi-day trip without any date: no 'As recorded' item at all (never a dangling 'As recorded'):
-        # the items are 'full track, not trimmed', 'North up', then the credit
+        # the items are 'Full track, not trimmed', 'North up', then the credit
         multiday = load_module(self, 'sitegen.pages.multiday')
         t = self.add('syn-tour-undated', kind='multi-day', activity='ski', date=None,
                      days=[{'title': 'Synthetic Day One'}, {'title': 'Synthetic Day Two'}])
@@ -1339,7 +1339,7 @@ class MapCaptionTests(ReportFixture):
         render_overview(self.tmp, t)
         page = multiday.page(t, self.site)
         items = ml_items(Doc(page.html).by_id('map').find('div', cls='mapcap'))
-        self.assertEqual(items, ['full track, not trimmed', 'North up'] + CREDIT)
+        self.assertEqual(items, ['Full track, not trimmed', 'North up'] + CREDIT)
         self.assertFalse(any('recorded' in i.lower() for i in items), items)
         self.assertNotIn('As recorded', page.html)
 
@@ -1351,7 +1351,7 @@ class MapCaptionTests(ReportFixture):
                      days=[{'title': 'Synthetic Day One', 'date': '2025-02-03'}, {'title': 'Synthetic Day Two', 'date': '2025-02-04'}])
         render_overview(self.tmp, t)
         items = ml_items(Doc(multiday.page(t, self.site).html).by_id('map').find('div', cls='mapcap'))
-        self.assertEqual(items[:3], ['As recorded Feb 3–4, 2025', 'full track, not trimmed', 'North up'])
+        self.assertEqual(items[:3], ['As recorded Feb 3–4, 2025', 'Full track, not trimmed', 'North up'])
 
     def featured_hike(self):
         """A hike marked featured, with a placeholder map and a beta row labelled Track: core.stats_note prints that row
@@ -1367,14 +1367,14 @@ class MapCaptionTests(ReportFixture):
         t = self.featured_hike()
         items = ml_items(Doc(need(self, section, 'map_caption')(t)))
         self.assertEqual(items[0], 'As recorded on Feb 10, 2026')
-        self.assertEqual(items[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'full track, not trimmed', 'North up'])
+        self.assertEqual(items[:3], ['As recorded on ' + core.fdate(t['date'], 'short'), 'Full track, not trimmed', 'North up'])
         self.assertEqual(items[3:], CREDIT)
         page = section.page('hike', self.site)
         feat = Doc(page.html).by_id('main').by_id('featured')
         self.assertEqual(feat.find('h2').text(), t['title'])          # the featured block is this trip's
         caps = feat.find_all('div', cls='mapcap')
         self.assertEqual(len(caps), 1)
-        self.assertEqual(ml_items(caps[0])[:3], ['As recorded on Feb 10, 2026', 'full track, not trimmed', 'North up'])
+        self.assertEqual(ml_items(caps[0])[:3], ['As recorded on Feb 10, 2026', 'Full track, not trimmed', 'North up'])
         self.assertEqual(page.html.count(section.map_caption(t)), 1)
         # the same first words as on the report the block links to
         self.assertEqual(ml_items(caps[0])[0], self.caption('syn-featured')[0])
@@ -1383,7 +1383,7 @@ class MapCaptionTests(ReportFixture):
         # facts only from content: the featured caption has no date item when the report has no date
         section = load_module(self, 'sitegen.pages.section')
         items = ml_items(Doc(need(self, section, 'map_caption')(self.by['syn-undated'])))
-        self.assertEqual(items, ['full track, not trimmed', 'North up'] + CREDIT)
+        self.assertEqual(items, ['Full track, not trimmed', 'North up'] + CREDIT)
 
     def test_no_section_page_says_track_and_a_date(self):
         # section 10.5: nothing on a built section page says 'Track: ' followed by a date. The stats footnote's
@@ -2457,8 +2457,8 @@ STRIP_SECTION = re.compile(r'<section class="wrap rep-strip" id="stats" aria-lab
 DRAWING = re.compile(r'(?:^|/)trips/([^/]+)/(tile|g112|g64)\.svg$')                        # a trip's route drawing, as an <img> src
 BBAR = re.compile(r'<nav class="bbar" aria-label="Report sections" style="--n:(\d+)">(.*?)</nav>', re.S)
 # what a single-day report without a track neither says nor links (10.2): the two title actions, the map key's route
-# symbol, the map caption's 'full track, not trimmed', and the two sentences of the stats note that speak of a recording
-ROUTE_WORDS = ('View route', 'Download GPX', 'Route (GPX)', 'full track', 'GPS recording', 'GPX file')
+# symbol, the map caption's 'Full track, not trimmed', and the two sentences of the stats note that speak of a recording
+ROUTE_WORDS = ('View route', 'Download GPX', 'Route (GPX)', 'Full track', 'GPS recording', 'GPX file')
 ROUTE = ('Map', '#map')          # the section row's map item (Phase 10: named Map, as in the bar; 'Route' is retired)
 REPORT_ROW, PHOTOS_ROW = REPORT, PHOTOS      # the section row names these two as the phone bar does
 
@@ -2816,7 +2816,7 @@ class NoTrackTests(ReportFixture):
                 # ... all of which the page with the track has: the list is what the track brings, not what no page has.
                 # The key's route symbol and the caption come with a rendered map; without one the box stands there
                 for needle in ('id="map"', 'href="#map"', 'Download GPX', 'GPS recording', 'GPX file') + (
-                        ('Route (GPX)', 'full track') if render is not None else (NOT_RENDERED,)):
+                        ('Route (GPX)', 'Full track') if render is not None else (NOT_RENDERED,)):
                     self.assertIn(needle, with_)
                 # ... and, once rendered, the phone map's link to the full-screen map page
                 self.assertEqual('href="../../trips/%s/map/"' % slug in with_, render is not None)
@@ -2924,7 +2924,7 @@ class NoTrackTests(ReportFixture):
                 self.assertInOrder(marks(self.main(slug)), ['stats', 'report', 'map'] if story else ['stats', 'map'])
                 self.assertEqual(self.actions(slug)[-2], ('Download GPX', slug + '.gpx'))
                 if rendered:
-                    self.assertEqual(self.caption(slug)[-len(CREDIT) - 2:-len(CREDIT)], ['full track, not trimmed', 'North up'])
+                    self.assertEqual(self.caption(slug)[-len(CREDIT) - 2:-len(CREDIT)], ['Full track, not trimmed', 'North up'])
                 else:
                     self.assertEqual(self.doc(slug).find_all(cls='mapcap') + self.doc(slug).find_all(cls='keyrow'), [])
 
@@ -4645,7 +4645,7 @@ class RegionLinkTests(ReportFixture):
 
     def test_the_region_crumb_opens_the_regions_own_page(self):
         want = {'syn-story': [('Reports', '../../'), ('Hiking', '../../hiking/'), (REGION, '../../regions/synthetic-range/')],
-                'syn-tour': [('Reports', '../../'), ('Backcountry Ski', '../../ski/'), (REGION, '../../regions/synthetic-range/')],
+                'syn-tour': [('Reports', '../../'), ('Backcountry Skiing', '../../ski/'), (REGION, '../../regions/synthetic-range/')],
                 'syn-journal': [('Reports', '../../'), ('Hiking', '../../hiking/'), (REGION, '../../regions/synthetic-range/')],
                 'syn-goal': [('Tick list', '../../tick-list/'), (REGION, '../../regions/synthetic-range/')]}
         for slug in sorted(want):

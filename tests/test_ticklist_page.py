@@ -467,7 +467,7 @@ class TickListPageTests(TickListFixture):
         text = doc.by_id('main').text()
         self.assertIn('0 ACTIVE', text)
         self.assertIsNone(doc.by_id('tkl-count'))     # no goal to filter: no form and no status line, whatever the threshold
-        self.assertIn('No goals yet', text)
+        self.assertIn('Nothing on the list yet', text)
 
 
 class FormThresholdTests(TickListFixture):
@@ -633,7 +633,7 @@ class GoalCardTests(TickListFixture):
         self.assertEqual([t.text() for t in Doc(core.goal_tags(g)).find_all(cls='tag')], ['Completed', 'High priority'])
 
     def test_approximate_stats_line(self):
-        text = self.card('couloir-short').text()
+        text = helpers.plain_text(helpers.seen_text(self.card('couloir-short')))
         self.assertIn('≈ 12.3 MI', text)
         self.assertIn('≈ 2,100 FT GAIN', text)
         self.assertIn('≈ 19.8 KM', text)   # the km alternative through core.U
@@ -653,7 +653,7 @@ class GoalCardTests(TickListFixture):
         self.assertIsNotNone(a)
         self.assertIn('alink', a.classes)
         self.assertEqual(a['href'], '../trips/ridge-idea/')
-        self.assertTrue(a.text().startswith('View goal'))
+        self.assertTrue(a.text().startswith('Open the goal'))
 
     def test_card_has_no_inputs(self):
         for slug in GOALS:

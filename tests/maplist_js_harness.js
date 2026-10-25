@@ -1022,6 +1022,19 @@ check('touch: with (hover: none) a line that is a link is tapped as a pin is', (
   deq([loop.classList.contains('is-sel'), state(p)], [false, CLEAR]);
 });
 
+check('touch, Phase 13C walk: a first tap on a pin whose row is folded opens the list and keeps the pick; a second tap follows the link', () => {
+  const page = new Page('p-region', { media: TOUCH });
+  const p = panel(page, 'x', ROWS, (el) => [el('a', { class: 'mk-pin', href: '../../trips/t9/', 'data-key': 't9', 'data-act': 'ski' })]);
+  [BASE, ARCHIVE].forEach((file) => page.run(file));
+  const t9 = mark(p, 'mk-pin', 't9');
+  eq(row(p, 't9').offsetParent, null, 'row t9 starts folded');
+  eq(page.send(t9, 'click', true).defaultPrevented, true);
+  // the press of 'Show all 10' that opened the list (a click on the page, outside the map) did not end the pick
+  deq([p.button.getAttribute('aria-expanded'), t9.classList.contains('is-sel')], ['true', true]);
+  eq(who(page.activeElement), 'the link of row t9');
+  eq(page.send(t9, 'click', true).defaultPrevented, false, 'the second tap on the pin did not follow the link');
+});
+
 check('touch: with (hover: none) a map without list rows (home) is left alone', () => {
   const page = new Page('p-home', { media: TOUCH });
   const home = homeMap(page);

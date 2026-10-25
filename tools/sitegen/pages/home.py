@@ -69,7 +69,7 @@ def hero():
 # ---------------------------------------------------------------- featured trips (content/home.json)
 
 def card_tags(t):
-    """Status tags for a card: a series is a 'Journal' here (its link says 'Explore the journal'); multi-day keeps its
+    """Status tags for a card: a series is a 'Journal' here (its link says 'Open the journal'); multi-day keeps its
     day count; single-day trips carry none (the chip and the meta line say enough)."""
     if t['kind'] == 'series':
         return core.tag('Journal')
@@ -91,15 +91,15 @@ def card_data(t):
         items = [core.nb('%s RECORDED DAY%s' % (n(k), '' if k == 1 else 'S'))] if k else []
         mi, km = core.dist_vals(t['stats'].get('distance_km'))
         if mi:
-            items.append(U(core.nb(mi + ' MI RECORDED'), core.nb(km + ' KM RECORDED')))
+            items.append(U(core.caps_unit(mi, 'MI', 'RECORDED'), core.caps_unit(km, 'KM', 'RECORDED')))
         return items[:2]
     return core.plain_stats(t, items=True)[:2]
 
 
 def card_action(t):
     if t['kind'] == 'series':
-        return 'Explore the journal'
-    return 'Read the report' if t['has_writeup'] else 'View trip'
+        return 'Open the journal'
+    return 'Read the report' if t['has_writeup'] else 'View the trip'
 
 
 def card(t, lead=False, wide=False):

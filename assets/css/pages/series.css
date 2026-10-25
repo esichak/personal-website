@@ -125,6 +125,12 @@ body.p-series .rep-strip { margin-top: 24px; }
 /* a month without a write-up while the filter is on (series.js .is-empty, with ', no write-ups' read out): lighter, but
    still a link: pressing it reveals the month (a11y-07) */
 .ser-mnav a.is-empty { color: var(--ink-3); }
+/* forced colours (a11y-04): the month index's day bars are backgrounds only, which the mode would erase; they keep their
+   colours inside a CanvasText outline, and an empty month reads as GrayText */
+@media (forced-colors: active) {
+  .ser-rl i { forced-color-adjust: none; outline: 1px solid CanvasText; }
+  .ser-mnav a.is-empty { color: GrayText; }
+}
 @media (max-width: 759.98px) {
   .ser-mnav { margin-inline: calc(-1 * var(--m)); }
   .ser-mnav a { align-items: center; padding: 0 4px; }
@@ -163,7 +169,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-g { grid-area: g; }
 .ser-g svg { width: 64px; height: 48px; background: var(--surface); }
 .ser-n { grid-area: n; font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); text-transform: uppercase; }
-.ser-dd:not(:empty)::before { content: " · "; }
+.ser-dd:not(:empty)::before { content: " · "; content: " · " / ""; }   /* drawn, not read: a hidden ', ' is read (qa-01) */
 .ser-t { grid-area: t; font: 600 17px/22px var(--sans); color: var(--ink); }
 /* a day without a Strava title: the title cell states what the day holds (TRACK ONLY / N PHOTOS / WRITE-UP), in Mono-S ink-3,
    so the TITLE column no longer repeats the DAY column; the label line keeps "DAY 42 · SUN, JUN 2" */
@@ -174,7 +180,7 @@ body.p-series .rep-strip { margin-top: 24px; }
   clip-path: inset(0 0 0 var(--st-sep)); font: 400 12px/16px var(--mono);
   letter-spacing: 0.02em; color: var(--ink-2); text-transform: uppercase; font-variant-numeric: tabular-nums; }
 .ser-st > div { position: relative; padding-left: var(--st-sep); white-space: nowrap; }
-.ser-st > div::before { content: "·"; position: absolute; left: calc(var(--st-sep) / 3); color: var(--ink-3); }
+.ser-st > div::before { content: "·"; content: "·" / ""; position: absolute; left: calc(var(--st-sep) / 3); color: var(--ink-3); }
 .ser-st dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ser-st .unit { color: inherit; }
 .ser-st dd { display: inline; }

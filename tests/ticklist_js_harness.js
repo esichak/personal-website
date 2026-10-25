@@ -254,7 +254,7 @@ check('comparators give every pair of distinct records one definite order', () =
 // ---------------------------------------------------------------- chipLabel
 
 const NAMES = {
-  activity: { ski: 'Backcountry Ski', hike: 'Hiking' },
+  activity: { ski: 'Backcountry Skiing', hike: 'Hiking' },
   region: { 'lake-tahoe': 'Lake Tahoe' },
   status: { shortlisted: 'Shortlisted' },
   priority: { high: 'High priority' },
@@ -263,7 +263,7 @@ const NAMES = {
 };
 check('chipLabel names each filter for the chips', () => {
   eq(TKL.chipLabel('q', 'dana', NAMES), 'Search: dana');
-  eq(TKL.chipLabel('activity', 'ski', NAMES), 'Backcountry Ski');
+  eq(TKL.chipLabel('activity', 'ski', NAMES), 'Backcountry Skiing');
   eq(TKL.chipLabel('region', 'lake-tahoe', NAMES), 'Region: Lake Tahoe');
   eq(TKL.chipLabel('region', 'nowhere', NAMES), 'Region: nowhere');
   eq(TKL.chipLabel('status', 'shortlisted', NAMES), 'Status: Shortlisted');
@@ -283,9 +283,9 @@ check('matches: every token has to start a word of the text', () => {
   eq(m('', ['x']), false);
 });
 check('Explore.chipLabel keeps the trips page labels', () => {
-  const names = { activity: { ski: 'Backcountry Ski' }, region: { 'lake-tahoe': 'Lake Tahoe' } };
+  const names = { activity: { ski: 'Backcountry Skiing' }, region: { 'lake-tahoe': 'Lake Tahoe' } };
   eq(X.chipLabel('q', 'dana', names), 'Search: dana');
-  eq(X.chipLabel('activity', 'ski', names), 'Backcountry Ski');
+  eq(X.chipLabel('activity', 'ski', names), 'Backcountry Skiing');
 });
 
 // ---------------------------------------------------------------- goalShown (the scope, then every filter, then the search)

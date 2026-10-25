@@ -22,7 +22,6 @@ MORE = {'climb': 'More climbs', 'hike': 'More hikes', 'mtb': 'More rides', 'othe
 OTHER_LINE = "Paddleboarding, rafting, kayaking, mountaineering and anything that isn't a ski, climb, hike or ride."
 AVY = [('Eastern Sierra Avalanche Center', 'https://www.esavalanche.org/'),
        ('Sierra Avalanche Center', 'https://www.sierraavalanchecenter.org/')]
-FULL_TRACK = 'full track, not trimmed'
 MAX_AREAS = 3
 YEAR_ACTS = ('mtb', 'hike')  # long lists grouped by year, with a year band
 YEAR_ROWS = 20  # ... when 'More <x>' has more rows than this (Climbing and Other stay flat)
@@ -95,11 +94,11 @@ def count_html(k, cls):
 
 def map_caption(t):
     """The shared caption (core.map_caption), as on the report. Phones (< 560) keep one line — the date and North up —
-    since the credit moves into the map tag and the footer (.mapcap-2) and the report carries 'full track, not trimmed'."""
+    since the credit moves into the map tag and the footer (.mapcap-2) and the report carries core.FULL_TRACK."""
     first = []
     if t['date']:
         first.append(core.recorded(t['date']))
-    first.append((FULL_TRACK, 'sec-cap-x'))
+    first.append((core.FULL_TRACK, 'sec-cap-x'))
     first.append('North up')
     # the featured map's renders: col (also shown from 1200) and phone
     return core.map_caption(first + core.contour_items(t, [('map-col', 'col'), ('map-phone', 'phone')], nowide=True))
@@ -189,7 +188,7 @@ def featured(t, here, full_row='', fkey=None):
     body = writeup(t)
     txt = ('<div class="sec-feat-txt">%s%s</div>'
            % (('<h3 class="t-h3 sec-feat-h3">Trip report</h3>%s' % body) if body else '',
-              arrow_link(href, 'Read report', 'alink sec-read')))
+              arrow_link(href, 'Read the report' if t['has_writeup'] else 'View the trip', 'alink sec-read')))
     grid_cls = ('' if photos else ' sec-feat-grid--nophoto') + (' sec-feat-grid--txtl' if text_left else '')
     return ('<section class="sec-feat wrap" id="featured" aria-labelledby="feat-title" data-f="%s">'
             '<p class="t-label sec-feat-l">Featured</p>'
@@ -212,8 +211,8 @@ def profile_block(t, here, variants, ns, cls=''):
     st = t['stats']
     hi = st.get('high_m') if st.get('high_m') is not None else first.get('gps_max_ft', 0) / FT
     lo = st.get('low_m') if st.get('low_m') is not None else first.get('min_ft', 0) / FT
-    bits = [U(core.nb('GPS MAX %s FT' % n(hi * FT)), core.nb('GPS MAX %s M' % n(hi))),
-            U(core.nb('MIN %s FT' % n(lo * FT)), core.nb('MIN %s M' % n(lo)))]
+    bits = [U(core.caps_unit('GPS MAX %s' % n(hi * FT), 'FT'), core.caps_unit('GPS MAX %s' % n(hi), 'M')),
+            U(core.caps_unit('MIN %s' % n(lo * FT), 'FT'), core.caps_unit('MIN %s' % n(lo), 'M'))]
     bits += core.vx_line(ch, variants, nowide=('chart--nowide' in cls) or None, items=True)
     return ('<div class="sec-prof"><div class="sec-chart-h"><h3 class="t-label" id="%s-h">Elevation</h3><p class="t-mono-s">%s</p></div>'
             '<div role="group" aria-labelledby="%s-h">%s%s</div></div>'
@@ -236,10 +235,10 @@ def pick_featured(ts):
     return next((t for t in singles if t['featured']), singles[0] if singles else None)
 
 
-def row(t, here, fkey=None):
+def row(t, here, fkey=None, level=3):
     """The shared list row. fkey(t) -> the row's filter key (data-f: the sub-type on Other, the year on MTB / Hiking), so
-    the filter band can show / hide it; None: no filter."""
-    return core.trip_row(t, here, filter_key=fkey(t) if fkey else None)
+    the filter band can show / hide it; None: no filter. level: its title's heading level (4 under a year's H3)."""
+    return core.trip_row(t, here, filter_key=fkey(t) if fkey else None, level=level)
 
 
 def sub_key(t):
@@ -286,7 +285,7 @@ def year_groups(rows_ts, here, cols=True):
                    '<div class="sec-div"><h3 class="sec-div-t" id="%s-h">%s</h3><span class="t-mono-s">%s</span>%s</div>'
                    '<ol class="tlist sec-tlist">%s</ol></section>'
                    % (ccls, yid, yid, y, yid, esc(y or 'Undated'), plural(len(rs), 'REPORT'), chead,
-                      ''.join(row(t, here, year_key) for t in rs)))
+                      ''.join(row(t, here, year_key, level=4) for t in rs)))
     return ''.join(out)
 
 
@@ -351,7 +350,7 @@ def series_block(t, here, fkey=None):
                mp, core.map_caption(['North up']), core.tag('Series'),
                ('<p class="t-mono-s sec-ser-place">%s</p>' % place) if place else '', stats,
                ('<div class="sec-ser-phs">%s</div>' % pics) if pics else '', sample,
-               arrow_link(href, 'Read the series', 'btn btn--ink'), href, icon('list', 18)))
+               arrow_link(href, 'Open the journal', 'btn btn--ink'), href, icon('list', 18)))
 
 
 # ---------------------------------------------------------------- ski: seasons + region panel
@@ -454,7 +453,7 @@ def none_line(subs):
 # ---------------------------------------------------------------- pages
 
 def act_words(act, ts):
-    """'backcountry ski'; on Other the sub-types the reports have ('paddleboarding')."""
+    """'backcountry skiing'; on Other the sub-types the reports have ('paddleboarding')."""
     if act == 'other':
         subs = []
         for t in ts:

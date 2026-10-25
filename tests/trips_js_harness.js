@@ -195,7 +195,7 @@ check('Phase 7: an apostrophe is no word break, in the index and in the query al
   eq(TRX.match(lovers, TRX.tokens('s leap')), false);   // the old split left a lone 's' word; it is gone
 });
 check('Phase 7: a typed word matches the start of a word, never its inside', () => {
-  const tallac = { s: 't', t: 'tallac cathedral bowl', p: 'mount tallac lake tahoe', k: 'backcountry ski skiing',
+  const tallac = { s: 't', t: 'tallac cathedral bowl', p: 'mount tallac lake tahoe', k: 'backcountry skiing skiing',
     x: 'a total of three laps and good practice on ice before the creek ford' };
   eq(TRX.has('tallac cathedral', 'tal'), true);
   eq(TRX.has('a total of', 'tal'), false);
@@ -229,9 +229,9 @@ check('snippet shows the words around the first hit, with ellipses only where te
   eq(TRX.snippet('', ['x']), '');
 });
 check('chipLabel names each filter for the chips', () => {
-  const names = { activity: { ski: 'Backcountry Ski' }, region: { 'lake-tahoe': 'Lake Tahoe' }, format: { 'multi-day': 'Multi-day' } };
+  const names = { activity: { ski: 'Backcountry Skiing' }, region: { 'lake-tahoe': 'Lake Tahoe' }, format: { 'multi-day': 'Multi-day' } };
   eq(TRX.chipLabel('q', 'dana', names), 'Search: dana');
-  eq(TRX.chipLabel('activity', 'ski', names), 'Backcountry Ski');
+  eq(TRX.chipLabel('activity', 'ski', names), 'Backcountry Skiing');
   eq(TRX.chipLabel('region', 'lake-tahoe', names), 'Region: Lake Tahoe');
   eq(TRX.chipLabel('region', 'nowhere', names), 'Region: nowhere');
   eq(TRX.chipLabel('year', '2026', names), 'Year: 2026');

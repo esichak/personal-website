@@ -23,6 +23,7 @@ PRIORITY_RANK = {'high': 0, 'normal': 1, 'someday': 2}
 # fewer the page is its head and the active goals (completed and archived ones are left off, as the form's default scope
 # leaves them off), and an address with ?status= or ?scope= shows that same page
 FILTERS_FROM = 6
+EMPTY = 'Nothing on the list yet.'   # the empty list's one sentence, here and in ticklist.js (NONE.all)
 
 
 def with_form(site):
@@ -154,7 +155,8 @@ def results(site):
     elif site['goals']:
         empty = '<div class="empty"><p>No active goals right now.</p></div>'
     else:
-        empty = '<div class="empty"><p>No goals yet. Add one with <code>python3 tools/ticklist.py add</code>.</p></div>'
+        # a public page names no command (copy-20): how to add a goal is in docs/TICK_LIST_GUIDE.md
+        empty = '<div class="empty"><p>%s</p></div>' % EMPTY
     return ('<div class="trx-results tkl-results wrap" id="tkl-results">%s%s<section class="trx-yr" id="tkl-sorted-sec" hidden>'
             '<div class="trx-yr-h"><h2 class="t-label" id="tkl-sorted-h">Goals</h2></div><ul class="tkl-grid trx-grid tgrid" id="tkl-sorted"></ul></section></div>'
             % (empty, ''.join(out)))

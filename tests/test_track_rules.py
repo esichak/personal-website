@@ -210,7 +210,7 @@ class SummaryTests(Fixture):
         self.assertPair((with_, without), first + ' with map, elevation profile and GPX.', first)
 
     def test_a_multi_day_trip_with_and_without_any_day_track(self):
-        first = '2-day backcountry ski trip report: Synthetic Tour, Synthetic Range, Mar 10–11, 2026.'
+        first = '2-day backcountry skiing trip report: Synthetic Tour, Synthetic Range, Mar 10–11, 2026.'
         day = {'distance_km': 10.0, 'gain_m': 450}
         for tracks in ((True, True), (True, False), (False, True)):
             with self.subTest(tracks=tracks):

@@ -148,35 +148,35 @@ class HomeTests(HomeFixture):
         t = self.site['by_slug']['journal-series']
         self.assertTrue(any(d['body_md'] for d in t['days']))
         html_ = self.feat(['journal-series'])
-        self.assertIn('Explore the journal', html_)
+        self.assertIn('Open the journal', html_)
         self.assertIn('Journal', html_)
         # the facts (recorded-day count), however the card sets them: as a sentence or as caps meta items with nbsp
         self.assertIn('recorded days', html_.replace('\xa0', ' ').lower())
         self.assertNotIn(PCT_PROSE, html_)
         self.assertNotIn('afternoon heat', html_)
         self.assertNotIn('Read the report', html_)
-        self.assertNotIn('View trip', html_)
+        self.assertNotIn('View the trip', html_)
 
     def test_writeup_card_says_read_the_report(self):
         html_ = self.feat(['ski-report'])
         self.assertIn('Read the report', html_)
-        self.assertNotIn('View trip', html_)
-        self.assertNotIn('Explore the journal', html_)
+        self.assertNotIn('View the trip', html_)
+        self.assertNotIn('Open the journal', html_)
 
     def test_track_only_card_says_view_trip(self):
         t = self.site['by_slug']['track-only']
         self.assertFalse(t['has_writeup'])
         self.assertTrue(t['track'])
         html_ = self.feat(['track-only'])
-        self.assertIn('View trip', html_)
+        self.assertIn('View the trip', html_)
         self.assertNotIn('Read the report', html_)
-        self.assertNotIn('Explore the journal', html_)
+        self.assertNotIn('Open the journal', html_)
 
     def test_mixed_cards_each_carry_their_own_link_text(self):
         html_ = self.feat(['journal-series', 'ski-report', 'track-only'])
-        self.assertIn('Explore the journal', html_)
+        self.assertIn('Open the journal', html_)
         self.assertIn('Read the report', html_)
-        self.assertIn('View trip', html_)
+        self.assertIn('View the trip', html_)
 
     # ------------------------------------------------------------ recent
 

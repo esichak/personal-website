@@ -155,7 +155,7 @@ class HeaderTests(HeaderFixture):
         site = self.site_column(doc)
         # Home first (Phase 13A, phone-12), marked as the page on the home page
         self.assertEqual([a['href'] for a in site], ['./'] + SITE_LINKS)
-        self.assertEqual([a.text() for a in site], ['Home', 'Trips', 'Tick list', 'Map & archive', 'PCT', 'About'])
+        self.assertEqual([a.text() for a in site], ['Home', 'Trips', 'Tick list', 'Map', 'PCT', 'About'])
         self.assertEqual(site[0]['aria-current'], 'page')
         self.assertEqual(site[0].find('path')['d'], 'M3.5 11L12 4l8.5 7')         # the 'home' icon
         units = menu.find(cls='menu-units')

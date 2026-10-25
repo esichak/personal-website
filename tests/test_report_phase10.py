@@ -46,6 +46,11 @@ def css(name):
         return fh.read()
 
 
+
+def contours(ft, m):
+    """The caption's contour item as core.map_caption writes it: since Phase 13C each unit is read out as its word."""
+    return core.U(core.nb('Contours every %s' % ft) + '\xa0' + core.unit_word('ft'), core.nb('Contours every %s' % m) + '\xa0' + core.unit_word('m'))
+
 class Fixture(rp.ReportFixture):
 
     def with_track(self, slug, text, **meta):
@@ -244,19 +249,22 @@ class CaptionKeyTests(Fixture):
         cap = self.report.map_caption(self.by['syn-track'])
         items = re.findall(r'<span class="mi([^"]*)">(?:<span class="sr">, </span>)?(<span class="u">.*?</span></span>)', cap)
         self.assertEqual([c for c, _h in items], [' vx vx--wide', ' vx vx--col', ' vx vx--phone'])
-        self.assertIn(core.U(core.nb('Contours every 200 ft'), core.nb('Contours every 61 m')), cap)
-        self.assertIn(core.U(core.nb('Contours every 400 ft'), core.nb('Contours every 122 m')), cap)
+        self.assertIn(contours('200', '61'), cap)
+        self.assertIn(contours('400', '122'), cap)
         self.intervals('syn-track', {'map-wide': 200, 'map-col': 200, 'map-phone': 200})
         cap = self.report.map_caption(self.by['syn-track'])
-        self.assertEqual(cap.count(core.nb('Contours every 200 ft')), 1)
+        self.assertEqual(cap.count(contours('200', '61')), 1)
         self.assertNotIn('vx--', cap)
         self.render('syn-photos')
         self.assertNotIn('Contours', self.report.map_caption(self.by['syn-photos']))      # a render that states no interval
 
     def test_a_mile_disc_says_its_kilometres_under_km(self):
         row = core.key_row(['mile', 'mile_out'])
-        self.assertIn(core.U('Mile', 'Mile (1.6 km)'), row)
-        self.assertIn(core.U('Mile, outbound', 'Mile (1.6 km), outbound'), row)
+        km = core.unit_word(' km')                                   # Phase 13C: shown 'km', read 'kilometers'
+        self.assertIn(core.U('Mile', 'Mile (1.6%s)' % km), row)
+        self.assertIn(core.U('Mile, outbound', 'Mile (1.6%s), outbound' % km), row)
+        self.assertEqual([helpers.seen_text(s) for s in Doc(row).find_all('span', cls='u-km')],
+                         ['Mile (1.6 km)', 'Mile (1.6 km), outbound'])
         self.assertIn('>Custom</li>', core.key_row([('mile', 'Custom')]))       # a label given is escaped text as before
 
     def test_trail_and_road_only_where_the_base_layer_draws_them(self):

@@ -919,10 +919,10 @@ class TripCardTests(ExplorerFixture):
         self.assertIsNotNone(act)
         chip = act.find(cls='chip')
         self.assertIn('chip--inline', chip.classes)
-        self.assertIn('Backcountry Ski', chip.text())
+        self.assertIn('Backcountry Skiing', chip.text())
         self.assertTrue(core.row_stats_line(self.by['west-couloir']))
         self.assertIn('MI', act.text())
-        self.assertIn('FT GAIN', act.text())
+        self.assertIn('FT GAIN', helpers.plain_text(helpers.seen_text(act)))
         self.assertIn('Multi-day · 3 days', self.card('haute-route').find('div', cls='tcard-act').text())
         self.assertIn('Series', self.card('pacific-crest-trail-2024').find('div', cls='tcard-act').text())
         self.assertNotIn('Loop', self.card('basin-loop').find('div', cls='tcard-act').text())   # shape=False

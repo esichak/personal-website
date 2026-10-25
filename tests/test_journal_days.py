@@ -269,12 +269,12 @@ class OneDayTests(Fixture):
     def test_a_one_day_journal_is_recorded_on_its_date(self):
         _, html_ = self.journal_page([{'id': '001', 'day': '1', 'date': '2024-05-01'}])
         cap = caption_items(Doc(html_).find('div', cls='mapcap'))
-        self.assertEqual(cap[:3], ['As recorded on May 1, 2024', 'full tracks, not trimmed', 'North up'])
+        self.assertEqual(cap[:3], ['As recorded on May 1, 2024', 'Full tracks, not trimmed', 'North up'])
 
     def test_a_journal_of_several_days_is_recorded_over_its_range(self):
         t, html_ = self.journal_page([{'id': '001', 'day': '1', 'date': '2024-05-01'}, {'id': '002', 'day': '2', 'date': '2024-05-03'}])
         cap = caption_items(Doc(html_).find('div', cls='mapcap'))
-        self.assertEqual(cap[:3], ['As recorded May 1–3, 2024', 'full tracks, not trimmed', 'North up'])
+        self.assertEqual(cap[:3], ['As recorded May 1–3, 2024', 'Full tracks, not trimmed', 'North up'])
         desc = Doc(html_).find('head').find('meta', attrs={'name': 'description'})['content']
         self.assertIn('2 recorded days, May 1–3, 2024, with a GPX track for every day.', desc)
 
@@ -282,12 +282,12 @@ class OneDayTests(Fixture):
         from sitegen.pages import multiday
         t = self.load([{'id': '01', 'day': '1', 'date': '2025-02-01'}, {'id': '02', 'day': '2', 'date': '2025-02-01'}], kind='multi-day')
         self.assertEqual(caption_items(Doc(multiday.overview_caption(t)).root)[:3],
-                         ['As recorded on Feb 1, 2025', 'full track, not trimmed', 'North up'])
+                         ['As recorded on Feb 1, 2025', 'Full track, not trimmed', 'North up'])
         t = self.load([{'id': '01', 'day': '1', 'date': '2025-02-01'}, {'id': '02', 'day': '2', 'date': '2025-02-03'}],
                       kind='multi-day', slug=PREFIX + 'range')
         self.assertEqual(caption_items(Doc(multiday.overview_caption(t)).root)[0], 'As recorded Feb 1–3, 2025')
         t = self.load([{'id': '01', 'day': '1'}, {'id': '02', 'day': '2'}], kind='multi-day', slug=PREFIX + 'undated')
-        self.assertEqual(caption_items(Doc(multiday.overview_caption(t)).root)[:2], ['full track, not trimmed', 'North up'])
+        self.assertEqual(caption_items(Doc(multiday.overview_caption(t)).root)[:2], ['Full track, not trimmed', 'North up'])
 
 
 if __name__ == '__main__':

@@ -102,6 +102,22 @@ class MarkupTests(Fixture):
         self.assertEqual(self.cols(block.find('div', cls='sec-colrow')), ['Dist'])
 
 
+class HeadingTests(Fixture):
+
+    def test_rows_under_a_year_are_one_level_under_its_heading(self):
+        # Phase 13C (a11y-08): Hiking and Mountain biking group a long list by year (section.year_groups, an H3 per year);
+        # each row's title is then an H4 with the H3's look, and a list that is not grouped keeps H3 rows
+        doc = Doc(self.section.year_groups([self.by['syn-h-a'], self.by['syn-s-b'], self.by['syn-s-c']], 'hiking/'))
+        years = [h.tag for h in doc.find_all(cls='sec-div-t')]
+        self.assertGreater(len(years), 1)
+        self.assertEqual(set(years), {'h3'})
+        rows = doc.find_all(cls='trow-t')
+        self.assertEqual([(h.tag, h.classes) for h in rows], [('h4', ['t-h3', 'trow-t'])] * 3)
+        climb = self.page('climb').find_all(cls='trow-t')
+        self.assertTrue(climb)
+        self.assertEqual({h.tag for h in climb}, {'h3'})
+
+
 class CascadeTests(Fixture):
 
     def test_from_760_the_header_shows_and_the_rows_labels_go_to_screen_readers(self):

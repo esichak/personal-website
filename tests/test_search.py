@@ -205,7 +205,7 @@ class EntryTests(IndexFixture):
     def test_keywords_lead_with_the_activity_label_then_its_other_forms(self):
         # plan 8.3, as Phase 7 extends it: the label opens the k field, then the activity's other forms (less any word the
         # label holds), the aliases, the peaks, the trip's year and months, and its route shape
-        self.assertEqual(self.entry('west-couloir')['k'], 'backcountry ski skiing skied skis skimo skinning touring 2026 january')
+        self.assertEqual(self.entry('west-couloir')['k'], 'backcountry skiing skied skis skimo skinning touring 2026 january')
         self.assertEqual(self.entry('pacific-crest-trail-2024')['k'],
                          'hiking hikes hiked pct 2024 april may june july august september point to point')
 
@@ -216,7 +216,7 @@ class EntryTests(IndexFixture):
 
     def test_peaks_are_searchable_keywords(self):
         self.assertEqual(self.entry('dana-couloir')['k'],
-                         'backcountry ski skiing skied skis skimo skinning touring mount dana mount gibbs 2024 may')
+                         'backcountry skiing skied skis skimo skinning touring mount dana mount gibbs 2024 may')
 
     def test_peaks_given_as_one_string_or_with_junk_items_still_index_the_names(self):
         helpers.make_trip(self.tmp, 'one-peak', title='One Peak', activity='hike', date='2025-07-02', track=True, map={'peaks': 'Mount Tallac'})

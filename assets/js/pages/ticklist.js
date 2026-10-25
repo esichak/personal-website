@@ -89,11 +89,11 @@
   var cards = Array.prototype.slice.call(results.querySelectorAll('.gcard'));
   var origin = cards.map(function (c) { return c.parentNode; });
   var total = cards.length;
-  if (!total) return;   // no goals yet: the page's own 'No goals yet' note stands; no controls, no second empty state
+  if (!total) return;   // no goals yet: the page's own 'Nothing on the list yet.' stands; no controls, no second empty state
   // an empty scope tab is not a failed filter: it says what the tab holds, and offers 'Clear filters' only when one is set
   var noneP = noneEl.querySelector('p'), noneBtn = noneEl.querySelector('[data-clear]');
   var NONE = { active: 'No active goals.', shortlisted: 'Nothing shortlisted yet.', completed: 'No completed goals yet.',
-    archived: 'No archived goals.', all: 'No goals yet.' };
+    archived: 'No archived goals.', all: 'Nothing on the list yet.' };
   function optionValues(s) { return s ? Array.prototype.map.call(s.options, function (o) { return o.value; }) : []; }
   function optionNames(s) { var m = {}; if (s) Array.prototype.forEach.call(s.options, function (o) { m[o.value] = o.textContent; }); return m; }
   var allowed = { activity: actBtns.map(function (b) { return b.dataset.filter; }), region: optionValues(sel.region), status: optionValues(sel.status),

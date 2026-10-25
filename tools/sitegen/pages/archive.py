@@ -1,4 +1,4 @@
-"""Map & archive — /map/: region maps (ARIA tabs) with an "In this region" list, then every report by year."""
+"""Map — /map/: region maps (ARIA tabs) with an "In this region" list, then every report by year."""
 import json
 import os
 import re
@@ -109,7 +109,7 @@ def series_tag(t):
 def dist_line(t):
     mi, km = core.dist_vals(t['stats'].get('distance_km'))
     p = core.approx(t)   # '≈ ' for a tick-list goal: its number is measured from a plan, not recorded
-    return U(core.nb(p + mi + ' MI'), core.nb(p + km + ' KM')) if mi else ''
+    return U(core.caps_unit(p + mi, 'MI'), core.caps_unit(p + km, 'KM')) if mi else ''
 
 
 # ---------------------------------------------------------------- page parts
@@ -123,7 +123,7 @@ def head_block(site, regs, meta):
     years = sorted({t['date'].year for t in pub if t['date']} | {t['end_date'].year for t in pub if t.get('end_date')})
     if years:
         bits.append(str(years[0]) if years[0] == years[-1] else '%d–%d' % (years[0], years[-1]))
-    return ('<section class="arc-head wrap" aria-labelledby="arc-title"><h1 id="arc-title" class="t-d1">Map &amp; archive</h1>'
+    return ('<section class="arc-head wrap" aria-labelledby="arc-title"><h1 id="arc-title" class="t-d1">Map</h1>'
             '<p class="t-mono-s arc-stats">%s</p></section>' % core.meta_items(bits))
 
 
@@ -275,7 +275,7 @@ def journal_row(t, part, here, drawing=None, region_slug=None):
     km = [k for k in (part_day_km(t, part, d) for d in days) if k]
     mi_, km_ = core.dist_vals(sum(km)) if km else ('', '')
     if mi_:
-        bits.append(U(core.nb(mi_ + ' MI'), core.nb(km_ + ' KM')))
+        bits.append(U(core.caps_unit(mi_, 'MI'), core.caps_unit(km_, 'KM')))
     g = part_glyph(drawing, here) or core.glyph(t, here, 'g64', cls=' arc-row-g')
     rid = (' id="%s"' % journal_part_id(region_slug, part)) if region_slug else ''
     return ('<li class="arc-row arc-row--journal" data-key="%s"%s><a href="%s#%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
@@ -313,7 +313,7 @@ def region_panel(name, slug, ts, here, meta, first, page=False, drawn=None, site
     mp = share_casings(mp.replace('<div class="map', '<div id="%s" class="map' % map_id, 1), 'arc-' + slug)
     if site:
         mp = inject_acts(mp, site.get('by_slug') or {t['slug']: t for t in site['trips']})
-    cap = '<div class="arc-cap">%s</div>' % core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])
+    cap = '<div class="arc-cap">%s</div>' % core.map_caption(['Pins mark each start and link to the report', core.FULL_TRACKS, 'North up'])
     # the legend beside the map, under its caption (gap2-06: it stays in view with the stuck map from 1000 px), and the
     # compact key row in its place on phones
     pkey = region_key(site, meta['maps'], ['region-%s-desktop' % slug, 'region-%s-phone' % slug], 'keyrow--p arc-pkey') if site else ''
@@ -364,7 +364,7 @@ def series_cards(ts, here):
                    '<span class="arc-series-t">%s</span><span class="arc-series-m">%s%s<span class="t-mono-s arc-series-d">%s</span></span></span>'
                    '<span class="arc-series-go">%s%s</span></a>'
                    % (link(here, t['url']), g, core.title_html(t['title']), core.chip(t, variant='inline'), core.tag(series_tag(t)),
-                      core.meta_items([core.nb(x) if '<' not in x else x for x in meta]), 'Read the series', icon('arrow-right', 16)))
+                      core.meta_items([core.nb(x) if '<' not in x else x for x in meta]), 'Open the journal', icon('arrow-right', 16)))
     return '<div class="arc-series-w">%s</div>' % ''.join(out)
 
 
@@ -485,7 +485,7 @@ def region_fullscreen(name, slug, ts, meta, site):
             '<div class="wrap fs-foot">%s%s%s</div>'
             % (esc(name), slug, icon('arrow-left', 18), scale, mp, legend(ts, md),
                region_key(site, meta['maps'], [name_d], 'keyrow--p'),
-               core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])))
+               core.map_caption(['Pins mark each start and link to the report', core.FULL_TRACKS, 'North up'])))
     title = '%s map' % name
     return core.Page(here, core.document(here, title, body, 'Full-size map of %s.' % name, active='map', body_cls='p-fsmap',
                                          extra_head='<meta name="robots" content="noindex">'), title, index=False)
@@ -503,8 +503,8 @@ def build(site):
         rs = regs[0][1]
         head = core.map_preloads(None, here, [('region-%s-desktop' % rs, 'desktop'), ('region-%s-phone' % rs, 'phone')],
                                  'assets/maps/', site_maps=True)
-    return ([core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive', extra_head=head,
-                                     page_bar=('Map & archive', 'arc-title'),
+    return ([core.Page(here, core.document(here, 'Map', body, desc, active='map', body_cls='p-archive', extra_head=head,
+                                     page_bar=('Map', 'arc-title'),
                                      image=core.site_share()),
-                       'Map & archive')]
+                       'Map')]
             + [region_fullscreen(name, slug, ts, meta, site) for name, slug, ts in regs])

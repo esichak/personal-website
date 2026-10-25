@@ -277,6 +277,12 @@ class Node:
         return plain_text(s) if clean else s
 
 
+def seen_text(node):
+    """A node's text as it is seen: what its visually hidden spans (.sr) hold is left out (since Phase 13C a unit is
+    shown abbreviated and read as its word: '12.4 mi', not '12.4 mimiles')."""
+    return ''.join(c if isinstance(c, str) else ('' if 'sr' in c.classes else seen_text(c)) for c in node.children)
+
+
 def plain_text(s):
     """Text as a reader sees it: nbsp -> space, whitespace runs collapsed, trimmed."""
     return re.sub(r'\s+', ' ', s.replace('\xa0', ' ')).strip()

@@ -116,7 +116,7 @@ def so_far(t):
 def far_item(km):
     """'2,654 MI SO FAR': one meta_items() item for the month heads and the By-month rows, '' before any distance."""
     mi, k = core.dist_vals(km)
-    return U(core.nb(mi + ' MI SO FAR'), core.nb(k + ' KM SO FAR')) if mi else ''
+    return U(core.caps_unit(mi, 'MI', 'SO FAR'), core.caps_unit(k, 'KM', 'SO FAR')) if mi else ''
 
 
 def group_months(t):
@@ -145,7 +145,7 @@ def dist_u(km, caps=False):
     mi, k = core.dist_vals(km)
     if mi is None:
         return ''
-    return U(core.nb(mi + ' MI'), core.nb(k + ' KM')) if caps else U(mi, k, ' mi', ' km')
+    return U(core.caps_unit(mi, 'MI'), core.caps_unit(k, 'KM')) if caps else U(mi, k, ' mi', ' km')
 
 
 def days_item(days):
@@ -173,7 +173,7 @@ def strip(t):
     sub = ''
     if km_of(longest):
         lmi, lkm = core.dist_vals(longest['stats']['distance_km'])
-        sub = 'LONGEST %s' % U(lmi + ' MI', lkm + ' KM')
+        sub = 'LONGEST %s' % U(core.caps_unit(lmi, 'MI'), core.caps_unit(lkm, 'KM'))
     cells.append(('Days recorded', n(len(days)), sub))
     wu = sum(1 for d in days if written(d))
     photos = sum(len(d['photos']) for d in days)
@@ -192,7 +192,7 @@ def map_caption(t):
     """The shared map caption (core.map_caption), as on the report and multi-day maps: the track line, then the credit
     (two lines from 1200, one flowing paragraph below; phones drop the credit, which the in-map tag and footer carry)."""
     when = core.recorded(t['date'], t['end_date'])   # 'on <date>' for a journal of one day
-    return core.map_caption(([when] if when else []) + ['full tracks, not trimmed', 'North up'])
+    return core.map_caption(([when] if when else []) + [core.FULL_TRACKS, 'North up'])
 
 
 def lede(t):
@@ -486,7 +486,8 @@ def day_article(t, d, here, far=None):
             '<p class="ser-n" id="%s-n"><span class="ser-dn"><span class="ser-dw">Day </span>%s</span>'
             '<span class="ser-dd">%s</span></p>'
             '<h4 class="ser-t" id="%s-t">%s</h4>%s<div class="ser-sp">%s</div>%s</div>%s</article>'
-            % (cls, aid, labelled, glyph, aid, esc(d['label']), esc(date_s), aid, day_title(d), stats_dl(d, far), spark, gpx,
+            % (cls, aid, labelled, glyph, aid, esc(d['label']), ('<span class="sr">, </span>' + esc(date_s)) if date_s else '',
+               aid, day_title(d), stats_dl(d, far), spark, gpx,
                ('<div class="ser-body">%s</div>' % body) if body else ''))
 
 

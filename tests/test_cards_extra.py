@@ -73,7 +73,7 @@ class CardMediaTests(unittest.TestCase):
     def test_action_links_name_their_trip_for_link_lists(self):
         html_ = self.feat(['ski-report', 'track-only'])
         self.assertIn('Read the report<span class="sr">: West Couloir</span>', html_)
-        self.assertIn('View trip<span class="sr">: Quick Lap</span>', html_)
+        self.assertIn('View the trip<span class="sr">: Quick Lap</span>', html_)
 
     def test_recent_cards_show_the_cover_and_describe_titles_by_their_meta_line(self):
         self.site['featured'] = []
@@ -310,7 +310,7 @@ class FactsWordingTests(unittest.TestCase):
     def test_multiday_without_dates_has_no_dangling_comma(self):
         helpers.make_trip(self.tmp, 'undated', activity='ski', kind='multi-day', days=[{}, {}, {}])
         t = helpers.load(self.tmp, 'undated')
-        self.assertEqual(core.card_summary(t)['text'], '3-day backcountry ski trip.')
+        self.assertEqual(core.card_summary(t)['text'], '3-day backcountry skiing trip.')
 
 
 if __name__ == '__main__':

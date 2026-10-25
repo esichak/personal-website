@@ -188,7 +188,20 @@ with 40 px to spare).
   of Trips, map/ and the region pages are 22/28 heads (24/30 from 760), the tick list's region heads stay labels
   (visual-04); a card without a photo fills its slot with its route tile on `--map-paper` (visual-01, step 1); About's
   At a glance is `.dl-leader`; `.t-lede` is the serif lead of home and the sections; the filter bands fade at their
-  right edge and section.js brings the chosen segment into the row by `scrollLeft` (qa-10). Phase 4 added the rules below; tests/test_a11y_static.py checks them statically, in the
+  right edge and section.js brings the chosen segment into the row by `scrollLeft` (qa-10).
+  Phase 13C: a unit is shown abbreviated and read as its word (`core.unit_word` inside `core.U`'s unit span,
+  `core.caps_unit` for the Mono-S caps lines: '12.8 MI' on screen, '12.8 miles' to a screen reader), the strip's
+  second line in the other system (`core.U_sub`) and the Moving time's 'h:mm' ('hours and minutes') too; a report
+  table's cells, which show no unit, keep their own spoken words; tests/test_phase13c.py reads every fixture page as a
+  screen reader would and finds no number before a bare abbreviation; the units switch's buttons are named 'MI: miles and feet' and
+  'KM: kilometers and meters'. Under forced colours the activity colours that key a map keep their colours (the compact
+  key rows, the explorer's chip swatches, the journal's day bars inside a CanvasText outline); a disc beside its own
+  word stays forced. `@media (prefers-contrast: more)` gives `--ink-3` the value of `--ink-2`, darkens `--rule-strong`
+  and the map and chart labels; it cannot reach the glyphs and tiles served as `<img>` or the key rows' inline symbols.
+  The meta line's dot is `content: "·" / ""`, drawn and not read, so the visually hidden ', ' of each item is the one
+  separator a screen reader hears; the PCT page's day label and stats line draw theirs the same way. Rows under a year's H3 are H4 (`core.trip_row(level=4)`), and no page skips a
+  heading level. The home page's region name is a 44 px box of its own (padding taken back by margins), as a tester
+  measures it. Phase 4 added the rules below; tests/test_a11y_static.py checks them statically, in the
   sources and in a generated fixture site.
   - Targets: the Design rule is 44 px to press, and Phase 4 brought these up to it. Only the filter chips grew as
     boxes (`.fchip`, with `min-width: 44px` for the short `All` radio, which moves the chips after it by about 6 px on
@@ -294,15 +307,35 @@ with 40 px to spare).
 - Copy: tracks are "GPS recordings via <service>", the service from `content.stats_source` (Strava on every trip
   today) — never name a device (some tracks are Strava GPX exports). Map
   captions go through `core.map_caption` and open with when the track was recorded, from `core.recorded(a, b=None)`:
-  `As recorded on <Mon D, YYYY> · full track, not trimmed · North up` on a single-day report (`report.map_caption`)
+  `As recorded on <Mon D, YYYY> · Full track, not trimmed · North up` on a single-day report (`report.map_caption`)
   and on a section page's featured map (`section.map_caption`, which hides the full-track item under 560), `As
-  recorded <date range> · full track, not trimmed · North up` on a multi-day overview (`multiday.overview_caption`),
-  `As recorded <date range> · full tracks, not trimmed · North up` on a series (`series.map_caption`). A range that is
+  recorded <date range> · Full track, not trimmed · North up` on a multi-day overview (`multiday.overview_caption`),
+  `As recorded <date range> · Full tracks, not trimmed · North up` on a series (`series.map_caption`); the two
+  wordings are `core.FULL_TRACK` and `core.FULL_TRACKS`, and every caption item starts with a capital or a digit
+  (Phase 13C, copy-13). A range that is
   one date reads `As recorded on <date>` there too. A trip without a date gets no `As recorded` item in any of the
   four (`core.recorded` returns `''`): an undated single-day trip, and a multi-day trip or series without dates. A
   goal's caption reads `Planned route, not a recorded track · North up`. The menu's Other row names only the sub-types
   that have reports (`core.other_subtypes()`); flat water is `core.is_flat()` (SUP / Kayaking, or under 30 m of relief
   — render.py uses the same rule).
+- One word per destination (Phase 13C, ia-13): the header, the menu, the footer, the 404 page and the page itself call
+  map/ `Map` (the header's row has no room for 'Map & archive' at 1000 px); the menu's and the footer's list of the
+  five activities is `By activity`; the crumb root stays `Reports`, to home. The PCT link reads `PCT` and is named `PCT
+  journal` (`core.PCT_NAME`); the menu button stays `Menu` (`aria-expanded` says whether it is open). The ski activity
+  is `Backcountry Skiing` (`content.ACTIVITIES`, `core.NAV`; the URL `ski/` and Strava's type names stay).
+- Destination links, one verb each (Phase 13C, copy-12):
+
+  | Leads to | Link |
+  | --- | --- |
+  | a report with a write-up | Read the report |
+  | a track-only trip | View the trip |
+  | the journal | Open the journal |
+  | a goal | Open the goal |
+
+  'Open the map' and 'All <Region> reports' stay. In-page jumps ('Read the report' in a report's title actions,
+  'Browse all recordings', 'Read the first written entry') are not destinations. The tick list with no goal says
+  'Nothing on the list yet.' (`ticklist.EMPTY`, ticklist.js's `NONE.all`); the footer's line reads `BASED IN LAKE
+  TAHOE · AVALANCHE TRAINING: AIARE 2`, About's label for it.
 
 ### Cards, lists and what a page offers
 
@@ -626,13 +659,13 @@ with 40 px to spare).
     `'ticklist'` gives `page` on Tick list and `'goal'` (a goal page) gives `true` there; `'map'` / `'about'` give `page`
     on their link, and `'map'` on a page that is not `map/` itself (a region page) gives `true` on Map; the PCT page
     gives `page` on PCT and nothing on Trips. The phone menu opens with its Units row (Phase 13A, gap6-02; across both
-    columns from 760 px), keeps the five activity rows under Reports and lists Home (Phase 13A, phone-12;
-    `page` on the home page), Trips, Tick list, Map & archive, PCT, About under Site, then a search box
-    (`li.menu-search`, `menu-q`), or on trips/ the Search row; the footer's Site list is Trips, Tick list, Map &
-    archive, About, RSS.
+    columns from 760 px), keeps the five activity rows under By activity and lists Home (Phase 13A, phone-12;
+    `page` on the home page), Trips, Tick list, Map, PCT, About under Site, then a search box
+    (`li.menu-search`, `menu-q`), or on trips/ the Search row; the footer's Site list is Trips, Tick list, Map,
+    About, RSS (the activities are its By activity list).
   - The phone title bar: a trip's page (report, multi-day, journal) shows its glyph and title in the header once the H1
     has scrolled under it (`a.ab-trip`, to `#title`). Since Phase 13A (phone-13) the long index pages show their title
-    and an up arrow the same way (`a.ab-page`, from `core.document(..., page_bar=(title, H1 id))`): Trips, Map & archive, the five sections, the region pages and the tick list. base.js watches
+    and an up arrow the same way (`a.ab-page`, from `core.document(..., page_bar=(title, H1 id))`): Trips, Map, the five sections, the region pages and the tick list. base.js watches
     the heading the bar's `data-ab-title` names with the same 52 px margin and sets `body.past-title`; About, the 404
     page, a goal and home have no bar.
   - Adding a facet: emit it as a `data-*` attribute in `core.trip_card`; add the control in trips.py (option values = the
@@ -818,7 +851,7 @@ with 40 px to spare).
   the dated ones; every candidate counts as undated when `t` has no date), then the newer one, then
   `site['published']` order. `core.related_block(t, here, site, k=3, skip=())` → `''` when empty, else `<section
   class="rep-related wrap sec" aria-labelledby="rel-h">` with the h2 `More like this` (`id="rel-h"`), a meta line of
-  what the picked reports share with the page (visual-03, since Phase 10): `EASTERN SIERRA · BACKCOUNTRY SKI` when all
+  what the picked reports share with the page (visual-03, since Phase 10): `EASTERN SIERRA · BACKCOUNTRY SKIING` when all
   share its region and activity, the region or the activity word when all share only that, else `N REPORTS`; and `<ul
   class="rep-rel tgrid">` of `core.trip_card(x, here, core.RELATED_SIZES, ns='rel')`. Called by `report.page` (every
   layout) and `multiday.page`, before the pager, with `skip=report.neighbours(t, site)`: the block leaves out the two
@@ -1491,7 +1524,7 @@ with 40 px to spare).
       sec" aria-labelledby="reg-others-l">` in the browse-row markup of trips/ (`div.trx-browse > div.trx-bgroup >
       span.t-label#reg-others-l`, "Other regions", then `ul > li > a`): one link per other region page in the order
       of `regions()`, the name followed by `span.trx-bn` with `archive.count_n` of its published reports (spoken ",
-      N reports"), then `Map & archive` to `map/`. The markup is reused so that the hit areas of `.trx-bgroup a`
+      N reports"), then `Map` to `map/`. The markup is reused so that the hit areas of `.trx-bgroup a`
       apply (Targets, under Accessibility above).
   - The Featured rule, `region.pick_featured(ts)`: up to `region.FEATURED_MAX` (3) trips of `ts` that are not planned.
     A journal filed under the region is in `ts` and can be picked, and so can a report without a track. Tier 0 is
@@ -1502,7 +1535,7 @@ with 40 px to spare).
   - The document: `core.document(here, '<Region> trip reports', body, description, active='map', body_cls='p-region',
     image=..., extra_head=...)`. Map is the current item of the nav, as `aria-current="true"` (Nav keys above).
     - `region.description(name, pub)` is one sentence that starts with the region, so that no preposition has to suit
-      its name: `Lake Tahoe: 86 trip reports, 2022 to 2026 (backcountry ski, climbing, hiking, mountain biking,
+      its name: `Lake Tahoe: 86 trip reports, 2022 to 2026 (backcountry skiing, climbing, hiking, mountain biking,
       paddleboarding and rafting), with a map of the region and the full GPX track of each.` Its parts: `1 trip
       report` or `N trip reports`; `, 2022 to 2026` or `, 2026`, left out when no report is dated; in brackets
       `region.activity_words(pub)` joined by `section.words_list(..., 'and')`, that is the activities in `core.NAV`
@@ -2027,3 +2060,16 @@ and of every request (a run in which a resource came from the cache is not cold 
 the browser, served the build and summarised the runs were scratch files and are not in the repository. The results
 are in docs/IMPLEMENTATION_REPORT.md (the comment above `core.PHONE_SLOT` cites it for the lead photo's figures). They
 were lab measurements, not field data.
+
+The tablet profile (Phase 13C, gap1-08) is for looking, not timing: 768 x 1024 and 1024 x 768 (an iPad either way
+round) and 1180 x 820 (an iPad Air in landscape), at 2x with touch emulation on and no CPU slowdown. At each size,
+capture the single-day report (the Matterhorn report), the multi-day page (the Haute Route), the Ski page, map/, one
+region page (Lake Tahoe) and the PCT page, and walk the map wiring once with a coarse pointer: tap a pin, a journal
+line, a list row and a numbered circle on a region page, and open and swipe the photo viewer. Expect Phase 12's
+behaviour: a first tap on a pin or a line picks it out and opens its row (unfolding the list when the row is behind
+'Show all'), a second tap on it follows its link, a tap elsewhere ends the pick; a numbered circle narrows the list to
+its reports and says so in the count line. Opening a row centres it, so the page may scroll under the finger between
+the two taps. The review gate's
+before-and-after captures take these three sizes beside 1440 and 390. The first run is in the Phase 13C log entry, its
+captures in `.cache/plan2/phase13/`. docs/CHECKING_WITH_A_SCREEN_READER.md is the screen-reader pass the review gate
+repeats.

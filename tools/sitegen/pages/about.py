@@ -74,7 +74,7 @@ def year_rows(site, here):
         meta = [core.nb(count_word(k)), core.nb(count_word(days, 'DAY OUT', 'DAYS OUT'))]
         if gain:
             # core.nb on the words only: it would put its no-break spaces inside U's tags too
-            meta.append(U(core.nb('%s FT' % n(gain * FT)), core.nb('%s M' % n(gain))) + core.nb(' GAIN'))
+            meta.append(U(core.caps_unit(n(gain * FT), 'FT'), core.caps_unit(n(gain), 'M')) + core.nb(' GAIN'))
         d = ('<span class="abo-act-d t-data-m">%s</span>' % core.distance(km)) if km else ''
         rows.append('<li><a class="abo-act-a" href="%s"><span class="abo-act-w"><span class="abo-act-n">%d</span>'
                     '<span class="t-mono-s abo-act-m">%s</span></span>%s%s</a></li>'
@@ -189,8 +189,8 @@ def method(site):
 
 def units_block():
     ctl = ('<div class="units abo-units" role="radiogroup" aria-labelledby="abo-units-h">'
-           '<button type="button" role="radio" aria-checked="true" data-units="mi">MI</button>'
-           '<button type="button" role="radio" aria-checked="false" data-units="km">KM</button></div>')
+           '<button type="button" role="radio" aria-checked="true" data-units="mi" aria-label="%s">MI</button>'
+           '<button type="button" role="radio" aria-checked="false" data-units="km" aria-label="%s">KM</button></div>' % core.UNITS_LABELS)
     return ('<section class="abo-sec" aria-labelledby="abo-units-h"><h2 class="t-h3" id="abo-units-h">Units</h2>'
             # the second sentence is about the switch: without JavaScript the switch is not shown (base.css), and neither
             # is the sentence (about.css)

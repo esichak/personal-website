@@ -54,11 +54,11 @@ def high_day(t):
 
 def caps_dist(km):
     mi, k = core.dist_vals(km)
-    return U(mi + ' MI', k + ' KM') if mi else ''
+    return U(core.caps_unit(mi, 'MI'), core.caps_unit(k, 'KM')) if mi else ''
 
 
 def caps_elev(m, suffix=''):
-    return U('%s FT%s' % (n(m * FT), suffix), '%s M%s' % (n(m), suffix)) if m is not None else ''
+    return U(core.caps_unit(n(m * FT), 'FT', suffix), core.caps_unit(n(m), 'M', suffix)) if m is not None else ''
 
 
 def elev_cell(m):
@@ -389,7 +389,7 @@ def has_gpx(t):
 
 def overview_caption(t):
     when = core.recorded(t['date'], t['end_date'])   # 'on <date>' when every day shares one date
-    return core.map_caption(([when] if when else []) + ['full track, not trimmed', 'North up'])
+    return core.map_caption(([when] if when else []) + [core.FULL_TRACK, 'North up'])
 
 
 def fullscreen(t):
@@ -613,7 +613,7 @@ def day_index(t, here):
         if st.get('distance_km') is not None:
             bits.append(caps_dist(st['distance_km']))
         if st.get('gain_m') is not None:
-            bits.append(caps_elev(st['gain_m'], ' GAIN'))
+            bits.append(caps_elev(st['gain_m'], 'GAIN'))
         title = day_title(d)
         out.append('<li><a href="#day-%d"><span class="mul-di-b"><span class="mul-di-t"><span class="mul-di-d">D%d</span>'
                    '<span class="mul-di-date">%s</span></span>%s<span class="t-mono-s mul-di-m">%s</span></span>%s%s</a></li>'
@@ -693,9 +693,9 @@ def day_profile(t, here, meta, d):
     if st.get('distance_km') is not None:
         bits.append(caps_dist(st['distance_km']))
     if st.get('gain_m') is not None:
-        bits.append(U('+%s FT' % n(st['gain_m'] * FT), '+%s M' % n(st['gain_m'])))
+        bits.append(U(core.caps_unit('+' + n(st['gain_m'] * FT), 'FT'), core.caps_unit('+' + n(st['gain_m']), 'M')))
     if st.get('loss_m') is not None:
-        bits.append(U('−%s FT' % n(st['loss_m'] * FT), '−%s M' % n(st['loss_m'])))
+        bits.append(U(core.caps_unit('−' + n(st['loss_m'] * FT), 'FT'), core.caps_unit('−' + n(st['loss_m']), 'M')))
     bits += core.vx_line(ch, [(col, 'col'), (ph, 'phone')], items=True)  # chart--nowide: the col value also shows >= 1200
     keys = core.key_row(['hatch', 'fill'], 'keyrow--inline', label='Elevation key') if t['activity'] == 'ski' else ''
     # the day's own mile table under its chart (a11y-09); no Time column: a day's zone waits on the trip's (12.12)
@@ -727,7 +727,7 @@ def pager_cell(x, cls):
     if x['stats'].get('distance_km') is not None:
         bits.append(caps_dist(x['stats']['distance_km']))
     if not title and x['stats'].get('gain_m') is not None:
-        bits.append(caps_elev(x['stats']['gain_m'], ' GAIN'))
+        bits.append(caps_elev(x['stats']['gain_m'], 'GAIN'))
     name = arrow_html(title) if title else (core.fdate(x['date'], 'day') if x['date'] else 'Day %d' % x['n'])
     arrow = icon('arrow-left' if cls == 'prev' else 'arrow-right', 14)
     lab = ('%s<span>Day %d</span>' % (arrow, x['n'])) if cls == 'prev' else ('<span>Day %d</span>%s' % (x['n'], arrow))

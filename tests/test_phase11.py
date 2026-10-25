@@ -126,7 +126,7 @@ class SoFarTests(JournalFixture):
         for anchor, km in (('day-2', 22.5), ('day-12', 54.75)):
             mi, k = core.dist_vals(km)
             dd = self.main.by_id(anchor).find('div', cls='ser-st-f').find('dd')
-            self.assertEqual(dd.text().replace('\u00a0', ' '), '%s mi%s km so far' % (mi, k))
+            self.assertEqual(helpers.seen_text(dd).replace('\u00a0', ' '), '%s mi%s km so far' % (mi, k))
 
     def test_a_gap_and_a_day_without_distance_add_nothing(self):
         far = self.series.so_far(self.t)
@@ -145,11 +145,11 @@ class SoFarTests(JournalFixture):
         def far_text(km):
             mi, k = core.dist_vals(km)
             return '%s MI SO FAR' % mi
-        heads = [m.text().replace('\u00a0', ' ') for m in self.main.find_all('p', cls='ser-mh-m')]
+        heads = [helpers.seen_text(m).replace('\u00a0', ' ') for m in self.main.find_all('p', cls='ser-mh-m')]
         self.assertEqual(len(heads), 2)
         self.assertIn(far_text(30.5), heads[0])                                  # April: days 1, 2, 3 and 5.2
         self.assertIn(far_text(54.75), heads[1])                                 # May: through day 12, the total
-        rows = [s.text().replace('\u00a0', ' ') for s in self.main.find_all('span', cls='ser-mi-s')]
+        rows = [helpers.seen_text(s).replace('\u00a0', ' ') for s in self.main.find_all('span', cls='ser-mi-s')]
         self.assertIn(far_text(30.5), rows[0])
         self.assertIn(far_text(54.75), rows[-1])
         strip_total = core.dist_vals(self.t['stats']['distance_km'])[0]

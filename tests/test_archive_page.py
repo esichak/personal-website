@@ -167,10 +167,10 @@ class AnchorTests(MapPageFixture):
         # the Map page first, then one full-screen page per region map, in the panels' order (Phase 12, qa-06)
         self.assertEqual([p.url for p in self.pages], ['map/'] + ['map/%s/' % SLUG[name] for name in MAPPED])
         self.assertEqual([p.index for p in self.pages[1:]], [False] * len(MAPPED))
-        self.assertEqual(self.page.title, 'Map & archive')
+        self.assertEqual(self.page.title, 'Map')   # one word per destination (Phase 13C)
         self.assertTrue(self.page.index)
         self.assertEqual(self.doc.find('link', attrs={'rel': 'canonical'})['href'], core.SITE_URL + 'map/')
-        self.assertEqual([h.text() for h in self.doc.find_all('h1')], ['Map & archive'])
+        self.assertEqual([h.text() for h in self.doc.find_all('h1')], ['Map'])
         self.assertNotIn('<!-- missing', self.page.html)        # every fragment the fixture names was found in the temp dir
 
     def test_the_fixture_has_both_variants(self):

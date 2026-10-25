@@ -66,8 +66,9 @@ outings if it is recent enough; only the homepage feature goes. Taking the trip 
 - One card per slug, in order. With the three slugs above: a lead card for the PCT and two supporting cards.
   The section renders cleanly with 0, 1, 2, 3 or 6 cards.
 - Each card: the cover (section 3), the trip's original title as the link, an activity or "Journal" label, the
-  date and place, a couple of stats, the summary (section 4), and a link: "Explore the journal" for the PCT,
-  "Read the report" for a trip with a write-up, "View trip" for a track-only trip.
+  date and place, a couple of stats, the summary (section 4), and a link: "Open the journal" for the PCT,
+  "Read the report" for a trip with a write-up, "View the trip" for a track-only trip (Phase 13C settled these words
+  across the site; "Explore the journal" and "View trip" were the 2026-10-08 plan's).
 - The lead card's cover is also the page's share image (section 9).
 - "Recent outings" below the features lists the six newest published trips that are *not* in `featured_slugs`,
   so a featured trip never shows twice. Planned routes never appear there. Adding a new trip never bumps a
@@ -180,7 +181,7 @@ Without `card_summary` the card shows:
 - **a multi-day trip** with at least one written day: a labelled excerpt from that day, with the label (for
   example `DAY 2 · <day title>`) shown above it; with no written day, no sentence (the date range and the stats
   say what it was);
-- **a single-day trip with no write-up:** nothing, and the link reads "View trip".
+- **a single-day trip with no write-up:** nothing, and the link reads "View the trip".
 
 ## 5. Preview and checks
 
@@ -451,7 +452,7 @@ The search box looks in:
 
 - the title;
 - the place and the region;
-- the activity, with its other forms: "backcountry ski", "skiing", "skied", "skimo", "touring"; "hiking", "hikes";
+- the activity, with its other forms: "backcountry skiing", "skiing", "skied", "skimo", "touring"; "hiking", "hikes";
   "climbing", "climbed"; "mountain biking", "bikes", "rides", "cycling"; for Other, its type ("paddleboarding",
   "paddling", "SUP", "rafting", "kayaking", "mountaineering");
 - the summits in `map: peaks:` and the names in `summits:` (7.13);
@@ -715,16 +716,16 @@ A cover change needs a build, not a `render.py` run.
 
 The caption under a report's map now starts with the date of the track:
 
-- a single-day report: `As recorded on Jan 17, 2026 · full track, not trimmed · North up`
-- a multi-day trip: `As recorded <date range> · full track, not trimmed · North up` (`As recorded on <date>` when
+- a single-day report: `As recorded on Jan 17, 2026 · Full track, not trimmed · North up`
+- a multi-day trip: `As recorded <date range> · Full track, not trimmed · North up` (`As recorded on <date>` when
   every day shares one date)
-- the PCT: `As recorded Apr 22 – Sep 21, 2024 · full tracks, not trimmed · North up`
+- the PCT: `As recorded Apr 22 – Sep 21, 2024 · Full tracks, not trimmed · North up`
 - the featured map on an activity page (Climb, Hike, MTB, Other; the Ski page has no Featured block): it opens `As
   recorded on <date>` too, like the report it features
 
 The date is the trip's `date:`. For a multi-day trip and the PCT it is `date:` to `end_date:`, or the first and last
 day when those lines are absent. Nothing is set by hand. A trip with no date gets no such item, and its caption starts
-with `full track, not trimmed`: a single-day trip with no `date:`, and a multi-day trip or a journal with no dates in
+with `Full track, not trimmed`: a single-day trip with no `date:`, and a multi-day trip or a journal with no dates in
 `index.md` or in its day files. The line is there so an old report reads as a record of that day and does not suggest
 current conditions. A goal page keeps "Planned route, not a recorded track".
 
@@ -748,7 +749,7 @@ There is nothing to configure.
   Newer / Older are left out as well, so the block never repeats the links right under it. A multi-day trip or the PCT
   can be one of the cards.
 - The line beside the heading says what the cards share with this trip (since Phase 10): `EASTERN SIERRA ·
-  BACKCOUNTRY SKI` when every card shares its region and its activity, the region or the activity alone when they all
+  BACKCOUNTRY SKIING` when every card shares its region and its activity, the region or the activity alone when they all
   share only that, else the number of cards (`3 REPORTS`).
 - The region match is on the exact text of `region:`, so spell a region the same way on every trip that belongs to it.
 - A report without a date comes last in its group. When the trip itself has no date, each group is newest first.
@@ -1305,7 +1306,7 @@ In this order:
 4. **All reports**: every report of the region by year, as in the Map page's table, with the activity filter when
    the reports are of more than one activity, and the region's planned routes under "Planned". Under the table,
    "Search and filter these in Trips" opens the Trips page with the region chosen.
-5. **Other regions**: a link to each other region page with its number of reports, then "Map & archive". The block is
+5. **Other regions**: a link to each other region page with its number of reports, then "Map". The block is
    left out when no other region has a page.
 
 With JavaScript off, the links into the Trips page ("Search and filter these in Trips", the one under the Featured
@@ -1454,7 +1455,7 @@ keeps the link it had (11.4).
 
 The page's description, for search results and shared links, is one sentence made of the same counts. Today the
 Tetons page has
-`Tetons: 4 trip reports, 2026 (backcountry ski), with a map of the region and the full GPX track of each.` The end
+`Tetons: 4 trip reports, 2026 (backcountry skiing), with a map of the region and the full GPX track of each.` The end
 depends on the tracks. When every report of the region has one, it is as above, or
 `, with a map of the region and its full GPX track.` for a region with a single report. As soon as one report has no
 track, the sentence ends `, with a map of the region.` and promises no file. It never says that every report is on

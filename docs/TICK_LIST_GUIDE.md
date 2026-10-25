@@ -3,6 +3,8 @@
 How to save a route you want to do, attach a GPX, keep the research honest, publish the goal, and later record what
 happened. Everything runs in this folder on your Mac with one local tool, `tools/ticklist.py`; the public site only
 shows what you commit and push to the `main` branch. The list lives at `tick-list/`, each goal at `trips/<slug>/`.
+With no goal published the page says only "Nothing on the list yet."; the first goal starts with `python3
+tools/ticklist.py add` (section 4).
 
 Adding a finished trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); homepage features, covers and search are in
 [CONTENT_GUIDE.md](CONTENT_GUIDE.md); how the generator works is in [DEVELOPING.md](DEVELOPING.md).

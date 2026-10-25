@@ -101,7 +101,9 @@ html.km .u-mi { display: none; }
    box, so a link's 44 px ::before hit area in the line (.mi-a, .arc-sel-clear) is not cut to the line's height */
 .ml { --ml-sep: 3ch; display: flex; flex-wrap: wrap; margin-left: calc(-1 * var(--ml-sep)); clip-path: inset(-16px -8px -16px var(--ml-sep)); }
 .ml > .mi { position: relative; padding-left: var(--ml-sep); white-space: nowrap; }
-.ml > .mi::before { content: "·"; position: absolute; left: calc(var(--ml-sep) / 3); }
+/* the dot is drawn, not read: the alt text after the slash is empty (qa-01), and the visually hidden ', ' of each item
+   is the separator a screen reader hears; the first declaration is for an engine without the slash syntax */
+.ml > .mi::before { content: "·"; content: "·" / ""; position: absolute; left: calc(var(--ml-sep) / 3); }
 .ml > .mi-w { white-space: normal; }  /* free text (a place name) may wrap at its comma when it alone is wider than the line */
 .ml-br { display: none; flex-basis: 100%; height: 0; padding: 0; }
 .ml-br::before { content: none; }
@@ -861,4 +863,15 @@ html:has(dialog.lb[open]) { overflow: hidden; }   /* the page behind the open vi
   .mk-pin:focus-visible > circle:nth-of-type(2) { stroke: Highlight; }
   .mk-line:focus-visible .mk-hit { stroke: Highlight !important; stroke-opacity: 1; }
   .mk-cluster.is-linked:focus-visible circle:nth-of-type(2) { stroke: Highlight !important; }
+  /* an activity colour that keys a map keeps it (a11y-04): the compact key rows under the region maps (home, a region
+     panel on a phone, the full-size map) and the explorer's filter-chip swatches, as the maps beside them keep theirs.
+     A disc beside its own word that keys nothing (a section's head, the title chip, the menu) stays forced */
+  .keyrow--compact .disc, .fchip .chip-sw { forced-color-adjust: none; }
+}
+/* a reader who asks for more contrast (a11y-15): the third ink takes the second's 8.2:1, the strong rules darken, and the
+   map and chart labels follow (mapkit's rules come after this sheet in the bundle: hence `svg`). Two things cannot: the
+   route glyphs and tiles served as <img>, and the inline symbols of the key rows */
+@media (prefers-contrast: more) {
+  :root { --ink-3: var(--ink-2); --rule-strong: #5F5D57; }
+  svg .pf-ax, svg .mk-lbl { fill: var(--ink-2); }
 }

@@ -1471,7 +1471,7 @@ class PanelTests(RegionFixture):
         self.assertEqual(inner(archive_page[start:], MAPCOL, INREG), mine.replace('../../', '../'))
         legend = self.panel(RANGE).find('div', cls='arc-legend')
         self.assertEqual([li.text() for li in legend.find_all('li')],
-                         ['Backcountry Ski', 'Climbing', 'Hiking', 'Mountain Biking', 'Other', 'Planned route'])
+                         ['Backcountry Skiing', 'Climbing', 'Hiking', 'Mountain Biking', 'Other', 'Planned route'])
 
     # ------------------------------------------------------------ the side list (REVISED in round 2: the Map page's list)
 
@@ -1845,7 +1845,7 @@ class PanelTests(RegionFixture):
 
 # ---------------------------------------------------------------- round 3: the legend is the key to the map
 
-SKI, CLIMB, RIDE = 'Backcountry Ski', 'Climbing', 'Mountain Biking'
+SKI, CLIMB, RIDE = 'Backcountry Skiing', 'Climbing', 'Mountain Biking'
 
 
 class LegendTests(RegionFixture):
@@ -2179,7 +2179,7 @@ class LegendTests(RegionFixture):
         self.assertEqual(mine.replace(key, listed), from_list)
         # the head, the description and the table go by the list, not by the map
         self.assertIn('5\xa0REPORTS', mine.split('<p class="reg-stats">', 1)[1].split('</p>', 1)[0])
-        self.assertIn('Synthetic Range: 5 trip reports, 2024 to 2026 (backcountry ski, climbing, hiking, mountain biking and paddleboarding)', mine)
+        self.assertIn('Synthetic Range: 5 trip reports, 2024 to 2026 (backcountry skiing, climbing, hiking, mountain biking and paddleboarding)', mine)
 
     def test_without_page_mode_the_panel_takes_no_notice_of_drawn(self):
         # the Map page's panel is the function of commit fb425ab (legacy_region_panel) and, for a region with a page, its
@@ -2527,7 +2527,7 @@ class TableTests(RegionFixture):
     def test_there_is_a_chip_for_each_activity_the_region_has_and_no_other(self):
         bar = self.section(RANGE).find('div', cls='arc-filt')
         self.assertEqual((bar['role'], bar['aria-label'], 'hidden' in bar), ('radiogroup', 'Filter by activity', True))
-        self.assertEqual(self.chips(bar), [('all', 'All'), ('ski', 'Backcountry Ski, 3 reports'), ('climb', 'Climbing, 1 report'),
+        self.assertEqual(self.chips(bar), [('all', 'All'), ('ski', 'Backcountry Skiing, 3 reports'), ('climb', 'Climbing, 1 report'),
                                            ('hike', 'Hiking, 4 reports'), ('mtb', 'Mountain Biking, 1 report'), ('other', 'Other, 2 reports')])
         self.assertEqual([b['aria-checked'] for b in bar.find_all('button')], ['true'] + ['false'] * 5)
         # two activities: the row is there, in the menu's order, and counts the region's reports only
@@ -2646,13 +2646,13 @@ class OthersTests(RegionFixture):
     def test_one_link_per_other_region_page_in_the_map_pages_order_then_the_map(self):
         self.assertEqual(self.links(RANGE), [('../../regions/synthetic-coast/', 'Synthetic Coast, 3 reports'),
                                              ('../../regions/synthetic-obrien-peaks/', "Synthetic O'Brien & <Peaks>, 2 reports"),
-                                             ('../../map/', 'Map & archive')])
+                                             ('../../map/', 'Map')])
         self.assertEqual(self.links(COAST), [('../../regions/synthetic-range/', 'Synthetic Range, 11 reports'),
                                              ('../../regions/synthetic-obrien-peaks/', "Synthetic O'Brien & <Peaks>, 2 reports"),
-                                             ('../../map/', 'Map & archive')])
+                                             ('../../map/', 'Map')])
         self.assertEqual(self.links(PEAKS), [('../../regions/synthetic-range/', 'Synthetic Range, 11 reports'),
                                              ('../../regions/synthetic-coast/', 'Synthetic Coast, 3 reports'),
-                                             ('../../map/', 'Map & archive')])
+                                             ('../../map/', 'Map')])
         for name in PAGES:
             # never the page itself, never a region without a page
             self.assertNotIn('../../' + self.here(name), [h for h, _t in self.links(name)])
@@ -2674,12 +2674,12 @@ class OthersTests(RegionFixture):
         self.assertEqual([s.classes for s in bn.elements()], [['sr'], ['sr']])
         # the map link carries no count
         last = self.nav(COAST).find_all('a')[-1]
-        self.assertEqual((last.children, last.elements()), (['Map & archive'], []))
-        self.assertIn('<li><a href="../../map/">Map &amp; archive</a></li></ul>', self.html(COAST))
+        self.assertEqual((last.children, last.elements()), (['Map'], []))
+        self.assertIn('<li><a href="../../map/">Map</a></li></ul>', self.html(COAST))
 
     def test_one_report_is_spoken_as_one_report(self):
         self.use(only=RANGE_PUB + ['syn-r-cove-a'])
-        self.assertEqual(self.links(RANGE), [('../../regions/synthetic-coast/', 'Synthetic Coast, 1 report'), ('../../map/', 'Map & archive')])
+        self.assertEqual(self.links(RANGE), [('../../regions/synthetic-coast/', 'Synthetic Coast, 1 report'), ('../../map/', 'Map')])
 
     def test_region_others_writes_the_nav(self):
         others = need(self, self.region, 'others')
@@ -2719,7 +2719,7 @@ class DescriptionTests(RegionFixture):
         # REVISED in round 2: every sentence ends with the map of the region; the GPX clause follows only when every
         # report has a track (the Range has one without)
         self.assertEqual(self.description(RANGE, self.pub(RANGE)),
-                         'Synthetic Range: 11 trip reports, 2022 to 2026 (backcountry ski, climbing, hiking, mountain biking, '
+                         'Synthetic Range: 11 trip reports, 2022 to 2026 (backcountry skiing, climbing, hiking, mountain biking, '
                          'paddleboarding and rafting), with a map of the region.')
         self.assertEqual(self.description(COAST, self.pub(COAST)),
                          'Synthetic Coast: 3 trip reports, 2026 (hiking), with a map of the region and the full GPX track of each.')
@@ -2761,9 +2761,9 @@ class DescriptionTests(RegionFixture):
                 # the two GPX wordings never stand in for each other
                 self.assertEqual('of each' in text, ending == each)
                 self.assertEqual(' its ' in text, ending == its)
-        self.assertEqual(d(RANGE, [lap]), 'Synthetic Range: 1 trip report, 2023 (backcountry ski), with a map of the region and its full GPX track.')
+        self.assertEqual(d(RANGE, [lap]), 'Synthetic Range: 1 trip report, 2023 (backcountry skiing), with a map of the region and its full GPX track.')
         self.assertEqual(d(RANGE, [short]), 'Synthetic Range: 1 trip report, 2024 (hiking), with a map of the region.')
-        self.assertEqual(d(RANGE, [lap, short]), 'Synthetic Range: 2 trip reports, 2023 to 2024 (backcountry ski and hiking), with a map of the region.')
+        self.assertEqual(d(RANGE, [lap, short]), 'Synthetic Range: 2 trip reports, 2023 to 2024 (backcountry skiing and hiking), with a map of the region.')
         # a list without a report promises no track either (a page always has one: core.region_pages)
         self.assertEqual(d(RANGE, []), 'Synthetic Range: 0 trip reports, with a map of the region.')
 
@@ -2794,20 +2794,20 @@ class DescriptionTests(RegionFixture):
                 region=RANGE, days=[{'title': 'Synthetic Day One', 'date': '2019-12-30'}, {'title': 'Synthetic Day Two', 'date': '2020-01-02'}])
         self.use()
         self.assertEqual(self.description(RANGE, self.trips('syn-r-nye')),
-                         'Synthetic Range: 1 trip report, 2019 to 2020 (backcountry ski), with a map of the region and its full GPX track.')
+                         'Synthetic Range: 1 trip report, 2019 to 2020 (backcountry skiing), with a map of the region and its full GPX track.')
 
     def test_the_activities_are_in_the_menus_order_lower_case_in_brackets(self):
         self.assertEqual([a for a, _lab in core.NAV], ['ski', 'climb', 'hike', 'mtb', 'other'])
         # whatever the order of the reports
         self.assertEqual(self.words(self.trips('syn-r-photo', 'syn-r-story', 'syn-r-words', 'syn-r-lap')),
-                         ['backcountry ski', 'climbing', 'hiking', 'mountain biking'])
+                         ['backcountry skiing', 'climbing', 'hiking', 'mountain biking'])
         self.assertEqual(self.words(self.trips('syn-r-story', 'syn-r-old', 'syn-r-undated')), ['hiking'])                # each once
         self.assertEqual(self.words([]), [])
         d = self.description
         self.assertIn(' (hiking), ', d(RANGE, self.trips('syn-r-story')))
-        self.assertIn(' (backcountry ski and hiking), ', d(RANGE, self.trips('syn-r-story', 'syn-r-lap')))
-        self.assertIn(' (backcountry ski, climbing and hiking), ', d(RANGE, self.trips('syn-r-story', 'syn-r-lap', 'syn-r-words')))
-        self.assertIn(' (backcountry ski, climbing, hiking and mountain biking), ',
+        self.assertIn(' (backcountry skiing and hiking), ', d(RANGE, self.trips('syn-r-story', 'syn-r-lap')))
+        self.assertIn(' (backcountry skiing, climbing and hiking), ', d(RANGE, self.trips('syn-r-story', 'syn-r-lap', 'syn-r-words')))
+        self.assertIn(' (backcountry skiing, climbing, hiking and mountain biking), ',
                       d(RANGE, self.trips('syn-r-photo', 'syn-r-story', 'syn-r-lap', 'syn-r-words')))
         for text in (d(RANGE, self.pub(RANGE)), d(PEAKS, self.pub(PEAKS))):
             words = inner(text, '(', ')')

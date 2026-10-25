@@ -27,16 +27,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # the index pages that get the bar, their H1 and where the bar goes
 # (Trips' bar goes to its H1 too: '#search' made trips.js focus the box, raising a phone's keyboard; the review)
-BARS = {'trips/': ('Trips', 'trips-title', 'trips-title'), 'map/': ('Map & archive', 'arc-title', 'arc-title'),
-        'ski/': ('Backcountry Ski', 'sec-title', 'sec-title'), 'tick-list/': ('Tick list', 'tkl-title', 'tkl-title')}
+BARS = {'trips/': ('Trips', 'trips-title', 'trips-title'), 'map/': ('Map', 'arc-title', 'arc-title'),
+        'ski/': ('Backcountry Skiing', 'sec-title', 'sec-title'), 'tick-list/': ('Tick list', 'tkl-title', 'tkl-title')}
 
 
 class TitleBarTests(unittest.TestCase):
 
     def test_the_header_writes_the_page_bar_only_for_a_page_without_a_trip(self):
-        bar = Doc(core.header('map/', 'map', None, ('Map & archive', 'arc-title'))).find('a', cls='ab-page')
-        self.assertEqual((bar['href'], bar['data-ab-title'], bar['aria-label']), ('#arc-title', 'arc-title', 'Back to top: Map & archive'))
-        self.assertEqual(bar.find('span', cls='ab-t').text(), 'Map & archive')
+        bar = Doc(core.header('map/', 'map', None, ('Map', 'arc-title'))).find('a', cls='ab-page')
+        self.assertEqual((bar['href'], bar['data-ab-title'], bar['aria-label']), ('#arc-title', 'arc-title', 'Back to top: Map'))
+        self.assertEqual(bar.find('span', cls='ab-t').text(), 'Map')
         self.assertEqual(bar.find('span', cls='ab-t')['aria-hidden'], 'true')
         self.assertEqual(bar.find('svg').find('path')['d'], 'M12 20V5')          # the up arrow
         trips = Doc(core.header('trips/', 'trips', None, ('Trips', 'trips-title'))).find('a', cls='ab-page')

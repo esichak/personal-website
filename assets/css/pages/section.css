@@ -119,7 +119,7 @@
 @media (min-width: 560px) and (max-width: 1199.98px) { .sec-feat-map, .sec-feat-full { max-width: var(--col-max); } }
 @media (min-width: 760px) { .sec-feat-pdate { display: none; } }
 /* phones (< 760): the compact featured block, on the Phone-Report-A rhythm — chips, title, date · place, strip, map with its
-   key row and a one-line caption, one photo, four lines of the write-up and 'Read report'. No GPX button, strip sub-lines,
+   key row and a one-line caption, one photo, four lines of the write-up and 'Read the report'. No GPX button, strip sub-lines,
    footnote or charts: the report keeps them. */
 @media (max-width: 759.98px) {
   .sec-feat-date { display: none; }   /* chips only; the date leads the place line */
@@ -139,7 +139,7 @@
 }
 @media (max-width: 559.98px) {
   .sec-feat-mapv { margin-inline: calc(-1 * var(--m)); }
-  .sec-cap-x { display: none; }   /* one-line caption: date · North up (the report says 'full track, not trimmed') */
+  .sec-cap-x { display: none; }   /* one-line caption: date · North up (the report says 'Full track, not trimmed') */
 }
 @media (min-width: 760px) {
   .sec-feat-h { grid-template-columns: minmax(0, 1fr) auto; column-gap: 32px; }

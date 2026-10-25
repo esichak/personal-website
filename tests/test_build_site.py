@@ -889,7 +889,7 @@ class SectionDescriptionTests(BuiltCase):
         # hiking: the story and the journal, both with tracks; ski: two tours, each with a day track; the other three
         # sections each list one trip without any track
         self.assertEqual(self.description('hiking/'), '2 hiking trip reports (Synthetic Range), each with the full GPX track and map.')
-        self.assertEqual(self.description('ski/'), '2 backcountry ski trip reports (Synthetic Range), each with the full GPX track and map.')
+        self.assertEqual(self.description('ski/'), '2 backcountry skiing trip reports (Synthetic Range), each with the full GPX track and map.')
         self.assertEqual(self.description('mountain-biking/'), '1 mountain biking trip report (Synthetic Range).')
         self.assertEqual(self.description('other/'), '1 paddleboarding trip report (Synthetic Range).')
         self.assertEqual(self.description('climbing/'), '1 climbing trip report (Synthetic Range).')
@@ -916,12 +916,12 @@ class SectionDescriptionTests(BuiltCase):
         # every trip tracked: singular and plural, as it always read
         self.assertEqual(d('hike', [story]), '1 hiking trip report (Synthetic Range)' + promise_one)
         self.assertEqual(d('hike', [story, journal]), '2 hiking trip reports (Synthetic Range)' + promise_each)
-        self.assertEqual(d('ski', [tour, half]), '2 backcountry ski trip reports (Synthetic Range)' + promise_each)   # a day's track counts
-        self.assertEqual(d('ski', [half]), '1 backcountry ski trip report (Synthetic Range)' + promise_one)
+        self.assertEqual(d('ski', [tour, half]), '2 backcountry skiing trip reports (Synthetic Range)' + promise_each)   # a day's track counts
+        self.assertEqual(d('ski', [half]), '1 backcountry skiing trip report (Synthetic Range)' + promise_one)
         # some, and none: the sentence ends after the regions
         self.assertEqual(d('hike', [story, notrack]), '2 hiking trip reports (Synthetic Range).')
         self.assertEqual(d('hike', [notrack, story, journal]), '3 hiking trip reports (Synthetic Range).')
-        self.assertEqual(d('ski', [tour, none]), '2 backcountry ski trip reports (Synthetic Range).')
+        self.assertEqual(d('ski', [tour, none]), '2 backcountry skiing trip reports (Synthetic Range).')
         self.assertEqual(d('mtb', [notrack]), '1 mountain biking trip report (Synthetic Range).')
         self.assertEqual(d('climb', [none]), '1 climbing trip report (Synthetic Range).')
         self.assertEqual(d('climb', [none, notrack]), '2 climbing trip reports (Synthetic Range).')
@@ -1454,7 +1454,7 @@ class RegionSiteTests(BuiltCase):
         html_ = self.html(RG_URLS[0])
         doc = self.doc(RG_URLS[0])
         self.assertEqual(doc.find('meta', attrs={'name': 'description'})['content'],
-                         'Synthetic Reach: 3 trip reports, 2025 to 2026 (backcountry ski, climbing and hiking), with a map of the region '
+                         'Synthetic Reach: 3 trip reports, 2025 to 2026 (backcountry skiing, climbing and hiking), with a map of the region '
                          'and the full GPX track of each.')
         self.assertEqual([m['content'] for m in doc.find_all('meta', attrs={'property': 'og:image'})], [U + 'trips/synb-rg-story/photos/01.webp'])
         self.assertEqual([li['data-slug'] for li in doc.find_all('li', cls='tcard')], ['synb-rg-story', 'synb-rg-words'])
@@ -1540,7 +1540,7 @@ class RegionSiteTests(BuiltCase):
                 panel = archive_page[archive_page.index('<div class="arc-panel" id="region-%s">' % RG_SLUG[name]):]
                 self.assertTrue(legend(self.html(url)).startswith('<div class="arc-legend keyrow--d"><p class="t-label">Legend</p>'))
                 self.assertEqual(legend(self.html(url)), legend(panel))
-        self.assertEqual(words(self.html(RG_URLS[0])), ['Backcountry Ski', 'Climbing', 'Hiking', 'Planned route'])
+        self.assertEqual(words(self.html(RG_URLS[0])), ['Backcountry Skiing', 'Climbing', 'Hiking', 'Planned route'])
         self.assertEqual(words(self.html(RG_URLS[1])), ['Hiking', 'Mountain Biking'])
         listed = [li['data-key'] for li in self.doc(RG_URLS[1]).by_id('arc-rows-synthetic-shore').find_all('li', cls='arc-row')]
         self.assertEqual(listed, ['synb-rg-shore', 'synb-rg-shore-walk'])               # no hike among them

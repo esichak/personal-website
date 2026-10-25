@@ -1192,20 +1192,20 @@ class UndatedJournalTests(JournalFixture):
         return Doc(self.series.lede(t)).find('p', cls='ser-lede').text()
 
     def test_map_caption_has_no_as_recorded_item(self):
-        # contract 10.5: a journal without any date: no 'As recorded' item at all; the items are 'full tracks, not
+        # contract 10.5: a journal without any date: no 'As recorded' item at all; the items are 'Full tracks, not
         # trimmed', 'North up', then the credit
         t = self.undated('undated')
         credit = caption_items(Doc(core.map_caption([])))
         self.assertEqual(len(credit), 3)
-        want = ['full tracks, not trimmed', 'North up'] + credit
+        want = ['Full tracks, not trimmed', 'North up'] + credit
         self.assertEqual(caption_items(Doc(self.series.map_caption(t))), want)
-        self.assertEqual(self.series.map_caption(t), core.map_caption(['full tracks, not trimmed', 'North up']))
+        self.assertEqual(self.series.map_caption(t), core.map_caption(['Full tracks, not trimmed', 'North up']))
         main = self.doc(t).by_id('main')
         self.assertEqual(caption_items(main.by_id('map').find(cls='mapcap')), want)
         self.assertNotIn('As recorded', main.text())
         # the full-screen map page carries the same caption
         full = Doc(self.series.fullscreen(t).html)
-        self.assertEqual(caption_items(full.find(cls='mapcap'))[:2], ['full tracks, not trimmed', 'North up'])
+        self.assertEqual(caption_items(full.find(cls='mapcap'))[:2], ['Full tracks, not trimmed', 'North up'])
         self.assertNotIn('As recorded', full.text())
 
     def test_facts_sentence_leaves_the_dates_out_with_a_place(self):
@@ -1523,10 +1523,10 @@ class UnchangedTests(JournalPageFixture):
         self.assertEqual(first.text(), want)
         self.assertNotIn('Tracks:', cap.text())
         self.assertEqual(Doc(self.series.map_caption(self.t)).find('span', cls='mi').text(), want)
-        # contract 10.5: the date item, 'full tracks, not trimmed', 'North up', then the credit
+        # contract 10.5: the date item, 'Full tracks, not trimmed', 'North up', then the credit
         credit = caption_items(Doc(core.map_caption([])))
         self.assertEqual(len(credit), 3)
-        self.assertEqual(caption_items(cap), [want, 'full tracks, not trimmed', 'North up'] + credit)
+        self.assertEqual(caption_items(cap), [want, 'Full tracks, not trimmed', 'North up'] + credit)
 
     def test_body_class_stays_p_series(self):
         # contract 5: the series page's <body class> stays p-series

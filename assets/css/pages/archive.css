@@ -1,4 +1,4 @@
-/* Map & archive (/map/) — region tabs + map + "In this region" list, then the full report table by year. */
+/* Map (/map/) — region tabs + map + "In this region" list, then the full report table by year. */
 .arc-head { padding-top: 24px; }
 .arc-stats { margin-top: 8px; text-transform: uppercase; }
 @media (min-width: 760px) { .arc-stats { margin-top: 12px; font-size: 15px; line-height: 20px; color: var(--ink-2); } }

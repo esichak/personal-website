@@ -1,7 +1,7 @@
 """Review gate (fix F): the 404 page (sitegen.pages.notfound -> /404.html) and its "Site" list.
 
 The list offered one way on, 'Map & archive'. It now offers Trips first ('SEARCH AND FILTER', the page a visitor with a
-dead link to a report most likely wants), then 'Map & archive' with the count line it had. Pinned here: the two links
+dead link to a report most likely wants), then the map page ('Map' since Phase 13C). Pinned here: the two links
 in that order, each with its text, its line and its icon; that the rest of the page is byte for byte the page of commit
 dbce17b (legacy_page, a copy of that body); that both links resolve against the page's <base> from wherever GitHub Pages
 serves the page, and name pages a build has; and that the page still names no canonical URL and is noindex.
@@ -9,6 +9,7 @@ serves the page, and name pages a build has; and that the page still names no ca
 The site is synthetic (tests/helpers.py); the built one is the repository of tests/test_build_site.py in a temp folder.
 """
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -36,10 +37,18 @@ BASE = '/personal-website/'
 TRIPS_ROW = ('<li><a class="abo-act-a" href="trips/"><span class="nf-ic" aria-hidden="true">%s</span>'
              '<span class="abo-act-w"><span class="abo-act-n">Trips</span>'
              '<span class="t-mono-s abo-act-m">SEARCH AND FILTER</span></span>%s</a></li>')
-# the 'Map & archive' row as the page of commit dbce17b wrote it (%d: the published reports)
+# the Map row (%d: the published reports): 'Map & archive' and 'ALL %d REPORTS' at commit dbce17b, one word per
+# destination and a line that says what the page holds since Phase 13C (ia-13)
 MAP_ROW = ('<li><a class="abo-act-a" href="map/"><span class="nf-ic" aria-hidden="true">%s</span>'
-           '<span class="abo-act-w"><span class="abo-act-n">Map &amp; archive</span>'
-           '<span class="t-mono-s abo-act-m">ALL %d REPORTS</span></span>%s</a></li>')
+           '<span class="abo-act-w"><span class="abo-act-n">Map</span>'
+           '<span class="t-mono-s abo-act-m">%d REPORTS BY REGION AND YEAR</span></span>%s</a></li>')
+
+
+def as_13c(old_html):
+    """A page of commit dbce17b with Phase 13C's words: 'By activity' over the activities, the Map row's name and line."""
+    out = old_html.replace('<h2 class="t-label nf-l">Reports</h2>', '<h2 class="t-label nf-l">By activity</h2>')
+    out = out.replace('<span class="abo-act-n">Map &amp; archive</span>', '<span class="abo-act-n">Map</span>')
+    return re.sub(r'<span class="t-mono-s abo-act-m">ALL (\d+) REPORTS</span>', r'<span class="t-mono-s abo-act-m">\1 REPORTS BY REGION AND YEAR</span>', out)
 
 
 def legacy_page(site):
@@ -98,7 +107,7 @@ class NotFoundFixture(unittest.TestCase):
     def site_list(self, doc=None):
         """The <ul> that follows the 'Site' heading in the page's 'Ways back' nav."""
         parts = self.ways_back(doc).elements()
-        self.assertEqual([(n.tag, n.text()) for n in parts if n.tag == 'h2'], [('h2', 'Reports'), ('h2', 'Site')])
+        self.assertEqual([(n.tag, n.text()) for n in parts if n.tag == 'h2'], [('h2', 'By activity'), ('h2', 'Site')])
         self.assertEqual([n.tag for n in parts], ['h2', 'ul', 'h2', 'ul'])
         return parts[3]
 
@@ -122,7 +131,7 @@ class SiteListTests(NotFoundFixture):
     def test_the_site_list_offers_trips_then_map_and_archive(self):
         ul = self.site_list()
         self.assertEqual(ul.classes, ['abo-act'])
-        self.assertEqual(self.rows(ul), [('trips/', 'Trips', 'SEARCH AND FILTER'), ('map/', 'Map & archive', 'ALL 5 REPORTS')])
+        self.assertEqual(self.rows(ul), [('trips/', 'Trips', 'SEARCH AND FILTER'), ('map/', 'Map', '5 REPORTS BY REGION AND YEAR')])
         self.assertEqual(len(ul.find_all('a')), 2)
         # each is one link with the list's parts: an icon that is not read out, the name over its line, the chevron
         for li in ul.elements():
@@ -133,7 +142,7 @@ class SiteListTests(NotFoundFixture):
             self.assertEqual(a.find('span', cls='nf-ic')['aria-hidden'], 'true')
             self.assertEqual([n.classes for n in a.find('span', cls='abo-act-w').elements()], [['abo-act-n'], ['t-mono-s', 'abo-act-m']])
         # the link's whole text: the name and the line, nothing from the icons
-        self.assertEqual([a.text() for a in ul.find_all('a')], ['TripsSEARCH AND FILTER', 'Map & archiveALL 5 REPORTS'])
+        self.assertEqual([a.text() for a in ul.find_all('a')], ['TripsSEARCH AND FILTER', 'Map5 REPORTS BY REGION AND YEAR'])
 
     def test_the_trips_row_is_written_once_with_the_search_icon_before_the_map_row(self):
         chevron = core.icon('chevron-right', 20, 'abo-act-c')
@@ -154,7 +163,7 @@ class SiteListTests(NotFoundFixture):
                 n = len(site['published'])
                 html_ = notfound.page(site).html
                 self.assertEqual(self.rows(self.site_list(Doc(html_))),
-                                 [('trips/', 'Trips', 'SEARCH AND FILTER'), ('map/', 'Map & archive', 'ALL %d REPORTS' % n)])
+                                 [('trips/', 'Trips', 'SEARCH AND FILTER'), ('map/', 'Map', '%d REPORTS BY REGION AND YEAR' % n)])
                 self.assertEqual(html_.count(MAP_ROW % (core.icon('map', 20), n, chevron)), 1)
                 self.assertEqual(html_.count('SEARCH AND FILTER'), 1)          # the Trips line counts nothing
 
@@ -165,10 +174,10 @@ class SiteListTests(NotFoundFixture):
         box = notfound.search_block(notfound.HERE)
         old = legacy_page(self.site)
         self.assertEqual((self.html.count(trips), self.html.count(box)), (1, 1))
-        self.assertEqual(self.html.replace(trips, '').replace(box, ''), old)
-        self.assertEqual(len(self.html) - len(old), len(trips) + len(box))
+        self.assertEqual(self.html.replace(trips, '').replace(box, ''), as_13c(old))
+        self.assertEqual(len(self.html) - len(as_13c(old)), len(trips) + len(box))
         self.assertNotIn('SEARCH AND FILTER', old)
-        self.assertEqual(self.rows(self.site_list(Doc(old))), [('map/', 'Map & archive', 'ALL 5 REPORTS')])
+        self.assertEqual(self.rows(self.site_list(Doc(as_13c(old)))), [('map/', 'Map', '5 REPORTS BY REGION AND YEAR')])
         # the Reports list above it is untouched: the five activity pages, in the site's order
         reports = self.ways_back().elements()[1]
         self.assertEqual([a['href'] for a in reports.find_all('a')], [core.section_url(act) for act, _label in core.NAV])
@@ -241,7 +250,7 @@ class BaseTests(NotFoundFixture):
         doc = Doc(html_)
         published = len(fixture.REPORTS)
         self.assertEqual(self.rows(self.site_list(doc)),
-                         [('trips/', 'Trips', 'SEARCH AND FILTER'), ('map/', 'Map & archive', 'ALL %d REPORTS' % published)])
+                         [('trips/', 'Trips', 'SEARCH AND FILTER'), ('map/', 'Map', '%d REPORTS BY REGION AND YEAR' % published)])
         out = sitecheck.read(out_dir)
         self.assertEqual([out.resolve('', a['href']) for a in self.site_list(doc).find_all('a')], ['trips/index.html', 'map/index.html'])
         self.assertEqual(sitecheck.links(out, '404.html'), [])

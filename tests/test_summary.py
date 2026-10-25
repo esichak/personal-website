@@ -176,7 +176,7 @@ class CardSummaryTests(unittest.TestCase):
                 self.assertIn('recorded days', r['text'])
 
     def test_multiday_with_no_writing_gives_facts(self):
-        for slug, act, word in (('hike-trip', 'hike', 'hiking'), ('ski-trip', 'ski', 'backcountry ski')):
+        for slug, act, word in (('hike-trip', 'hike', 'hiking'), ('ski-trip', 'ski', 'backcountry skiing')):
             with self.subTest(activity=act):
                 t = self.multiday(slug=slug, activity=act)
                 self.assertFalse(t['has_writeup'])

@@ -96,10 +96,10 @@ class YearTests(AboutFixture):
         self.assertEqual([a.find('span', cls='abo-act-n').text() for a in links], ['2026', '2025'])
         nb = core.nb
         self.assertIn('<span class="mi">%s</span><span class="mi"><span class="sr">, </span>%s</span><span class="mi"><span '
-                      'class="sr">, </span>%s%s</span>' % (nb('3 REPORTS'), nb('3 DAYS OUT'), core.U(nb('3,937 FT'), nb('1,200 M')),
+                      'class="sr">, </span>%s%s</span>' % (nb('3 REPORTS'), nb('3 DAYS OUT'), core.U(core.caps_unit('3,937', 'FT'), core.caps_unit('1,200', 'M')),
                                                          nb(' GAIN')), html_)
         self.assertNotRegex(html_, '<[^>]*\xa0[^>]*>')                    # no no-break space inside a tag
-        self.assertEqual(links[0].find('span', cls='abo-act-d').text(), '12.4 mi20.0 km')    # core.distance, as By activity
+        self.assertEqual(helpers.seen_text(links[0].find('span', cls='abo-act-d')), '12.4 mi20.0 km')    # core.distance, as By activity
         # a year whose trips state no distance and no gain says neither, never 0
         self.assertEqual(links[1].find('span', cls='abo-act-m').text(), '1 REPORT, 1 DAY OUT')
         self.assertIsNone(links[1].find('span', cls='abo-act-d'))

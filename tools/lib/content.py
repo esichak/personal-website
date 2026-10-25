@@ -15,7 +15,7 @@ FT, MI = 3.28084, 1609.344
 
 ACTIVITIES = {
     # key: (label, short label, code, colour, url folder, Strava-ish noun)
-    'ski': ('Backcountry Ski', 'Ski', 'SKI', '#4A8CCD', 'ski'),
+    'ski': ('Backcountry Skiing', 'Ski', 'SKI', '#4A8CCD', 'ski'),
     'climb': ('Climbing', 'Climb', 'CLM', '#70355E', 'climbing'),
     'hike': ('Hiking', 'Hike', 'HIK', '#69883C', 'hiking'),
     'mtb': ('Mountain Biking', 'MTB', 'MTB', '#845011', 'mountain-biking'),

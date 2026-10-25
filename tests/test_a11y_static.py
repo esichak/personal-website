@@ -34,8 +34,8 @@ What is checked, and how far a static check can go:
                                          interactive element inside another
   P5  region pages (contract-phase5.md   the fixture builds two; with scripting off the links into the Trips explorer
       section 5, as revised in round 2)  (.reg-x) are not displayed and nothing else of the page goes; the region name on
-                                         the home page (.hom-reg-n a) is an inline-block as high as its 16 px line and
-                                         answers over 44 px by a hit area that changes no box and lies above the count
+                                         the home page (.hom-reg-n a) is a 44 px inline-block of its own (padding taken
+                                         back by margins, Phase 13C), so no box changes, and lies above the count
                                          line (z-index); the Map page's panel link (.arc-reg-a) and the 'Other regions'
                                          links are 44 px; the breadcrumb has its room, and the short 'Map' crumb answers
                                          over 44 px of width (10.5 px each side at most, 4 px for a crumb of 44 px or
@@ -2009,6 +2009,16 @@ class PageTests(SiteFixture):
                 main = page_doc(url).by_id('main')
                 self.assertTrue(any(n is h1[0] for n in main.walk()), 'the h1 is outside <main>')
 
+    def test_headings_nest_without_skipping_a_level(self):
+        # Phase 13C (a11y-08): a heading is at most one level under the one before it in <main>, so a year's rows (H4 under
+        # the year's H3 on Hiking and Mountain biking) no longer read as the year's siblings
+        for url in sorted(self.pages):
+            with self.subTest(page=url):
+                levels = [int(n.tag[1]) for n in page_doc(url).by_id('main').walk() if n.tag in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6')]
+                skips = [(a, b) for a, b in zip(levels, levels[1:]) if b > a + 1]
+                self.assertEqual(skips, [], levels)
+        # the fixture's lists are too short to be grouped by year: the H4 rows under a year are tests/test_section_page.py's
+
     def test_the_skip_link_is_the_first_focusable_element_and_points_at_main(self):
         for url in sorted(self.pages):
             with self.subTest(page=url):
@@ -3859,8 +3869,9 @@ class TargetSizeTests(SiteFixture):
         return (best.decls[prop][0], best.selector) if best else (None, None)
 
     def test_the_region_name_link_of_the_home_page(self):
-        # The name is one 16 px line of the caption, as before the phase; as a link it answers over 44 px by a hit area
-        # of its own (::before, out of the flow, no wider than the name), so no box of the home page moves. Only a
+        # The name is one 16 px line of the caption, as before the phase; as a link it answers over 44 px, and since
+        # Phase 13C (a11y-03) the link's own box is 44 px: padding above and below its line, taken back by negative
+        # margins, so no box of the home page moves (Lighthouse measures the element, not a ::before area). Only a
         # region with a page has the link. REVISED in round 2: the link is an inline-block (as high as its 16 px line)
         # and lies above the count line under it (z-index). Round 3: where the caption is two lines (below 1200 px) the
         # area is 14 px above and below the line (16 + 14 + 14 = 44); where it is one line (from 1200 px) the map
@@ -3897,17 +3908,18 @@ class TargetSizeTests(SiteFixture):
                 # font or height of its own, so it has the heading's). As an inline box it was the font's content area,
                 # about 14 px of a 12 px face, and 14 px above and below that came to 42 px
                 self.assertEqual(computed(a, 'display', self.rules, e), 'inline-block', why(a, 'display', self.rules, e))
-                for words in (60.0, 96.4, 151.2):
-                    wide, high, left, right, up, down = self.hit_box(a, words, line, e)
-                    self.assertEqual((wide, left, right), (words, 0.0, 0.0))            # never sideways into 'Open the map'
-                    self.assertEqual(high, 44.0)                                        # 16 + 14 + 14, or 16 + 16 + 12
-                    self.assertEqual((up, down), (16.0, 12.0) if one_line else (14.0, 14.0))
-                # the link itself is the text it was: nothing of its own that sizes or moves a box
-                self.assertSizeUntouched(a, e)
-                for prop in ('padding', 'padding-block', 'padding-inline', 'margin-block', 'margin-top', 'margin-bottom', 'min-height', 'height',
-                             'max-height', 'line-height', 'font', 'font-size', 'font-weight', 'letter-spacing', 'float', 'inset', 'top', 'bottom',
-                             'left', 'right', 'vertical-align', 'overflow', 'transform'):
+                # 16 + 14 + 14, or 16 + 16 + 12: the link's own box, never wider than its words (no inline padding)
+                pad = [px(v) for v in computed(a, 'padding-block', self.rules, e).split()]
+                up, down = (pad[0], pad[-1])
+                self.assertEqual((up, down), (16.0, 12.0) if one_line else (14.0, 14.0), why(a, 'padding-block', self.rules, e))
+                self.assertEqual(line + up + down, 44.0)
+                # ... and the margins take it back, so the caption, the count under the name and the map stay where they were
+                self.assertEqual([px(v) for v in computed(a, 'margin-block', self.rules, e).split()], [-up, -down] if one_line else [-up])
+                for prop in ('padding', 'padding-inline', 'padding-top', 'padding-bottom', 'margin', 'margin-top', 'margin-bottom', 'min-height',
+                             'height', 'max-height', 'line-height', 'font', 'font-size', 'font-weight', 'letter-spacing', 'float', 'inset',
+                             'top', 'bottom', 'left', 'right', 'vertical-align', 'overflow', 'transform'):
                     self.assertIsNone(computed(a, prop, self.rules, e), why(a, prop, self.rules, e))
+                self.assertIsNone(computed_pseudo(a, 'before', 'content', self.rules, e))   # no ::before area any more
                 # Where the caption is two lines the lower 14 px of the area lie over the count line under the name,
                 # whose items are positioned (.ml > .mi) and come later in the page: they would take the presses there.
                 # The link is a layer above them (z-index: 1), and nothing of the caption has a z-index to answer it with
@@ -3962,17 +3974,17 @@ class TargetSizeTests(SiteFixture):
         plain = Doc('<div class="hom-reg-h"><h3 class="hom-reg-n">Synthetic Plain</h3></div>').find('h3')
         for prop in ('position', 'z-index', 'display'):
             self.assertIsNone(computed(plain, prop, self.rules, env(390)))
-        # home.css says all of it in one rule for the link and one for its hit area, and moves the area in one more:
-        # the inset alone, in the block that makes the caption one line (where .hom-reg-h becomes a flex row)
+        # home.css says all of it in one rule for the link, and moves its padding in one more: in the block that makes
+        # the caption one line (where .hom-reg-h becomes a flex row); there is no ::before area any more (Phase 13C)
         mine = parse_css(source('css', 'pages', 'home.css'))[0]
-        own = [r for r in mine if r.selector == '.hom-reg-n a']
-        self.assertEqual([sorted(r.decls) for r in own], [['color', 'display', 'position', 'z-index']])
-        area = [(r.media, dict((k, v[0]) for k, v in r.decls.items())) for r in mine if r.selector == '.hom-reg-n a::before']
-        self.assertEqual(area, [((), {'content': '""', 'position': 'absolute', 'inset': '-14px 0'}),
-                                (('(min-width: 1200px)',), {'inset': '-16px 0 -12px'})])
+        own = [(r.media, dict((k, v[0]) for k, v in r.decls.items())) for r in mine if r.selector == '.hom-reg-n a']
+        self.assertEqual(own, [((), {'display': 'inline-block', 'padding-block': '14px', 'margin-block': '-14px', 'position': 'relative',
+                                     'z-index': '1', 'color': 'inherit'}),
+                               (('(min-width: 1200px)',), {'padding-block': '16px 12px', 'margin-block': '-16px -12px'})])
+        self.assertEqual([r.selector for r in mine if r.selector == '.hom-reg-n a::before'], [])
         rows = [r for r in mine if r.selector == '.hom-reg-h' and r.decls.get('display', ('',))[0] == 'flex']
         self.assertEqual([(r.media, r.decls['padding-bottom'][0], r.decls['align-items'][0]) for r in rows],
-                         [(area[1][0], '12px', 'baseline')])
+                         [(own[1][0], '12px', 'baseline')])
 
     def test_the_panel_link_to_a_region_page(self):
         # a.alink.arc-reg-a under the rows of a Map page panel: an .alink (44 px high, a real box), 4 px under the list

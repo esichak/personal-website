@@ -37,7 +37,7 @@
 @media (min-width: 560px) { .trx--list .gcard { grid-template-columns: 160px minmax(0, 1fr); column-gap: 20px; padding: 16px 0; } }
 @media (min-width: 760px) { .trx--list .gcard { grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; } }
 /* phones: List is the scan view, as on trips/ (trips.css): the route drawing 64 px wide (4:3), the meta line, the title
-   on one line and the stats line; no tags and no 'View goal' link (the title is the link); about 72 px a row */
+   on one line and the stats line; no tags and no 'Open the goal' link (the title is the link); about 72 px a row */
 @media (max-width: 559.98px) {
   .trx--list .gcard { grid-template-columns: 64px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 6px 0; }
   .trx--list .gcard-map { aspect-ratio: 4 / 3; }

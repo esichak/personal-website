@@ -116,7 +116,7 @@ def date_slot(t):
     PLANNED tag chip before it already says so)."""
     if t['kind'] == 'planned':
         mi, km = core.dist_vals(t['stats'].get('distance_km'))
-        return U(core.nb('≈ ' + mi + ' MI'), core.nb('≈ ' + km + ' KM')) if mi else ''
+        return U(core.caps_unit('≈ ' + mi, 'MI'), core.caps_unit('≈ ' + km, 'KM')) if mi else ''
     return core.trip_date(t)
 
 
@@ -185,7 +185,7 @@ def map_caption(t):
     else:
         if t['date']:
             first.append(core.recorded(t['date']))
-        first.append('full track, not trimmed')
+        first.append(core.FULL_TRACK)
     first.append('North up')
     return core.map_caption(first + core.contour_items(t, [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]))
 
@@ -213,9 +213,9 @@ def profile_section(t, here, meta, ns='pf'):
     variants = [('profile-wide', 'wide'), ('profile-col', 'col'), ('profile-phone', 'phone')]
     tr = core.read_track(t['track'], t['slug'], t['cat'])
     when = core.gps_max_clock(tr, t.get('timezone'))
-    meta_line = core.meta_items(['GPS\u00a0MAX\u00a0' + U(core.nb(n(hi * FT) + ' FT'), core.nb(n(hi) + ' M'))
+    meta_line = core.meta_items(['GPS\u00a0MAX\u00a0' + U(core.caps_unit(n(hi * FT), 'FT'), core.caps_unit(n(hi), 'M'))
                                  + (core.nb(' AT ' + when) if when else ''),
-                                 'MIN\u00a0' + U(core.nb(n(lo * FT) + ' FT'), core.nb(n(lo) + ' M'))] + core.vx_line(ch, variants, items=True))
+                                 'MIN\u00a0' + U(core.caps_unit(n(lo * FT), 'FT'), core.caps_unit(n(lo), 'M'))] + core.vx_line(ch, variants, items=True))
     keys = core.key_row(['hatch', 'fill'], 'keyrow--inline', label='Elevation key') if t['activity'] == 'ski' else ''
     return ('<section class="rep-prof wrap sec" id="profile" aria-labelledby="%s-h"><div class="rep-prof-h"><h2 class="t-label" id="%s-h">Elevation</h2>'
             '<p class="t-mono-s">%s</p>%s</div>%s%s</section>'

@@ -67,7 +67,7 @@ def place_items(pub):
 
 def activity_items(slug, here, pub):
     """The region's activities with their counts, each linking to the explorer narrowed to them
-    (trips/?region=<slug>&activity=<key>, which trips.js reads; ia-10): 'BACKCOUNTRY SKI 37', in the menu's order, an
+    (trips/?region=<slug>&activity=<key>, which trips.js reads; ia-10): 'BACKCOUNTRY SKIING 37', in the menu's order, an
     activity without a report left out. Without JavaScript the explorer shows its full list, as the page's other two
     links to it accept."""
     out = []
@@ -138,7 +138,7 @@ def others(slug, here, regs):
     items = ''.join('<li><a href="%s">%s<span class="trx-bn">%s</span></a></li>'
                     % (link(here, 'regions/%s/' % s), esc(n_), archive.count_n(sum(1 for t in ts if t['kind'] != 'planned')))
                     for n_, s, ts in rest)
-    items += '<li><a href="%s">Map &amp; archive</a></li>' % link(here, 'map/')
+    items += '<li><a href="%s">Map</a></li>' % link(here, 'map/')
     return ('<nav class="reg-others wrap sec" aria-labelledby="reg-others-l"><div class="trx-browse"><div class="trx-bgroup">'
             '<span class="t-label" id="reg-others-l">Other regions</span><ul>%s</ul></div></div></nav>' % items)
 
@@ -146,7 +146,7 @@ def others(slug, here, regs):
 # ---------------------------------------------------------------- page
 
 def activity_words(pub):
-    """What the reports are, lower case, in the menu's order: 'backcountry ski', 'hiking', ...; for Other the sub-types
+    """What the reports are, lower case, in the menu's order: 'backcountry skiing', 'hiking', ...; for Other the sub-types
     its reports have, each as its own word ('paddleboarding', 'rafting'), or 'other' when none names one."""
     out = []
     for a, _lab in core.NAV:
@@ -168,7 +168,7 @@ def activity_words(pub):
 def description(name, pub):
     """One factual sentence: the region, how many reports, over which years, of which activities, and that the page has
     a map of the region; the GPX clause only when every report has a track (core.has_track, as on the section pages).
-    The region leads, so no preposition has to suit its name: 'Tetons: 4 trip reports, 2026 (backcountry ski), with a
+    The region leads, so no preposition has to suit its name: 'Tetons: 4 trip reports, 2026 (backcountry skiing), with a
     map of the region and the full GPX track of each.' The map is not said to show every report: it shows what it was
     last drawn with."""
     acts = activity_words(pub)

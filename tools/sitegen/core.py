@@ -39,9 +39,13 @@ FONTS = ('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..112,40
          '&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=Geist+Mono:wght@400..600&display=swap')  # serif: 400 only
 SUB_ICON = {'SUP': 'SUP', 'Rafting': 'RFT', 'Kayaking': 'KYK', 'Mountaineering': 'MTN'}
 SUB_WORD = {'SUP': 'Paddleboarding', 'Rafting': 'Rafting', 'Kayaking': 'Kayaking', 'Mountaineering': 'Mountaineering'}
-NAV = [('ski', 'Backcountry Ski'), ('climb', 'Climbing'), ('hike', 'Hiking'), ('mtb', 'Mountain Biking'), ('other', 'Other')]
+NAV = [('ski', 'Backcountry Skiing'), ('climb', 'Climbing'), ('hike', 'Hiking'), ('mtb', 'Mountain Biking'), ('other', 'Other')]
 PCT_SLUG = 'pacific-crest-trail-2024'  # the journal the header's PCT link opens (shown only when that trip exists)
 PCT_LABEL = 'PCT'
+PCT_NAME = 'PCT journal'   # the PCT link's accessible name, which holds its visible text (copy-14)
+# the map captions' one wording (copy-13): a caption item starts with a capital or a digit (map_caption)
+FULL_TRACK = 'Full track, not trimmed'
+FULL_TRACKS = 'Full tracks, not trimmed'
 SEP = '\u00a0· '  # plain-text separator only (aria-labels, descriptions, RSS); Mono-S lines use meta_items()
 
 esc = html.escape
@@ -271,18 +275,39 @@ def dist_vals(km):
     return (('%.1f' % mi) if mi < 100 else n(mi)), (('%.1f' % km) if km < 100 else n(km))
 
 
+UNIT_WORDS = {'mi': 'miles', 'km': 'kilometers', 'ft': 'feet', 'm': 'meters', 'mph': 'miles per hour',
+              'km/h': 'kilometers per hour', 'min/mi': 'minutes per mile', 'min/km': 'minutes per kilometer',
+              'h:mm': 'hours and minutes'}
+
+
+def unit_word(abbr):
+    """A unit shown abbreviated and read out as its word (a11y-05): ' mi' -> ' <span aria-hidden="true">mi</span><span
+    class="sr">miles</span>', the caps kept ('MI' on a Mono-S line). A unit this does not know comes back as it was."""
+    word = UNIT_WORDS.get(abbr.strip().lower())
+    if not word:
+        return abbr
+    return '%s<span aria-hidden="true">%s</span><span class="sr">%s</span>' % (abbr[:len(abbr) - len(abbr.lstrip())], abbr.strip(), word)
+
+
+def caps_unit(value, unit, after=''):
+    """A Mono-S caps stat kept on one line, its unit read as a word: caps_unit('12.8', 'MI'), caps_unit('5,302', 'FT',
+    'GAIN') -> '5,302 FT GAIN' on screen, '5,302 feet GAIN' to a screen reader."""
+    return nb(value) + '\u00a0' + unit_word(unit) + (('\u00a0' + nb(after)) if after else '')
+
+
 def U(imp, met, imp_unit='', met_unit='', cls=''):
-    """A value shown in miles/feet by default and in km/m when <html class="km">. Units are separate spans."""
+    """A value shown in miles/feet by default and in km/m when <html class="km">. Units are separate spans, read out as
+    words (unit_word)."""
     def one(v, unit, which):
-        u = (unit if '<span' in unit else '<span class="unit">%s</span>' % unit) if unit else ''
+        u = (unit if '<span' in unit else '<span class="unit">%s</span>' % unit_word(unit)) if unit else ''
         return '<span class="u-%s">%s%s</span>' % (which, v, u)
     return '<span class="u%s">%s%s</span>' % ((' ' + cls) if cls else '', one(imp, imp_unit, 'mi'), one(met, met_unit, 'km'))
 
 
 def U_sub(imp, met, imp_unit='', met_unit=''):
-    """The *other* unit, for the small secondary line under a value."""
+    """The *other* unit, for the small secondary line under a value, its unit read as a word (unit_word)."""
     return ('<span class="u"><span class="u-mi">%s%s</span><span class="u-km">%s%s</span></span>'
-            % (met, (' ' + met_unit) if met_unit else '', imp, (' ' + imp_unit) if imp_unit else ''))
+            % (met, unit_word(' ' + met_unit) if met_unit else '', imp, unit_word(' ' + imp_unit) if imp_unit else ''))
 
 
 def distance(km, units=True):
@@ -341,9 +366,9 @@ def plain_stats(t, items=False):
     p = approx(t)
     mi, km = dist_vals(st.get('distance_km'))
     if mi:
-        parts.append(U(nb(p + mi + ' MI'), nb(p + km + ' KM')))
+        parts.append(U(caps_unit(p + mi, 'MI'), caps_unit(p + km, 'KM')))
     if t['activity'] != 'climb' and not is_flat(t) and st.get('gain_m') is not None and st.get('gain_m') > 30:
-        parts.append(U(nb(p + n(st['gain_m'] * FT) + ' FT GAIN'), nb(p + n(st['gain_m']) + ' M GAIN')))
+        parts.append(U(caps_unit(p + n(st['gain_m'] * FT), 'FT', 'GAIN'), caps_unit(p + n(st['gain_m']), 'M', 'GAIN')))
     return parts if items else SEP.join(parts)
 
 
@@ -819,7 +844,7 @@ def contour_items(t, variants, nowide=None):
         return []
 
     def item(ft):
-        return U(nb('Contours every %s ft' % n(ft)), nb('Contours every %s m' % n(ft / FT)))
+        return U(nb('Contours every %s' % n(ft)) + '\u00a0' + unit_word('ft'), nb('Contours every %s' % n(ft / FT)) + '\u00a0' + unit_word('m'))
     if len({v for _s, v in vals}) == 1:
         return [(item(vals[0][1]), '')]
     if nowide is None:
@@ -945,7 +970,7 @@ KEY_SYMBOLS = {
 
 
 # key labels written as HTML (not escaped): a mile disc marks a mile, which the KM view says in kilometres too
-KEY_HTML = {'mile': U('Mile', 'Mile (1.6 km)'), 'mile_out': U('Mile, outbound', 'Mile (1.6 km), outbound')}
+KEY_HTML = {'mile': U('Mile', 'Mile (1.6%s)' % unit_word(' km')), 'mile_out': U('Mile, outbound', 'Mile (1.6%s), outbound' % unit_word(' km'))}
 
 
 def key_row(items, cls='', label='Map key'):
@@ -1022,7 +1047,7 @@ def feature_key(t, variants, miles=True, cls='keyrow--compact'):
 
 
 def map_caption(first_items, attrib=True):
-    """The one map caption (Small, under the key row): first_items (e.g. ['As recorded on Mar 28, 2026', 'full track, not trimmed',
+    """The one map caption (Small, under the key row): first_items (e.g. ['As recorded on Mar 28, 2026', FULL_TRACK,
     'North up'] — no device name: some tracks are Strava GPX exports, so the caption only claims what every file supports —
     or ['North up'] for maps with no single track), then the terrain / OSM / not-for-navigation
     credit. Two lines from 1200 (.ml-br), one flowing paragraph below; phones (< 560) drop the credit (.mapcap-2): the
@@ -1336,7 +1361,7 @@ def _cell_moving(t):
     if not st.get('moving_s'):
         return None
     bits = time_items(st, t.get('start_time'))
-    return ('Moving', '%s<span class="unit">h:mm</span>' % hm(st['moving_s']), meta_items(bits) if bits else '', 'strip-c--time')
+    return ('Moving', '%s<span class="unit">%s</span>' % (hm(st['moving_s']), unit_word('h:mm')), meta_items(bits) if bits else '', 'strip-c--time')
 
 
 def _pace(st):
@@ -1537,7 +1562,7 @@ def stats_items(t):
 
     def elev_cell(lab, v):
         return (lab, U(a + n(v * FT), a + n(v), ' ft', ' m')) if v is not None else None
-    moving = ('Moving', hm(st['moving_s']) + '<span class="unit u-hm"> h:mm</span>') if st.get('moving_s') else None
+    moving = ('Moving', hm(st['moving_s']) + '<span class="unit u-hm">%s</span>' % unit_word(' h:mm')) if st.get('moving_s') else None
     if t['activity'] == 'climb':
         p = beta_value(t, 'Pitches')
         cells = [('Pitches', esc(p)) if p else None, dist, elev_cell(hi, st.get('high_m')), moving]
@@ -1621,22 +1646,23 @@ def row_stats_line(t):
         mi, km = dist_vals(st.get('distance_km'))
         p = beta_value(t, 'Pitches').strip()
         return meta_items([nb(esc('%s PITCH%s' % (p, '' if p == '1' else 'ES'))) if p else '',
-                           U(nb(a + mi + ' MI'), nb(a + km + ' KM')) if mi else ''])
+                           U(caps_unit(a + mi, 'MI'), caps_unit(a + km, 'KM')) if mi else ''])
     if is_flat(t):
         mi, km = dist_vals(st.get('distance_km'))
-        return meta_items([U(nb(a + mi + ' MI'), nb(a + km + ' KM')) if mi else '',
+        return meta_items([U(caps_unit(a + mi, 'MI'), caps_unit(a + km, 'KM')) if mi else '',
                            nb(hm(st['moving_s']) + ' MOVING') if st.get('moving_s') else ''])
     return meta_items(plain_stats(t, items=True))
 
 
-def trip_row(t, here, ns='', filter_key=None, cls=''):
+def trip_row(t, here, ns='', filter_key=None, cls='', level=3):
     """Index list row (one component everywhere): 200×152 tile · Mono-S meta (date · place · route shape, a meta_items()
     line: phones drop the shape, 560–1199 break after the date) · H3 · status tags · activity-aware stats · day ruler
     (multi-day) · two-line excerpt. The region lives in breadcrumbs, table title cells and map tabs, so the row names
     only the place (the region when there is no place).
     A single-day or planned row with no excerpt is .trow--brief: a 120px tile in the same column (titles keep one x) and a
     tighter row. Phones (< 560) show a Mono-S stats line (.trow-ps) instead of the stat grid. The link is named by the
-    title, then the meta line, so repeated titles ('Morning Ride') stay distinct."""
+    title, then the meta line, so repeated titles ('Morning Ride') stay distinct. level: the title's heading level, 3 in
+    a list under an H2, 4 in a year under its H3 (a11y-08); the look stays .t-h3."""
     href = link(here, t['url'])
     k = ns + t['slug']
     date_ = 'PLANNED ROUTE' if t['kind'] == 'planned' else trip_date(t)
@@ -1652,10 +1678,10 @@ def trip_row(t, here, ns='', filter_key=None, cls=''):
     ps = row_stats_line(t)
     return ('<li class="trow%s" data-key="%s"%s><a class="trow-a" href="%s" aria-labelledby="tt-%s tm-%s">'
             '<div class="trow-tile" aria-hidden="true">%s</div><div class="trow-body">'
-            '<p class="t-mono-s trow-meta" id="tm-%s">%s</p><h3 class="t-h3 trow-t" id="tt-%s">%s</h3>%s'
+            '<p class="t-mono-s trow-meta" id="tm-%s">%s</p><h%d class="t-h3 trow-t" id="tt-%s">%s</h%d>%s'
             '<div class="trow-tags">%s</div><dl class="trow-stats">%s</dl>%s%s</div></a></li>'
             % ((' ' + c) if c else '', t['slug'], (' data-f="%s"' % esc(filter_key)) if filter_key is not None else '',
-               href, k, k, tile(t, here), k, meta, k, title_html(t['title']),
+               href, k, k, tile(t, here), k, meta, level, k, title_html(t['title']), level,
                ('<p class="t-mono-s trow-ps">%s</p>' % ps) if ps else '',
                trip_tags(t, shape=False, status=t['kind'] != 'planned'), stats_cells(t), day_ruler(t), exh))
 
@@ -1846,7 +1872,7 @@ def related_block(t, here, site, k=3, skip=()):
     """'More like this': the related() reports as cards (trip_card), or '' when there are none. related() picks the same
     place or name and activity, then region and activity, then region, then activity, nearest in date, and leaves out
     the page's Newer / Older reports (skip). The head's meta says what the picked reports share with the page
-    (visual-03): EASTERN SIERRA · BACKCOUNTRY SKI when all share both, the region or the activity when all share only
+    (visual-03): EASTERN SIERRA · BACKCOUNTRY SKIING when all share both, the region or the activity when all share only
     that, else their count."""
     rel = related(t, site, k, skip)
     if not rel:
@@ -1900,16 +1926,16 @@ def goal_stats_line(t):
     mi, km = dist_vals(st.get('distance_km'))
     items = []
     if mi:
-        items.append(U(nb('≈ ' + mi + ' MI'), nb('≈ ' + km + ' KM')))
+        items.append(U(caps_unit('≈ ' + mi, 'MI'), caps_unit('≈ ' + km, 'KM')))
     if st.get('gain_m') is not None:
-        items.append(U(nb('≈ ' + n(st['gain_m'] * FT) + ' FT GAIN'), nb('≈ ' + n(st['gain_m']) + ' M GAIN')))
+        items.append(U(caps_unit('≈ ' + n(st['gain_m'] * FT), 'FT', 'GAIN'), caps_unit('≈ ' + n(st['gain_m']), 'M', 'GAIN')))
     return meta_items(items)
 
 
 def goal_card(t, here):
     """A tick-list goal as a map-led card: the route tile (else 'Map not rendered yet' with a track, 'Route not added yet'
     without), REGION / PLACE · ACTIVITY, the H3 title link (described by that line), status / priority / archived tags,
-    the approximate stats line and a 'View goal' link. data-* carries the facets ticklist.js filters on; data-text is the
+    the approximate stats line and an 'Open the goal' link. data-* carries the facets ticklist.js filters on; data-text is the
     normalised searchable text (title, place, region, tags, why, and the opening of the planning notes, which the goal page
     publishes). No input of any kind: the public list is read-only."""
     import content as _c
@@ -1934,7 +1960,7 @@ def goal_card(t, here):
                g['added_at'] or '', esc(text)))
     return ('<li class="gcard"%s>%s<div class="gcard-b"><p class="t-mono-s gcard-meta" id="%s">%s</p>'
             '<h3 class="gcard-t"><a href="%s" aria-describedby="%s">%s</a></h3><div class="chips gcard-tags">%s</div>'
-            '<p class="t-mono-s gcard-stats">%s</p><a class="alink gcard-go" href="%s">View goal<span class="sr">: %s</span>%s</a></div></li>'
+            '<p class="t-mono-s gcard-stats">%s</p><a class="alink gcard-go" href="%s">Open the goal<span class="sr">: %s</span>%s</a></div></li>'
             % (data, media, mid, meta, href, mid, title_html(t['title']), goal_tags(g), goal_stats_line(t), href, esc(t['title']),
                icon('arrow-right', 16)))
 
@@ -2008,10 +2034,14 @@ def summary(t):
 
 # ---------------------------------------------------------------- layout
 
+# the switch's buttons say what each system is; the name keeps the visible text (a11y-05)
+UNITS_LABELS = ('MI: miles and feet', 'KM: kilometers and meters')
+
+
 def units_control():
     return ('<div class="units" role="radiogroup" aria-label="Units">'
-            '<button type="button" role="radio" aria-checked="true" data-units="mi">MI</button>'
-            '<button type="button" role="radio" aria-checked="false" data-units="km">KM</button></div>')
+            '<button type="button" role="radio" aria-checked="true" data-units="mi" aria-label="%s">MI</button>'
+            '<button type="button" role="radio" aria-checked="false" data-units="km" aria-label="%s">KM</button></div>' % UNITS_LABELS)
 
 
 _TRIPS_BY_URL = {}
@@ -2196,10 +2226,10 @@ def header(here, active=None, trip=None, page_bar=None):
     explorer (search_form), except on trips/ itself, which has its own box and keeps a link to it. active:
     'trips', 'ticklist', 'goal' (a goal page: Tick list is current as 'true'), 'map', 'about', or an activity key (section,
     report, multi-day and full-screen-map pages: Trips is current as 'true', and the phone menu's activity row as before).
-    aria-current="page" only on the page a link points to; the PCT journal page marks PCT alone. The activity pages stay reachable from the phone menu's Reports column, the
+    aria-current="page" only on the page a link points to; the PCT journal page marks PCT alone. The activity pages stay reachable from the phone menu's By activity column, the
     footer and the home page. trip: report, multi-day and series pages get the phone compact app bar (glyph + title,
     shown once the H1 has scrolled under the header; links back to the top). page_bar: (title, H1 id) for the long
-    index pages without a trip (Trips, Map & archive, the sections, the region pages, the tick list; phone-13): the
+    index pages without a trip (Trips, Map, the sections, the region pages, the tick list; phone-13): the
     same bar with the page's title and an up arrow, to the H1."""
     pct_page = bool(trip) and trip.get('slug') == PCT_SLUG and here == trip.get('url')
 
@@ -2216,7 +2246,8 @@ def header(here, active=None, trip=None, page_bar=None):
             state = None
         return (' aria-current="%s"' % state) if state else ''
     main = main_nav()
-    items = ['<a href="%s"%s>%s</a>' % (link(here, url), cur(key, url), lab) for key, lab, url in main]
+    items = ['<a href="%s"%s%s>%s</a>' % (link(here, url), cur(key, url), (' aria-label="%s"' % PCT_NAME) if key == 'pct' else '', lab)
+             for key, lab, url in main]
     on_trips = here == 'trips/'
     search = ('<a class="nav-search" href="%s">%sSearch</a>' % (link(here, 'trips/#search'), icon('search', 18)) if on_trips
               else search_form(here, 'nav-q'))
@@ -2234,9 +2265,10 @@ def header(here, active=None, trip=None, page_bar=None):
     # Home first (phone-12): below 1000 px the name is the only other way home, and it hides while the title bar shows
     home = [('home', 'Home', '')]
     for key, lab, url in home + main + ([('search', 'Search', 'trips/#search')] if on_trips else []):
-        word = 'Map &amp; archive' if key == 'map' else lab
-        site_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span></span>%s</a></li>'
+        word = lab   # one word per destination (ia-13): the header's, the menu's and the footer's 'Map' agree
+        site_rows.append('<li><a href="%s"%s%s>%s<span class="menu-w"><span>%s</span></span>%s</a></li>'
                          % (link(here, url), cur(key, url) if key not in ('search', 'home') else (' aria-current="page"' if key == 'home' and here == '' else ''),
+                            (' aria-label="%s"' % PCT_NAME) if key == 'pct' else '',
                             icon(menu_icons.get(key, 'search'), 24), word,
                             icon('chevron-right', 20)))
     if not on_trips:
@@ -2258,7 +2290,7 @@ def header(here, active=None, trip=None, page_bar=None):
             '</div>'
             '<div class="menu" id="menu" hidden><nav aria-label="Menu">'
             '<div class="menu-units"><span class="t-label">Units</span>%s</div>'
-            '<div class="menu-c1"><p class="t-label menu-l">Reports</p><ul class="menu-list">%s</ul></div>'
+            '<div class="menu-c1"><p class="t-label menu-l">By activity</p><ul class="menu-list">%s</ul></div>'
             '<div class="menu-c2"><p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">%s</ul></div></nav></div></header>'
             % (link(here, ''), SITE_NAME, HOME_COORDS, ab, ''.join(items), search, units_control(),
                icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), units_control(), ''.join(menu_rows), ''.join(site_rows)))
@@ -2266,16 +2298,16 @@ def header(here, active=None, trip=None, page_bar=None):
 
 def footer(here):
     reports = ''.join('<li><a href="%s">%s</a></li>' % (link(here, section_url(a)), lab) for a, lab in NAV)
-    site = ('<li><a href="%s">Trips</a></li><li><a href="%s">Tick list</a></li><li><a href="%s">Map &amp; archive</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
+    site = ('<li><a href="%s">Trips</a></li><li><a href="%s">Tick list</a></li><li><a href="%s">Map</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
             % (link(here, 'trips/'), link(here, 'tick-list/'), link(here, 'map/'), link(here, 'about/'), link(here, 'feed.xml'), icon('rss', 16)))
     return ('<footer class="site-f"><div class="site-f-in">'
             '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">%s</span></div>'
-            '<nav class="f-nav" aria-labelledby="f-rep"><p class="t-label" id="f-rep">Reports</p><ul>%s</ul></nav>'
+            '<nav class="f-nav" aria-labelledby="f-rep"><p class="t-label" id="f-rep">By activity</p><ul>%s</ul></nav>'
             '<nav class="f-nav" aria-labelledby="f-site"><p class="t-label" id="f-site">Site</p><ul>%s</ul></nav>'
             '<div class="f-note"><p>Reports describe past conditions, not advice. Check the current avalanche forecast before you go.</p>'
             '<p class="t-mono-s">%s</p>'
             '<p class="t-mono-s">© %d ERIC SICHAK</p></div></div></footer>'
-            % (link(here, ''), SITE_NAME, meta_items([nb('BASED IN LAKE TAHOE'), nb('AIARE 2')]), reports, site,
+            % (link(here, ''), SITE_NAME, meta_items([nb('BASED IN LAKE TAHOE'), nb('AVALANCHE TRAINING: AIARE 2')]), reports, site,
                meta_items([nb('MAPS: AWS TERRAIN TILES'), nb('© OPENSTREETMAP CONTRIBUTORS')]), date.today().year))
 
 

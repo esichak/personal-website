@@ -1,4 +1,4 @@
-/* Map & archive: region tabs (ARIA tabs, automatic activation) and activity filters for the report table.
+/* Map: region tabs (ARIA tabs, automatic activation) and activity filters for the report table.
    Without JS every region panel renders stacked and the table shows everything.
    A region page (/regions/<slug>/, body.p-region) is one panel and the same table for one region: it has no tab row,
    so the tab code finds nothing there; 'Show all' and the filter run as here. */
