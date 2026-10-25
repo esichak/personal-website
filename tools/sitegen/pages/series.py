@@ -163,8 +163,8 @@ def strip(t):
     photos = sum(len(d['photos']) for d in days)
     cells.append(('Write-ups', '%s<span class="unit">day%s</span>' % (n(wu), '' if wu == 1 else 's'),
                   ('%s PHOTO%s' % (n(photos), '' if photos == 1 else 'S')) if photos else ''))
-    note = ('<p class="strip-note">Stats from the GPS recordings via Strava. Distance and gain are the sums of all %s recordings, '
-            'short town days included.</p>' % n(len(days)))
+    note = ('<p class="strip-note">%s Distance and gain are the sums of all %s recordings, '
+            'short town days included.</p>' % (core.via('Stats from the GPS recordings', t), n(len(days))))
     # core.strip: the shared Datum strip (Label / Data-XL value with core.dx punctuation / Mono-S sub-line)
     return '<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(cells, label='Series stats'), note)
 

@@ -564,5 +564,39 @@ class DuplicateKeyReportTests(unittest.TestCase):
         self.assertNotIn('stale/index.html', files)
 
 
+
+class RegionMapsTests(unittest.TestCase):
+    """Phase 9 (ia-15): content/home.json's optional region_maps (curation.resolve_region_maps): one or two names, each
+    with a region map in rendered/site/meta.json; None without the key, so HOME_REGIONS stands."""
+
+    META = {'maps': {'region-synthetic-coast-desktop': {}, 'region-synthetic-range-phone': {}},
+            'regions': ['Synthetic Coast', 'Synthetic Range']}
+
+    def test_absent_is_none_and_names_with_maps_come_back_in_order(self):
+        self.assertIsNone(curation.resolve_region_maps(None, self.META))
+        self.assertIsNone(curation.resolve_region_maps({'featured_slugs': []}, self.META))
+        self.assertEqual(curation.resolve_region_maps({'region_maps': ['Synthetic Range', 'Synthetic Coast']}, self.META),
+                         ['Synthetic Range', 'Synthetic Coast'])
+        self.assertEqual(curation.resolve_region_maps({'region_maps': ['Synthetic Coast']}, self.META), ['Synthetic Coast'])
+
+    def test_every_refusal_names_the_file(self):
+        for value, msg in (
+                ('Synthetic Coast', 'content/home.json: "region_maps" must be a list of one or two region names, such as '
+                                    '["Lake Tahoe", "Santa Cruz"], got \'Synthetic Coast\''),
+                ([], 'content/home.json: "region_maps" must be a list of one or two region names, such as ["Lake Tahoe", '
+                     '"Santa Cruz"], got []'),
+                (['Synthetic Coast'] * 3, 'content/home.json: "region_maps" must be a list of one or two region names'),
+                (['Synthetic Coast', 7], 'content/home.json: region_maps[1] must be a region name, got 7'),
+                (['Synthetic Coast', 'Synthetic Coast'], "content/home.json: duplicate region 'Synthetic Coast' in region_maps"),
+                (['Synthetic Desert'], "content/home.json: region_maps: 'Synthetic Desert' has no region map in "
+                                       "rendered/site/meta.json"),
+                (['synthetic coast'], "content/home.json: region_maps: 'synthetic coast' is written 'Synthetic Coast' on the "
+                                      "trips; use that spelling")):
+            with self.subTest(value=value):
+                with self.assertRaises(curation.CurationError) as cm:
+                    curation.resolve_region_maps({'region_maps': value}, self.META)
+                self.assertTrue(str(cm.exception).startswith(msg), str(cm.exception))
+
+
 if __name__ == '__main__':
     unittest.main()

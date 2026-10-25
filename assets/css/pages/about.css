@@ -4,20 +4,30 @@
 .abo-grid { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 48px; margin-top: 24px; }
 @media (min-width: 760px) { .abo-title { padding-top: 32px; } .abo-grid { margin-top: 32px; row-gap: 56px; } }
 @media (min-width: 1000px) {
-  .abo-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); row-gap: 48px; align-items: start; }
+  /* the numbers column spans both rows and is the taller side: its extra height goes to the second row (1fr), so the
+     words column keeps one 48px gap under the intro */
+  .abo-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto 1fr; column-gap: var(--gap); row-gap: 48px; align-items: start; }
   .abo-intro { grid-column: 7 / span 6; grid-row: 1; }
   .abo-nums { grid-column: 1 / span 5; grid-row: 1 / span 2; }
   .abo-more { grid-column: 7 / span 6; grid-row: 2; }
 }
 @media (min-width: 1200px) { .abo-title { padding-top: 40px; } .abo-grid { margin-top: 40px; } }
-/* the numbers column (about 760px tall) only sticks when the whole column fits in the viewport */
-@media (min-width: 1000px) and (min-height: 880px) { .abo-nums { position: sticky; top: calc(var(--header-h) + 24px); } }
+/* the numbers column only sticks when the whole column fits in the viewport: with By year and Browse (Phase 9) it is
+   1365px tall at 1280 and 1481px at 1000, where the year lines wrap; with the 72px header and the 24px offset, 1600 */
+@media (min-width: 1000px) and (min-height: 1600px) { .abo-nums { position: sticky; top: calc(var(--header-h) + 24px); } }
 
 /* words */
 .abo-lead { max-width: 612px; font: 400 18px/29px var(--serif); font-optical-sizing: auto; color: var(--ink); text-wrap: pretty; }
 @media (min-width: 760px) { .abo-lead { font-size: 20px; line-height: 32px; } }
 .abo-sec { display: flex; flex-direction: column; gap: 16px; }
 .abo-glance { margin-top: 32px; }
+/* content/about.md: its photo at 4:5 above its words, which take the lead's place and voice */
+.abo-portrait { max-width: 360px; margin-bottom: 32px; }
+.abo-portrait img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; background: var(--surface); }
+.abo-words { max-width: 612px; }
+.abo-words > p { font: 400 18px/29px var(--serif); font-optical-sizing: auto; color: var(--ink); }
+.abo-words h2, .abo-words h3 { font: 600 22px/28px var(--sans); font-stretch: 104%; margin-top: 40px; }
+@media (min-width: 760px) { .abo-words > p { font-size: 20px; line-height: 32px; } }
 .abo-more { display: flex; flex-direction: column; gap: 48px; }
 .abo-p { font: 400 15px/24px var(--sans); color: var(--ink); max-width: 612px; text-wrap: pretty; }
 
@@ -77,3 +87,7 @@
 .abo-act-d { flex-shrink: 0; text-align: right; white-space: nowrap; }
 .abo-act-d .unit { font: 400 12px/16px var(--mono); margin-left: 2px; }
 .abo-act-a .abo-act-c { color: var(--ink-3); }
+/* the round icon of a row that is not an activity (Trips, Tick list; the 404 page's .nf-ic rows) */
+.abo-ic, .nf-ic { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--rule-strong); border-radius: 999px; color: var(--ink); background: var(--paper); }
+.abo-yr .abo-act-n { font-variant-numeric: tabular-nums; }

@@ -9,8 +9,10 @@ always computed, so moving them re-renders nothing.
     renderkey.site_hash(site_jobs(trips)[0])   the hash in rendered/site/meta.json (trips as content.load_all orders them)
 """
 import hashlib
+import html
 import json
 import os
+import re
 
 import content
 import goals
@@ -18,6 +20,9 @@ import goals
 VERSION = 7  # bump after renderer changes to force a full re-render
 MIN_REGION_TRIPS = 3
 INPUT_KEYS = ('title', 'activity', 'kind', 'map', 'stats', 'route_shape')
+# what a site map is drawn from: a trip's own inputs less its title, which a site map shows only as the text of its pin
+# and cluster labels, and the build writes those from the trips as they are (core.relabel)
+SITE_INPUT_KEYS = tuple(k for k in INPUT_KEYS if k != 'title')
 
 
 def file_hash(paths):
@@ -34,15 +39,20 @@ def input_files(t):
     return [t['track']] + [d['track'] for d in t['days']]
 
 
-def input_fields(t):
+def input_fields(t, names=INPUT_KEYS):
     """The front-matter values a trip's render is drawn from, as the JSON text the hash covers."""
-    keys = {k: t['meta'].get(k) for k in INPUT_KEYS}
+    keys = {k: t['meta'].get(k) for k in names}
     keys['days'] = [(d['id'], d['hut'], d['transfer_before'], d['stats'], d['label']) for d in t['days']]
     return json.dumps(keys, sort_keys=True, default=str)
 
 
 def trip_inputs(t):
     return hashlib.sha1((input_fields(t) + file_hash(input_files(t)) + str(VERSION)).encode()).hexdigest()
+
+
+def site_inputs(t):
+    """trip_inputs without the title (SITE_INPUT_KEYS): what a trip changes on the region and ski maps."""
+    return hashlib.sha1((input_fields(t, SITE_INPUT_KEYS) + file_hash(input_files(t)) + str(VERSION)).encode()).hexdigest()
 
 
 def input_parts(t):
@@ -120,11 +130,76 @@ def site_jobs(trips):
     return jobs, groups, mapped
 
 
-def site_hash(jobs, inputs=trip_inputs):
-    """The hash of rendered/site/meta.json for these jobs. inputs: trip_inputs, or a function that gives the same answers
-    from a cache (the content checks hash each trip once per run)."""
+def site_hash(jobs, inputs=site_inputs):
+    """The hash of rendered/site/meta.json for these jobs. inputs: site_inputs, or a function that gives the same
+    answers from a cache (the content checks hash each trip once per run). A trip's title is not in it (Phase 9): the
+    build writes the titles into the maps' labels, so a retitle draws the trip's own maps again and no site map. A
+    journal part's name and its journal's title stay: they are the line's own label."""
+    return hashlib.sha1((str(VERSION) + json.dumps([(j[0], [(t['slug'], t['activity'], t['kind'], inputs(t)) for t in j[2]],
+                                                    [(pt['key'], pt['title'], pt['trip']['title'], [d['id'] for d in pt['days']], inputs(pt['trip']))
+                                                     + ((sorted((pt.get('stretches') or {}).items()),) if pt.get('stretches') else ())
+                                                     for pt in j[4]])
+                                                   for j in jobs], sort_keys=True)).encode()).hexdigest()
+
+
+def site_hash_with_titles(jobs, inputs=trip_inputs):
+    """The hash as render.py wrote it before Phase 9 (every title in it). A rendered/site/meta.json that carries it is
+    up to date as well, until the site maps are drawn again and the new hash is written."""
     return hashlib.sha1((str(VERSION) + json.dumps([(j[0], [(t['slug'], t['title'], t['activity'], t['kind'], inputs(t)) for t in j[2]],
                                                     [(pt['key'], pt['title'], pt['trip']['title'], [d['id'] for d in pt['days']], inputs(pt['trip']))
                                                      + ((sorted((pt.get('stretches') or {}).items()),) if pt.get('stretches') else ())
                                                      for pt in j[4]])
                                                    for j in jobs], sort_keys=True)).encode()).hexdigest()
+
+
+# the labels mapkit writes on a site map (core.relabel rewrites the same two at build time)
+_PIN = re.compile(r'<a class="mk-pin" href="[^"]*" data-key="([^"]*)" aria-label="[^"]*"><title>([^<]*)</title>')
+_CLUSTER = re.compile(r'<g class="mk-cluster" aria-hidden="true" data-keys="([^"]*)"><title>([^<]*)</title>')
+
+
+def drawn_paths(site_dir, maps):
+    """The fragment of each site map that meta.json lists (maps: its 'maps' object), as render.py wrote them."""
+    return [os.path.join(site_dir, key + '.svg.html') for key in sorted(maps or {})]
+
+
+def drawn_titles(paths):
+    """{slug: title} as the site maps label each trip: a pin's <title>, or its place in a cluster's (the titles joined
+    with '; ' in the order of data-keys). A cluster whose title does not split into one title per key (a title that
+    holds '; ' itself) says nothing about its trips; neither does a file that is not there."""
+    out = {}
+    for p in paths:
+        try:
+            with open(p, encoding='utf-8') as fh:
+                s = fh.read()
+        except OSError:
+            continue
+        for key, title in _PIN.findall(s):
+            out.setdefault(html.unescape(key), html.unescape(title))
+        for keys, titles in _CLUSTER.findall(s):
+            ks, ts = html.unescape(keys).split(), html.unescape(titles).split('; ')
+            if len(ks) == len(ts):
+                for k, t in zip(ks, ts):
+                    out.setdefault(k, t)
+    return out
+
+
+def site_hash_as_drawn(jobs, drawn, inputs=trip_inputs):
+    """site_hash_with_titles with each trip's title as the maps show it (drawn: drawn_titles): the hash render.py wrote
+    before Phase 9, for maps whose trips have changed nothing since but a title, which the build writes into the labels.
+    A trip whose title is not on the maps, or unchanged, keeps its own; inputs serves those (a cache), trip_inputs the
+    others."""
+    swapped = set()
+
+    def swap(t):
+        old = drawn.get(t['slug'])
+        if old is None or old == t['title']:
+            return t
+        c = dict(t, title=old, meta=dict(t['meta'], title=old))
+        swapped.add(id(c))
+        return c
+    again = [tuple(j[:2]) + ([swap(t) for t in j[2]],) + tuple(j[3:]) for j in jobs]
+    try:
+        return site_hash_with_titles(again, lambda t: trip_inputs(t) if id(t) in swapped else inputs(t))
+    finally:
+        swapped.clear()
+

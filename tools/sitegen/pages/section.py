@@ -192,7 +192,7 @@ def featured(t, here, full_row='', fkey=None):
             '<div class="sec-feat-grid%s"><div class="sec-feat-map">%s%s%s%s</div>'
             '<div class="sec-feat-side">%s%s</div></div>%s</section>'
             % (esc(fkey if fkey is not None else (t.get('subtype') or '')), chips, href, core.title_html(t['title']), place_html,
-               gpx_btn, core.strip(core.strip_cells(t)), core.stats_note(t), grid_cls,
+               gpx_btn, core.strip(core.strip_cells(t)), core.stats_note(t, here=here), grid_cls,
                map_, key, map_caption(t), chart, ('<div class="sec-feat-pics">%s</div>' % pics) if pics else '', txt, full_row))
 
 

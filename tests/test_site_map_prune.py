@@ -184,5 +184,52 @@ class GoneKeysTests(unittest.TestCase):
         self.assertEqual(core.gone_keys({'trips': None, 'journals': [None, {'key': 5}]}), [])
 
 
+
+class RelabelTests(unittest.TestCase):
+    """core.relabel (Phase 9, gap8-04): a site map's pin labels and cluster titles written from the registered titles."""
+
+    def setUp(self):
+        helpers.keep_state(self)
+        core._TITLES.clear()
+        core._TITLES.update({'synm-gone': 'A Synthetic & "New" Name', 'synm-merged': 'Synthetic Merged Again',
+                             'synm-kept': 'Synthetic Kept'})
+
+    def test_a_pin_and_a_cluster_carry_the_trips_titles_now(self):
+        s = overlay()
+        out = core.relabel(s)
+        self.assertIn('data-key="synm-gone" aria-label="A Synthetic &amp; &quot;New&quot; Name"><title>A Synthetic &amp; '
+                      '&quot;New&quot; Name</title>', out)
+        self.assertIn('<title>A Synthetic &amp; &quot;New&quot; Name; Synthetic Merged Again</title>', out)
+        self.assertIn(pin('synm-kept', 'Synthetic Kept'), out)              # the same title: the same bytes
+        self.assertEqual(core.relabel(out), out)
+
+    def test_a_key_that_is_no_registered_trip_keeps_what_was_rendered(self):
+        core._TITLES.pop('synm-merged')
+        out = core.relabel(overlay())
+        self.assertIn(cluster(['synm-gone', 'synm-merged'], ['Synthetic Gone', 'Synthetic Merged']), out)   # as rendered
+        core._TITLES.clear()
+        self.assertEqual(core.relabel(overlay()), overlay())                # nothing registered: nothing touched
+
+    def test_a_journal_is_not_relabelled(self):
+        # a journal's day part written without a name is keyed by the journal's slug and labelled '<title>, Day N':
+        # register_site leaves journals out of the titles, so those pins and clusters keep what was drawn
+        with tempfile.TemporaryDirectory() as tmp:
+            helpers.make_series(tmp, slug='synm-journal', title='Synthetic Long Walk')
+            helpers.make_trip(tmp, 'synm-walk', title='Synthetic Walk', date='2026-01-02', track=True)
+            site = importlib.import_module('build').site_of(helpers.newest_first(helpers.load_dir(tmp)))
+        core.register_site(site)
+        self.assertEqual(sorted(core._TITLES), ['synm-walk'])
+        drawn = pin('synm-journal', 'Synthetic Long Walk, Day 58') + cluster(['synm-walk', 'synm-journal'],
+                                                                             ['Synthetic Walk', 'Synthetic Long Walk, Day 60'])
+        self.assertEqual(core.relabel(drawn), drawn)
+
+    def test_mapkit_still_writes_the_labels_relabel_reads(self):
+        with open(mapkit.__file__, encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertIn("'<a class=\"mk-pin\" href=\"%s\" data-key=\"%s\" aria-label=\"%s\"><title>%s</title>", src)
+        self.assertIn("'<g class=\"mk-cluster\" aria-hidden=\"true\" data-keys=\"%s\"><title>%s</title>", src)
+        self.assertIn("esc('; '.join(i_.get('title', '') for i_ in c['items']))", src)
+
+
 if __name__ == '__main__':
     unittest.main()

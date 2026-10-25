@@ -16,7 +16,7 @@ LABEL = 'Trip reports · GPX'
 HEADLINE = ('Trip reports from', 'the Sierra, the Alps', 'and beyond.')
 LEAD = core.TAGLINE  # the one site tagline (dek, meta description, RSS channel)
 ATTRIB = 'Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation'
-HOME_REGIONS = ('Lake Tahoe', 'Eastern Sierra')
+HOME_REGIONS = ('Lake Tahoe', 'Eastern Sierra')   # unless content/home.json names others ("region_maps", home_regions)
 RECENT_N = 6
 # the width each cover is drawn at (so srcset picks the 800 px copy where it is enough): the lead card is 7 of 12 columns
 # from 1200, the full row on tablets; supporting cards sit beside their copy from 1200 (200 px) and two to a row on
@@ -291,13 +291,14 @@ def also_items(site):
             counts[r] = counts.get(r, 0) + 1
     item = '<li><a href="%s"><span class="hom-also-w">%s</span>%s</a></li>'
     out = []
-    others = [r for r in mapped if r not in HOME_REGIONS and (r in paneled or core.region_page_href(HERE, r))]
+    shown = home_regions(site)
+    others = [r for r in mapped if r not in shown and (r in paneled or core.region_page_href(HERE, r))]
     for r in sorted(others, key=lambda r: (-counts.get(r, 0), r)):
         k = counts.get(r, 0)
         # the region's own page when it has one, else its panel on map/
         href = core.region_page_href(HERE, r) or core.region_map_href(HERE, r) or link(HERE, 'map/#region-' + slug(r))
         out.append(item % (href, esc(r), ('<span class="hom-also-c">%d</span>' % k) if k else ''))
-    unmapped = [r for r in counts if r not in mapped and r not in HOME_REGIONS]
+    unmapped = [r for r in counts if r not in mapped and r not in shown]
     if unmapped:
         more = '%d more region%s' % (len(unmapped), '' if len(unmapped) == 1 else 's')
         out.append(item % (link(HERE, 'map/#other-places'), esc(more), ''))
@@ -306,11 +307,17 @@ def also_items(site):
     return out
 
 
+def home_regions(site):
+    """The regions 'Where I've been' maps: content/home.json's region_maps (build.py checks them, as
+    curation.resolve_region_maps), else HOME_REGIONS."""
+    return tuple(site.get('region_maps') or HOME_REGIONS)
+
+
 def where(site):
     meta = core.site_meta().get('maps', {})
     blocks = []
     drawn = []
-    for region in HOME_REGIONS:
+    for region in home_regions(site):
         rs = slug(region)
         dk, ph = 'region-%s-desktop' % rs, 'region-%s-phone' % rs
         if dk not in meta and ph not in meta:

@@ -1101,7 +1101,9 @@ class NoTrackSiteTests(BuiltCase):
                     self.assertEqual(self.bar(url), bar)
                     self.assertEqual(len(navs), 1)
                 notes = doc.find_all('p', cls='strip-note')
-                self.assertEqual([p.text() for p in notes], [note] if note else [])
+                # Phase 9 (ia-19): a note ends with the link to About's method
+                self.assertEqual([p.text() for p in notes], [note + ' How these reports are made'] if note else [])
+                self.assertEqual([p.find('a')['href'] for p in notes], ['../../about/#abo-how-h'] if note else [])
                 strip = doc.by_id('stats')
                 self.assertEqual([dt.text() for dt in strip.find_all('dt')] if strip is not None else None, cells)
                 self.assertEqual('href="#stats"' in text, cells is not None and bar is not None)
@@ -1566,6 +1568,25 @@ class RegionSiteTests(BuiltCase):
 
 RG_WRAITH, RG_WRAITH_SLUG = 'Synthetic Wraith', 'synthetic-wraith'
 RG_WRAITH_MAP = ['synb-rg-wraith', 'synb-rg-vanished']        # what the map was drawn with: a report that is a draft now, one that is gone
+
+
+class RetitleLabelTests(BuiltCase):
+    """gap8-04 (Phase 9) on the built site with region maps: the fixture's fragments say 'Synthetic pin' and 'Synthetic
+    cluster' where render.py would have written the titles; the build writes the trips' titles there now, so a trip
+    retitled since the render shows its new name on every page that shows the map, without a site render."""
+
+    def setUp(self):
+        self.fx = built_regions()
+        self.out = self.fx.out
+        self._docs = {}
+
+    def test_pins_and_clusters_carry_the_titles_of_the_trips(self):
+        html_ = self.html(RG_URLS[0])
+        self.assertIn('data-key="synb-rg-lap" aria-label="Synthetic Reach Lap"><title>Synthetic Reach Lap</title>', html_)
+        self.assertIn('data-keys="synb-rg-words synb-rg-lap"><title>Synthetic Reach Words; Synthetic Reach Lap</title>', html_)
+        self.assertNotIn('Synthetic pin', html_)
+        self.assertNotIn('Synthetic cluster', html_)
+        self.assertNotIn('Synthetic pin', self.html('map/'))
 
 
 class DraftedPinTests(unittest.TestCase):

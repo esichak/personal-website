@@ -6,6 +6,9 @@
 .reg-stats .ml-br { display: block; }  /* counts and years on line 1, places (biggest first) on line 2 */
 /* a place wraps at its spaces (.mi-w); one word too long for a line of its own breaks rather than widen the page */
 .reg-stats .mi-w { overflow-wrap: anywhere; }
+/* content/regions/<slug>.md: Eric's introduction to the region, under the counts */
+.reg-intro { margin-top: 20px; }
+.reg-intro h2, .reg-intro h3 { font: 600 22px/28px var(--sans); font-stretch: 104%; margin-top: 40px; }
 @media (min-width: 760px) {
   .reg-head { padding-top: 32px; }
   .reg-head .t-d1 { margin-top: 20px; }

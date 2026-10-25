@@ -342,11 +342,13 @@ def strip(t):
     return '<dl class="strip mul-strip%s%s" style="--cells:%d" aria-label="Trip stats">%s</dl>' % (long_, five, len(cells), out)
 
 
-def stats_note(cls=''):
+def stats_note(t, cls='', here=None):
     """The one stats footnote (under the strip; phones show the rep-note-ph copy under the overview map caption instead).
-    Plural: a multi-day trip is one recording per day."""
-    return ('<p class="strip-note%s">Stats from the GPS recordings via Strava. '
-            'GPS max is the highest point in the GPX files, not a surveyed summit height.</p>' % ((' ' + cls) if cls else ''))
+    Plural: a multi-day trip is one recording per day. With here, it ends with core.how_link."""
+    return ('<p class="strip-note%s">%s '
+            'GPS max is the highest point in the GPX files, not a surveyed summit height.%s</p>'
+            % ((' ' + cls) if cls else '', core.via('Stats from the GPS recordings', t),
+               (' ' + core.how_link(here)) if here is not None else ''))
 
 
 # ---------------------------------------------------------------- overview map
@@ -385,7 +387,7 @@ def overview_map(t, here, meta):
         # than show an empty map with its key and caption. Without any day track the empty map stays (the validator
         # warns about that case on its own)
         return report.not_rendered_section('Route map, all days', 'Map not rendered yet. The GPX files of the days are '
-                                           'published: use the Download all GPX button.', stats_note('rep-note-ph'))
+                                           'published: use the Download all GPX button.', stats_note(t, 'rep-note-ph', here))
     desk = key_items(t, ['overview-wide', 'overview-col'], 'Route by day')
     phone = key_items(t, ['overview-phone'])
     cls = 'map--report' + ('' if 'overview-wide' in maps else ' map--nowide')
@@ -396,7 +398,7 @@ def overview_map(t, here, meta):
                              fullscreen_href=core.link(here, t['url'] + 'map/')))
     return ('<section class="rep-map mul-map" id="map" aria-label="Route map, all days"><div class="bleed">%s</div>'
             '<div class="wrap">%s%s%s</div></section>'
-            % (mp, core.key_rows(desk, phone), cap, stats_note('rep-note-ph')))
+            % (mp, core.key_rows(desk, phone), cap, stats_note(t, 'rep-note-ph', here)))
 
 
 # ---------------------------------------------------------------- sticky day nav
@@ -791,7 +793,7 @@ def page(t, site):
         actions += '<a class="btn btn--ink" href="%s" download>%sDownload all GPX</a>' % (gpx_all(t), icon('download', 18))
     actions += core.copy_link(core.SITE_URL + here)
     body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site),
-            '<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note()),
+            '<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note(t, here=here)),
             overview_map(t, here, meta)]
     chapters = ''.join(chapter(t, here, meta, d) for d in t['days'])
     body.append('<div class="mul-body">%s%s%s<section class="mul-days" aria-labelledby="days-h">'

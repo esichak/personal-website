@@ -16,8 +16,6 @@
 .nf-go { flex: none; min-height: 48px; }
 .nf-l { display: block; padding-bottom: 8px; }
 .nf-l2 { margin-top: 32px; }
-.nf-ic { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--rule-strong); border-radius: 999px; color: var(--ink); background: var(--paper); }
 @media (min-width: 760px) {
   .nf { padding-top: 56px; }
   .nf-line { font-size: 19px; line-height: 30px; }

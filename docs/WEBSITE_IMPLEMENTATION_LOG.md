@@ -1586,3 +1586,162 @@ the suite with the deploy runner's `html.parser`.
   only, a per-session token, nothing in the deployed output.
 - **Interface copy:** none new on the site. New command output: publish.py's, doctor.py's and tidy.py's lines, and
   one new content error (a write-up heading that skips a level).
+
+## Phase 9 - Content (2026-10-24 and 25)
+
+The fourth phase of the second plan (`docs/personal-website-improvement-plan-2.md`, section 9, and the Phase 9 prompt of
+`docs/claude-code-website-prompt-2.md`), built on branch `phase-9-content` from `phase-8-publishing-loop` at `59790c9`.
+Eric asked for the phases to run on without waiting for him, so the prompt's recommended answers stand: (c)
+`published_at` option A (an empty line at import, filled on the day of the push; old reports stay dateless); (d)
+summit outcomes `summit`, `turned-around`, `traverse`; (e) `--update` replaces the stats unless `--keep-stats`, and
+refuses `--strip-times`; (f) the home page keeps Lake Tahoe and Eastern Sierra; (g) By year counts calendar years. The
+two decisions that are his edits, (a) the region and place merges and (b) the 24 retitles, were not made: nothing
+under `content/` changed. Nothing under `rendered/` changed and `render.py` was not run. The disk had about 21 GB free
+throughout, under the plan's 30 GB line: builds were linked into the session's scratch folder, and no worktree or copy
+of the checkout was made.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/content_report.py` (new) | Read-only, one row per published report, newest first: date, slug, title flag (`strava` for a Strava default name, `xN` for a shared title), write-up characters, photos, cover source (`explicit` / `auto` / `none`), place, party, card summary. `--missing place\|writeup\|photos\|cover\|summary`, `--alt` (the home features, each region page's Featured row, every cover, with their alt text), `--taxonomy` (regions with slug and count, places per region, names inside names, one region spelt two ways, one-report regions with the region whose trips start within 150 km), `--markdown` (`.cache/content-report.md`). Never writes under `content/`. |
+| `tools/trip_photos.py` (new) | `SLUG FILE\|DIR... [--day N] [--cover] [--dry-run]` (`--day` finds `days/03.md` or the journal's `days/003.md`): the import's three copies, numbered after the trip's (or the day's `dNN-`) highest photo, an entry each with an empty `alt:`, `--cover` sets `cover_photo:`; refuses a file whose front matter would not round-trip; ends with the empty alt lines and the content check's findings for the trip. |
+| `tools/about_photo.py` (new) | The About page's photo: copies in `content/about/photos/portrait-NN.*` (numbered, so no browser keeps the old one) and a `photo:` block in `content/about.md` with an empty `alt:`; a file of words alone, or with an empty front matter, keeps its words. |
+| `tools/add_trip.py` | `TRACK --update SLUG [--keep-stats] [--source S] [--timezone Z] [--dry-run] [--no-render]` (refuses day files, a planned route, a track published without times, `--strip-times` and the new-import options, and, on a trip that credits its stats to a service, new figures without `--source` or `--keep-stats`); `--source` on an import; a note when a title taken from Strava or the file name looks like a Strava default; new imports write an empty `published_at:` line and `source:` (Strava for an export, else only with `--source`); `--keep-stats`/`--dry-run` refused outside `--update` before any branch; `--force` help and refusal point at `--update`; the checklist's publish step names `publish.py`; photo import moved to `lib/photos.py`; `--force` also keeps `summits:`, `conditions:` and a `source:` other than Strava, and an empty kept line no longer blocks it. |
+| `tools/lib/photos.py` | `PHOTO_EXT`, `collect()`, `import_photos()`, `next_number()` (from add_trip.py, shared by the three tools). |
+| `tools/lib/frontmatter.py` | `dumps`/`render(..., keep_empty=True)` write a top-level `None` as a bare `key:` line, so a file holding the import's empty `published_at:` survives every round trip (`--update`, `--retime`, trip_photos, about_photo). |
+| `tools/lib/strava.py` | `default_title()`. |
+| `tools/lib/content.py` | `SOURCES`, `has_strava()`, `stats_source()`, `SUMMIT_OUTCOMES`, `_summits()` (trip and day), `publication_utc()`, `content_dir()`, `load_about()`, `load_region_intros()`; `conditions` no longer read; day dicts carry `strava` and `summits`. |
+| `tools/lib/checks.py` | `source` (fixed list, an error otherwise), `summits` (index and day files), `conditions` retired with a pointer to `beta:`; `content/about.md` (alt required, file, size, unknown keys, heading levels) and `content/regions/*.md` (unknown slug an error, a region without a page a warning, `title:` must match); `home.json`'s `region_maps`; the per-file caption notes as one count line; a note for a title with Peak, Mount, Mountain, Couloir, Chute, Bowl or Lake and no `map: peaks:`; the site-hash warning accepts the hash without titles, the pre-Phase-9 one, and that one matched with the titles the maps were drawn with. The summit note skips a Strava default title (it names a town). |
+| `tools/lib/renderkey.py`, `tools/render.py` | `SITE_INPUT_KEYS`, `site_inputs()`; `site_hash()` without trip titles (journal part and journal titles stay); `site_hash_with_titles()` (the old formula); `drawn_paths()`, `drawn_titles()`, `site_hash_as_drawn()`; `render.site_maps_stale` accepts the same three, and `render_site` asks it, so a run draws no site map that the status calls up to date. |
+| `tools/sitegen/core.py` | `relabel()` (pin `aria-label`/`<title>` and cluster `<title>` from the registered titles of every trip but a journal, whose unnamed day parts are labelled 'Title, Day N'; site maps only, through `frag(..., labels=True)`); `via()`; `how_link()` and `stats_note(t, cls, here)`. |
+| `tools/sitegen/pages/about.py` | `year_stats()`/`year_rows()` (By year), `site_rows()` (Trips and Tick list), `portrait()`; Eric's words replace the computed lede when `content/about.md` has any. |
+| `tools/sitegen/pages/region.py` | The intro under the counts when `content/regions/<slug>.md` has words. |
+| `tools/sitegen/pages/report.py` | `summit_item()`, the Summits row of the Beta block; the stats note gets `here`. |
+| `tools/sitegen/pages/multiday.py`, `series.py`, `section.py` | The source word from the content; the multi-day and section notes get the link. |
+| `tools/sitegen/pages/home.py`, `tools/sitegen/curation.py` | `home_regions()`; `resolve_region_maps()` (one or two names with a region map, spelt as the trips spell them), `region_maps_for()`. |
+| `tools/sitegen/search.py` | Summit names (trip and days) in `k`. |
+| `tools/build.py` | `pub_moment()`: `<pubDate>` from `published_at` (a date alone at 12:00 UTC), else the trip date, and the 30 items ordered by it; `sitemap(pages, trips)` writes `<lastmod>` from `updated_at` else `published_at`; `build()` reads the site meta once, `region_maps`, `about` and `region_intros`; `copy_about_assets()`. |
+| `assets/css/pages/about.css`, `region.css`, `base.css`, `notfound.css` | Portrait at 4:5, the words in the lede's type, `.abo-ic` (with the 404's `.nf-ic`, moved here), year numbers tabular; the grid's second row takes the taller column's extra height and the column sticks only from 1600 px; `.reg-intro`; the footnote link underlined. |
+| Docs | ADDING-TRIPS.md "Changing a trip that is on the site" (one table keyed on what the maps are drawn from), the Strava-title note, `--update`, adding photos, the region/place paragraph pointing at `--taxonomy`, publishing with `published_at`; README.md; CONTENT_GUIDE.md 1 (region_maps), 3, 5.1, 5.5 (content_report), 6 (findable checklist), 7.11 (source), 7.12 (conditions), 7.13 (summits), 8, 11.8 (region intros), 11.9 (names and merges), 12 (About); DEVELOPING.md (tool list, renderkey, relabel, trip and site dicts, feed and sitemap rule, Eric's words); PRIVACY_NOTES.md decision 1 names `--update`. |
+| Tests | New: test_content_report (8), test_trip_photos (8), test_about_page (20). Changed: test_add_trip (UpdateTests and its guards, published_at, source, `--retime --dry-run`), test_checks (summit-title note, source, summits, conditions, home region_maps, known keys), test_checks_site_maps and test_render_goals (retitles, the old hash, the old hash with drawn titles, `render_site` drawing nothing after a retitle), test_site_map_prune (relabel, the journal left alone) and test_build_site (relabel), test_metadata (feed and sitemap), test_track_rules (SourceWordTests; fixtures carry no strava_id, so their note is the plain sentence), test_report_page (Summits row, the footnote link), test_region_page (IntroTests), test_home and test_curation (region_maps), test_search, test_frontmatter, test_a11y_static (its region page carries an intro). |
+
+### Behaviour
+
+- **Nothing changed for a reader but two things.** A `--link` build of today's content against one made before any
+  edit differs in 172 files: `about/index.html` (the By year block and the Browse rows, inserted and nothing else),
+  `assets/site.css`, and 170 pages (166 report and multi-day pages and the four section pages with a featured block)
+  that differ only by the footnote link, checked file by file with the link removed.
+- **About's By year** matches the loader: 2026 58 reports / 70 days out, 2025 36 / 36, 2024 5 / 165, 2023 12 / 12,
+  2022 21 / 21, 2021 35 / 35, each with its gain and distance through `core.U`.
+- **A retitle costs one trip render.** On today's content in memory, retitling a trip leaves `render.py`'s site maps
+  up to date (the stored hash is still the pre-Phase-9 one, matched with the titles the 161 labelled trips show) and
+  a stats change still marks them stale; the build writes the new title into the pins and clusters.
+- **validate.py**: 0 errors, 1 warning, 346 notes (468 before): the 143 caption notes are one line, and 20 notes name
+  a summit-like title without `map: peaks:`.
+- **content_report.py today**: 167 rows; 79 without a place, 75 without a write-up, 61 without photos, 164 without an
+  explicit cover (103 automatic, 61 with no photo), 167 without a card summary; 24 Strava titles; 15 regions, one pair
+  of places with one name inside the other, Idaho named near Boise and Yosemite near Eastern Sierra.
+- **Every published page still says "via Strava"**: all 167 tracked reports resolve to Strava through `strava_id`.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **A FIT or GPX import writes `source:` only with `--source`** (the prompt: "otherwise the file type"). The fixed list
+  names services, and a file type is not one: a FIT file can come from any device. Without it the trip's note says
+  "Stats from the GPS recording.".
+- **`--update` asks where the new recording came from** when the trip credits its stats to a service (every trip today
+  has a `strava_id:`): `--source` or `--keep-stats`, so new figures never go out as Strava's. It also refuses a track
+  published without timestamps rather than give them back (decision (e) keeps `--strip-times` off updates).
+- **The pre-Phase-9 site hash is also matched with the titles the maps show.** The prompt dropped titles from the hash
+  and kept the old hash valid; but the stored hash holds the old titles, so the first retitle before the next site
+  render would have marked all 76 site files stale. `renderkey.drawn_titles` reads each trip's title from the pins
+  and clusters render.py drew; with those, the old formula reproduces the stored hash exactly on today's content.
+- **About's words and region intros are read in `build()`, not `site_of()`**, beside home.json, so tests that call
+  `site_of` on synthetic trips never read the real files.
+- **The PCT page's series note has no footnote link**: the prompt names the report, section and multi-day notes.
+- **The portrait** is a nested `photo:` block (file, w, h, alt) in `content/about.md`, its copies in
+  `content/about/photos/`, written by a small new tool, `about_photo.py`, since the copies must be made on the Mac
+  (CI has no sips or cwebp). The page shows it only with an alt.
+- **Summits show on single-day reports only**: the multi-day and PCT pages have no Beta block; their names are
+  searchable, which CONTENT_GUIDE 7.13 says.
+- **About's layout**: the numbers column grew from 760 to 1,365 px (1,481 at 1000 px, where the year lines wrap), so
+  the grid gives its extra height to the second row (it opened a 208 px gap under the intro) and the column sticks
+  only from a 1600 px tall viewport.
+- **The footnote link is underlined** (`.strip-note a`): in the note's grey and without a line it read as plain text.
+- **`conditions:` is retired with its own hint** in the unknown-key warning (where the words go).
+- **`--taxonomy` names a one-report region's neighbour** from the trips' rendered start points (150 km; no point is
+  printed), so Idaho is named with Boise as the prompt's gate expects; text alone could not pair them.
+
+### Review
+
+One independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It ran both suites (2,958 tests then), the linked build check and the content report, and confirmed: the gate's
+counts, `relabel` changing nothing on today's 27 site-map fragments, all 352 content files round-tripping byte for byte
+with `keep_empty`, no Python 3.9 problem, no accessibility regression. Its findings, all fixed:
+
+1. `render_site` compared the stored hash with the new formula only, so the first render after a retitle (or any slug
+   render) would still have drawn all 76 site files although `--status` said up to date. It now asks
+   `site_maps_stale`; a test patches `draw_site` to fail and renders after a retitle.
+2. `relabel` would have cut "Day N" from a journal's pins for a day part written without a name (keyed by the
+   journal's slug). Journals are left out of the titles; a test registers a journal.
+3. `--update` kept `strava_id:`/`source:` while replacing the stats, so a Garmin file's figures would have said "via
+   Strava". It now needs `--source` or `--keep-stats`.
+4. `about_photo.py` refused the empty front matter CONTENT_GUIDE 12 shows (and a file of words alone).
+5. `--retime ... --dry-run` wrote: the `--dry-run` check ran after the `--retime` branch.
+6. `region_maps` matched by slug, so a second spelling passed and the home page lost its region link.
+7. `--force` could drop `summits:`, `conditions:` or a hand-written `source:`.
+8. Privacy: examples of Strava default titles and two place names that point at a frequent start were in docs, code
+   comments and a fixture; all now generic or synthetic.
+9. `--update` would have given timestamps back to a track published without them; refused now.
+10. Doc and comment slips (region pages' "all the introduction", the caption-count docstring, the `region_maps` check
+    without a site meta, the time-zone row), and small things: `--update` ignoring other options and accepting a
+    planned route, `trip_photos.py --day 3` on the journal, the summit note on Strava default titles.
+
+Left as documented: an unknown region-intro slug is an error and a region without a page a warning (the prompt's
+"lost its page since" cannot be told from "never had one"); summits show only on single-day reports; By year puts a
+trip that crosses New Year in its start year.
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 2,966 tests, OK, 88 s (2,886 before the phase). A first run took 146 s and one node harness timed out at 60 s; that module alone and the whole suite again passed |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 2,966 tests, OK, 114 s |
+| `python3 tests/run_orders.py --reverse` | OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 14, series 49, ticklist 103, trips 167 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 357 pages, 168 trips, link check OK, 1.8 s |
+| `diff -rq` against a `--link` build of `59790c9` made before any edit | 172 files: `about/index.html` (an insertion), `assets/site.css`, and 170 pages that differ only by the footnote link, checked file by file with it removed |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| `python3 tools/render.py --status` (offline) | trips: all 168 up to date; site maps: up to date |
+| A retitle and then a stats change on today's content, in memory | `render.site_maps_stale`: None, then 'a trip on a region or ski map changed' |
+| `python3 tools/content_report.py` and its options | the numbers under Behaviour; `content/` untouched (the tests compare the tree) |
+| Screenshots (headless Chrome 155; the 390 px ones in an emulated phone viewport) | `.cache/plan2/phase9/`: About at 1280 and 390, a fixture About with words and a placeholder portrait at 1280 and 390, a report's footnote, a fixture region page with an introduction. The fixture pages were written into the scratch build only |
+
+Not run: `render.py` (nothing to draw; the merges' site render is Phase 15); `publish.py` for real; the W3C feed
+validator (after a deploy); the suite with the deploy runner's `html.parser`.
+
+### Remaining issues and author inputs
+
+- **79 places** (the one-sitting list: `python3 tools/content_report.py --missing place`), names not addresses. Not
+  filled: they are Eric's answers.
+- **24 retitles** of Strava default titles (`content_report.py`, title flag `strava`): each now costs the trip's own
+  render (`render.py <slug>`), no site render. Not done.
+- **Merges** (recommended: Idaho into Boise, and the place pair `--taxonomy` names into its shorter spelling;
+  Yosemite stays separate): Eric's call. A region merge needs `render.py --site --force`, queued for Phase 15;
+  CONTENT_GUIDE 11.9 has the steps.
+- **published_at for the old reports**: left out by decision (c); new imports carry the empty line.
+- **The About words and portrait** (`content/about.md`, `about_photo.py`), **region introductions**
+  (`content/regions/<slug>.md`), **summit names** (`summits:`) and **`region_maps`** in home.json: dormant until
+  Eric writes them; the screenshots in `.cache/plan2/phase9/` show what they would look like.
+- **The pre-Phase-9 site hash** stays accepted until the next site render writes the new one, also after a retitle.
+- **`--update` on today's trips** needs `--source` (every one carries a `strava_id:`): `--source Strava` for a better
+  Strava recording, `--source Garmin` for a watch file.
+- **Interface copy, new on the site:** "By year"; "58 REPORTS · 70 DAYS OUT · 125,997 FT GAIN" (REPORT, DAY OUT
+  singular); "Browse"; "Trips" / "SEARCH AND FILTER"; "Tick list" / "1 GOAL" ("N GOALS"); the footnote link "How these
+  reports are made"; dormant until content exists: the "Summits" row ("via <route>", "(turned around)", "(traverse)"),
+  "Stats from the GPS recording(s)." without "via" for a trip with neither `source:` nor `strava_id`, and "via Garmin"
+  / "via CalTopo". New command output: content_report.py, trip_photos.py, about_photo.py, `add_trip.py --update` and
+  `--source`, and the new check messages (source, summits, about.md, region intros, region_maps, the caption count,
+  the summit note).

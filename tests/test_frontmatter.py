@@ -316,6 +316,14 @@ class CommentAndTabTests(unittest.TestCase):
         self.assertEqual(body, 'Synthetic body # not a note.\n')
         self.assertEqual(frontmatter.loads(frontmatter.dumps(meta)), meta)
 
+    def test_keep_empty_writes_a_top_level_none_as_a_bare_key(self):
+        # Phase 9: add_trip's empty published_at: line, and the round trip of a file that has one
+        meta = {'title': 'Synthetic', 'published_at': None, 'stats': {'gain_m': 800, 'max_speed': None}}
+        self.assertEqual(frontmatter.dumps(meta), 'title: Synthetic\nstats:\n  gain_m: 800')
+        self.assertEqual(frontmatter.dumps(meta, keep_empty=True), 'title: Synthetic\npublished_at:\nstats:\n  gain_m: 800')
+        text = '---\ntitle: Synthetic\npublished_at:\n---\n\nBody.\n'
+        self.assertEqual(frontmatter.render(*frontmatter.split(text), keep_empty=True), text)
+
     def test_a_line_indented_with_a_tab_is_refused_with_its_number_from_1(self):
         for text, n in (('title: Synthetic\n\tplace: Synthetic Basin', 2),
                         ('stats:\n  gain_m: 800\n \thigh_m: 2900', 3),

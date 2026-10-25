@@ -694,6 +694,23 @@ class RegionLinkTests(HomeFixture):
         with mock.patch.object(home, 'HOME_REGIONS', ('Eastern Sierra',)):
             self.assertIn(('regions/synthetic-obrien-peaks/', PEAKS, '1'), self.also(home.also_items(self.site)))
 
+    def test_home_json_region_maps_choose_the_maps_and_the_also_row_follows(self):
+        # Phase 9 (ia-15): content/home.json's region_maps (build.py puts them in site['region_maps']) replace HOME_REGIONS
+        helpers.make_trip(self.tmp, 'peaks-a', title='Synthetic Peaks A', activity='climb', date='2023-01-01', region=PEAKS, track=True)
+        self.use(dict(self.MAPPED, **{PEAKS: ['peaks-a']}))
+        with mock.patch.object(home, 'HOME_REGIONS', (PEAKS, 'Eastern Sierra')):
+            want = home.where(self.site)
+            want_also = home.also_items(self.site)
+        self.site['region_maps'] = [PEAKS, 'Eastern Sierra']
+        self.assertEqual(home.home_regions(self.site), (PEAKS, 'Eastern Sierra'))
+        self.assertEqual(home.where(self.site), want)
+        self.assertEqual(home.also_items(self.site), want_also)
+        self.assertNotIn(PEAKS, [name for _h, name, _c in self.also(home.also_items(self.site))])
+        self.site['region_maps'] = ['Eastern Sierra']                          # one map
+        self.assertEqual([b.find('h3').text() for b in self.blocks(home.where(self.site))], ['Eastern Sierra'])
+        self.site['region_maps'] = None                                         # no key: HOME_REGIONS
+        self.assertEqual(home.home_regions(self.site), home.HOME_REGIONS)
+
     def test_a_name_without_a_page_is_the_escaped_text_it_was(self):
         helpers.make_trip(self.tmp, 'peaks-plan', title='Synthetic Peaks Plan', activity='climb', kind='planned', region=PEAKS)
         with mock.patch.object(home, 'HOME_REGIONS', (PEAKS, 'Eastern Sierra')):

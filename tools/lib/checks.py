@@ -44,6 +44,7 @@ import frontmatter  # noqa: E402
 import goals  # noqa: E402
 import markdown  # noqa: E402
 import renderkey  # noqa: E402
+import strava  # noqa: E402
 from sitegen import core  # noqa: E402
 from sitegen import curation  # noqa: E402
 from sitegen.sitecheck import conflict_copy  # noqa: E402
@@ -57,16 +58,22 @@ INDEX_KEYS = (
     'cover_photo', 'cover_focal_x', 'cover_focal_y', 'card_summary', 'search_aliases', 'journal_highlights',
     'region_days',
     'published_at', 'updated_at',
-    'conditions',   # read into the trip dict by content.load_trip; no page shows it yet
+    'source',       # the service the recording came through (content.SOURCES): the word after 'via' in the stats note
+    'summits',      # [{name, outcome, route}]: the Beta rail's Summits row and the search (content._summits)
     'strava_id',    # written by the first bulk import, on 156 trips and every day file; add_trip.py --list reads it
 )
 # days/NN.md (published_at / updated_at belong to index.md: in a day file they are unknown keys)
-DAY_KEYS = ('day', 'title', 'date', 'start_time', 'stats', 'photos', 'hut', 'transfer_before', 'strava_id')
+DAY_KEYS = ('day', 'title', 'date', 'start_time', 'stats', 'photos', 'hut', 'transfer_before', 'strava_id', 'summits')
+SUMMIT_KEYS = ('name', 'outcome', 'route')
 PHOTO_KEYS = ('file', 'w', 'h', 'alt', 'caption')
+# keys a page once could have read and none does: the unknown-key warning says where the words go instead
+RETIRED = {'conditions': 'conditions go in beta: rows, such as Snow, Weather or Water level, under the report\'s own date'}
 STATS_KEYS = ('distance_km', 'moving', 'elapsed', 'gain_m', 'loss_m', 'high_m', 'low_m')
 MAP_KEYS = ('peaks', 'places', 'water_labels')
 BETA_KEYS = ('label', 'value')
-HOME_KEYS = ('featured_slugs',)
+HOME_KEYS = ('featured_slugs', 'region_maps')
+ABOUT_KEYS = ('photo', 'cover_focal_x', 'cover_focal_y')       # content/about.md (content.load_about)
+REGION_INTRO_KEYS = ('title',)                                  # content/regions/<slug>.md (content.load_region_intros)
 
 KINDS = ('trip', 'multi-day', 'series', 'planned')   # 'trip' is the single-day default, written by leaving the line out
 DAY_KINDS = ('multi-day', 'series')                  # the kinds built from days/NN.md files
@@ -229,6 +236,8 @@ def _unknown_keys(mapping, known, file, inside, out):
             continue
         near = difflib.get_close_matches(str(k), known, n=1, cutoff=0.6)
         hint = (' (did you mean %r?)' % near[0]) if near else ''
+        if k in RETIRED:
+            hint = ' (%s)' % RETIRED[k]
         _warn(out, file, 'unknown key %r%s%s; nothing reads it' % (k, (' in %s' % inside) if inside else '', hint))
 
 
@@ -664,15 +673,52 @@ def _check_index(rec, out):
         v = meta.get(key)
         if isinstance(v, str) and v not in allowed:
             _warn(out, file, '%s %r is not one of %s; it is shown as written' % (key, v, ', '.join(allowed)))
+    src = meta.get('source')
+    if src is not None and src not in content.SOURCES:
+        _err(out, file, 'source must be one of %s (the service the recording came through, named in the stats note), got '
+                        '%r; leave the line out when it is none of them' % (', '.join(content.SOURCES), src))
     _check_stats(meta, file, out)
     _check_photos(meta, rec, file, out)
     _check_beta(meta, file, out)
     _check_map(meta, file, out)
+    _check_summits(meta, file, out)
+
+
+def _check_summits(meta, file, out):
+    """summits: a list of entries, each with a name (text), an optional outcome from content.SUMMIT_OUTCOMES and an
+    optional route (text); a name only once per file. Written by hand, so a wrong entry is an error, not a guess."""
+    raw = meta.get('summits')
+    if raw is None:
+        return
+    if not isinstance(raw, list):
+        _err(out, file, 'summits must be a list of entries, each starting with - name: <summit>, got %r' % (raw,))
+        return
+    seen = set()
+    for i, e in enumerate(raw):
+        at = 'summits[%d]' % i
+        if not isinstance(e, dict):
+            _err(out, file, '%s must be an entry with a name: line (- name: <summit>), got %r' % (at, e))
+            continue
+        _unknown_keys(e, SUMMIT_KEYS, file, at, out)
+        name = e.get('name')
+        if not isinstance(name, str) or not name.strip():
+            _err(out, file, '%s has no name: line; each entry names one summit' % at)
+        elif name.strip().casefold() in seen:
+            _err(out, file, '%s: %r is in the list twice' % (at, name.strip()))
+        else:
+            seen.add(name.strip().casefold())
+        outcome = e.get('outcome')
+        if outcome is not None and outcome not in content.SUMMIT_OUTCOMES:
+            _err(out, file, '%s.outcome must be one of %s, got %r' % (at, ', '.join(content.SUMMIT_OUTCOMES), outcome))
+        route = e.get('route')
+        if route is not None and not isinstance(route, str):
+            _err(out, file, '%s.route must be text, got %r' % (at, route))
 
 
 def _check_day(rec, d, out):
     meta, file = d['meta'], d['file']
     _unknown_keys(meta, DAY_KEYS, file, '', out)
+    _check_summits(meta, file, out)
     _check_date(meta, 'date', file, out)
     _check_text(meta, DAY_TEXT_FIELDS, file, out)
     _check_bool(meta, DAY_BOOL_FIELDS, file, out)
@@ -831,6 +877,9 @@ def _goal_findings(t, rec, today, out):
             first[rs] = i
 
 
+_NAMES_A_SUMMIT = re.compile(r'\b(Peak|Mount|Mountain|Couloir|Chute|Bowl|Lake)\b')
+
+
 def _trip_findings(t, rec, today, rendered_dir, out):
     """Stage (d): the warnings and notes of one loaded trip (and the one goal error that needs the loaded sidecar)."""
     slug, file, kind = t['slug'], rec['file'], t['kind']
@@ -843,9 +892,7 @@ def _trip_findings(t, rec, today, rendered_dir, out):
     _photo_warnings(t, rec, out)
     # a heading of a write-up that skips a level is a gap on the page (the site check's HEADING line): stop here instead
     for where, body in [(file, t['body_md'])] + [(_day_file(slug, d['id']), d['body_md']) for d in t['days']]:
-        for lvl, before in markdown.heading_jumps(body or ''):
-            _err(out, where, 'a heading of the write-up skips a level (%s after %s): go one level at a time, %s after %s'
-                 % ('#' * lvl, '#' * before, '#' * (before + 1), '#' * before))
+        _heading_jumps(where, body, out)
     if kind == 'planned':
         _goal_findings(t, rec, today, out)
     if kind == 'multi-day':
@@ -872,6 +919,11 @@ def _trip_findings(t, rec, today, rendered_dir, out):
         _note(out, file, 'timezone is UTC, so start_time is a UTC clock; set the zone with python3 tools/add_trip.py '
                          '--retime %s --timezone <zone>' % slug)
     if kind != 'planned':
+        # a Strava default ('Hike near South Lake Tahoe') names a town, not a summit: the content report flags those
+        if (_NAMES_A_SUMMIT.search(t['title']) and not ((t.get('map') or {}).get('peaks'))
+                and not strava.default_title(t['title'])):
+            _note(out, file, 'the title names a summit or a feature (%s) and there is no map: peaks: line; the name there '
+                             'labels the map and is found by the search' % _NAMES_A_SUMMIT.search(t['title']).group(0))
         if not t.get('place'):
             _note(out, file, 'no place')
         if not t['has_writeup']:
@@ -920,12 +972,18 @@ def _render_staleness(t, meta_file):
 _INPUTS = {}
 
 
-def _inputs(t):
-    """renderkey.trip_inputs, once per trip and run (the site maps' hash asks again for every trip on a map)."""
-    key = (t['slug'], t['dir'])
+def _inputs(t, how=None):
+    """renderkey.trip_inputs (or another of its functions, how), once per trip and run (the site maps' hash asks again
+    for every trip on a map)."""
+    how = how or renderkey.trip_inputs
+    key = (t['slug'], t['dir'], how.__name__)
     if key not in _INPUTS:
-        _INPUTS[key] = renderkey.trip_inputs(t)
+        _INPUTS[key] = how(t)
     return _INPUTS[key]
+
+
+def _site_inputs(t):
+    return _inputs(t, renderkey.site_inputs)
 
 
 def _site_hash_findings(live, rendered_dir, out):
@@ -949,10 +1007,21 @@ def _site_hash_findings(live, rendered_dir, out):
     if _offloaded([p for t in trips for p in renderkey.input_files(t)]):
         return
     try:
-        now = renderkey.site_hash(renderkey.site_jobs(trips)[0], _inputs)
+        jobs = renderkey.site_jobs(trips)[0]
+        now = (renderkey.site_hash(jobs, _site_inputs), renderkey.site_hash_with_titles(jobs, _inputs))
+        if meta['hash'] not in now:
+            # the hash written before Phase 9 holds every title as the maps were drawn; a retitle since (the build writes
+            # the new title into the labels) matches it with the title the trip's pin shows, until the next site render
+            maps = meta.get('maps')
+            frags = renderkey.drawn_paths(os.path.join(rendered_dir, 'site'), maps if isinstance(maps, dict) else {})
+            if _offloaded(frags):
+                return
+            drawn = renderkey.drawn_titles(frags)
+            if drawn:
+                now += (renderkey.site_hash_as_drawn(jobs, drawn, _inputs),)
     except Exception:   # noqa: BLE001 — a goal file the renderer could not read either: its own check names it
         return
-    if now != meta['hash']:
+    if meta['hash'] not in now:
         _warn(out, 'rendered/site/meta.json', 'the region and ski maps were drawn from other inputs (a trip on one of them '
                                               'changed, was added or was taken out since); run python3 tools/render.py '
                                               '--site and commit rendered/site/')
@@ -1016,7 +1085,7 @@ def _link_findings(records, pages, drafts, out):
                     _err(out, file, 'write-up link %r %s' % (url, wrong))
 
 
-def _home_findings(home_json, by_slug, trips_dir, out):
+def _home_findings(home_json, by_slug, trips_dir, rendered_dir, out):
     """content/home.json through curation's own rules (messages unchanged), plus its unknown keys. A missing file is the
     one case the build tolerates: it falls back to the old pick, which is worth a line every time."""
     try:
@@ -1029,6 +1098,17 @@ def _home_findings(home_json, by_slug, trips_dir, out):
         curation.resolve_featured({'by_slug': by_slug, 'published': []}, manifest, trips_dir=trips_dir)
     except curation.CurationError as ex:
         out.append(_raised(str(ex), curation.FILE))
+        return
+    if 'region_maps' in manifest and rendered_dir:
+        try:
+            with open(os.path.join(rendered_dir, 'site', 'meta.json'), encoding='utf-8') as fh:
+                meta = json.load(fh)
+        except (OSError, ValueError):
+            return                # no site maps to check the names against here; the build checks them against its own
+        try:
+            curation.resolve_region_maps(manifest, meta if isinstance(meta, dict) else {})
+        except curation.CurationError as ex:
+            out.append(_raised(str(ex), curation.FILE))
 
 
 def _outing_findings(loaded, by_slug, out):
@@ -1305,7 +1385,7 @@ def survey(trips_dir=None, home_json=None, rendered_dir=None, today=None):
             else:
                 by_slug[slug] = page
     live = sorted((t for t in loaded if not t['draft']), key=lambda t: t['slug'])
-    site_wide = [(curation.FILE, _home_findings, (home_json, by_slug, trips_dir)),
+    site_wide = [(curation.FILE, _home_findings, (home_json, by_slug, trips_dir, rendered_dir)),
                  ('content/trips', _outing_findings, (loaded, by_slug)),
                  ('content/trips', _link_findings, (records, set(by_slug), drafts)),
                  ('content/trips', _title_findings, (live,)),
@@ -1316,12 +1396,124 @@ def survey(trips_dir=None, home_json=None, rendered_dir=None, today=None):
         site_wide.append(('content/trips', _site_map_findings, (live, by_slug, drafts, rendered_dir)))
         # last: it stays quiet when one of the lines above already named the site maps
         site_wide.append(('rendered/site/meta.json', _site_hash_findings, (live, rendered_dir)))
+    root = os.path.dirname(trips_dir)
+    site_wide += [('content/about.md', _about_findings, (root,)),
+                  ('content/regions', _region_intro_findings, (root, records, live, rendered_dir))]
     for file, check, args in site_wide:
         try:
             check(*(args + (out,)))
         except Exception as ex:   # as for a folder: a finding, and the other checks still run
             _unreadable(out, file, ex, 'checked')
+    out = _caption_count(out)
     return sorted(out, key=lambda f: (f['file'], LEVELS.index(f['level']), f['text'])), counts
+
+
+def _heading_jumps(where, body, out):
+    for lvl, before in markdown.heading_jumps(body or ''):
+        _err(out, where, 'a heading of the write-up skips a level (%s after %s): go one level at a time, %s after %s'
+             % ('#' * lvl, '#' * before, '#' * (before + 1), '#' * before))
+
+
+def _about_findings(root, out):
+    """content/about.md (optional; the About page's words and photo). Its photo is published with the alt text it states
+    and no other description, so an alt is required, as are the photo's file and pixel size."""
+    file = 'content/about.md'
+    try:
+        about = content.load_about(root)
+    except content.ContentError as ex:
+        _err(out, file, str(ex).split(': ', 1)[-1])
+        return
+    if about is None:
+        return
+    _unknown_keys(about['meta'], ABOUT_KEYS, file, '', out)
+    _heading_jumps(file, about['body_md'], out)
+    raw = about['meta'].get('photo')
+    if raw is None:
+        if about['meta'].get('cover_focal_x') is not None or about['meta'].get('cover_focal_y') is not None:
+            _warn(out, file, 'cover_focal_x / cover_focal_y say where to crop a photo, and there is no photo: line')
+        return
+    _unknown_keys(raw, [k for k in PHOTO_KEYS if k != 'caption'], file, 'photo', out)
+    p = about['photo']
+    if not os.path.isfile(os.path.join(about['dir'], p['file'])):
+        _err(out, file, 'photo file %s is missing from content/about/ (python3 tools/about_photo.py writes it)' % p['file'])
+    elif not p['sm']:
+        _warn(out, file, 'photo %s has no 800 px copy beside it, so every visitor loads the large one; python3 '
+                         'tools/about_photo.py writes both' % p['file'])
+    for k in ('w', 'h'):
+        v = raw.get(k)
+        if isinstance(v, bool) or not isinstance(v, int) or v <= 0:
+            _err(out, file, 'photo.%s must be a positive whole number of pixels, got %r' % (k, v))
+    alt = raw.get('alt')
+    if not isinstance(alt, str) or not alt.strip():
+        _err(out, file, 'photo has no alt text: describe what it shows in an alt: line under photo (the page shows no '
+                        'photo without one, and it is what a screen reader says in its place)')
+
+
+def _region_intro_findings(root, records, live, rendered_dir, out):
+    """content/regions/<slug>.md (optional; a region page's introduction). The slug is the region's name as the trips
+    spell it, through content.slugify: a file that matches no region is an error, one whose region has no page (fewer
+    reports, or no region map) a warning, since its words are shown nowhere."""
+    try:
+        intros = content.load_region_intros(root)
+    except content.ContentError as ex:
+        _err(out, 'content/regions', str(ex))
+        return
+    if not intros:
+        return
+    names = {}
+    # the names as the files spell them, a trip that does not load included (its own error stops the build already)
+    for rec in records:
+        meta = rec.get('meta') or {}
+        r = meta.get('region')
+        if meta.get('draft') is not True and isinstance(r, str) and r.strip():
+            names.setdefault(content.slugify(r), r)
+    pages = None
+    meta = None
+    if rendered_dir:
+        try:
+            with open(os.path.join(rendered_dir, 'site', 'meta.json'), encoding='utf-8') as fh:
+                meta = json.load(fh)
+        except (OSError, ValueError):
+            meta = None
+    if isinstance(meta, dict):
+        pages = {slug for _n, slug, _ts in core.region_pages({'trips': live}, meta)}
+    for slug, intro in sorted(intros.items()):
+        file = intro['file']
+        _unknown_keys(intro['meta'], REGION_INTRO_KEYS, file, '', out)
+        _heading_jumps(file, intro['body_md'], out)
+        if slug not in names:
+            near = difflib.get_close_matches(slug, sorted(names), n=1, cutoff=0.6)
+            _err(out, file, 'no region is called this: the file name must be a region\'s slug (the name in lower case, '
+                            'hyphens for spaces: Eastern Sierra is eastern-sierra.md)%s'
+                 % ((' (did you mean %s.md?)' % near[0]) if near else ''))
+            continue
+        title = intro['title']
+        if title is not None and title != names[slug]:
+            _err(out, file, 'title %r is not the region\'s name as the trips spell it, %r' % (title, names[slug]))
+        if pages is not None and slug not in pages:
+            _warn(out, file, 'the region %r has no page (a region page needs a region map and a published report), so '
+                             'these words are shown nowhere' % names[slug])
+
+
+_UNCAPTIONED = re.compile(r'^(\d+) photos? without a caption$')
+
+
+def _caption_count(out):
+    """The per-file 'N photos without a caption' notes as one count line (Phase 9), so validate.py -v stays readable;
+    the line points at tools/content_report.py --alt, the list of the photos seen most."""
+    kept, files, photos = [], 0, 0
+    for f in out:
+        m = _UNCAPTIONED.match(f['text'][len(f['file']) + 2:]) if f['level'] == 'note' else None
+        if m:
+            files += 1
+            photos += int(m.group(1))
+        else:
+            kept.append(f)
+    if files:
+        kept.append(_finding('note', 'content/trips', '%s without a caption, in %s (a caption is optional; '
+                                                      'python3 tools/content_report.py --alt lists the most-seen photos)'
+                             % (_plural(photos, 'photo'), _plural(files, 'file'))))
+    return kept
 
 
 def run(trips_dir=None, home_json=None, rendered_dir=None, today=None):

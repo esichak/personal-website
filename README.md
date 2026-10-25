@@ -24,12 +24,18 @@ python3 tools/add_trip.py --strava-export "/path/to/Strava export folder" --stra
 # the next day of a trip whose index.md says kind: multi-day (starting one: ADDING-TRIPS.md); an end_date: line
 # earlier than the new day is moved to it
 python3 tools/add_trip.py day3.fit --day-of chamonix-zermatt-haute-route --title "Le Châble → Cabane de Prafleuri"
+
+# a trip that is on the site: a better recording (keeps the write-up and photos), more photos
+python3 tools/add_trip.py ~/Downloads/Better.fit --update rose-knob-peak --dry-run
+python3 tools/trip_photos.py rose-knob-peak ~/Desktop/more/
 ```
 
 `--activity` is one of `ski`, `climb`, `hike`, `mtb`, `other` (use `--subtype SUP|Rafting|Kayaking|Mountaineering`
 with `other`). The script creates `content/trips/<slug>/` and renders its maps, which needs the internet
 (`--no-render` skips that; run `python3 tools/render.py <slug>` later), and ends with a numbered list of what is left.
-It refuses a second spelling of an existing region, and `--force` over a trip someone has worked on. Then:
+It refuses a second spelling of an existing region, and `--force` over a trip someone has worked on. For a trip
+that is already on the site, [ADDING-TRIPS.md](ADDING-TRIPS.md), "Changing a trip that is on the site", has one table:
+each kind of change, what to run, whether it needs the internet and what to stage. Then:
 
 1. Edit `content/trips/<slug>/index.md`: write the report under the front matter (Markdown), check `place`,
    `region`, `party`, add `beta:` rows, and give every photo an `alt:` description.
@@ -51,7 +57,8 @@ It refuses a second spelling of an existing region, and `--force` over a trip so
    still up. Without `--push` it prints the `git push` line instead. The commands it runs are in
    [ADDING-TRIPS.md](ADDING-TRIPS.md), step 5, to type by hand if it ever fails. Only a push to `main` is published.
 
-Useful front-matter fields (see any existing trip for the format):
+Useful front-matter fields (see any existing trip for the format; what a change to each one needs once the trip is
+published: [ADDING-TRIPS.md](ADDING-TRIPS.md), "Changing a trip that is on the site"):
 
 | Field | Meaning |
 | --- | --- |
@@ -59,6 +66,7 @@ Useful front-matter fields (see any existing trip for the format):
 | `place`, `region`, `party` | "Sawtooth Ridge", "Eastern Sierra", "Adam". `region` groups trips on the map page and is a filter on the Trips page. A region that has a region map and at least one published report also has a page of its own, `regions/<slug>/`. The slug is the name in lower case, with accents folded to plain letters, apostrophes and characters that have no plain-letter form dropped, and every run of what is then neither a letter nor a digit turned into one hyphen (none at the ends): `Eastern Sierra` gives `regions/eastern-sierra/`, and `Val d'Isère` would give `regions/val-disere/`. Nothing is written for the page, and it lists every report and active tick-list goal whose `region` is exactly that name, from the next build on; its map shows a new trip once the region maps have been drawn again (`docs/CONTENT_GUIDE.md`, section 11) |
 | `route_shape` | `loop`, `out-and-back` or `point-to-point` (detected from the track) |
 | `stats` | `distance_km`, `moving`, `elapsed`, `gain_m`, `loss_m`, `high_m`, `low_m` (Strava's numbers, or computed) |
+| `source` | Optional: `Strava`, `Garmin` or `CalTopo`, the service the recording came through, named in the stats note under the strip ("Stats from the GPS recording via Garmin."). Without it the note says "via Strava" when the trip, or every day of it, has a `strava_id` line, and names no service otherwise. `add_trip.py` writes `source: Strava` for a Strava-export import (`docs/CONTENT_GUIDE.md`, 7.11) |
 | `featured: true` | Eligible for the section pages' "Featured" block (single-day trips with a track only; the home page is picked in `content/home.json`, see below). On its region's page the same line counts for a report of any kind, with or without a track: the Featured row there holds three cards, and flagged reports come before unflagged ones, the newest flagged first, so a fourth flagged report is not shown (`docs/CONTENT_GUIDE.md`, 11.3) |
 | `cover_photo`, `cover_focal_x`, `cover_focal_y` | The photo the trip's cards and its page's share image use (a path declared under `photos`), and where to keep in the crop, 0–100 (default 50/50). It is also the lead photo of a single-day report with a write-up, or of the PCT page, when it is at least 6:5 wide; a portrait or a square does not lead, and multi-day trips have no lead photo. After changing `cover_photo`, run `python3 tools/thumbs.py <slug>` and commit the `.th` file it writes: the small copy the cards load |
 | `card_summary` | Optional one- or two-sentence factual summary for the trip's cards: the home page's feature card and its card on the Trips page (the report's opening is used when it is absent) |
@@ -69,9 +77,10 @@ Useful front-matter fields (see any existing trip for the format):
 | `draft: true` | Keep it off the site (once pushed, its files are still in the public repository). `render.py` leaves drafts out, so run `python3 tools/render.py <slug>` after removing the line. For a trip that is already published the line is enough too, from anywhere (even a web edit on github.com): the build leaves the trip's own pin and line out of the region maps; a numbered cluster keeps counting it until `render.py --site` is run when online (ADDING-TRIPS.md, "Taking a trip off the site") |
 | `kind: multi-day`, `end_date` | A trip of several days, each a `days/NN.md` with its `NN.gpx` (see ADDING-TRIPS.md). `date` and `end_date` are its first and last day; when absent they come from the day files. `kind: series` is the PCT journal |
 | `kind: planned` | A tick-list goal, not a report: planned route, approximate stats, `goal.json` beside it (see `docs/TICK_LIST_GUIDE.md`) |
-| `beta` | List of `label` / `value` rows shown beside the report |
+| `beta` | List of `label` / `value` rows shown beside the report; conditions go here too (`Snow`, `Weather`, `Water level`). The old `conditions:` key is not read |
 | `map` | `peaks: [Mount Tallac]` to label summits (also searchable on the Trips page), `places: [...]`, `water_labels: [{text, x, y}]` |
 | `photos` | `file`, `w`, `h`, `alt`, optional `caption` |
+| `summits` | Optional: the summits of the trip, one entry each: `- name: Mount Tallac`, with `outcome: summit`, `turned-around` or `traverse` and `route:` if you like. Shown as a Summits row beside the report and found by the search; never worked out from anything else (`docs/CONTENT_GUIDE.md`, 7.13) |
 
 ## Feature a trip on the home page
 
@@ -83,7 +92,10 @@ Useful front-matter fields (see any existing trip for the format):
 
 Edit the list to feature, reorder or remove trips; nothing else decides it. Covers and summaries are front-matter
 fields on the trip (`cover_photo`, `cover_focal_x`/`cover_focal_y`, `card_summary`). The build stops with a clear
-message when a slug is unknown, a draft, a planned route or listed twice. Details: **[docs/CONTENT_GUIDE.md](docs/CONTENT_GUIDE.md)**.
+message when a slug is unknown, a draft, a planned route or listed twice. An optional
+`"region_maps": ["Lake Tahoe", "Santa Cruz"]` in the same file picks the one or two region maps "Where I've been"
+draws (Lake Tahoe and Eastern Sierra without it); a name without a region map stops the build. Details:
+**[docs/CONTENT_GUIDE.md](docs/CONTENT_GUIDE.md)**.
 
 ## Keep a tick list of future goals
 
@@ -113,6 +125,9 @@ python3 tools/build.py --out ~/Library/Caches/personal-website/site --serve     
 python3 tools/check.py               # before pushing a change to tools/, tests/ or assets/: validate, both Pythons, build check
 python3 tools/tidy.py                # list iCloud conflict copies (--delete removes those of rendered/ and _site/)
 python3 tools/thumbs.py              # make the card-size (.th) copies of cover photos that are missing (needs cwebp)
+python3 tools/content_report.py      # what each report has and lacks (--missing place, --alt, --taxonomy, --markdown)
+python3 tools/trip_photos.py SLUG FILES   # add photos to a trip that is on the site (--day NN, --cover, --dry-run)
+python3 tools/about_photo.py FILE    # put a photo on the About page (content/about.md; it shows once its alt is written)
 python3 tools/render.py --status     # what a render would draw and why (offline; exit 1 when something is to draw)
 python3 tools/render.py              # render anything whose track or map settings changed (needs internet)
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)

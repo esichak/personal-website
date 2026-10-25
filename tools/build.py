@@ -172,6 +172,17 @@ def copy_part_drawings():
     return out
 
 
+def copy_about_assets(about):
+    """The About page's photo (content/about.md's photo: line) and its 800 px copy, into _site/about/ beside the page."""
+    p = (about or {}).get('photo')
+    if not p:
+        return
+    for f in (p['file'], p.get('sm')):
+        src = os.path.join(about['dir'], f) if f else None
+        if src and os.path.exists(src):
+            copy(src, os.path.join(OUT, 'about', f))
+
+
 def copy_trip_assets(t):
     out = os.path.join(OUT, 'trips', t['slug'])
     os.makedirs(out, exist_ok=True)
@@ -223,13 +234,28 @@ def copy_trip_assets(t):
                      % (declared, html.escape(t['title']), '\n'.join(trks)))
 
 
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def pub_moment(t):
+    """An item's pubDate: published_at when index.md states it (the day the report went online; a date alone at 12:00
+    UTC), else the trip date at 12:00 UTC, the rule from before reports carried publication dates; None undated."""
+    if t.get('published_at'):
+        return content.publication_utc(t['published_at'])
+    d = t['date']
+    return datetime(d.year, d.month, d.day, 12, tzinfo=timezone.utc) if d else None
+
+
 def feed(trips):
     """RSS 2.0: each item is the factual summary (content fields only) followed by the start of Eric's write-up. A trip
-    with days and no trip-level write-up gets the summary alone (a day's excerpt would read as the whole trip's)."""
+    with days and no trip-level write-up gets the summary alone (a day's excerpt would read as the whole trip's). The
+    30 newest by pubDate (pub_moment), undated last; a stable sort, so trips without published_at keep the loader's
+    trip-date order."""
+    pub = [(pub_moment(x), x) for x in trips if x['kind'] != 'planned']
+    pub.sort(key=lambda mt: (mt[0] is not None, mt[0] or _EPOCH), reverse=True)
     items = []
-    for t in [x for x in trips if x['kind'] != 'planned'][:30]:
+    for d, t in pub[:30]:
         url = core.SITE_URL + t['url']
-        d = datetime(t['date'].year, t['date'].month, t['date'].day, 12, tzinfo=timezone.utc) if t['date'] else None
         ex = core.excerpt(t, 400) if t['body_md'] else ''
         items.append('<item><title>%s</title><link>%s</link><guid>%s</guid>%s<category>%s</category><description>%s</description></item>'
                      % (html.escape(t['title']), url, url, ('<pubDate>%s</pubDate>' % d.strftime('%a, %d %b %Y %H:%M:%S +0000')) if d else '',
@@ -241,9 +267,13 @@ def feed(trips):
             % (core.SITE_NAME, core.SITE_URL, core.SITE_URL, html.escape(core.SITE_TAGLINE), ''.join(items)))
 
 
-def sitemap(pages):
-    urls = ''.join('<url><loc>%s%s</loc></url>' % (core.SITE_URL, p.url) for p in pages
-                   if not p.url.endswith('404.html') and getattr(p, 'index', True))
+def sitemap(pages, trips=()):
+    """Every indexable page but the 404. A report whose index.md states updated_at, else published_at, gets that day as
+    <lastmod> (W3C date or date-time, as written); no other page carries one, since the build knows no true date for it."""
+    when = dict((t['url'], t.get('updated_at') or t.get('published_at')) for t in trips)
+    urls = ''.join('<url><loc>%s%s</loc>%s</url>' % (core.SITE_URL, p.url,
+                                                    ('<lastmod>%s</lastmod>' % html.escape(when[p.url])) if when.get(p.url) else '')
+                   for p in pages if not p.url.endswith('404.html') and getattr(p, 'index', True))
     return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">%s</urlset>\n' % urls
 
 
@@ -266,10 +296,17 @@ def build(verbose=True, only=None):
     t0 = time.time()
     trips = content.load_all()
     site = site_of(trips)
+    # the site meta as it is on disk now decides which regions have a page (the region module reads the same file)
+    meta = core.read_site_meta()
     # content/home.json picks the home page's featured trips; an invalid manifest stops the build here, before any page
     site['featured'] = curation.featured_for(site)
-    # the site meta as it is on disk now decides which regions have a page (the region module reads the same file)
-    core.register_site(site, core.read_site_meta())
+    # its optional region_maps (the home page's two maps), checked against those region maps
+    site['region_maps'] = curation.region_maps_for(meta)
+    # Eric's own words, optional: content/about.md (the About page) and content/regions/<slug>.md (a region page's
+    # introduction); read here, beside content/home.json, not in site_of, which the tests call on synthetic trips
+    site['about'] = content.load_about()
+    site['region_intros'] = content.load_region_intros()
+    core.register_site(site, meta)
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT)
@@ -308,10 +345,11 @@ def build(verbose=True, only=None):
     copy_part_drawings()
     for t in trips:
         copy_trip_assets(t)
+    copy_about_assets(site.get('about'))
     with open(os.path.join(OUT, 'feed.xml'), 'w', encoding='utf-8') as fh:
         fh.write(feed(site['published']))
     with open(os.path.join(OUT, 'sitemap.xml'), 'w', encoding='utf-8') as fh:
-        fh.write(sitemap(pages))
+        fh.write(sitemap(pages, site['published']))
     with open(os.path.join(OUT, 'robots.txt'), 'w') as fh:
         fh.write('User-agent: *\nAllow: /\nSitemap: %ssitemap.xml\n' % core.SITE_URL)
     if verbose:

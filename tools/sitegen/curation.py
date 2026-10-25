@@ -2,6 +2,9 @@
 
     {"featured_slugs": ["pacific-crest-trail-2024", "matterhorn-peak-west-couloir", "peak-bagging-szn"]}
 
+An optional "region_maps": ["Lake Tahoe", "Santa Cruz"] picks the one or two region maps "Where I've been" draws
+(resolve_region_maps); without it the page draws sitegen.pages.home.HOME_REGIONS.
+
 The list alone decides what the home page features and in what order (the first slug is the lead card); the old
 `featured: true` front-matter flag keeps driving the section pages' Featured block and nothing else. A manifest that
 exists is strict: duplicates, unknown slugs, drafts, planned routes, non-strings or more than MAX_FEATURED entries
@@ -111,3 +114,41 @@ def resolve_featured(site, manifest, trips_dir=content.TRIPS_DIR):
 
 def featured_for(site, path=HOME_JSON):
     return resolve_featured(site, load_manifest(path))
+
+
+MAX_REGION_MAPS = 2
+
+
+def resolve_region_maps(manifest, meta):
+    """The optional "region_maps": the one or two regions whose maps the home page's "Where I've been" draws, in order.
+    None when the file or the key is absent (sitegen.pages.home.HOME_REGIONS stands, so nothing changes until Eric
+    writes one). Each name must have a region map in rendered/site/meta.json (meta: its contents), the test
+    home.where makes before it draws one; anything else stops the build, naming the file and the value."""
+    if not manifest or 'region_maps' not in manifest:
+        return None
+    names = manifest['region_maps']
+    if not isinstance(names, list) or not 1 <= len(names) <= MAX_REGION_MAPS:
+        raise _err('"region_maps" must be a list of one or two region names, such as ["Lake Tahoe", "Santa Cruz"], got %r'
+                   % (names,))
+    maps = (meta or {}).get('maps') or {}
+    out = []
+    for i, name in enumerate(names):
+        if not isinstance(name, str) or not name.strip():
+            raise _err('region_maps[%d] must be a region name, got %r' % (i, name))
+        if name in out:
+            raise _err("duplicate region '%s' in region_maps" % name)
+        s = content.slugify(name)
+        if ('region-%s-desktop' % s) not in maps and ('region-%s-phone' % s) not in maps:
+            raise _err("region_maps: '%s' has no region map in rendered/site/meta.json (the name as the trips spell it; a "
+                       "region gets a map once it has three trips with a track and python3 tools/render.py --site has run)"
+                       % name)
+        # the map's slug is not enough: the heading, its region page link and the ALSO line all go by the exact name
+        spelt = [r for r in (meta or {}).get('regions') or [] if content.slugify(r) == s]
+        if spelt and name not in spelt:
+            raise _err("region_maps: '%s' is written '%s' on the trips; use that spelling" % (name, spelt[0]))
+        out.append(name)
+    return out
+
+
+def region_maps_for(meta, path=HOME_JSON):
+    return resolve_region_maps(load_manifest(path), meta)

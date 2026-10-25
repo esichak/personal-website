@@ -8,15 +8,25 @@ content/trips/<slug>/track.gpx    full recorded track (single-day trips) or, for
 content/trips/<slug>/goal.json    a tick-list goal's intent and provenance (tools/lib/goals.py validates; optional: a legacy planned route has none)
 content/trips/<slug>/days/NN.md   multi-day / series days (front matter + write-up) with NN.gpx beside them
 content/trips/<slug>/photos/      web copies: NN.webp (1600 px) + NN.sm.webp (800 px) + NN.th.webp (card size, 320 px short edge); no EXIF/GPS
-content/home.json                 the home page's featured trips, in order (tools/sitegen/curation.py validates it)
+content/home.json                 the home page's featured trips, in order, and its optional region_maps (tools/sitegen/curation.py validates it)
+content/about.md                  optional: the About page's words and photo (content.load_about; photo copies in content/about/photos/)
+content/regions/<slug>.md         optional: a region page's introduction (content.load_region_intros)
 rendered/trips/<slug>/            maps (.svg.html overlay, .webp hillshade, .base.svg contours / water / roads), profiles, tiles, glyphs, meta.json
 rendered/site/                    region + ski-panel overview maps, meta.json
 tools/add_trip.py                 new trip from a FIT/GPX file, Garmin's .zip or a Strava export (runs render.py unless --no-render);
-                                  --day-of, --retime (time zone, date, start time from track.gpx), --strava-export --list
+                                  --day-of, --retime (time zone, date, start time from track.gpx), --strava-export --list,
+                                  TRACK --update SLUG (a better recording: the track and the lines from it; --keep-stats, --dry-run,
+                                  --source: needed when the trip credits its stats to a service), --source on an import
+tools/trip_photos.py              photos added to a trip that is on the site (lib/photos.import_photos; --day NN, --cover, --dry-run)
+tools/about_photo.py              the About page's photo: web copies in content/about/photos/ and the photo: block of content/about.md
+tools/content_report.py           read-only: one row per published report (what it has and lacks); --missing, --alt, --taxonomy, --markdown
 tools/render.py                   renders rendered/ (needs internet; caches in ~/Library/Caches/personal-website/, lib/geo.py);
                                   --status: what a run would draw and why, offline
 tools/lib/renderkey.py            the input hashes render.py stores in meta.json (trip_inputs, site_jobs, site_hash), read by the
-                                  content checks too, without importing the renderer
+                                  content checks too, without importing the renderer. site_hash leaves the trips' titles out
+                                  (site_inputs): the build writes them into the site maps' labels (core.relabel); the hash of
+                                  before Phase 9 (site_hash_with_titles) counts until the next site render, matched with the
+                                  titles the maps show (drawn_titles, site_hash_as_drawn), so a retitle alone never needs one
 tools/build.py                    checks content/, then builds _site/ from content/ + rendered/ + assets/ (what the GitHub Action runs);
                                   --check then checks the built site; --serve [--open SLUG] [--watch] previews it, linked
 tools/validate.py                 the content checks without a build: one line per finding, then a summary; --site DIR adds the site checks
@@ -28,11 +38,13 @@ tools/smoke.py                    a few built pages in headless Chrome (dumped D
 tools/lib/checks.py               the content rules: run() -> findings (error | warning | note) for every broken file in one pass
 tools/sitegen/sitecheck.py        the built-site rules behind build.py --check: links, anchors, ids, ARIA references, heading order, head
                                   metadata, sitemap, feed, search indexes, published GPX bytes
-tools/lib/photos.py               photo copies without EXIF/GPS: web_copies() (full, .sm, .th), thumb_size(), thumb_copy()
+tools/lib/photos.py               photo copies without EXIF/GPS: web_copies() (full, .sm, .th), thumb_size(), thumb_copy();
+                                  collect(), import_photos(), next_number() (add_trip.py, trip_photos.py, about_photo.py)
 tools/thumbs.py                   makes the missing card-size (.th) copies of cover photos (needs cwebp); only adds files beside the photos
 tools/privacy_audit.py            the author's offline, read-only report on the published tracks and photos; never run by the build or CI
 tools/sitegen/core.py             shared layout + components (header, footer, units, chips, maps, rows, …)
 tools/sitegen/curation.py         content/home.json -> site['featured'] (strict: unknown, draft, planned, duplicate slugs fail the build)
+                                  and site['region_maps'] (resolve_region_maps: one or two names with a region map, or None)
 tools/sitegen/search.py           the search indexes: normalize(), entry(t), build_index(site) -> trips/search.json; day_entry(t, d),
                                   build_day_index(site) -> trips/journal.json (every day of every journal); dumps()
 tools/sitegen/pages/trips.py      the Trips explorer (trips/) and its indexes (trips/search.json, trips/journal.json)
@@ -84,13 +96,18 @@ menu button below 1140px.
 ### Facts, dates and structured data
 
 - Facts only from the content files. Never invent stats, grades, conditions, bios or captions. Hide empty fields.
-- Eric's write-ups are verbatim (`markdown.to_html(t['body_md'])`).
+- Eric's write-ups are verbatim (`markdown.to_html(t['body_md'])`), and so are his other words: the About page's from
+  `content/about.md` (in place of the computed lede, its photo shown only with its alt) and a region page's
+  introduction from `content/regions/<slug>.md`. Without those files the pages say nothing of his.
 - Dates: a trip's `date` is the day of the trip and is never shown or marked up as the day its report was published, and
   no publication or modification time is made up, because a date the content does not state would be an invented fact.
   `published_at` / `updated_at` are optional lines of index.md (Trip dict below), written out exactly as typed and
-  absent from the page when the lines are absent; the day of the build appears nowhere but the footer's © year. One
-  legacy exception stands, and tests/test_metadata.py pins it: `build.feed` writes each item's `<pubDate>` from the
-  trip's `date` at 12:00 UTC (no `<pubDate>` for an undated trip) and reads neither field.
+  absent from the page when the lines are absent; the day of the build appears nowhere but the footer's © year.
+  `build.feed` writes each item's `<pubDate>` from `published_at` when index.md states it (a date alone at 12:00 UTC)
+  and otherwise, for the reports that predate the line, from the trip's `date` at 12:00 UTC (no `<pubDate>` for an
+  undated trip), and lists the 30 newest by that moment; `build.sitemap` writes a report's `<lastmod>` from
+  `updated_at`, else `published_at`, as written, and no other page gets one. `add_trip.py` writes an empty
+  `published_at:` line for Eric to fill on the day he publishes. tests/test_metadata.py pins all of it.
 - Structured data: the only JSON-LD on the site is the one `BlogPosting` block that `core.document(report=t)` writes
   from `core.blog_posting`, and only when `core.written_report(t)`, because marking up a bare track as an article, or
   adding a rating, a publisher logo or a date the content lacks, would tell a search engine something the page does
@@ -183,7 +200,8 @@ menu button below 1140px.
     own lines, and is left alone). In archive.css, `.arc-legend .disc { forced-color-adjust: none; }` keeps the Map
     legend's discs in their own colours: they are the key to the track colours on the maps, which that mode leaves
     alone.
-- Copy: tracks are "GPS recordings via Strava" — never name a device (some tracks are Strava GPX exports). Map
+- Copy: tracks are "GPS recordings via <service>", the service from `content.stats_source` (Strava on every trip
+  today) — never name a device (some tracks are Strava GPX exports). Map
   captions go through `core.map_caption` and open with when the track was recorded, from `core.recorded(a, b=None)`:
   `As recorded on <Mon D, YYYY> · full track, not trimmed · North up` on a single-day report (`report.map_caption`)
   and on a section page's featured map (`section.map_caption`, which hides the full-track item under 560), `As
@@ -235,8 +253,10 @@ menu button below 1140px.
   renderer itself). The shared maps under `rendered/site/` are another matter: only render.py redraws them, so they
   keep such a trip's line until it has run again, and the validator warns (Content checks below). Further,
   `core.summary` leaves out its closing `with map and GPX` fact and `core.stats_note` its two sentences about the
-  recording; `section.pick_featured` never picks such a report, so a section page can be without a featured block, and
-  an Other sub-type segment then links to `#reports`, not to a `#featured` the page lacks; a section page's
+  recording (on a page, `stats_note(t, cls, here)` and `multiday.stats_note(t, cls, here)` end with `core.how_link`,
+  'How these reports are made', to `about/#abo-how-h`; without `here` the note is as it always was);
+  `section.pick_featured` never picks such a report, so a section page can be without a featured block, and an Other
+  sub-type segment then links to `#reports`, not to a `#featured` the page lacks; a section page's
   description ends `with the full GPX track and map` only when every report it lists has a track; and
   `multiday.has_gpx(t)` (some day has a track) gates `Download all GPX`, the bar's GPX item and the combined file
   build.py writes. Goal pages and journal day rows follow the same rule. No render, no map (Phase 6): a single-day
@@ -925,7 +945,11 @@ menu button below 1140px.
     `a.mk-line` and `g.mk-cat` (also `g.mk-cat.mk-planned`) carrying `data-key="<key>"`, none of which nests its own
     tag, and leaves `g.mk-cluster` as drawn (its count and title keep the trip until a render). A key with nothing to
     remove is said once per map file on stderr, so a change to mapkit's markup is noticed. With no site registered
-    nothing is dropped. So a draft, a removed folder or a lost track passes `--check` without a render; the rest of
+    nothing is dropped. Since Phase 9 `core.frag(..., labels=True)` (site maps only) also writes every pin's
+    `aria-label` and `<title>`, and every cluster's `<title>` (its keys' titles joined with '; '), from the registered
+    trips' titles (`core.relabel`; a key that is no registered trip, such as a journal part, keeps what was drawn), so a
+    retitle draws the trip's own maps again and no site map; on today's content the substituted strings equal the
+    rendered ones. So a draft, a removed folder or a lost track passes `--check` without a render; the rest of
     this paragraph is how it was before Phase 8: the check failed for a draft or a removed folder with a pin of its
     own on a map, because the pin still linked to `trips/<slug>/`
     (`BROKEN map/index.html -> ../trips/<slug>/`, and for the region's own page `BROKEN regions/<region-slug>/index.html
@@ -1199,7 +1223,8 @@ menu button below 1140px.
       `&AMP;`, and without `core.nb`. `.ml > .mi-w` (base.css) lets such an item wrap at its spaces, so a long place
       takes a second line instead of widening the page, and `.reg-stats .mi-w { overflow-wrap: anywhere; }`
       (region.css) breaks a single word that is too long for a line. `N MORE` is a plain `core.nb` item. This line is
-      the page's whole introduction: no prose is generated for a region.
+      all the page says of the region by itself: no prose is generated for a region. Eric's own introduction, when
+      `content/regions/<slug>.md` has words, follows it verbatim (`region.head(..., intro)`, `.prose.t-body.reg-intro`).
     - The map: `<section class="arc-map reg-map wrap" aria-labelledby="reg-map-h">`, a screen-reader `<h2 class="sr"
       id="reg-map-h">Map</h2>` and `archive.region_panel(name, slug, ts, here, meta, True, page=True,
       drawn=region.map_trips(name, site, meta) or None)`. With `page=True` the panel is `<div class="arc-panel"
@@ -1314,7 +1339,7 @@ menu button below 1140px.
 ## Trip dict (from tools/lib/content.py)
 `slug, dir (the trip folder), meta (index.md's front matter as parsed), title, activity (ski|climb|hike|mtb|other),
 activity_label, cat, subtype, kind (trip|multi-day|series|planned), date, end_date, start_time, timezone, place, region,
-party, route_shape, featured, draft, beta[{label,value}], conditions{}, map{}, body_md, photos[{file, sm, th, w, h, alt,
+party, route_shape, featured, draft, beta[{label,value}], map{}, source, body_md, photos[{file, sm, th, w, h, alt,
 caption}], days[…], url ('trips/<slug>/'), track, rendered, stats{distance_km, gain_m, loss_m, high_m, low_m, moving_s,
 elapsed_s}, season, has_writeup, cover_photo, cover_focal (x, y), card_summary, cover{photo, source
 ('explicit'|'parent'|'day'), day, focal}, aliases, published_at, updated_at, journal_highlights, region_days, goal
@@ -1323,6 +1348,11 @@ elapsed_s}, season, has_writeup, cover_photo, cover_focal (x, y), card_summary, 
 else None (`content._photos`).
 `cover`: `content.resolve_cover(t)`, None when the trip has no photo at all. `content.LEAD_MIN_AR` (1.2) is the 6:5 line
 the automatic pick prefers and `report.lead_photo` requires (`report.LEAD_MIN_AR` is the same object).
+`source`: the optional `source:` line as written (checks.py allows only `content.SOURCES`: Strava, Garmin, CalTopo).
+`content.stats_source(t)` gives the word after "via" in the stats notes (`core.via`, used by `core.stats_note`,
+`multiday.stats_note` and the series strip): `source` when it is one of SOURCES, else `'Strava'` when
+`content.has_strava(t)` (index.md's `strava_id`, or every day's: each day dict carries `strava`, True when its file has
+a `strava_id` line), else None and the sentence names no service.
 `aliases`: the optional `search_aliases` front matter (an inline list `[PCT, Pacific Crest]`, or one string) as a list of
 stripped, non-empty strings; `[]` when absent; anything else is a `content.ContentError`. Only `search.entry` reads it.
 `journal_highlights`: the optional `journal_highlights: [001, 059]` front matter (day ids as in the `days/NNN.md` file
@@ -1394,11 +1424,19 @@ the first day file's date when index.md has no `date:` line; `end_date` only whe
 `updated_at` without `published_at` or earlier than it, and either line on a `kind: planned` trip. A draft's two dates
 may lie ahead (the day it is planned to go online); every other check applies to a draft as well, and the future check
 applies again once `draft: true` is gone. In a days/NN.md file they are unknown keys, which the validator warns about.
-They feed `report.published_line`, the two `article:*` meta tags and the `BlogPosting` dates, and nothing else: not the
-order of any list, the feed, the sitemap or the home page.
-Day: `n, id, label, title, date, start_time, hut, transfer_before, stats, photos, body_md, track`.
+They feed `report.published_line`, the two `article:*` meta tags, the `BlogPosting` dates, the feed item's `<pubDate>`
+and its place in the feed (`build.pub_moment`) and the sitemap's `<lastmod>`, and nothing else: not the order of any
+list on the site or the home page.
+`summits`: the optional `summits:` list as `[{'name', 'outcome', 'route'}]` (`content._summits`: the entries with a
+name; checks.py reports the rest, `content.SUMMIT_OUTCOMES`). `report.beta_list` shows them as the Beta block's last
+row and `search.entry` adds the names (the trip's and its days') to `k`.
+Day: `n, id, label, title, date, start_time, hut, transfer_before, stats, photos, body_md, track, strava (True when the
+file has a strava_id line), summits`.
 `site = {'trips': all (newest first), 'by_slug', 'published' (not planned), 'planned', 'goals' (= planned), 'active_goals',
-'goal_backlinks', 'featured' (home.json's picks, in order)}`.
+'goal_backlinks', 'featured' (home.json's picks, in order)}`; `build.build` adds `region_maps` (home.json's, or None),
+`about` (`content.load_about()`: None, or `{'body_md', 'photo', 'focal', 'dir', 'meta'}`) and `region_intros`
+(`content.load_region_intros()`: `{slug: {'title', 'body_md', 'file', 'meta'}}`), read there and not in `site_of`, so
+the tests that call `site_of` on synthetic trips never read the real files.
 
 Rendered names per trip (see `rendered/trips/<slug>/meta.json`):
 - single: `map-wide` 1440×640, `map-col` 718×400, `map-phone` 390×336, `profile-wide|col|phone` (1248/718/358)

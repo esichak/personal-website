@@ -486,14 +486,49 @@ def drop_keys(s, keys, where=''):
     return s
 
 
-def frag(path, here, ns=None, drop=None):
+# a site map's pin and cluster labels as mapkit writes them (render_map's markers): the trip's title is their only text
+_PIN_LABEL = re.compile(r'(<a class="mk-pin" href="[^"]*" data-key="([^"]*)" aria-label=")([^"]*)("><title>)([^<]*)(</title>)')
+_CLUSTER_TITLE = re.compile(r'(<g class="mk-cluster" aria-hidden="true" data-keys="([^"]*)"><title>)([^<]*)(</title>)')
+
+
+def _mk_esc(s):
+    return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace('{{', '{ {')   # mapkit.esc
+
+
+def relabel(s):
+    """A site map's pin labels (aria-label and <title>) and cluster titles written from the registered trips' titles,
+    as mapkit writes them, so a retitled trip needs no site render (Phase 9). A key that is no registered trip (a
+    journal's part, a trip that is gone) keeps what was rendered; so does a cluster with such a key."""
+    titles = _TITLES
+    if not titles:
+        return s
+
+    def pin(m):
+        t = titles.get(html.unescape(m.group(2)))
+        if t is None:
+            return m.group(0)
+        e = _mk_esc(t)
+        return m.group(1) + e + m.group(4) + e + m.group(6)
+
+    def cluster(m):
+        keys = html.unescape(m.group(2)).split()
+        if not keys or any(k not in titles for k in keys):
+            return m.group(0)
+        return m.group(1) + _mk_esc('; '.join(titles[k] for k in keys)) + m.group(4)
+    return _CLUSTER_TITLE.sub(cluster, _PIN_LABEL.sub(pin, s))
+
+
+def frag(path, here, ns=None, drop=None, labels=False):
     """Inline a rendered .svg.html fragment: route colour -> CSS var, ids namespaced, @@ROOT@@ -> relative root. drop:
-    keys whose own pins and lines are left out (drop_keys; a site map's trips that are gone, map_block)."""
+    keys whose own pins and lines are left out (drop_keys; a site map's trips that are gone, map_block). labels: write
+    the pin and cluster labels from the trips' titles (relabel; site maps)."""
     if not os.path.exists(path):
         return '<!-- missing %s -->' % os.path.relpath(path, ROOT)
     s = _read(path)
     if drop:
         s = drop_keys(s, drop, os.path.relpath(path, ROOT))
+    if labels:
+        s = relabel(s)
     s = s.replace('{{route}}', 'var(--route)')
     s = s.replace('@@ROOT@@', prefix(here) if prefix(here) != './' else '')
     if ns:
@@ -560,7 +595,7 @@ def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=F
             img += ('<img class="mv-base" src="%s%s" alt="" width="%d" height="%d" decoding="async"%s%s>'
                     % (link(here, asset_dir), m['base'], m['w'], m['h'], lazy, ' fetchpriority="high"' if eager else ''))
         svg = _strip_size(frag(os.path.join(base, name + '.svg.html'), here, '%s-%s-%s' % (ns, name, sizes[0]),
-                               drop=gone_keys(m) if site_maps else None))
+                               drop=gone_keys(m) if site_maps else None, labels=site_maps))
         tagx = '<span class="mv-attrib">© OSM · Not for navigation</span>' if (attrib and 'phone' in sizes) else ''
         fs = ''
         if fullscreen_href and 'phone' in sizes:
@@ -1089,11 +1124,27 @@ def has_track(t):
     return bool(t.get('track')) or any(d.get('track') for d in t.get('days') or [])
 
 
-def stats_note(t, cls=''):
+def via(sentence, t):
+    """'Stats from the GPS recording via Strava.': the service the content names (content.stats_source), or the
+    sentence alone when it names none."""
+    src = content.stats_source(t)
+    return '%s via %s.' % (sentence, src) if src else sentence + '.'
+
+
+HOW_LINK = 'about/#abo-how-h'   # About's "How these reports are made" (about.method), where the footnotes lead
+
+
+def how_link(here):
+    """The last sentence of a stats footnote: a link to the About page's method, in that heading's own words."""
+    return '<a href="%s">How these reports are made</a>' % link(here, HOW_LINK)
+
+
+def stats_note(t, cls='', here=None):
     """The one stats footnote under a strip (source, track note from the beta, how derived values are computed). A
-    report without a track says nothing about a recording or a GPX file; '' when nothing is left to say."""
+    report without a track says nothing about a recording or a GPX file; '' when nothing is left to say. With here (the
+    page's URL), the note ends with how_link; without it the note is as it always was."""
     recorded = has_track(t)
-    bits = ['Stats from the GPS recording via Strava.'] if recorded else []
+    bits = [via('Stats from the GPS recording', t)] if recorded else []
     track = beta_value(t, 'Track')
     if track:
         bits.append('Track: %s.' % esc(track.rstrip('.')))
@@ -1109,6 +1160,8 @@ def stats_note(t, cls=''):
             bits.append('GPS max is the highest point in the GPX file, not a surveyed summit height.')
     if not bits:
         return ''
+    if here is not None:
+        bits.append(how_link(here))
     return '<p class="strip-note%s">%s</p>' % ((' ' + cls) if cls else '', ' '.join(bits))
 
 
@@ -1224,7 +1277,7 @@ def trip_row(t, here, ns='', filter_key=None, cls=''):
     only the place (the region when there is no place).
     A single-day or planned row with no excerpt is .trow--brief: a 120px tile in the same column (titles keep one x) and a
     tighter row. Phones (< 560) show a Mono-S stats line (.trow-ps) instead of the stat grid. The link is named by the
-    title, then the meta line, so repeated titles ('Ride near Day Valley') stay distinct."""
+    title, then the meta line, so repeated titles ('Morning Ride') stay distinct."""
     href = link(here, t['url'])
     k = ns + t['slug']
     date_ = 'PLANNED ROUTE' if t['kind'] == 'planned' else trip_date(t)
@@ -1608,6 +1661,7 @@ def units_control():
 
 _TRIPS_BY_URL = {}
 _ON_MAPS = [None]     # the slugs a site map may still draw (gone_keys); None until a site is registered
+_TITLES = {}          # slug -> title of the registered site's trips: the site maps' labels (relabel)
 _OTHER_SUBS = []
 _HAS_PCT = [False]
 
@@ -1738,6 +1792,10 @@ def register_site(site, meta=None):
     if meta is not None:
         _REGION_PAGES.update({name: slug for name, slug, _ts in region_pages(site, meta)})
     _ON_MAPS[0] = {t['slug'] for t in listed_trips(site) if t['kind'] == 'planned' or has_track(t)}
+    _TITLES.clear()
+    # a journal is left out: a day part written without a name is keyed by the journal's slug and labelled
+    # '<title>, Day N' (render.py), which is not the title alone; its title stays in the site hash instead
+    _TITLES.update({t['slug']: t['title'] for t in site['trips'] if t['kind'] != 'series'})
 
 
 def gone_keys(m):

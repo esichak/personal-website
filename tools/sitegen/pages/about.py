@@ -1,8 +1,10 @@
 """About page — /about/. Who runs the site, what it is, how the maps and stats are made, live counts, RSS.
 
 Everything shown is either a confirmed fact (name, Lake Tahoe, AIARE 2), a description of how the site is built,
-or a number computed from the published trips. No bio, portrait or email until Eric writes them.
+or a number computed from the published trips. No bio, portrait or email until Eric writes them: content/about.md,
+when it exists, puts his words in place of the computed lede and its photo above them (content.load_about).
 """
+import markdown
 from sitegen import core
 from sitegen.core import esc, U, U_sub, n, link, icon, FT
 
@@ -46,10 +48,69 @@ def act_rows(site, here, cls='', dist=True):
     return '<ul class="abo-act%s">%s</ul>' % ((' ' + cls) if cls else '', ''.join(rows))
 
 
+def year_stats(site):
+    """[(year, reports, days out, distance_km, gain_m)], newest first, one per calendar year a published report starts
+    in (the Trips page's year filter, trips/?year=YYYY, counts the same start year). Days out are distinct dates: a
+    multi-day trip's and the journal's days count on their own dates (once each, however many reports share a date) and
+    the trip itself not again; distance and gain are the trips' own totals (a trip with days has the sums of its days,
+    content.load_trip), so nothing is counted twice. 0 where no trip of the year states the value."""
+    years = {}
+    for t in site['published']:
+        if not t['date']:
+            continue
+        r = years.setdefault(t['date'].year, [0, set(), 0, 0])
+        r[0] += 1
+        r[1].update([d['date'] for d in t['days'] if d['date']] or [t['date']])
+        r[2] += t['stats'].get('distance_km') or 0
+        r[3] += t['stats'].get('gain_m') or 0
+    return [(y, r[0], len(r[1]), r[2], r[3]) for y, r in sorted(years.items(), reverse=True)]
+
+
+def year_rows(site, here):
+    """By year: a 64px row per year (year_stats) in the act_rows markup: the year · REPORTS · DAYS OUT · gain, the
+    distance on the right, linking to the Trips page filtered to that year. A total no trip states is left out."""
+    rows = []
+    for y, k, days, km, gain in year_stats(site):
+        meta = [core.nb(count_word(k)), core.nb(count_word(days, 'DAY OUT', 'DAYS OUT'))]
+        if gain:
+            # core.nb on the words only: it would put its no-break spaces inside U's tags too
+            meta.append(U(core.nb('%s FT' % n(gain * FT)), core.nb('%s M' % n(gain))) + core.nb(' GAIN'))
+        d = ('<span class="abo-act-d t-data-m">%s</span>' % core.distance(km)) if km else ''
+        rows.append('<li><a class="abo-act-a" href="%s"><span class="abo-act-w"><span class="abo-act-n">%d</span>'
+                    '<span class="t-mono-s abo-act-m">%s</span></span>%s%s</a></li>'
+                    % (link(here, 'trips/?year=%d' % y), y, core.meta_items(meta), d, icon('chevron-right', 20, 'abo-act-c')))
+    return ('<ul class="abo-act abo-yr">%s</ul>' % ''.join(rows)) if rows else ''
+
+
+def site_rows(site, here):
+    """Trips and Tick list in the .abo-act markup the 404 page's Site rows use: icon · name · Mono-S line · chevron."""
+    goals = len(site.get('active_goals', site['planned']))
+    rows = [('trips/', 'search', 'Trips', 'SEARCH AND FILTER'), ('tick-list/', 'checkbox', 'Tick list', count_word(goals, 'GOAL', 'GOALS'))]
+    return '<ul class="abo-act">%s</ul>' % ''.join(
+        '<li><a class="abo-act-a" href="%s"><span class="abo-ic" aria-hidden="true">%s</span><span class="abo-act-w">'
+        '<span class="abo-act-n">%s</span><span class="t-mono-s abo-act-m">%s</span></span>%s</a></li>'
+        % (link(here, url), icon(ic, 20), name, sub, icon('chevron-right', 20, 'abo-act-c')) for url, ic, name, sub in rows)
+
+
 # ---------------------------------------------------------------- blocks
 
-def intro(site):
-    """Right column, top: lead + at-a-glance facts."""
+# the portrait's column: the intro's width up to 360px (about.css), the phone's width less its gutters below 760px
+PORTRAIT_SIZES = '(min-width: 760px) 360px, calc(100vw - 32px)'
+
+
+def portrait(about, here):
+    """content/about.md's photo, 4:5 (about.css crops it there, at its focal point), above the words."""
+    p = about['photo']
+    x, y = about['focal']
+    img = core.photo({'url': URL}, p, here, sizes=PORTRAIT_SIZES, cls='abo-portrait', eager=True, caption=False)
+    if (x, y) != (50.0, 50.0):
+        img = img.replace('<img ', '<img style="object-position:%s%% %s%%" ' % (core._pct(x), core._pct(y)), 1)
+    return img
+
+
+def intro(site, here=URL):
+    """Right column, top: lead + at-a-glance facts. With content/about.md: its photo, then its words verbatim in place
+    of the computed lede."""
     pub = [t for t in site['published'] if t['date']]
     rows = [('Based in', 'Lake Tahoe'), ('Avalanche training', 'AIARE 2')]
     if pub:
@@ -57,11 +118,16 @@ def intro(site):
         span = core.fdate(a, 'month') if (a.year, a.month) == (b.year, b.month) else '%s – %s' % (core.fdate(a, 'month'), core.fdate(b, 'month'))
         rows.append(('Trip dates', span))
     dl = ''.join('<div><dt>%s</dt><dd>%s</dd></div>' % (esc(k), esc(v)) for k, v in rows)
-    return ('<div class="abo-intro">'
-            '<p class="abo-lead">Trip reports by Eric Sichak: backcountry skiing, climbing, hiking, mountain biking and other trips, '
-            'each with the full GPX track and map.</p>'
+    about = site.get('about') or {}
+    lead = ('<p class="abo-lead">Trip reports by Eric Sichak: backcountry skiing, climbing, hiking, mountain biking and other trips, '
+            'each with the full GPX track and map.</p>')
+    if about.get('body_md'):
+        lead = '<div class="prose abo-words">%s</div>' % markdown.to_html(about['body_md'], heading_shift=1)
+    return ('<div class="abo-intro">%s%s'
             '<section class="abo-sec abo-glance" aria-labelledby="abo-glance-h"><h2 class="t-h3" id="abo-glance-h">At a glance</h2>'
-            '<dl class="abo-dl">%s</dl></section></div>' % dl)
+            '<dl class="abo-dl">%s</dl></section></div>'
+            # a photo is shown only with the alt text that describes it (the content check requires one)
+            % (portrait(about, here) if about.get('photo') and about['photo']['alt'].strip() else '', lead, dl))
 
 
 def fig(label_, value, sub=''):
@@ -87,12 +153,16 @@ def numbers(site, here):
     if hi:
         h = hi['stats']['high_m']
         figs.append(fig('GPS max', U(n(h * FT), n(h), 'ft', 'm'), esc(hi['title']).upper()))
+    yr = year_rows(site, here)
+    by_year = ('<h3 class="t-label abo-act-h" id="abo-yr-h">By year</h3>' + yr) if yr else ''
     return ('<section class="abo-nums" aria-labelledby="abo-nums-h">'
             '<h2 class="t-h3" id="abo-nums-h">The reports</h2>'
             '<dl class="abo-figs">%s</dl>'
             '<h3 class="t-label abo-act-h" id="abo-act-h">By activity</h3>%s'
+            '%s'
+            '<h3 class="t-label abo-act-h" id="abo-site-h">Browse</h3>%s'
             '<a class="alink abo-map" href="%s">Open the map%s</a></section>'
-            % (''.join(figs), act_rows(site, here), link(here, 'map/'), icon('arrow-right', 16)))
+            % (''.join(figs), act_rows(site, here), by_year, site_rows(site, here), link(here, 'map/'), icon('arrow-right', 16)))
 
 
 def method(site):
@@ -145,7 +215,7 @@ def page(site):
     body = ('<div class="abo wrap">'
             '<header class="abo-title"><h1 class="t-d1">About</h1></header>'
             '<div class="abo-grid">%s%s<div class="abo-more">%s%s%s</div></div></div>'
-            % (intro(site), numbers(site, here), method(site), units_block(), follow(here)))
+            % (intro(site, here), numbers(site, here), method(site), units_block(), follow(here)))
     desc = ('About Eric Sichak\'s trip reports: where the tracks, maps and stats come from, '
             'how many reports there are, and how to follow new ones.')
     return core.Page(here, core.document(here, 'About', body, desc, active='about', body_cls='p-about', image=core.site_share()), 'About')

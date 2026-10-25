@@ -632,8 +632,9 @@ def render_site(trips, force=False):
     # which maps there are and what they draw: renderkey.site_jobs, which the content checks use for the same hash
     jobs, groups, mapped = renderkey.site_jobs(trips)
     h = renderkey.site_hash(jobs)
-    mf = os.path.join(final, 'meta.json')
-    if not force and stored_hash(mf) == h:
+    # site_maps_stale is the one test: the new hash, or the one written before Phase 9 (also after a retitle, matched
+    # with the titles the maps were drawn with), means the maps are up to date and nothing is drawn
+    if not force and site_maps_stale(trips) is None:
         return False
     with drawing_into(final) as folder:
         draw_site(folder, h, jobs, groups, mapped)
@@ -740,12 +741,21 @@ def site_maps_stale(trips, force=False):
         return 'not drawn yet'
     try:
         with open(mf, encoding='utf-8') as fh:
-            stored = json.load(fh).get('hash')
+            meta = json.load(fh)
+        stored = meta.get('hash')
     except (OSError, ValueError, AttributeError):
         return 'rendered/site/meta.json cannot be read'
     if stored is None:
         return 'OSM missing last time (drawn with terrain only)'
-    return None if stored == renderkey.site_hash(renderkey.site_jobs(trips)[0]) else 'a trip on a region or ski map changed'
+    jobs = renderkey.site_jobs(trips)[0]
+    if stored in (renderkey.site_hash(jobs), renderkey.site_hash_with_titles(jobs)):
+        return None
+    # the hash written before Phase 9 holds every title as the maps were drawn: a trip retitled since (the build writes
+    # its new title into the labels) still matches it with the title its pin shows, until the next site render writes
+    # the new hash
+    maps = meta.get('maps')
+    drawn = renderkey.drawn_titles(renderkey.drawn_paths(os.path.join(OUT, 'site'), maps if isinstance(maps, dict) else {}))
+    return None if drawn and stored == renderkey.site_hash_as_drawn(jobs, drawn) else 'a trip on a region or ski map changed'
 
 
 def status(slugs=(), force=False, say=print):

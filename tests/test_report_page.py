@@ -56,6 +56,7 @@ import importlib
 import itertools
 import json
 import os
+import posixpath
 import re
 import sys
 import tempfile
@@ -617,7 +618,10 @@ class LayoutTests(ReportFixture):
             with self.subTest(slug):
                 t = self.by[slug]
                 self.assertIn('<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>'
-                              % (core.strip(core.strip_cells(t)), core.stats_note(t)), self.page(slug).html)
+                              % (core.strip(core.strip_cells(t)), core.stats_note(t, here=t['url'])), self.page(slug).html)
+                # Phase 9 (ia-19): the note ends with the link to About's method, which resolves to about/#abo-how-h
+                self.assertTrue(core.stats_note(t, here=t['url']).endswith(' %s</p>' % HOW))
+                self.assertEqual(posixpath.normpath(posixpath.join(t['url'], '../../about/')) + '/', 'about/')
 
     def test_page_url_and_title(self):
         # hard rule: every URL unchanged; the page is still trips/<slug>/
@@ -629,6 +633,30 @@ class LayoutTests(ReportFixture):
 
 
 # ---------------------------------------------------------------- the section row (report.section_nav)
+
+class SummitsRowTests(ReportFixture):
+    """Phase 9 (features-05): a report's summits: list is the last row of its Beta rail, 'Summits', in the beta_list
+    markup: one name alone, two or more stacked one per line; a route and an outcome other than summit are said after the
+    name. A report with summits and no beta rows gets the Beta block for that row."""
+
+    def test_one_and_several(self):
+        one = self.add('syn-one-summit', beta=[{'label': 'Grade', 'value': 'Synthetic II'}], summits=[{'name': 'Synthetic Peak'}])
+        self.assertEqual(self.report.beta_list(one),
+                         '<div class="rail-b" id="beta"><h2 class="t-label" id="beta-h">Beta</h2><dl class="dl-leader">'
+                         '<div><dt>Grade</dt><dd>Synthetic II</dd></div><div><dt>Summits</dt><dd>Synthetic Peak</dd></div></dl></div>')
+        two = self.add('syn-two-summits', summits=[{'name': 'Synthetic Peak', 'outcome': 'summit'},
+                                                   {'name': 'Synthetic Dome', 'outcome': 'turned-around', 'route': 'the north ridge, mostly'},
+                                                   {'name': 'Synthetic Spire', 'outcome': 'traverse'}])
+        self.assertIn('<div><dt>Summits</dt><dd class="dl-list"><span>Synthetic Peak,</span> <span>Synthetic Dome via the north '
+                      'ridge, mostly (turned around),</span> <span>Synthetic Spire (traverse)</span></dd></div>',
+                      self.report.beta_list(two))
+        self.assertIsNotNone(self.doc('syn-two-summits').by_id('beta'))     # no beta rows: the block is there for the row
+
+    def test_no_list_no_row(self):
+        plain = self.add('syn-no-summit')
+        self.assertEqual(self.report.beta_list(plain), '')
+        self.assertNotIn('Summits', self.page('syn-no-summit').html)
+
 
 class SectionNavTests(ReportFixture):
 
@@ -1413,7 +1441,8 @@ class MapCaptionTests(ReportFixture):
         hiking = Doc(section.page('hike', self.site).html).by_id('main')
         note = hiking.by_id('featured').find('p', cls='strip-note')
         self.assertIn('Track: %s.' % TRACK_NOTE, note.text())
-        self.assertIn(core.stats_note(t), section.page('hike', self.site).html)
+        self.assertIn(core.stats_note(t, here=core.section_url('hike')), section.page('hike', self.site).html)
+        self.assertTrue(note.text().endswith(' ' + HOW_TEXT))
 
     def test_goal_caption_is_unchanged(self):
         # section 2: goal pages are not changed: a planned line was never recorded
@@ -2289,7 +2318,7 @@ class MultiDayPageTests(ReportFixture):
 
 # ---------------------------------------------------------------- Phase 6: a track whose maps are not drawn yet
 
-RECORDINGS = 'Stats from the GPS recordings via Strava.'                                   # multiday.stats_note, plural
+RECORDINGS = 'Stats from the GPS recordings.'                                   # multiday.stats_note, plural
 GPS_MAX_FILES = 'GPS max is the highest point in the GPX files, not a surveyed summit height.'
 
 
@@ -2334,7 +2363,7 @@ class NotRenderedMapTests(ReportFixture):
         self.assertEqual((sec.tag, sec.classes, sec['aria-label']), ('section', ['rep-map', 'rep-map--empty'], 'Route map, all days'))
         self.assertEqual(sec.find('div', cls='empty').find('p').text(), NOT_RENDERED_DAYS)
         note = sec.find('p', cls='rep-note-ph')
-        self.assertEqual((note.classes, note.text()), (['strip-note', 'rep-note-ph'], '%s %s' % (RECORDINGS, GPS_MAX_FILES)))
+        self.assertEqual((note.classes, note.text()), (['strip-note', 'rep-note-ph'], '%s %s %s' % (RECORDINGS, GPS_MAX_FILES, HOW_TEXT)))
         want = self.box('Route map, all days', NOT_RENDERED_DAYS, strip_note([RECORDINGS, GPS_MAX_FILES], 'rep-note-ph'))
         self.assertEqual(page.html.count(want), 1)
         # no map, no key row, no caption, no button to a full-screen page; the day chapters have no map, key or caption of
@@ -2432,7 +2461,7 @@ class NotRenderedMapTests(ReportFixture):
 
 # ---------------------------------------------------------------- Phase 4: no track, no route (contract-phase4.md 10.2, 10.3)
 
-RECORDING = 'Stats from the GPS recording via Strava.'                                    # core.stats_note, sentence by sentence
+RECORDING = 'Stats from the GPS recording.'                                    # core.stats_note, sentence by sentence
 GPS_MAX = 'GPS max is the highest point in the GPX file, not a surveyed summit height.'
 AVG_SPEED = 'Average speed is distance divided by moving time.'
 PACE = 'Pace is moving time divided by distance.'
@@ -2468,9 +2497,17 @@ def stats_bar_item():
     return '<a href="#stats">%s<span>Stats</span></a>' % core.icon('beta', 24)
 
 
-def strip_note(sentences, cls=''):
-    """The stats note of these sentences as core.stats_note writes it; '' for none (there is never an empty paragraph)."""
-    return ('<p class="strip-note%s">%s</p>' % ((' ' + cls) if cls else '', ' '.join(sentences))) if sentences else ''
+# Phase 9 (ia-19): on a page every stats note ends with this link to About's method, in that heading's own words
+HOW = '<a href="../../about/#abo-how-h">How these reports are made</a>'          # from a trip page, trips/<slug>/
+SECTION_HOW = '<a href="../about/#abo-how-h">How these reports are made</a>'      # from a section page (hiking/)
+HOW_TEXT = 'How these reports are made'
+
+
+def strip_note(sentences, cls='', how=HOW):
+    """The stats note of these sentences as a page writes it (core.stats_note with the page's here: the sentences, then
+    the link `how`; how='' for core.stats_note without here); '' for none (there is never an empty paragraph)."""
+    return ('<p class="strip-note%s">%s</p>' % ((' ' + cls) if cls else '', ' '.join(sentences + ([how] if how else []))))\
+        if sentences else ''
 
 
 def drawings(node, slug=None):
@@ -2951,7 +2988,7 @@ class NoTrackTests(ReportFixture):
                     self.assertEqual([(bar_items(n), n['style']) for n in navs], [(bar, '--n:%d' % len(bar))])
                 self.assertEqual([m for m in marks(self.main(slug)) if m in LEGACY_IDS + ('hero',)], sections)
                 notes = self.doc(slug).find_all('p', cls='strip-note')
-                self.assertEqual([p.text() for p in notes], [note] if note else [])
+                self.assertEqual([p.text() for p in notes], ['%s %s' % (note, HOW_TEXT)] if note else [])
                 self.assertEqual(html_.count('strip-note'), 1 if note else 0)
                 if note:
                     self.assertIs(notes[0].parent, self.doc(slug).by_id('stats'))
@@ -3013,7 +3050,7 @@ class NoTrackTests(ReportFixture):
                                              % (core.strip(core.strip_cells(t)), strip_note(note))])
                     self.assertEqual([dt.text() for dt in doc.by_id('stats').find_all('dt')], labels_of[stats])
                     self.assertEqual(doc.by_id('stats').find('dl')['style'], '--cells:%d' % len(labels_of[stats]))
-                self.assertEqual([p.text() for p in doc.find_all('p', cls='strip-note')], note)
+                self.assertEqual([p.text() for p in doc.find_all('p', cls='strip-note')], [x + ' ' + HOW_TEXT for x in note])
                 self.assertEqual(html_.count('Average speed is'), len(note))
                 # the section row (story): Report, then Trip details at the Beta block, else at the strip, else not at all
                 if story:
@@ -3052,7 +3089,8 @@ class NoTrackTests(ReportFixture):
                         self.assertIsNone(doc.by_id('stats'))
                     else:
                         self.assertEqual([dt.text() for dt in doc.by_id('stats').find_all('dt')], labels)
-                    self.assertEqual([p.text() for p in doc.find_all('p', cls='strip-note')], sentence if stats == 'both' else [])
+                    self.assertEqual([p.text() for p in doc.find_all('p', cls='strip-note')],
+                                     [x + ' ' + HOW_TEXT for x in sentence] if stats == 'both' else [])
                     self.assertEqual(doc.find_all('nav', cls='bbar'), [])          # Stats alone, or nothing, is no bar
 
     def test_a_tracked_report_without_stats_keeps_its_strip(self):
@@ -3060,8 +3098,9 @@ class NoTrackTests(ReportFixture):
         # with its 'Trip details' item and its Stats bar item. (Every fixture report but syn-story is one: the layout,
         # bar and section-row tests above this class pin the rest of those pages.)
         note = strip_note([RECORDING, GPS_MAX])
-        self.assertEqual(note, '<p class="strip-note">Stats from the GPS recording via Strava. GPS max is the highest point in the GPX '
-                               'file, not a surveyed summit height.</p>')
+        self.assertEqual(note, '<p class="strip-note">Stats from the GPS recording. GPS max is the highest point in the GPX '
+                               'file, not a surveyed summit height. <a href="../../about/#abo-how-h">How these reports are '
+                               'made</a></p>')
         empty = '<section class="wrap rep-strip" id="stats" aria-label="Stats"><dl class="strip" style="--cells:1" aria-label="Trip stats"></dl>%s</section>'
         for slug in ('syn-one', 'syn-portrait', 'syn-words', 'syn-tall-only', 'syn-track', 'syn-undated', 'syn-two-tall'):
             with self.subTest(slug):
@@ -3079,17 +3118,17 @@ class NoTrackTests(ReportFixture):
         self.assertEqual(self.by['syn-photos']['activity'], 'mtb')
         self.assertEqual(STRIP_SECTION.findall(self.page('syn-photos').html), [empty % note])
         ride = self.add('syn-ride-stats', activity='mtb', date='2025-09-01', stats={'distance_km': 20.0, 'moving': '2:00'})
-        self.assertEqual(self.doc('syn-ride-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, AVG_SPEED, GPS_MAX]))
+        self.assertEqual(self.doc('syn-ride-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, AVG_SPEED, GPS_MAX, HOW_TEXT]))
         self.assertEqual([dt.text() for dt in self.doc('syn-ride-stats').by_id('stats').find_all('dt')], ['Distance', 'Moving', 'Avg speed'])
         self.assertTrue(ride['track'])
         half = self.add('syn-ride-half', activity='mtb', date='2025-09-02', stats={'distance_km': 20.0})
-        self.assertEqual(self.doc('syn-ride-half').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, GPS_MAX]))
+        self.assertEqual(self.doc('syn-ride-half').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, GPS_MAX, HOW_TEXT]))
         self.assertTrue(half['track'])
         paddle = self.add('syn-paddle-bare', activity='other', subtype='SUP', date='2025-09-03')
         self.assertTrue(paddle['track'])
         self.assertEqual(STRIP_SECTION.findall(self.page('syn-paddle-bare').html), [empty % strip_note([RECORDING])])
         self.add('syn-paddle-stats', activity='other', subtype='SUP', date='2025-09-04', stats={'distance_km': 5.0, 'moving': '1:00'})
-        self.assertEqual(self.doc('syn-paddle-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, PACE]))
+        self.assertEqual(self.doc('syn-paddle-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, PACE, HOW_TEXT]))
 
     def rendered_files(self, slug):
         """What the render folder of the temp dir holds for a trip, on disk."""
@@ -3481,9 +3520,10 @@ class NoTrackTests(ReportFixture):
         self.assertEqual([n for n in Doc(block).root.walk() if 'download' in n], [])
         self.assertNotIn('mv--col', block)
         self.assertEqual(Doc(block).find_all('img', cls='mv-hs'), [])
-        self.assertEqual(unrendered.count(strip_note([RECORDING, GPS_MAX])), 1)
-        self.assertEqual(block, unrendered.replace(button, '').replace(strip_note([RECORDING, GPS_MAX]), ''))
-        self.assertNotEqual(block, block_with.replace(button, '').replace(strip_note([RECORDING, GPS_MAX]), ''))
+        recorded = strip_note([RECORDING, GPS_MAX], how=SECTION_HOW)
+        self.assertEqual(unrendered.count(recorded), 1)
+        self.assertEqual(block, unrendered.replace(button, '').replace(recorded, ''))
+        self.assertNotEqual(block, block_with.replace(button, '').replace(recorded, ''))
         self.assertEqual([a['href'] for a in Doc(block).find_all('a')], ['../trips/syn-featured/', 'https://example.test/', '../trips/syn-featured/'])
 
     def test_pick_featured_takes_only_reports_with_a_track(self):

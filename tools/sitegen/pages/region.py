@@ -7,11 +7,13 @@ map was drawn with it. The Map page stays the parent and keeps every #region-<sl
 no page and keeps its list on the Map page.
 
 Anatomy: breadcrumb (Reports / Map / region), H1, a Mono-S line of counts and years with the places on a second line
-(the only introduction: counts and names from front matter, no prose), the Map page's panel for the region (map,
+(counts and names from front matter; Eric's own introduction under it only when content/regions/<slug>.md has
+words), the Map page's panel for the region (map,
 legend and the region's rows beside it), a Featured row of up to three cards, every report by year with the Map
 page's activity filter, and links to the other region pages. archive.js drives the list and the filter (body.p-region).
 """
 import content
+import markdown
 
 from sitegen import core
 from sitegen.core import esc, link, icon
@@ -63,15 +65,18 @@ def place_items(pub):
     return [(esc(x), 'mi-w') for x in names[:MAX_PLACES]] + [core.nb('%d MORE' % (len(names) - MAX_PLACES))]
 
 
-def head(name, here, pub, planned):
+def head(name, here, pub, planned, intro=None):
+    """The H1, the counts line and, when content/regions/<slug>.md has words, those words verbatim under them."""
     first = core.count_items(pub, planned) + [x for x in [years_item(pub)] if x]
+    words = ('<div class="prose t-body reg-intro">%s</div>' % markdown.to_html(intro['body_md'], heading_shift=1)
+             if intro and intro.get('body_md') else '')
     crumbs = ('<a href="%s">Reports</a><span aria-hidden="true">/</span><a href="%s">Map</a><span aria-hidden="true">/</span>'
               '<span aria-current="page">%s</span>' % (link(here, ''), link(here, 'map/'), esc(name)))
     return ('<section class="reg-head wrap" aria-labelledby="reg-title">'
             '<nav class="crumbs t-mono-s" aria-label="Breadcrumb">%s</nav>'
             '<h1 id="reg-title" class="t-d1">%s</h1>'
-            '<p class="reg-stats">%s</p></section>'
-            % (crumbs, esc(name), core.meta_items(first + place_items(pub), br_after=len(first) - 1)))
+            '<p class="reg-stats">%s</p>%s</section>'
+            % (crumbs, esc(name), core.meta_items(first + place_items(pub), br_after=len(first) - 1), words))
 
 
 # ---------------------------------------------------------------- featured
@@ -178,7 +183,7 @@ def page(name, slug, ts, site, meta, regs):
     feat = pick_featured(ts)
     find = ('<p class="reg-find reg-x wrap"><a class="alink" href="%s?region=%s">Search and filter these in Trips%s</a></p>'
             % (link(here, 'trips/'), slug, icon('arrow-right', 16)))
-    body = (head(name, here, pub, planned)
+    body = (head(name, here, pub, planned, (site.get('region_intros') or {}).get(slug))
             + '<section class="arc-map reg-map wrap" aria-labelledby="reg-map-h"><h2 class="sr" id="reg-map-h">Map</h2>%s</section>'
             % archive.region_panel(name, slug, ts, here, meta, True, page=True, drawn=map_trips(name, site, meta) or None, site=site)
             + featured(slug, here, pub, feat)

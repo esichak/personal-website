@@ -101,11 +101,15 @@ def date_words(t):
 def entry(t):
     """{'s': slug, 't': title, 'p': place + region, 'k': keywords, 'x': write-ups, 'r': plain write-up text (for
     snippets)}; every text field but r normalised. 'k' is, in this order: the activity label (and the Other sub-type's
-    word), the activity's other forms (ACTIVITY_WORDS, SUBTYPE_WORDS), the aliases, the named peaks, the trip's year and
-    months (date_words) and its route shape ('loop', 'out and back', 'point to point')."""
+    word), the activity's other forms (ACTIVITY_WORDS, SUBTYPE_WORDS), the aliases, the named peaks and the summits: names
+    (the trip's and its days'), the trip's year and months (date_words) and its route shape ('loop', 'out and back',
+    'point to point')."""
     pk = (t.get('map') or {}).get('peaks') or []
     pk = [pk] if isinstance(pk, str) else pk
     peaks = [p for p in pk if isinstance(p, str)]
+    for s in list(t.get('summits') or []) + [s for d in t.get('days') or [] for s in d.get('summits') or []]:
+        if s['name'] not in peaks:
+            peaks.append(s['name'])
     words = [t.get('activity_label') or '']
     if t.get('subtype'):
         words.append(SUB_WORD.get(t['subtype'], t['subtype']))

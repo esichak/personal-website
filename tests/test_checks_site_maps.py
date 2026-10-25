@@ -13,6 +13,7 @@ fixture writes those files with renderkey's own functions, the site hash over th
 order (by folder, then newest first), so a clean fixture has no warning at all and each test breaks one thing.
 """
 import datetime
+import html
 import importlib
 import json
 import os
@@ -317,14 +318,70 @@ class SiteHashTests(RenderHashFixture):
         self.assertEqual(self.found(), [])
 
     def test_no_site_warning_while_a_trip_render_warning_is_in_the_run(self):
-        # a new title makes the trip's maps and the site maps stale: only the trip's line is given
-        self.trip('syn-gamma', date='2025-06-15', title='Renamed Synthetic Gamma')
+        # new stats make the trip's maps and the site maps stale: only the trip's line is given
+        self.trip('syn-gamma', date='2025-06-15', stats={'distance_km': 9.9})
         self.assertEqual(self.found(), [warned(INDEX % 'syn-gamma', OTHER_INPUTS % 'syn-gamma')])
         self.drawn('syn-gamma')                                # its own maps drawn again: the site maps' line is left
         self.assertEqual(self.found(), [warned(SITE_FILE, SITE_OTHER)])
+
+    def test_a_new_title_leaves_the_site_maps_up_to_date(self):
+        # Phase 9: the build writes titles into the site maps' labels, so the site hash has none: a retitle asks for the
+        # trip's own maps alone
+        self.trip('syn-gamma', date='2025-06-15', title='Renamed Synthetic Gamma')
+        self.assertEqual(self.found(), [warned(INDEX % 'syn-gamma', OTHER_INPUTS % 'syn-gamma')])
+        self.drawn('syn-gamma')
+        self.assertEqual(self.found(), [])
+
+    def test_the_hash_written_before_phase_9_still_counts(self):
+        # rendered/site/meta.json from a render of before Phase 9 carries the hash with every title in it
+        self.site_drawn(hash=renderkey.site_hash_with_titles(renderkey.site_jobs(self.live())[0]))
+        self.assertEqual(self.found(), [])
         self.site_drawn(hash=None)
         self.drawn('syn-alpha', hash=None)
         self.assertEqual(self.found(), [warned(INDEX % 'syn-alpha', NO_OSM % 'syn-alpha')])
+
+    def legacy_maps(self):
+        """rendered/site/ as a render of before Phase 9 left it: the hash with every title, and each map's fragment
+        labelling its trips (its first trip a pin, the others one cluster) with the titles they had then."""
+        jobs = renderkey.site_jobs(self.live())[0]
+        self.site_drawn(hash=renderkey.site_hash_with_titles(jobs))
+        esc = lambda x: html.escape(x, quote=True)
+        for j in jobs:
+            first, rest = j[2][0], j[2][1:]
+            frag = ('<svg><a class="mk-pin" href="@@ROOT@@%s" data-key="%s" aria-label="%s"><title>%s</title></a>'
+                    % (first['url'], first['slug'], esc(first['title']), esc(first['title'])))
+            if rest:
+                frag += ('<g class="mk-cluster" aria-hidden="true" data-keys="%s"><title>%s</title></g>'
+                         % (' '.join(t['slug'] for t in rest), esc('; '.join(t['title'] for t in rest))))
+            self.write(os.path.join(self.rendered, 'site', '%s-desktop.svg.html' % j[0]), frag + '</svg>')
+        return jobs
+
+    def test_a_retitle_under_the_hash_written_before_phase_9_asks_for_the_trips_own_maps_alone(self):
+        # the old hash holds the titles the maps were drawn with; the fragments say which: a retitle (a pin's trip or a
+        # clustered one) matches it with those, so the site maps stay up to date until their next render
+        self.legacy_maps()
+        for slug in ('syn-alpha', 'syn-gamma'):
+            with self.subTest(slug=slug):
+                self.trip(slug, date=content.load_trip(os.path.join(self.trips, slug))['date'].isoformat(),
+                          title='Renamed Synthetic %s' % slug)
+                self.assertEqual(self.found(), [warned(INDEX % slug, OTHER_INPUTS % slug)])
+                self.drawn(slug)
+                self.assertEqual(self.found(), [])
+        drawn = renderkey.drawn_titles(renderkey.drawn_paths(os.path.join(self.rendered, 'site'),
+                                                             {k + '-desktop': {} for k in [j[0] for j in renderkey.site_jobs(self.live())[0]]}))
+        self.assertEqual(drawn['syn-gamma'], 'Syn Gamma')                  # what the maps still show; the build relabels it
+        # a change the maps are drawn from (here the stats) is still found
+        self.trip('syn-beta', date=content.load_trip(os.path.join(self.trips, 'syn-beta'))['date'].isoformat(), stats={'distance_km': 9.9})
+        self.drawn('syn-beta')
+        self.assertEqual(self.found(), [warned(SITE_FILE, SITE_OTHER)])
+
+    def test_without_the_fragments_a_retitle_under_the_old_hash_is_a_change(self):
+        jobs = self.legacy_maps()
+        for j in jobs:
+            os.remove(os.path.join(self.rendered, 'site', '%s-desktop.svg.html' % j[0]))
+        self.trip('syn-gamma', date='2025-06-15', title='Renamed Synthetic Gamma')
+        self.drawn('syn-gamma')
+        self.assertEqual(self.found(), [warned(SITE_FILE, SITE_OTHER)])
 
 
 if __name__ == '__main__':

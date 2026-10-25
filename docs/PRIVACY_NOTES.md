@@ -148,12 +148,17 @@ Each of these changes what is published. None was made for you, and nothing here
    all of them come from that file; stats taken from a Strava export would still be for the whole activity. The map
    captions, the About page and the README say "not trimmed" about every track and would have to change.
 
-   A track that is already published takes more, because nothing recomputes what the import wrote down:
+   A track that is already published takes more. For a single-day trip (since Phase 9), trim a copy of the original
+   file and run `python3 tools/add_trip.py TRIMMED.gpx --update <slug> --source Strava` (the service the file came
+   from; every published trip credits its stats to one, so `--update` asks): it replaces `track.gpx` and works `date:`,
+   `start_time:`, `route_shape:` and `stats:` out again from the trimmed file, keeps every other line and the write-up,
+   and draws the maps again (`--dry-run` shows the changes first). It keeps the file's timestamps: `--strip-times` is
+   refused on an update while decision 2 is open. For a day of a multi-day trip or of the journal it is still by hand:
    - edit its GPX;
-   - by hand, in `index.md` (in the day's file for a day of a multi-day trip or of the journal), set `start_time:`
-     to the new first point's local time and `stats:` to the shortened track's figures, and `date:` too if the cut
-     crosses midnight. Left alone, the page keeps the old start time and the whole activity's distance and times
-     beside a download that begins later, and the difference says how long and how far the removed part was;
+   - by hand, in the day's file, set `start_time:` to the new first point's local time and `stats:` to the shortened
+     track's figures, and `date:` too if the cut crosses midnight. Left alone, the page keeps the old start time and
+     the whole activity's distance and times beside a download that begins later, and the difference says how long and
+     how far the removed part was;
    - then run `python3 tools/render.py` and commit `rendered/`: the maps, the profile and the two points in
      `meta.json` are drawn from the file, and the mile markers are scaled to the distance in `stats:`;
    - check it with the audit's line "start_time in the front matter ... equal to the track's first timestamp, to the

@@ -203,7 +203,9 @@ def _dump_scalar(v):
     return json.dumps(s, ensure_ascii=False)
 
 
-def dumps(obj, ind=0):
+def dumps(obj, ind=0, keep_empty=False):
+    """keep_empty: a top-level key whose value is None is written as a bare `key:` line (what loads reads an empty line
+    as) instead of being left out: the round trip of a file that has one, and add_trip's empty published_at: line."""
     pad = ' ' * ind
     lines = []
     for k, v in obj.items():
@@ -228,13 +230,15 @@ def dumps(obj, ind=0):
                     lines.append('%s  - %s' % (pad, _dump_scalar(x)))
         else:
             if v is None:
+                if keep_empty and not ind:
+                    lines.append('%s:' % k)
                 continue
             lines.append('%s%s: %s' % (pad, k, _dump_scalar(v)))
     return '\n'.join(l for l in lines if l != '')
 
 
-def render(meta, body):
-    return '---\n%s\n---\n\n%s\n' % (dumps(meta), body.strip())
+def render(meta, body, keep_empty=False):
+    return '---\n%s\n---\n\n%s\n' % (dumps(meta, keep_empty=keep_empty), body.strip())
 
 
 if __name__ == '__main__':

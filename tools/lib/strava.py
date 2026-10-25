@@ -1,6 +1,7 @@
 """Read a Strava bulk export (the folder with activities.csv, activities/ and media/)."""
 import csv
 import os
+import re
 from datetime import datetime
 
 # Strava activity type -> (site activity, Other sub-type)
@@ -95,6 +96,15 @@ def stats_from(rec):
         if rec.get(k) is not None:
             s[k] = int(round(rec[k]))
     return s
+
+
+# the names Strava gives an activity by itself: 'Morning Ride', 'Afternoon Hike', 'Ride near <a town>'
+DEFAULT_TITLE = re.compile(r'^(Morning|Afternoon|Evening|Lunch|Night)?\s?(Ride|Hike|Walk|Run|Paddle|Swim|Stroll)( near .+)?$')
+
+
+def default_title(title):
+    """Whether the title is one Strava made up (DEFAULT_TITLE), not one the author wrote."""
+    return bool(DEFAULT_TITLE.match((title or '').strip()))
 
 
 def paragraphs(desc):

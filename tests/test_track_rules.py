@@ -5,14 +5,15 @@
   core.glyph / core.tile   10.3: no route drawing for it either
   core.summary(t)          the closing fact 'with map and GPX' ('with map, elevation profile and GPX', 'with map, speed
                            chart and GPX') only with a track; with no fact at all the first sentence alone
-  core.stats_note(t, cls)  without a track neither 'Stats from the GPS recording via Strava.' nor 'GPS max is the highest
+  core.stats_note(t, cls)  without a track neither 'Stats from the GPS recording.' nor 'GPS max is the highest
                            point in the GPX file, ...'; what is left is the beta's Track line and the pace (flat water)
                            or average-speed (mountain bike) sentence, and '' when nothing is left. 10.3: that
                            sentence is written only when the stats hold a distance and a moving time
   core.photo(...)          width / height and the srcset only when BOTH w and h are recorded
 
 A trip with a track is pinned to the exact strings it always got, so the tables read in pairs: the same content with
-its track file, then without it. What a page does with these (report.page, report.build, section.pick_featured) is in
+its track file, then without it. (No fixture carries a strava_id or a source: line, so its source sentence is the plain
+'Stats from the GPS recording.'; SourceWordTests has the 'via Strava' of the real trips and the other forms.) What a page does with these (report.page, report.build, section.pick_featured) is in
 tests/test_report_page.py NoTrackTests; the built site, its feed and its JSON-LD in tests/test_build_site.py.
 
 Synthetic trips are written to a temp dir with tests/helpers.py and loaded with content.load_trip. A rendered chart is
@@ -41,7 +42,7 @@ REGION = 'Synthetic Range'
 STATS = {'distance_km': 12.0, 'gain_m': 800, 'high_m': 2900, 'low_m': 2100}
 TRACK_NOTE = 'Synthetic recorder & one synthetic gap.'          # a beta row labelled Track, with its own full stop
 
-RECORDING = 'Stats from the GPS recording via Strava.'
+RECORDING = 'Stats from the GPS recording.'
 GPS_MAX = 'GPS max is the highest point in the GPX file, not a surveyed summit height.'
 AVG_SPEED = 'Average speed is distance divided by moving time.'
 PACE = 'Pace is moving time divided by distance.'
@@ -315,15 +316,15 @@ class StatsNoteTests(Fixture):
 
     def test_the_note_with_a_track_word_for_word(self):
         t = self.trip(activity='hike', stats=STATS, track=True)
-        self.assertEqual(core.stats_note(t), '<p class="strip-note">Stats from the GPS recording via Strava. GPS max is the highest point in '
+        self.assertEqual(core.stats_note(t), '<p class="strip-note">Stats from the GPS recording. GPS max is the highest point in '
                                              'the GPX file, not a surveyed summit height.</p>')
         t = self.trip(track=True, beta=[{'label': 'Track', 'value': TRACK_NOTE}], **self.KINDS['mtb'][0])
         self.assertEqual(core.stats_note(t),
-                         '<p class="strip-note">Stats from the GPS recording via Strava. Track: Synthetic recorder &amp; one synthetic gap. '
+                         '<p class="strip-note">Stats from the GPS recording. Track: Synthetic recorder &amp; one synthetic gap. '
                          'Average speed is distance divided by moving time. GPS max is the highest point in the GPX file, not a surveyed '
                          'summit height.</p>')
         t = self.trip(track=True, **self.KINDS['flat-water'][0])
-        self.assertEqual(core.stats_note(t), '<p class="strip-note">Stats from the GPS recording via Strava. Pace is moving time divided by '
+        self.assertEqual(core.stats_note(t), '<p class="strip-note">Stats from the GPS recording. Pace is moving time divided by '
                                              'distance.</p>')
 
     def test_the_class_is_added_to_a_note_and_never_makes_one(self):
@@ -390,17 +391,17 @@ class DerivedValueNoteTests(Fixture):
     def test_word_for_word(self):
         ride = dict(activity='mtb', track=True)
         self.assertEqual(core.stats_note(self.trip(**ride)),
-                         '<p class="strip-note">Stats from the GPS recording via Strava. GPS max is the highest point in the GPX file, not a '
+                         '<p class="strip-note">Stats from the GPS recording. GPS max is the highest point in the GPX file, not a '
                          'surveyed summit height.</p>')
         self.assertEqual(core.stats_note(self.trip(stats={'distance_km': 20.0}, **ride)), core.stats_note(self.trip(**ride)))
         self.assertEqual(core.stats_note(self.trip(stats={'distance_km': 20.0, 'moving': '2:00'}, **ride)),
-                         '<p class="strip-note">Stats from the GPS recording via Strava. Average speed is distance divided by moving time. GPS '
+                         '<p class="strip-note">Stats from the GPS recording. Average speed is distance divided by moving time. GPS '
                          'max is the highest point in the GPX file, not a surveyed summit height.</p>')
         paddle = dict(activity='other', subtype='SUP', track=True)
-        self.assertEqual(core.stats_note(self.trip(**paddle)), '<p class="strip-note">Stats from the GPS recording via Strava.</p>')
-        self.assertEqual(core.stats_note(self.trip(stats={'moving': '1:00'}, **paddle)), '<p class="strip-note">Stats from the GPS recording via Strava.</p>')
+        self.assertEqual(core.stats_note(self.trip(**paddle)), '<p class="strip-note">Stats from the GPS recording.</p>')
+        self.assertEqual(core.stats_note(self.trip(stats={'moving': '1:00'}, **paddle)), '<p class="strip-note">Stats from the GPS recording.</p>')
         self.assertEqual(core.stats_note(self.trip(stats={'distance_km': 5.0, 'moving': '1:00'}, **paddle)),
-                         '<p class="strip-note">Stats from the GPS recording via Strava. Pace is moving time divided by distance.</p>')
+                         '<p class="strip-note">Stats from the GPS recording. Pace is moving time divided by distance.</p>')
         # without a track and without both values: nothing to say at all
         for meta in (dict(activity='mtb'), dict(activity='mtb', stats={'distance_km': 20.0}), dict(activity='other', subtype='SUP'),
                      dict(activity='other', subtype='SUP', stats={'moving': '1:00'})):
@@ -712,6 +713,65 @@ class DayCountTagTests(Fixture):
     def test_more_are_days_as_before(self):
         for n in (2, 5):
             self.assertIn('Multi-day · %d days<' % n, core.trip_tags(self.tour((True,) * n)))
+
+
+
+# ---------------------------------------------------------------- Phase 9 (copy-01): the word after 'via'
+
+class SourceWordTests(Fixture):
+    """content.stats_source: a source: line from content.SOURCES names the service; else 'Strava' when index.md carries a
+    strava_id or every day file does (content.has_strava); else no service at all. The same rule for the single-day
+    note (core.stats_note), the multi-day note (multiday.stats_note) and the PCT's series note (series.strip)."""
+
+    def setUp(self):
+        super().setUp()
+        import importlib
+        self.multiday = importlib.import_module('sitegen.pages.multiday')
+        self.series = importlib.import_module('sitegen.pages.series')
+
+    def first(self, t):
+        return core.stats_note(t).split('. ')[0].replace('<p class="strip-note">', '') + '.'
+
+    def test_single_day(self):
+        ride = dict(activity='mtb', track=True)
+        self.assertEqual(self.first(self.trip(strava_id=101, **ride)), 'Stats from the GPS recording via Strava.')
+        self.assertEqual(self.first(self.trip(**ride)), 'Stats from the GPS recording.')
+        for name in ('Strava', 'Garmin', 'CalTopo'):
+            with self.subTest(source=name):
+                self.assertEqual(self.first(self.trip(source=name, **ride)), 'Stats from the GPS recording via %s.' % name)
+        self.assertEqual(self.first(self.trip(source='Garmin', strava_id=101, **ride)), 'Stats from the GPS recording via Garmin.')
+        # a name outside the list (the validator's error) names nothing on the page
+        self.assertEqual(self.first(self.trip(source='Suunto', **ride)), 'Stats from the GPS recording.')
+        self.assertEqual(self.first(self.trip(source='Suunto', strava_id=101, **ride)), 'Stats from the GPS recording via Strava.')
+        # no track: no sentence about a recording, whatever the lines say
+        self.assertNotIn('GPS recording', core.stats_note(self.trip(activity='mtb', strava_id=101, source='Garmin')))
+
+    def days(self, ids, kind='multi-day', **meta):
+        t = self.tour((True,) * len(ids), kind=kind, **meta)
+        for d, sid in zip(t['days'], ids):
+            d['strava'] = sid is not None        # what load_trip reads from each day file's strava_id line
+        return t
+
+    def test_day_files(self):
+        from content import has_strava
+        loaded = self.trip(kind='multi-day', title='Synthetic Tour', days=[{'date': '2026-03-10', 'strava_id': 7},
+                                                                            {'date': '2026-03-11', 'strava_id': 8}])
+        self.assertTrue(has_strava(loaded))
+        partial = self.trip(kind='multi-day', title='Synthetic Tour', days=[{'date': '2026-03-10', 'strava_id': 7},
+                                                                             {'date': '2026-03-11'}])
+        self.assertFalse(has_strava(partial))
+        note = self.multiday.stats_note
+        self.assertIn('Stats from the GPS recordings via Strava. GPS max', note(loaded))
+        self.assertIn('Stats from the GPS recordings. GPS max', note(partial))
+        self.assertIn('Stats from the GPS recordings via CalTopo. GPS max', note(self.days([None, None], source='CalTopo')))
+        self.assertIn('class="strip-note rep-note-ph"', note(loaded, 'rep-note-ph'))
+
+    def test_series(self):
+        self.assertIn('Stats from the GPS recordings via Strava. Distance and gain',
+                      self.series.strip(self.days([1, 2, 3], kind='series')))
+        self.assertIn('Stats from the GPS recordings. Distance and gain', self.series.strip(self.days([1, None], kind='series')))
+        self.assertIn('Stats from the GPS recordings via Garmin. Distance and gain',
+                      self.series.strip(self.days([None], kind='series', source='Garmin')))
 
 
 if __name__ == '__main__':

@@ -1861,8 +1861,9 @@ class PublicationSurfaceTests(TempCase):
 
     # ------------------------------------------------------------ nothing else changes
 
-    def test_the_fields_change_only_the_reports_own_page(self):
-        # contract 4.4: not used for ordering, the feed, the sitemap or the home page
+    def test_the_fields_change_only_the_reports_own_page_the_feed_and_the_sitemap(self):
+        # contract 4.4 as Phase 9 (seo-10) left it: the report's page, its feed item (pubDate, and the item order) and
+        # its sitemap <lastmod>; never the site's order, the home page or any other page
         build = module('build')
 
         def whole(lines, name):
@@ -1872,17 +1873,22 @@ class PublicationSurfaceTests(TempCase):
             s.add('synm-newer', title='Synthetic Newer Report', activity='hike', region=REGION, date='2026-06-01', track=True, body=LONG)
             s.add('synm-older', title='Synthetic Older Report', activity='hike', region=REGION, date='2026-04-01', track=True)
             built = s.build(['synm-newer', 'synm-dated'])
-            return built, build.feed(built.site['published']), build.sitemap(built.pages)
+            return built, build.feed(built.site['published']), build.sitemap(built.pages, built.site['published'])
         (plain, feed_a, map_a), (dated, feed_b, map_b) = whole((), 'plain'), whole(['published_at: 2026-10-03', 'updated_at: 2026-10-05'], 'dated')
         self.assertEqual(dated.by['synm-dated']['published_at'], '2026-10-03')
         self.assertEqual([p.url for p in plain.pages], [p.url for p in dated.pages])
         changed = [p.url for p in plain.pages if p.html != dated.by_url[p.url].html]
         self.assertEqual(changed, ['trips/synm-dated/'])
-        self.assertEqual(feed_a, feed_b)
-        self.assertEqual(map_a, map_b)
         self.assertEqual([t['slug'] for t in dated.site['published']], ['synm-newer', 'synm-dated', 'synm-older'])
-        for needle in ('2026-10-03', '2026-10-05', 'Oct 3, 2026', 'Published'):
+        links = lambda text: [i.findtext('link')[len(U):] for i in ET.fromstring(text.encode('utf-8')).iter('item')]
+        self.assertEqual(links(feed_a), ['trips/synm-newer/', 'trips/synm-dated/', 'trips/synm-older/'])
+        self.assertEqual(links(feed_b), ['trips/synm-dated/', 'trips/synm-newer/', 'trips/synm-older/'])
+        self.assertIn('<pubDate>Sat, 03 Oct 2026 12:00:00 +0000</pubDate>', feed_b)
+        for needle in ('2026-10-05', 'Oct 3, 2026', 'Published'):
             self.assertNotIn(needle, feed_b)
+        self.assertNotIn('lastmod', map_a)
+        self.assertEqual(map_b.replace('<lastmod>2026-10-05</lastmod>', ''), map_a)
+        self.assertEqual(map_b.count('<lastmod>'), 1)
 
 
 # ================================================================ 5. feed.xml and sitemap.xml
@@ -2052,22 +2058,36 @@ class FeedShapeTests(TempCase):
             '<description>Climbing trip report: Synthetic &amp; &lt;Only&gt;, Synthetic Range, Mon, Jun 1, 2026. with map and GPX.</description>'
             '</item></channel></rss>\n') % core.SITE_TAGLINE)
 
-    def test_publication_fields_do_not_change_the_feed(self):
-        def feed_of(lines, name):
+    def test_published_at_is_the_pub_date_and_orders_the_items(self):
+        # Phase 9 (seo-10): a report that states published_at reaches feed readers on the day it went online
+        def feed_of(dated, older, name):
             s = self.site(name)
-            s.add('synm-dated', lines, title='Synthetic Dated', date='2026-06-01', track=True, body=LONG)
-            s.add('synm-older', title='Synthetic Older', date='2026-05-01', track=True)
+            s.add('synm-dated', dated, title='Synthetic Dated', date='2026-06-01', track=True, body=LONG)
+            s.add('synm-older', older, title='Synthetic Older', date='2026-05-01', track=True)
             site = s.load()
             with sandbox(s.root):
-                return site, module('build').feed(site['published'])
-        plain_site, plain = feed_of((), 'plain')
-        dated_site, dated = feed_of(['published_at: 2026-09-01T08:00:00-07:00', 'updated_at: 2026-09-15'], 'dated')
-        self.assertEqual(dated_site['by_slug']['synm-dated']['published_at'], '2026-09-01T08:00:00-07:00')
+                text = module('build').feed(site['published'])
+            items = list(ET.fromstring(text.encode('utf-8')).iter('item'))
+            return site, text, [(i.findtext('link')[len(U):], i.findtext('pubDate')) for i in items]
+        plain_site, plain, plain_items = feed_of((), (), 'plain')
+        self.assertEqual(plain_items, [('trips/synm-dated/', 'Mon, 01 Jun 2026 12:00:00 +0000'),
+                                       ('trips/synm-older/', 'Fri, 01 May 2026 12:00:00 +0000')])
         self.assertIsNone(plain_site['by_slug']['synm-dated']['published_at'])
-        self.assertEqual(plain, dated)
-        self.assertIn('<pubDate>Mon, 01 Jun 2026 12:00:00 +0000</pubDate>', dated)       # still the trip date (legacy)
-        self.assertNotIn('2026-09', dated)
-        self.assertNotIn('Sep 2026', dated)
+        dated_site, dated, dated_items = feed_of(['published_at: 2026-09-01T08:00:00-07:00', 'updated_at: 2026-09-15'], (),
+                                                 'dated')
+        self.assertEqual(dated_site['by_slug']['synm-dated']['published_at'], '2026-09-01T08:00:00-07:00')
+        self.assertEqual(dated_items, [('trips/synm-dated/', 'Tue, 01 Sep 2026 15:00:00 +0000'),     # in UTC; updated_at plays no part
+                                       ('trips/synm-older/', 'Fri, 01 May 2026 12:00:00 +0000')])
+        self.assertEqual(dated.replace('Tue, 01 Sep 2026 15:00:00', 'Mon, 01 Jun 2026 12:00:00'), plain)
+        # an older trip written up later comes first; a date alone is 12:00 UTC
+        _site, _text, items = feed_of(['published_at: 2026-09-01T08:00:00-07:00'], ['published_at: 2026-09-10'], 'later')
+        self.assertEqual(items, [('trips/synm-older/', 'Thu, 10 Sep 2026 12:00:00 +0000'),
+                                 ('trips/synm-dated/', 'Tue, 01 Sep 2026 15:00:00 +0000')])
+        # one dated report among undated ones takes its place by its publication moment
+        _site, _text, items = feed_of((), ['published_at: 2026-05-20'], 'between')
+        self.assertEqual([u for u, _d in items], ['trips/synm-dated/', 'trips/synm-older/'])
+        _site, _text, items = feed_of((), ['published_at: 2026-06-02'], 'ahead')
+        self.assertEqual([u for u, _d in items], ['trips/synm-older/', 'trips/synm-dated/'])
 
 
 class SitemapTests(FixtureCase):
@@ -2131,6 +2151,26 @@ class SitemapTests(FixtureCase):
     def test_a_page_object_is_indexable_unless_it_says_otherwise(self):
         self.assertIs(core.Page('x/', '').index, True)
         self.assertIs(core.Page('x/', '', 'T', index=False).index, False)
+
+    def test_lastmod_is_updated_at_else_published_at_as_written(self):
+        # Phase 9 (seo-10): only a report that states a publication date carries one; nothing else is dated
+        trips = [{'url': 'trips/synm-a/', 'published_at': '2026-09-01', 'updated_at': '2026-09-15T08:00:00-07:00'},
+                 {'url': 'trips/synm-b/', 'published_at': '2026-06-05T12:00Z', 'updated_at': None},
+                 {'url': 'trips/synm-c/', 'published_at': None, 'updated_at': None}]
+        pages = [core.Page('', '<html>'), core.Page('trips/synm-a/', '<html>'), core.Page('trips/synm-b/', '<html>'),
+                 core.Page('trips/synm-c/', '<html>'), core.Page('trips/synm-a/map/', '<html>', index=False)]
+        self.assertEqual(self.build.sitemap(pages, trips),
+                         '<?xml version="1.0" encoding="UTF-8"?>\n'
+                         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                         '<url><loc>https://esichak.github.io/personal-website/</loc></url>'
+                         '<url><loc>https://esichak.github.io/personal-website/trips/synm-a/</loc>'
+                         '<lastmod>2026-09-15T08:00:00-07:00</lastmod></url>'
+                         '<url><loc>https://esichak.github.io/personal-website/trips/synm-b/</loc>'
+                         '<lastmod>2026-06-05T12:00Z</lastmod></url>'
+                         '<url><loc>https://esichak.github.io/personal-website/trips/synm-c/</loc></url>'
+                         '</urlset>\n')
+        # the fixture site states no publication date, so its built sitemap has no lastmod
+        self.assertEqual(self.build.sitemap(self.feat.pages, self.feat.site['published']), self.build.sitemap(self.feat.pages))
 
     def test_the_sitemap_holds_no_value_of_the_build(self):
         with mock.patch.object(self.build, 'datetime', fake_datetime(datetime(2044, 11, 23, 22, 5))):

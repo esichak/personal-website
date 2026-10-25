@@ -44,8 +44,8 @@ GPX_NS = '{http://www.topografix.com/GPX/1/1}'
 TITLE = 'Synthetic Ridge Traverse'
 SLUG = 'synthetic-ridge-traverse'
 PLACEHOLDER = '<!-- Write the trip report here (Markdown). -->'
-MOVE = ('Move the folder out of content/trips/ first (git keeps the old one: git checkout -- content/trips/%s restores it).'
-        % SLUG)
+MOVE = ('For a better recording use --update %s instead; to import from scratch, move the folder out of content/trips/ '
+        'first (git keeps the old one: git checkout -- content/trips/%s restores it).' % (SLUG, SLUG))
 
 # 20 points a minute apart, zigzagging 35 m east and back so the simplifier keeps them, with ups and downs in elevation
 ELES = [2000, 2006, 2011, 2009, 2017, 2024, 2030, 2028, 2035, 2041, 2047, 2052, 2050, 2058, 2063, 2070, 2068, 2075, 2081, 2088]
@@ -242,7 +242,7 @@ class NewTripTests(AddTripFixture):
                 '--region', 'Invented Coast', '--party', 'A friend', '--draft', '--photos', shots, '--no-render')
         meta, _body = front(self.path(SLUG, 'index.md'))
         self.assertEqual(set(meta), {'title', 'activity', 'subtype', 'date', 'start_time', 'timezone', 'place', 'region',
-                                     'party', 'route_shape', 'stats', 'draft', 'photos'})
+                                     'party', 'route_shape', 'stats', 'draft', 'published_at', 'photos'})
         self.assertTrue(set(meta) <= set(checks.INDEX_KEYS), set(meta) - set(checks.INDEX_KEYS))
         self.assertEqual((meta['subtype'], meta['place'], meta['region'], meta['party']),
                          ('SUP', 'Invented Saddle', 'Invented Coast', 'A friend'))
@@ -252,7 +252,23 @@ class NewTripTests(AddTripFixture):
     def test_without_the_optional_flags_only_the_import_keys_are_written(self):
         self.import_gpx()
         meta, _body = front(self.path(SLUG, 'index.md'))
-        self.assertEqual(set(meta), {'title', 'activity', 'date', 'start_time', 'timezone', 'route_shape', 'stats'})
+        self.assertEqual(set(meta), {'title', 'activity', 'date', 'start_time', 'timezone', 'route_shape', 'stats',
+                                     'published_at'})
+
+    def test_source_names_the_service_of_a_file_import(self):
+        # a FIT or GPX file does not say which service it came through: only --source writes the line
+        self.ok(self.gpx_file(), '--title', TITLE, '--activity', 'hike', '--source', 'Garmin', '--no-render')
+        self.assertEqual(front(self.path(SLUG, 'index.md'))[0]['source'], 'Garmin')
+        self.assertIn('invalid choice', self.usage_error(self.gpx_file(), '--title', TITLE, '--activity', 'hike', '--source', 'Suunto'))
+
+    def test_published_at_is_written_as_an_empty_line_to_fill(self):
+        # Phase 9 (seo-10): filled by hand on the day the report goes online; an empty line is read as absent
+        self.import_gpx()
+        text = read(self.path(SLUG, 'index.md'))
+        self.assertIn('\npublished_at:\n---\n', text)
+        self.assertIsNone(front(self.path(SLUG, 'index.md'))[0]['published_at'])
+        self.assertEqual(text.count('published_at'), 1)
+        self.assertNotRegex(text, r'\n(place|region|party|subtype|draft):')
 
     def test_the_track_gpx_is_well_formed_gpx_1_1_with_a_time_per_point(self):
         out = self.import_gpx()
@@ -275,20 +291,20 @@ class NewTripTests(AddTripFixture):
         self.assertNotIn('<time>', text)
         self.assertGreater(text.count('<trkpt '), 2)
 
-    def test_draft_writes_draft_true_and_the_publish_step_stages_the_content_folder_alone(self):
+    def test_draft_writes_draft_true_and_the_publish_step_publishes_it_as_a_draft(self):
         out = self.import_gpx('--draft')
         self.assertIs(front(self.path(SLUG, 'index.md'))[0]['draft'], True)
         steps = self.steps(out)
         publish = [s for s in steps if s.startswith('Publish')]
-        self.assertEqual(len(publish), 1, steps)
-        self.assertIn('git add "content/trips/%s" alone' % SLUG, publish[0])
-        self.assertNotIn('rendered/trips', publish[0])
+        self.assertEqual(publish, ['Publish as a draft (ADDING-TRIPS.md, step 5): python3 tools/publish.py %s --push' % SLUG])
         self.assertFalse(any(s.startswith('Draw the maps') for s in steps), steps)
 
-    def test_a_published_import_stages_its_rendered_folder_too(self):
+    def test_a_published_import_is_published_with_the_one_command(self):
+        # Phase 9: the checklist names tools/publish.py (Phase 8), which stages the trip, its render and rendered/site
         steps = self.steps(self.import_gpx())
         publish = [s for s in steps if s.startswith('Publish')][0]
-        self.assertIn('git add "content/trips/%s" "rendered/trips/%s" rendered/site' % (SLUG, SLUG), publish)
+        self.assertEqual(publish, 'Publish (ADDING-TRIPS.md, step 5): python3 tools/publish.py %s --push (--dry-run first '
+                                  'lists what it would commit)' % SLUG)
         self.assertIn('Draw the maps (internet needed): python3 tools/render.py %s' % SLUG, steps)
         self.assertNotIn('draft', front(self.path(SLUG, 'index.md'))[0])
 
@@ -450,7 +466,7 @@ class ExistingFolderTests(AddTripFixture):
                 'cover_photo': 'photos/01.webp', 'cover_focal_x': 0.4, 'cover_focal_y': 0.6,
                 'card_summary': 'A synthetic summary.', 'featured': True, 'search_aliases': ['invented'],
                 'published_at': '2026-07-05', 'updated_at': '2026-07-06', 'kind': 'multi-day', 'end_date': '2026-07-05',
-                'conditions': 'Firm synthetic snow.'}
+                'summits': [{'name': 'Invented Peak'}], 'conditions': 'Firm synthetic snow.', 'source': 'Garmin'}
         for key, value in kept.items():
             with self.subTest(key=key):
                 helpers.make_trip(self.trips, SLUG, title=TITLE, body=PLACEHOLDER,
@@ -817,6 +833,10 @@ class StravaImportTests(StravaFixture):
         self.assertEqual((meta['title'], meta['activity'], meta['date'], meta['start_time']),
                          ('Synthetic Morning Loop', 'hike', DAY, START_LA))
         self.assertNotIn('subtype', meta)
+        self.assertEqual(meta['source'], 'Strava')            # Phase 9 (copy-01): the stats note's 'via Strava'
+        self.assertNotIn('strava_id', meta)                   # the id is Eric's privacy decision (PRIVACY_NOTES, decision 4)
+        self.assertIn("--source Garmin: the stats of an import from a Strava export are Strava's",
+                      self.usage_error('--strava-export', folder, '--strava-id', '102', '--source', 'Garmin', '--no-render'))
         # the CSV's numbers: metres from the second Distance column, the second Elapsed Time, rounded elevations
         self.assertEqual(meta['stats'], {'distance_km': 12.35, 'moving': '2:00', 'elapsed': '2:35', 'gain_m': 812,
                                          'loss_m': 800, 'high_m': 2700, 'low_m': 1900})
@@ -980,6 +1000,137 @@ class ReviewFixTests(StravaFixture):
         meta = front(self.path('synthetic-tour', 'days', '02.md'))[0]
         self.assertNotIn('activity', meta)
         self.assertNotIn('subtype', meta)
+
+
+
+# ---------------------------------------------------------------- Phase 9: --update, a better recording
+
+# the same ridge recorded again an hour later, with ten more points: another start, other stats
+PTS2 = [(round(38.900 + i * 0.001, 6), -120.1004 if i % 2 else -120.1, 2000 + 9 * i - (5 if i % 3 == 0 else 0), gf.iso(60 + i))
+        for i in range(30)]
+GPX2 = gf.gpx(gf.trk([PTS2], 'Synthetic better recording'))
+
+
+class UpdateTests(AddTripFixture):
+    """add_trip.py TRACK --update SLUG on a trip someone has worked on: every line but the ones the track decides stays
+    byte for byte, and the body too."""
+
+    def setUp(self):
+        super().setUp()
+        self.import_gpx('--photos', self.jpgs('a.jpg'))
+        index = self.path(SLUG, 'index.md')
+        meta, _body = front(index)
+        meta['photos'][0]['alt'] = 'A synthetic description of the photo.'
+        meta.update({'beta': [{'label': 'Synthetic', 'value': 'A value'}], 'map': {'peaks': ['Synthetic Peak']},
+                     'cover_photo': meta['photos'][0]['file'], 'card_summary': 'A synthetic summary.', 'timezone': 'America/Chicago'})
+        meta['stats']['distance_km'] = 99.9                 # a hand correction
+        write(index, frontmatter.render(meta, WRITE_UP + '\n', keep_empty=True))     # the import's empty published_at: too
+        self.before = read(index)
+        self.assertIn('\npublished_at:\n', self.before)
+        self.better = self.gpx_file('Better_Recording.gpx', GPX2)
+
+    def test_it_replaces_what_the_track_decides_and_keeps_everything_else(self):
+        out = self.ok(self.better, '--update', SLUG, '--no-render')
+        meta, body = front(self.path(SLUG, 'index.md'))
+        old_meta, old_body = frontmatter.split(self.before)
+        self.assertEqual(body, old_body)
+        for key in ('title', 'activity', 'photos', 'beta', 'map', 'cover_photo', 'card_summary', 'timezone'):
+            self.assertEqual(meta[key], old_meta[key], key)
+        self.assertEqual((meta['date'], meta['start_time']), (DAY, '11:00'))          # the trip's own zone: Chicago, an hour later
+        self.assertNotEqual(meta['stats'], old_meta['stats'])
+        self.assertNotEqual(meta['stats']['distance_km'], 99.9)
+        self.assertIn('route_shape', meta)
+        # the lines that did not change are the same lines, in the same places
+        changed = {k for k in ('date', 'start_time', 'stats', 'route_shape', 'timezone') if meta.get(k) != old_meta.get(k)}
+        kept = [ln for ln in self.before.splitlines() if not any(ln.startswith(k + ':') for k in changed) and not ln.startswith('  ')]
+        now = read(self.path(SLUG, 'index.md')).splitlines()
+        self.assertTrue(all(ln in now for ln in kept))
+        gpx = read(self.path(SLUG, 'track.gpx'))
+        self.assertIn('<trk><name>%s</name><type>hike</type>' % TITLE, gpx)       # the trip's title, not the file's
+        self.assertEqual(gpx.count('<trkpt '), 30)                                  # the new recording, times kept
+        self.assertIn('<time>%s</time>' % gf.iso(89), gpx)
+        self.assertIn('the write-up, photos and other lines are as they were', out)
+        self.assertIn('maps not drawn: python3 tools/render.py %s' % SLUG, out)
+        self.assertIn('published_at:', now)                                         # the empty line survives the round trip
+
+    def test_timezone_changes_only_when_given(self):
+        self.ok(self.better, '--update', SLUG, '--no-render', '--timezone', 'America/Los_Angeles')
+        meta, _body = front(self.path(SLUG, 'index.md'))
+        self.assertEqual((meta['timezone'], meta['start_time']), ('America/Los_Angeles', '09:00'))
+
+    def test_keep_stats_keeps_a_hand_correction(self):
+        self.ok(self.better, '--update', SLUG, '--no-render', '--keep-stats')
+        meta, _body = front(self.path(SLUG, 'index.md'))
+        self.assertEqual(meta['stats']['distance_km'], 99.9)
+        self.assertEqual(meta['start_time'], '11:00')
+
+    def test_dry_run_prints_a_diff_and_writes_nothing(self):
+        before = tree(self.trips)
+        out = self.ok(self.better, '--update', SLUG, '--dry-run')
+        self.assertEqual(tree(self.trips), before)
+        self.assertIn('--- content/trips/%s/index.md' % SLUG, out)
+        self.assertIn('+start_time: "11:00"', out)
+        self.assertIn('dry run: nothing written', out)
+        self.assertEqual(self.runs, [])                       # and no render
+
+    def test_the_maps_are_drawn_again_without_no_render(self):
+        self.allow_runs = True
+        out = self.ok(self.better, '--update', SLUG)
+        self.assertEqual([r[-1] for r in self.runs], [SLUG])
+        self.assertTrue(self.runs[0][1].endswith(os.path.join('tools', 'render.py')))
+        self.assertIn("the track's bytes are in the render hash", out)
+
+    def test_refusals(self):
+        err = self.usage_error(self.better, '--update', 'synthetic-no-such-trip')
+        self.assertIn('no content/trips/synthetic-no-such-trip/index.md', err)
+        write(self.path(SLUG, 'days', '01.md'), '---\ntitle: A day\n---\n')
+        err = self.refused(self.better, '--update', SLUG)
+        self.assertIn('has day files', err)
+        self.assertIn('--keep-stats and --dry-run go with --update', self.usage_error(self.better, '--keep-stats'))
+        self.assertIn('keeps the timestamps', self.usage_error(self.better, '--update', SLUG, '--strip-times'))
+
+    def set_lines(self, **lines):
+        meta, body = frontmatter.split(read(self.path(SLUG, 'index.md')))
+        meta.update(lines)
+        write(self.path(SLUG, 'index.md'), frontmatter.render(meta, body, keep_empty=True))
+
+    def test_a_trip_that_names_its_stats_source_needs_source_or_keep_stats(self):
+        # Phase 9 review: figures from another recording must not go out as 'via Strava'
+        for lines, named in (({'strava_id': '101'}, 'strava_id:'), ({'strava_id': None, 'source': 'Strava'}, 'source:'),
+                             ({'strava_id': '101'}, 'source: and strava_id:')):
+            with self.subTest(lines=lines):
+                self.set_lines(**lines)
+                before = read(self.path(SLUG, 'index.md'))
+                err = self.refused(self.better, '--update', SLUG, '--no-render')
+                self.assertIn('says where its stats come from (%s)' % named, err)
+                self.assertIn('--source Strava|Garmin|CalTopo', err)
+                self.assertEqual(read(self.path(SLUG, 'index.md')), before)
+        self.ok(self.better, '--update', SLUG, '--no-render', '--source', 'Garmin')
+        meta = front(self.path(SLUG, 'index.md'))[0]
+        self.assertEqual((meta['source'], meta['strava_id']), ('Garmin', '101'))      # source: names the service first
+        self.ok(self.better, '--update', SLUG, '--no-render', '--keep-stats')
+        self.assertIn('--source does not go with --keep-stats', self.usage_error(self.better, '--update', SLUG, '--keep-stats',
+                                                                               '--source', 'Garmin'))
+
+    def test_options_that_would_be_ignored_and_a_planned_route_are_refused(self):
+        for argv in (('--title', 'Another Title'), ('--region', 'Elsewhere'), ('--photos', self.jpgs('x.jpg')), ('--draft',)):
+            with self.subTest(argv=argv[0]):
+                err = self.usage_error(self.better, '--update', SLUG, *argv)
+                self.assertIn('%s does not go with --update' % argv[0], err)
+        self.set_lines(kind='planned')
+        self.assertIn('is a planned route', self.refused(self.better, '--update', SLUG, '--no-render'))
+
+    def test_a_track_published_without_times_is_not_given_them_back(self):
+        write(self.path(SLUG, 'track.gpx'), GPX.replace('<time>', '<!--').replace('</time>', '-->'))
+        before = read(self.path(SLUG, 'index.md'))
+        self.assertIn('has no timestamps (imported with --strip-times)', self.refused(self.better, '--update', SLUG, '--no-render'))
+        self.assertEqual(read(self.path(SLUG, 'index.md')), before)
+
+    def test_retime_with_dry_run_is_refused_before_it_writes(self):
+        before = read(self.path(SLUG, 'index.md'))
+        self.assertIn('--keep-stats and --dry-run go with --update', self.usage_error('--retime', SLUG, '--dry-run'))
+        self.assertEqual(read(self.path(SLUG, 'index.md')), before)
+        self.assertIn('--source goes with a new trip or --update', self.usage_error('--retime', SLUG, '--source', 'Garmin'))
 
 
 if __name__ == '__main__':

@@ -225,6 +225,16 @@ class EntryTests(IndexFixture):
         t['map'] = {'peaks': ['Mount Tallac', {'name': 'Dicks Peak'}, 42]}
         self.assertEqual(self.search.entry(t)['k'], 'hiking hikes hiked mount tallac 2025 july')
 
+    def test_summits_names_follow_the_peaks_once_each(self):
+        # Phase 9 (features-05): the summits: names, the trip's and its days', are keywords beside map: peaks:
+        helpers.make_trip(self.tmp, 'summits', title='Synthetic Summits', activity='hike', date='2025-07-02', track=True,
+                          map={'peaks': ['Mount Tallac']}, summits=[{'name': 'Mount Tallac'}, {'name': 'Dicks Peak', 'outcome': 'traverse'}])
+        self.assertEqual(self.search.entry(helpers.load(self.tmp, 'summits'))['k'],
+                         'hiking hikes hiked mount tallac dicks peak 2025 july')
+        helpers.make_trip(self.tmp, 'tour', title='Synthetic Tour', activity='ski', kind='multi-day', date='2025-03-01',
+                          days=[{'date': '2025-03-01', 'summits': [{'name': 'Synthetic Dome'}]}, {'date': '2025-03-02'}])
+        self.assertIn('synthetic dome', self.search.entry(helpers.load(self.tmp, 'tour'))['k'])
+
     def test_aliases_come_before_peaks(self):
         self.assertEqual(self.entry('both-keys')['k'], 'hiking hikes hiked dana mount gibbs 2024 may')
 

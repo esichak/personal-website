@@ -3,7 +3,9 @@
 Web copies are upright (EXIF orientation applied to the pixels), resized, re-encoded as JPEG, and stripped of
 every metadata segment except the JFIF header and the ICC colour profile, so no GPS, camera or date tags are published.
 """
+import glob
 import os
+import re
 import struct
 import subprocess
 import tempfile
@@ -167,3 +169,53 @@ def web_copies(src, dst_base, big=1600, small=800, quality=72):
                        check=True, capture_output=True)
     thumb_copy(dst_base + '.webp', dst_base + '.th.webp', w, h, quality=quality)
     return 'webp', w, h
+
+
+# ---------------------------------------------------------------- importing photos into a trip folder (add_trip.py, trip_photos.py)
+
+PHOTO_EXT = ('.jpg', '.jpeg', '.png', '.heic', '.heif')
+
+
+def collect(paths):
+    """The photo files among paths, a folder giving its photos in name order."""
+    out = []
+    for p in paths or []:
+        p = os.path.expanduser(p)
+        if os.path.isdir(p):
+            out += sorted(f for f in glob.glob(os.path.join(p, '*')) if f.lower().endswith(PHOTO_EXT))
+        elif p.lower().endswith(PHOTO_EXT):
+            out.append(p)
+    return out
+
+
+def import_photos(folder, files, prefix='', start=1):
+    """Web copies of each file in folder/photos/ as <prefix>NN (1600 px, 800 px and card-size WebP, upright, no
+    EXIF/GPS; HEIC and PNG through sips first), numbered from start. Returns the front-matter photo entries, alt empty."""
+    entries = []
+    n = start
+    for f in files:
+        src = f
+        tmp = None
+        if not f.lower().endswith(('.jpg', '.jpeg')):
+            tmp = os.path.join(folder, '.convert.jpg')
+            subprocess.run(['sips', '-s', 'format', 'jpeg', f, '--out', tmp], check=True, capture_output=True)
+            src = tmp
+        name = '%s%02d' % (prefix, n)
+        ext, w, h = web_copies(src, os.path.join(folder, 'photos', name))
+        if tmp:
+            os.remove(tmp)
+        entries.append({'file': 'photos/%s.%s' % (name, ext), 'w': w, 'h': h, 'alt': ''})
+        n += 1
+    return entries
+
+
+def next_number(folder, prefix=''):
+    """1 + the highest NN among folder/photos/<prefix>NN.webp or .jpg (copies .sm / .th not counted); 1 when none."""
+    pat = re.compile(r'^%s(\d+)\.(?:webp|jpg)$' % re.escape(prefix))
+    try:
+        names = os.listdir(os.path.join(folder, 'photos'))
+    except OSError:
+        return 1
+    found = [int(m.group(1)) for m in (pat.match(n) for n in names) if m]
+    return max(found) + 1 if found else 1
+

@@ -22,6 +22,10 @@ ACTIVITIES = {
     'other': ('Other', 'Other', 'OTH', '#1C7D78', 'other'),
 }
 CAT = {k: v[2] for k, v in ACTIVITIES.items()}  # activity -> mapkit category code
+# the services a source: line may name, the word after 'via' in a stats note (docs/CONTENT_GUIDE.md); checks.py refuses others
+SOURCES = ('Strava', 'Garmin', 'CalTopo')
+# a summits: entry's outcome (docs/CONTENT_GUIDE.md); checks.py refuses others
+SUMMIT_OUTCOMES = ('summit', 'turned-around', 'traverse')
 OTHER_SUBTYPES = ['SUP', 'Rafting', 'Kayaking', 'Mountaineering']
 
 
@@ -81,6 +85,15 @@ def _pub_value(meta, key, where):
         return text, datetime(int(y), int(mo), int(d), int(hh), int(mm), int(ss or 0), tzinfo=tz)
     except ValueError:
         raise ContentError('%s: %s %r is not a real date or time' % (where, key, v))
+
+
+def publication_utc(text):
+    """The moment a trip's published_at / updated_at (as stored, validated when the trip was loaded) names, in UTC: a
+    date and time as written, a date alone at 12:00 UTC (the feed's rule for a day without a time)."""
+    moment = _pub_value({'v': text}, 'v', 'published_at')[1]
+    if isinstance(moment, datetime):
+        return moment.astimezone(timezone.utc)
+    return datetime(moment.year, moment.month, moment.day, 12, tzinfo=timezone.utc)
 
 
 def _day_of(moment):
@@ -545,6 +558,34 @@ def season_of(d, activity):
     return str(d.year)
 
 
+def _summits(raw):
+    """summits: of index.md or a day file as [{'name', 'outcome', 'route'}], the entries with a name, as written (an
+    outcome outside SUMMIT_OUTCOMES and an empty route are None; checks.py reports them). [] when absent. Typed by Eric:
+    never derived from map: peaks:, the GPS max, a title or a write-up."""
+    out = []
+    for e in raw if isinstance(raw, list) else []:
+        if isinstance(e, dict) and isinstance(e.get('name'), str) and e['name'].strip():
+            route = e.get('route')
+            out.append({'name': e['name'].strip(), 'outcome': e.get('outcome') if e.get('outcome') in SUMMIT_OUTCOMES else None,
+                        'route': route.strip() if isinstance(route, str) and route.strip() else None})
+    return out
+
+
+def has_strava(t):
+    """True when the files say the recording came through Strava: index.md carries a strava_id, or every day file does.
+    (A source: line, when there is one, names the service instead; stats_source.)"""
+    days = t.get('days') or []
+    return (t.get('meta') or {}).get('strava_id') not in (None, '') or (bool(days) and all(d.get('strava') for d in days))
+
+
+def stats_source(t):
+    """The word after 'via' in a stats note: the trip's source: line when it names one of SOURCES, 'Strava' when
+    has_strava(t), else None, and the note names no service."""
+    if t.get('source') in SOURCES:
+        return t['source']
+    return 'Strava' if has_strava(t) else None
+
+
 def load_trip(folder):
     slug = os.path.basename(folder)
     with open(os.path.join(folder, 'index.md'), encoding='utf-8') as fh:
@@ -558,7 +599,8 @@ def load_trip(folder):
         'start_time': meta.get('start_time'), 'timezone': meta.get('timezone'), 'place': meta.get('place'),
         'region': meta.get('region'), 'party': meta.get('party'), 'route_shape': meta.get('route_shape'),
         'featured': bool(meta.get('featured')), 'draft': bool(meta.get('draft')),
-        'beta': meta.get('beta') or [], 'conditions': meta.get('conditions') or {}, 'map': meta.get('map') or {},
+        'beta': meta.get('beta') or [], 'map': meta.get('map') or {}, 'source': meta.get('source'),
+        'summits': _summits(meta.get('summits')),
         'body_md': re.sub(r'<!--.*?-->', '', body, flags=re.S).strip(),
         'photos': _photos(meta.get('photos'), folder), 'days': [], 'url': 'trips/%s/' % slug,
         'track': os.path.join(folder, 'track.gpx') if os.path.exists(os.path.join(folder, 'track.gpx')) else None,
@@ -578,6 +620,7 @@ def load_trip(folder):
             'hut': dm.get('hut'), 'transfer_before': bool(dm.get('transfer_before')),
             'stats': _stats(dm.get('stats')), 'photos': _photos(dm.get('photos'), folder),
             'body_md': re.sub(r'<!--.*?-->', '', db, flags=re.S).strip(), 'track': gpx if os.path.exists(gpx) else None,
+            'strava': dm.get('strava_id') not in (None, ''), 'summits': _summits(dm.get('summits')),
         })
     if kind == 'series':
         _check_day_anchors(t, unlabelled)
@@ -615,6 +658,60 @@ def load_trip(folder):
     t['season'] = season_of(t['date'], act)
     t['has_writeup'] = bool(t['body_md']) or any(d['body_md'] for d in t['days'])
     return t
+
+
+def content_dir():
+    """content/, the folder TRIPS_DIR sits in: about.md and regions/ follow it (tests point TRIPS_DIR at a temp tree)."""
+    return os.path.dirname(TRIPS_DIR)
+
+
+def _inside(raw, where, key):
+    """A relative path that stays inside its folder ('photos/portrait.webp'), normalised; ContentError otherwise."""
+    if not isinstance(raw, str) or not raw.strip():
+        raise ContentError('%s: %s must be a path such as photos/portrait.webp, got %r' % (where, key, raw))
+    s = raw.strip()
+    if '\\' in s or s.startswith('/') or os.path.isabs(s) or '..' in s.split('/'):
+        raise ContentError('%s: %s must be a relative path inside content/about/, got %r' % (where, key, raw))
+    return _norm_path(s)
+
+
+def load_about(root=None):
+    """content/about.md, optional (docs/CONTENT_GUIDE.md, section 12). None when there is no such file; else
+    {'body_md': the words under the front matter (comments dropped), shown verbatim in place of the About page's
+    computed lede; 'photo': a photo dict as a trip's (_photos, file relative to content/about/) or None; 'focal': (x, y)
+    from cover_focal_x / cover_focal_y; 'dir': content/about; 'meta': the front matter}. Nothing is invented: a file
+    with an empty body and no photo changes nothing. checks.py validates the rest (an alt is required)."""
+    root = root or content_dir()
+    path = os.path.join(root, 'about.md')
+    if not os.path.exists(path):
+        return None
+    where = 'content/about.md'
+    with open(path, encoding='utf-8') as fh:
+        meta, body = _split(fh.read(), where)
+    folder = os.path.join(root, 'about')
+    raw, photo = meta.get('photo'), None
+    if raw is not None:
+        if not isinstance(raw, dict):
+            raise ContentError('%s: photo must be a block with file, w, h and alt lines (python3 tools/about_photo.py '
+                               'writes it), got %r' % (where, raw))
+        photo = _photos([dict(raw, file=_inside(raw.get('file'), where, 'photo file'))], folder)[0]
+    return {'body_md': re.sub(r'<!--.*?-->', '', body, flags=re.S).strip(), 'photo': photo, 'dir': folder, 'meta': meta,
+            'focal': (_focal_value(meta, 'cover_focal_x', where), _focal_value(meta, 'cover_focal_y', where))}
+
+
+def load_region_intros(root=None):
+    """content/regions/<slug>.md, optional: {slug: {'title': its title: line or None, 'body_md': the words (comments
+    dropped), 'file': 'content/regions/<slug>.md'}}, slug = slugify(the region's name as the trips spell it). The region
+    page shows the words under its H1; checks.py names a file whose slug is no region's, or whose region has no page."""
+    out = {}
+    for path in sorted(glob.glob(os.path.join(root or content_dir(), 'regions', '*.md'))):
+        slug = os.path.splitext(os.path.basename(path))[0]
+        where = 'content/regions/%s' % os.path.basename(path)
+        with open(path, encoding='utf-8') as fh:
+            meta, body = _split(fh.read(), where)
+        out[slug] = {'title': meta.get('title'), 'meta': meta, 'file': where,
+                     'body_md': re.sub(r'<!--.*?-->', '', body, flags=re.S).strip()}
+    return out
 
 
 def load_all(include_drafts=False):

@@ -236,10 +236,21 @@ def beta_rows(t, noted=True):
     return [r for r in t['beta'] if r.get('label') and str(r['label']).strip().lower() not in skip]
 
 
+SUMMIT_OUTCOME_WORDS = {'turned-around': 'turned around', 'traverse': 'traverse'}   # 'summit' says nothing extra
+
+
+def summit_item(s):
+    """One summits: entry as the Beta rail says it: 'Mount Tallac', 'Mount Tallac via the East Ridge (turned around)'."""
+    word = SUMMIT_OUTCOME_WORDS.get(s['outcome'])
+    return esc(s['name'] + ((' via ' + s['route']) if s['route'] else '') + ((' (%s)' % word) if word else ''))
+
+
 def beta_list(t, noted=True):
-    """The rail's Beta block: dotted leaders drawn by the dt (base.css .dl-leader), values right-aligned and balanced."""
+    """The rail's Beta block: dotted leaders drawn by the dt (base.css .dl-leader), values right-aligned and balanced.
+    The trip's summits: (Phase 9) are its last row, Summits, one per line when there are two or more."""
     rows = beta_rows(t, noted)
-    if not rows:
+    summits = [summit_item(s) for s in t.get('summits') or []]
+    if not rows and not summits:
         return ''
     def value(v):
         # a list value ('Corrugation Corner, Surrealistic Pillar') stacks one item per line, right-aligned, so the dd is
@@ -248,9 +259,14 @@ def beta_list(t, noted=True):
         if len(parts) < 2:
             return esc(str(v))
         return ' '.join('<span>%s%s</span>' % (esc(x), ',' if i < len(parts) - 1 else '') for i, x in enumerate(parts))
-    return ('<div class="rail-b" id="beta"><h2 class="t-label" id="beta-h">Beta</h2><dl class="dl-leader">%s</dl></div>'
-            % ''.join('<div><dt>%s</dt><dd%s>%s</dd></div>' % (esc(r['label']), ' class="dl-list"' if '<span>' in value(r['value']) else '',
-                                                               value(r['value'])) for r in rows))
+    out = ''.join('<div><dt>%s</dt><dd%s>%s</dd></div>' % (esc(r['label']), ' class="dl-list"' if '<span>' in value(r['value']) else '',
+                                                           value(r['value'])) for r in rows)
+    if summits:
+        # the names are stacked as a list value is, each written out whole (a route may hold a comma of its own)
+        out += ('<div><dt>Summits</dt><dd class="dl-list">%s</dd></div>'
+                % ' '.join('<span>%s%s</span>' % (x, ',' if i < len(summits) - 1 else '') for i, x in enumerate(summits))
+                if len(summits) > 1 else '<div><dt>Summits</dt><dd>%s</dd></div>' % summits[0])
+    return '<div class="rail-b" id="beta"><h2 class="t-label" id="beta-h">Beta</h2><dl class="dl-leader">%s</dl></div>' % out
 
 
 def lone_portrait(t):
@@ -616,7 +632,7 @@ def page(t, site):
     cells = core.strip_cells(t)
     has_stats = bool(cells) or has_map
     beta = beta_list(t, noted=has_stats)
-    strip_ = ('<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(cells), core.stats_note(t))) if has_stats else ''
+    strip_ = ('<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(cells), core.stats_note(t, here=here))) if has_stats else ''
     variants = [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]
     nowide = 'map-wide' not in meta['maps']
     # a track whose maps render.py has not drawn yet (--no-render, no internet): the section says so instead of holding
@@ -628,10 +644,10 @@ def page(t, site):
                 % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=not show_hero, cls='map--report' + (' map--nowide' if nowide else ''),
                                   fullscreen_href=link(here, t['url'] + 'map/')),
                    core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t),
-                   core.stats_note(t, 'rep-note-ph')))
+                   core.stats_note(t, 'rep-note-ph', here)))
     elif has_map:
         map_ = not_rendered_section('Route map', 'Map not rendered yet. The GPX file is published: use the Download GPX button.',
-                                    core.stats_note(t, 'rep-note-ph'))
+                                    core.stats_note(t, 'rep-note-ph', here))
     profile = profile_section(t, here, meta)
     main = ''
     if has_report:
@@ -656,7 +672,7 @@ def page(t, site):
     body.append(share_row(here))
     body.append(core.related_block(t, here, site, skip=neighbours(t, site)))
     body.append(pager(t, here, site))
-    # a title shared by several reports ('Ride near Day Valley') gets its date in the <title> / og:title (the H1 stays
+    # a title shared by several reports ('Morning Ride') gets its date in the <title> / og:title (the H1 stays
     # verbatim) and a description that leads with the factual summary, as does a report with little or no write-up
     dup = t['date'] and title_counts(site).get(t['title'].casefold(), 0) > 1
     full_title = ('%s, %s · %s' % (t['title'], core.fdate(t['date'], 'short'), core.SITE_NAME)) if dup else None

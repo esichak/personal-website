@@ -18,11 +18,16 @@ Examples
   # set a trip's time zone and work its date and start time out again from its own track.gpx (offline)
   python3 tools/add_trip.py --retime rose-knob-peak --timezone America/Chicago
 
+  # a better recording of a trip that is on the site: new track, date, start time, route shape and stats; the write-up,
+  # photos and every other line stay as they are (--dry-run shows the change to index.md first)
+  python3 tools/add_trip.py better.fit --update rose-knob-peak --dry-run
+
 Then edit content/trips/<slug>/index.md (write-up, place, party, beta, photo alt text), check it locally with
 `python3 tools/build.py --serve --open <slug>`, and push. Maps are rendered here (they need the internet); the GitHub
 Action only assembles pages. Tracks are published in full (not trimmed); use --strip-times to drop timestamps.
 """
 import argparse
+import difflib
 import glob
 import os
 import re
@@ -42,11 +47,13 @@ import tracks  # noqa: E402
 
 TRIPS = os.path.join(ROOT, 'content', 'trips')
 ACTIVITIES = ('ski', 'climb', 'hike', 'mtb', 'other')
-PHOTO_EXT = ('.jpg', '.jpeg', '.png', '.heic', '.heif')
+PHOTO_EXT = photolib.PHOTO_EXT
 PLACEHOLDER = '<!-- Write the trip report here (Markdown). -->'
-# index.md lines an import never writes: their presence means someone worked on the trip, and --force would drop them
+PUBLISHED_AT = object()   # marks the published_at: line an import writes empty
+# index.md lines an import never writes with a value: their presence means someone worked on the trip, and --force would drop them
 KEPT_KEYS = ('beta', 'map', 'cover_photo', 'cover_focal_x', 'cover_focal_y', 'card_summary', 'featured', 'search_aliases',
-             'published_at', 'updated_at', 'region_days', 'journal_highlights', 'kind', 'end_date', 'conditions')
+             'published_at', 'updated_at', 'region_days', 'journal_highlights', 'kind', 'end_date', 'summits',
+             'conditions')   # conditions: retired, but the words in it are still someone's (CONTENT_GUIDE 7.12)
 _DAY_PHOTO = re.compile(r'^d\d+-\d+\.(?:webp|jpg)$')   # a day's full-size photo; the .sm / .th copies do not count
 
 
@@ -64,34 +71,12 @@ def clean_title(s):
 
 
 def collect_photos(paths):
-    out = []
-    for p in paths or []:
-        p = os.path.expanduser(p)
-        if os.path.isdir(p):
-            out += sorted(f for f in glob.glob(os.path.join(p, '*')) if f.lower().endswith(PHOTO_EXT))
-        elif p.lower().endswith(PHOTO_EXT):
-            out.append(p)
-    return out
+    return photolib.collect(paths)
 
 
 def add_photos(folder, files, prefix='', start=1):
-    """Web copies (1600 px + 800 px WebP, upright, no EXIF/GPS). Returns front-matter photo entries."""
-    entries = []
-    n = start
-    for f in files:
-        src = f
-        tmp = None
-        if not f.lower().endswith(('.jpg', '.jpeg')):
-            tmp = os.path.join(folder, '.convert.jpg')
-            subprocess.run(['sips', '-s', 'format', 'jpeg', f, '--out', tmp], check=True, capture_output=True)
-            src = tmp
-        name = '%s%02d' % (prefix, n)
-        ext, w, h = photolib.web_copies(src, os.path.join(folder, 'photos', name))
-        if tmp:
-            os.remove(tmp)
-        entries.append({'file': 'photos/%s.%s' % (name, ext), 'w': w, 'h': h, 'alt': ''})
-        n += 1
-    return entries
+    """Web copies of the photos into the trip folder (photos.import_photos, shared with tools/trip_photos.py)."""
+    return photolib.import_photos(folder, files, prefix, start)
 
 
 def day_photo_count(folder):
@@ -140,7 +125,8 @@ def force_refusal(folder, slug):
     and numbers photos from 01, so it may only replace a folder that holds no index.md or an untouched import (the
     placeholder body or none, empty alt lines, no line an import does not write, no day files, no goal.json)."""
     where = 'content/trips/%s' % slug
-    move = ('Move the folder out of content/trips/ first (git keeps the old one: git checkout -- %s restores it).' % where)
+    move = ('For a better recording use --update %s instead; to import from scratch, move the folder out of '
+            'content/trips/ first (git keeps the old one: git checkout -- %s restores it).' % (slug, where))
     lost, extra = [], []      # (what, is it plural): what the import would drop, from index.md and from the folder
     index = os.path.join(folder, 'index.md')
     if os.path.exists(index):
@@ -154,7 +140,9 @@ def force_refusal(folder, slug):
         alts = sum(1 for p in (meta.get('photos') or []) if isinstance(p, dict) and str(p.get('alt') or '').strip())
         if alts:
             lost.append((_plural(alts, 'photo description'), alts > 1))
-        keys = [k for k in KEPT_KEYS if k in meta]
+        keys = [k for k in KEPT_KEYS if meta.get(k) not in (None, '')]     # an empty line holds nothing to lose
+        if meta.get('source') not in (None, '', 'Strava'):                  # Strava is what an export import writes
+            keys.append('source')
         if keys:
             lost.append(('the %s line%s' % (_and(keys), 's' if len(keys) > 1 else ''), len(keys) > 1))
     if os.path.isdir(os.path.join(folder, 'days')):
@@ -230,20 +218,27 @@ def list_strava(export, types, since):
     return 0
 
 
-def rewrite_keys(path, updates):
-    """Set top-level front-matter keys of `path` through the frontmatter round trip, which gives every content file back
-    byte for byte; a file it would change otherwise (a comment inside the block, a hand-made layout) is left alone and
-    ValueError says so. Returns {key: old value}. A key not there yet is added at the end of the block."""
+def rewritten(path, updates):
+    """(the file's text, its text with these top-level front-matter keys set, {key: old value}) through the frontmatter
+    round trip, which gives every content file back byte for byte; a file it would change otherwise (a comment inside
+    the block, a hand-made layout) raises ValueError. A key not there yet is added at the end of the block; the others
+    keep their place."""
     with open(path, encoding='utf-8') as fh:
         text = fh.read()
     meta, body = frontmatter.split(text)
-    if frontmatter.render(meta, body) != text:
+    if frontmatter.render(meta, body, keep_empty=True) != text:
         raise ValueError('%s would change in more places than these lines when it is written back (a comment or an '
                          'unusual layout in its front matter); edit it by hand' % os.path.relpath(path, ROOT))
     old = {k: meta.get(k) for k in updates}
     meta.update(updates)
+    return text, frontmatter.render(meta, body, keep_empty=True), old
+
+
+def rewrite_keys(path, updates):
+    """Set top-level front-matter keys of `path` (rewritten); returns {key: old value}."""
+    _text, new, old = rewritten(path, updates)
     with open(path, 'w', encoding='utf-8') as fh:
-        fh.write(frontmatter.render(meta, body))
+        fh.write(new)
     return old
 
 
@@ -334,6 +329,111 @@ def retime(ap, slug, zone):
     return 0
 
 
+def update(ap, a):
+    """--update SLUG: a better recording of a single-day trip that is on the site. The track is replaced, and the lines
+    worked out from it (date, start_time, route_shape, stats unless --keep-stats; timezone only with --timezone, the
+    trip's own line winning otherwise) are set in index.md through the round trip; every other line and the write-up
+    stay byte for byte. The maps are drawn again unless --no-render: the track's bytes are in the render hash."""
+    slug = a.update
+    folder, where = os.path.join(TRIPS, slug), 'content/trips/%s' % slug
+    index = os.path.join(folder, 'index.md')
+    if not os.path.exists(index):
+        ap.error('--update %s: no %s/index.md (an existing trip\'s folder name; a new trip needs no --update)' % (slug, where))
+    if a.strip_times:
+        ap.error('--update keeps the timestamps of the new track (--strip-times is for a new import)')
+    if os.path.isdir(os.path.join(folder, 'days')):
+        print('%s has day files: --update replaces the track of a single-day trip; replace a day\'s NN.gpx and its '
+              'lines by hand' % where, file=sys.stderr)
+        return 1
+    for flag, given in (('--title', a.title), ('--activity', a.activity), ('--subtype', a.subtype), ('--place', a.place),
+                        ('--region', a.region), ('--party', a.party), ('--photos', a.photos), ('--slug', a.slug),
+                        ('--draft', a.draft), ('--force', a.force), ('--strava-export', a.strava_export),
+                        ('--strava-id', a.strava_id)):
+        if given:
+            ap.error('%s does not go with --update, which keeps every line but the ones the track decides: change them in '
+                     '%s/index.md (more photos: tools/trip_photos.py)' % (flag, where))
+    if a.keep_stats and a.source:
+        ap.error("--source does not go with --keep-stats: the figures stay the old recording's, and so does its source")
+    if not a.track or not os.path.exists(os.path.expanduser(a.track)):
+        ap.error('--update needs the new track file: python3 tools/add_trip.py TRACK --update %s' % slug)
+    try:
+        with open(index, encoding='utf-8') as fh:
+            meta = frontmatter.split(fh.read())[0]
+        pts = tracks.read(os.path.expanduser(a.track))
+    except Exception as ex:   # noqa: BLE001 — one line naming the file, never a traceback
+        print('cannot read %s or %s/index.md (%s: %s)' % (a.track, where, type(ex).__name__, ex), file=sys.stderr)
+        return 1
+    if len(pts) < 2:
+        print('no GPS points in ' + a.track, file=sys.stderr)
+        return 1
+    if meta.get('kind') == 'planned':
+        print('%s is a planned route (a tick-list goal): --update is for a report; tools/ticklist.py changes a goal'
+              % where, file=sys.stderr)
+        return 1
+    try:
+        old_pts = tracks.read(os.path.join(folder, 'track.gpx')) if os.path.exists(os.path.join(folder, 'track.gpx')) else []
+    except Exception:   # noqa: BLE001 — a damaged old file is being replaced; it has nothing to keep
+        old_pts = []
+    if old_pts and all(p[3] is None for p in old_pts):
+        print('%s/track.gpx has no timestamps (imported with --strip-times), and --update writes the new file with its '
+              "times; take the times out of the new file first, or wait for decision 2 of docs/PRIVACY_NOTES.md" % where,
+              file=sys.stderr)
+        return 1
+    # the stats note names a service: figures from another recording must not go out under the old one's name
+    named = [k for k in ('source', 'strava_id') if meta.get(k) not in (None, '')]
+    if named and not a.keep_stats and not a.source:
+        print('%s/index.md says where its stats come from (%s), and the new file\'s figures would be shown under that '
+              'name: give --source %s for where the new recording came from, or keep the old figures with --keep-stats'
+              % (where, ' and '.join(k + ':' for k in named), '|'.join(content.SOURCES)), file=sys.stderr)
+        return 1
+    zone = a.timezone
+    if not zone and isinstance(meta.get('timezone'), str) and meta['timezone'].strip() and not zone_problem(meta['timezone'].strip()):
+        zone = meta['timezone'].strip()
+    start, tz = tracks.local_start(pts, zone)
+    updates = {'route_shape': tracks.route_shape(pts)}
+    if start is not None:
+        updates.update({'date': start.date().isoformat(), 'start_time': start.strftime('%H:%M'), 'timezone': tz})
+    if not a.keep_stats:
+        updates['stats'] = tracks.compute_stats(pts)
+    if a.source:
+        updates['source'] = a.source
+    try:
+        before, after, old = rewritten(index, updates)
+    except ValueError as ex:
+        print(str(ex), file=sys.stderr)
+        return 1
+    simple = tracks.simplify(pts, 2.0)
+    if a.dry_run:
+        sys.stdout.writelines(difflib.unified_diff(before.splitlines(True), after.splitlines(True),
+                                                   where + '/index.md', where + '/index.md (updated)'))
+        print('would write %s/index.md and %s/track.gpx (%d points kept of %d)%s'
+              % (where, where, len(simple), len(pts), '' if a.no_render else ', then draw its maps again'))
+        print('dry run: nothing written')
+        return 0
+    with open(index, 'w', encoding='utf-8') as fh:
+        fh.write(after)
+    tracks.write_gpx(os.path.join(folder, 'track.gpx'), simple, meta.get('title') or slug, kind=meta.get('activity'), times=True)
+    for k in updates:
+        was = old[k]
+        print('%-11s %s' % (k, 'changed' if was != updates[k] else 'unchanged'))
+    print('updated %s/index.md and %s/track.gpx (%d points kept of %d); the write-up, photos and other lines are as '
+          'they were' % (where, where, len(simple), len(pts)))
+    try:
+        import checks
+        for f in checks.run(TRIPS):
+            if f['file'].startswith(where + '/') and f['level'] != 'note':
+                print(checks.line(f))
+    except Exception as ex:   # noqa: BLE001 — the check is a courtesy here; build.py runs it again
+        print('the content check could not run (%s); python3 tools/validate.py' % ex)
+    if a.no_render:
+        print('maps not drawn: python3 tools/render.py %s (the new track is in the render hash)' % slug)
+    else:
+        print('drawing the maps again: the track\'s bytes are in the render hash')
+        subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'render.py'), slug], check=False)
+    print('Publish: python3 tools/publish.py %s --push (ADDING-TRIPS.md, step 5)' % slug)
+    return 0
+
+
 def checklist(slug, edit, alt_empty, draft, rendered, strava_body):
     """The steps left after an import, numbered, in the order ADDING-TRIPS.md gives them."""
     f = 'content/trips/%s/%s' % (slug, edit)
@@ -352,11 +452,10 @@ def checklist(slug, edit, alt_empty, draft, rendered, strava_body):
         steps.append('Draw the maps (internet needed): python3 tools/render.py %s' % slug)
     steps.append('Preview: python3 tools/build.py --serve --open %s' % slug)
     if draft:
-        steps.append('Publish as a draft (ADDING-TRIPS.md, step 5): python3 tools/build.py --check, then git add '
-                     '"content/trips/%s" alone, git status --short, git commit and git push' % slug)
+        steps.append('Publish as a draft (ADDING-TRIPS.md, step 5): python3 tools/publish.py %s --push' % slug)
     else:
-        steps.append('Publish (ADDING-TRIPS.md, step 5): python3 tools/build.py --check, then git add "content/trips/%s" '
-                     '"rendered/trips/%s" rendered/site, git status --short, git commit and git push' % (slug, slug))
+        steps.append('Publish (ADDING-TRIPS.md, step 5): python3 tools/publish.py %s --push (--dry-run first lists what '
+                     'it would commit)' % slug)
     print('Next steps:')
     for i, s in enumerate(steps, 1):
         print('  %d. %s' % (i, s))
@@ -391,16 +490,32 @@ def main(argv=None):
     ap.add_argument('--strip-times', action='store_true', help='publish the GPX without timestamps')
     ap.add_argument('--draft', action='store_true', help='keep it off the site until you set draft: false')
     ap.add_argument('--no-render', action='store_true', help='skip map rendering (run tools/render.py later)')
-    ap.add_argument('--force', action='store_true', help='overwrite an existing trip folder that is still an untouched '
-                                                         'import (refused once it has a write-up, alt text or other edits)')
+    ap.add_argument('--force', action='store_true', help='rewrite index.md of an existing trip folder that is still an '
+                                                         'untouched import (refused once it has a write-up, alt text or other '
+                                                         'edits; for a trip on the site see --update and ADDING-TRIPS.md, '
+                                                         '"Changing a trip that is on the site")')
+    ap.add_argument('--update', metavar='SLUG', help="a better recording of a trip on the site: replace its track and the "
+                                                     "lines worked out from it, keep the write-up, photos and the rest")
+    ap.add_argument('--keep-stats', action='store_true', help='with --update: keep the stats block as it is')
+    ap.add_argument('--dry-run', action='store_true', help='with --update: print the change to index.md; write nothing')
+    ap.add_argument('--source', choices=content.SOURCES,
+                    help='the service the recording came through, named in the stats note (written as source:); an '
+                         'import from a Strava export is Strava')
     a = ap.parse_args(argv)
 
     if a.timezone:
         why = zone_problem(a.timezone)
         if why:
             ap.error(why)
+    # before any branch, so that no command takes an option it would ignore (--retime --dry-run would write)
+    if (a.keep_stats or a.dry_run) and not a.update:
+        ap.error('--keep-stats and --dry-run go with --update')
+    if a.source and (a.retime or a.day_of or a.list):
+        ap.error("--source goes with a new trip or --update (a day file has no source: line; the trip's index.md has it)")
     if a.retime:
         return retime(ap, a.retime, a.timezone)
+    if a.update:
+        return update(ap, a)
 
     rec = None
     if a.strava_export:
@@ -417,6 +532,8 @@ def main(argv=None):
             return list_strava(export, a.type, since)
         if not a.strava_id:
             ap.error('--strava-id is required with --strava-export (or --list to see the activities)')
+        if a.source and a.source != 'Strava':
+            ap.error('--source %s: the stats of an import from a Strava export are Strava\'s' % a.source)
         try:
             rec = export.by_id(a.strava_id)
         except KeyError:
@@ -460,6 +577,9 @@ def main(argv=None):
     simple = tracks.simplify(pts, 2.0)
     stats = strava.stats_from(rec) if rec else tracks.compute_stats(pts)
     title = clean_title(a.title or (rec['name'] if rec else os.path.splitext(os.path.basename(track_path))[0].replace('_', ' ')))
+    if not a.title and strava.default_title(title):
+        print('note: the title "%s" looks like one Strava gives an activity by itself; pass --title with the name of '
+              'the trip (the folder name is the address, so a title can also be changed later in index.md)' % title)
     body = strava.paragraphs(rec['desc']) if rec else ''
     photo_files = (rec['media'] if rec else []) + collect_photos(a.photos)
     photo_files = [f for f in photo_files if f.lower().endswith(PHOTO_EXT)]
@@ -520,14 +640,21 @@ def main(argv=None):
             'start_time': start.strftime('%H:%M') if start else None, 'timezone': tz,
             'place': a.place, 'region': a.region, 'party': a.party,
             'route_shape': tracks.route_shape(pts), 'stats': stats,
+            # the service the stats note names (content.stats_source): a FIT or GPX file does not say which one it
+            # was, so only --source names it
+            'source': a.source or ('Strava' if rec else None),
             'draft': True if a.draft else None,
+            'published_at': PUBLISHED_AT,
             'photos': add_photos(folder, photo_files),
         }
         ph = meta['photos']
         if not body:
             body = PLACEHOLDER
+        # an empty published_at: line to fill on the day the report goes online (ADDING-TRIPS.md, step 5); every other
+        # absent value is left out
+        meta = dict((k, None if v is PUBLISHED_AT else v) for k, v in meta.items() if v is not None)
         with open(os.path.join(folder, 'index.md'), 'w', encoding='utf-8') as fh:
-            fh.write(frontmatter.render(meta, body))
+            fh.write(frontmatter.render(meta, body, keep_empty=True))
         print('created content/trips/%s/ (%d points kept of %d, %d photos)' % (slug, len(simple), len(pts), len(ph)))
         edit = 'index.md'
         draft = bool(a.draft)

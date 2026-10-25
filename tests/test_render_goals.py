@@ -639,10 +639,33 @@ class StatusTests(RunFixture):
     def test_a_changed_title_or_stats_is_named(self):
         self.trip('walk-3', gf.SINGLE, date='2026-08-03', title='Renamed Synthetic Walk')
         self.assertEqual(self.reason('walk-3'), 'title/map/stats changed')
-        self.assertEqual(self.status(), (1, ['walk-3 title/map/stats changed',
-                                             'site maps: stale (a trip on a region or ski map changed)']))
+        # Phase 9: a retitle draws the trip's own maps; the site maps take titles at build time and stay up to date
+        self.assertEqual(self.status(), (1, ['walk-3 title/map/stats changed', 'site maps: up to date']))
         self.trip('walk-3', gf.SINGLE, date='2026-08-03', stats={'distance_km': 5.5})
         self.assertEqual(self.reason('walk-3'), 'title/map/stats changed')
+        self.assertEqual(self.status(), (1, ['walk-3 title/map/stats changed',
+                                             'site maps: stale (a trip on a region or ski map changed)']))
+
+    def test_a_retitle_under_the_hash_written_before_phase_9_leaves_the_site_maps_up_to_date(self):
+        # rendered/site/ as a render of before Phase 9 left it: the hash with every title, and a fragment whose labels
+        # carry the titles the trips had then; render.site_maps_stale matches the hash with those
+        jobs = renderkey.site_jobs(self.loaded())[0]
+        maps = {}
+        for j in jobs:
+            key = j[0] + '-desktop'
+            maps[key] = {}
+            write_text(os.path.join(self.out, 'site', key + '.svg.html'), '<svg><g class="mk-cluster" aria-hidden="true" data-keys="%s">'
+                       '<title>%s</title></g></svg>' % (' '.join(t['slug'] for t in j[2]), '; '.join(t['title'] for t in j[2])))
+        write_text(os.path.join(self.out, 'site', 'meta.json'), json.dumps({'hash': renderkey.site_hash_with_titles(jobs), 'maps': maps}))
+        self.assertEqual(self.status(), (0, ['trips: all 3 up to date', 'site maps: up to date']))
+        self.trip('walk-3', gf.SINGLE, date='2026-08-03', title='Renamed Synthetic Walk')
+        self.assertEqual(self.status(), (1, ['walk-3 title/map/stats changed', 'site maps: up to date']))
+        # and the run that draws walk-3's own maps draws no site map: render_site asks the same question
+        with mock.patch.object(self.render, 'draw_site', side_effect=AssertionError('the site maps were drawn')):
+            self.assertIs(self.render.render_site(self.loaded()), False)
+        self.trip('walk-3', gf.SINGLE, date='2026-08-03', title='Renamed Synthetic Walk', stats={'distance_km': 5.5})
+        self.assertEqual(self.status(), (1, ['walk-3 title/map/stats changed',
+                                             'site maps: stale (a trip on a region or ski map changed)']))
 
     def test_a_new_renderer_and_several_changes_at_once_are_named(self):
         self.edit_meta('walk-1', hash='drawn-by-an-older-renderer', inputs=dict(renderkey.input_parts(self.named('walk-1')),

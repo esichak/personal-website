@@ -32,6 +32,18 @@ Adding a trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); how the generator wor
 A wrong manifest never falls back to a different trip. A typo, a draft, a planned route or a seventh slug stops
 the build with a message naming the file and the slug or the count (first table in section 5.2).
 
+**The home page's region maps.** "Where I've been" draws two region maps, Lake Tahoe and Eastern Sierra. An optional
+`"region_maps"` in the same file picks others, one or two, in the order they are shown:
+
+```json
+{"featured_slugs": ["pacific-crest-trail-2024"], "region_maps": ["Lake Tahoe", "Santa Cruz"]}
+```
+
+Each name is spelt as the trips spell it and must have a region map (a region gets one with three trips with a track,
+once `python3 tools/render.py --site` has run). The other mapped regions stay in the `ALSO` line under the maps. A
+name without a region map, a third name or one listed twice stops the build: `content/home.json: region_maps: 'Santa
+Cruz' has no region map in rendered/site/meta.json (...)`. Without the key nothing changes. No render is needed.
+
 ## 2. Feature, reorder, remove
 
 **Feature a trip**
@@ -96,7 +108,10 @@ Without `cover_photo` the build picks, in order:
 6. else a plain card with no image.
 
 An automatic pick is a fallback, not an editorial choice: it is simply the first file that fits. For anything on
-the homepage, look at the photos and set `cover_photo`.
+the homepage, look at the photos and set `cover_photo`. `python3 tools/content_report.py --missing cover` lists every
+report whose cover is an automatic pick or that has no photo at all, newest first (5.5). `--alt` lists the alt text of
+the photos seen most (the home page's features, each region page's Featured row, then every cover): a cover's alt is
+also the share image's description (section 9), so those are the ones to read first.
 
 The same three lines also choose the lead photo of the trip's report page and of the PCT page, when the cover is at
 least 6:5 wide (section 7.3), and the share image of the trip's page (section 9).
@@ -195,7 +210,7 @@ Each finding is one line: the level, the file to open, then the message. The lin
 follows. On today's content the summary reads:
 
 ```
-content: 0 errors, 1 warnings, 468 notes (168 trips, 398 photos, 341 GPX files)
+content: 0 errors, 1 warnings, 346 notes (168 trips, 398 photos, 341 GPX files)
 ```
 
 The one warning is about a planned route saved before the tick list ([TICK_LIST_GUIDE.md](TICK_LIST_GUIDE.md),
@@ -205,7 +220,7 @@ section 9).
 | --- | --- | --- |
 | `ERROR` | a value the generator cannot use, or a file that a page needs and is not there | the build stops; exit status 1 |
 | `WARNING` | optional metadata left incomplete; the pages cope | the build goes on; exit status 0 |
-| `NOTE` | an optional field that is simply absent: no place, no write-up, no photos, a day without a title, photos without a caption; and a trip whose `timezone:` is `UTC` (`timezone is UTC, so start_time is a UTC clock; set the zone with python3 tools/add_trip.py --retime <slug> --timezone <zone>`: the tool's guess falls back to UTC where it knows no zone, and the page's Start time is then a UTC clock) | counted in the summary; listed only with `-v` |
+| `NOTE` | an optional field that is simply absent: no place, no write-up, no photos, a day without a title; photos without a caption, counted in one line for the whole site (`398 photos without a caption, in 143 files ...`); a title that names a summit or a feature (Peak, Mount, Mountain, Couloir, Chute, Bowl, Lake) with no `map: peaks:` line, whose name would label the map and be found by the search (not for a Strava default such as `Hike near <a lake town>`, which the content report flags instead) (6, "What makes a report findable"); and a trip whose `timezone:` is `UTC` (`timezone is UTC, so start_time is a UTC clock; set the zone with python3 tools/add_trip.py --retime <slug> --timezone <zone>`: the tool's guess falls back to UTC where it knows no zone, and the page's Start time is then a UTC clock) | counted in the summary; listed only with `-v` |
 
 | Flag | Effect |
 | --- | --- |
@@ -223,6 +238,21 @@ folder), 2 for a mistake on the command line.
 **What a build does with the same rules.** `build.py`, with or without `--serve` or `--check`, checks the content
 first. With an error it prints every `ERROR` line and stops with exit status 1 before the output folder is touched.
 With warnings only it prints the first ten, then `... N more; python3 tools/validate.py lists them`, and builds.
+
+### 5.5 What each report has and lacks: `content_report.py`
+
+`python3 tools/content_report.py` prints one row per published report, newest first: date, folder name, a title flag
+(`strava` for a name Strava gives an activity by itself, such as `Morning Ride` or `Ride near <a town>`; `x7` for a title seven
+reports share), the length of the write-up in characters, the number of photos, where the cover comes from
+(`explicit` from a `cover_photo:` line, `auto` for the automatic pick of section 3, `none` without a photo), the
+place, the party and whether a card summary is set. It only reads; it never writes under `content/`.
+
+| Option | Lists |
+| --- | --- |
+| `--missing place` (or `writeup`, `photos`, `cover`, `summary`) | only the reports without it: `--missing place` is the one-sitting list of places to fill in |
+| `--alt` | the alt text of the photos seen most: the home page's features, each region page's Featured row, every cover |
+| `--taxonomy` | every region with its slug and count and the places inside it, then the names to look at: one name inside another (`Mount Rose` and `Mount Rose Summit`), one region spelt two ways, regions of one report, each with the region whose trips start within 150 km of it (`Idaho (near Boise)`) (11.9) |
+| `--markdown` | the table as Markdown in `.cache/content-report.md` (not committed) |
 
 ### 5.2 Errors
 
@@ -321,7 +351,7 @@ A warning line reads `WARNING <file>: <message>`. A warning never stops a build.
 | `the region and ski maps were drawn without OpenStreetMap data; run python3 tools/render.py --site again and commit rendered/site/` | the file named is `rendered/site/meta.json`; as the line above for a trip's maps | Run the command again later. |
 | `photos[1] (photos/02.webp) has no alt text; describe the photo in a sentence` | `alt: ""`, which is what `add_trip.py` writes | Write the description. On the cover it is also the share image's description (section 9). |
 | `photos[1] (photos/02.webp) has no w and h, so the page cannot hold its place while it loads; record the pixel size` | a photo entry typed by hand | Add `w:` and `h:`, the file's size in pixels. |
-| `photos[1] (photos/02.webp) has no 800 px copy (02.sm.webp), so phones load the full file` | a photo copied into `photos/` by hand. `add_trip.py` writes this copy for the photos it imports; no tool adds one afterwards | Save a copy 800 px on its long edge under the name in the message. |
+| `photos[1] (photos/02.webp) has no 800 px copy (02.sm.webp), so phones load the full file` | a photo copied into `photos/` by hand. `add_trip.py` and `tools/trip_photos.py` write this copy for the photos they import; use `trip_photos.py` to add photos to a trip that is on the site ([ADDING-TRIPS.md](../ADDING-TRIPS.md), "Changing a trip that is on the site") | Save a copy 800 px on its long edge under the name in the message, or take the photo out and add it again with `trip_photos.py`. |
 | `photos[2] declares photos/01.webp again (first in index.md, photos[0]); the page shows it twice` | one photo file is listed in two entries of the trip: in `index.md`, in a day file, or one in each. The line names the file that holds the second entry and says where the first one is | Delete one of the two entries. |
 | `cover photos/01.webp has no card-size copy (.th); run python3 tools/thumbs.py <slug>` | section 3, "Card-size copies" | Run the command it gives. |
 | `not declared under photos: in index.md or a days/NN.md, and not the .sm or .th copy of a declared photo; the build publishes it all the same` | the file named is one in `content/trips/<slug>/photos/` that no entry lists. An iCloud conflict copy such as `01 2.webp` shows up this way | Delete the file, or add an entry for it. |
@@ -422,7 +452,7 @@ The search box looks in:
 - the activity, with its other forms: "backcountry ski", "skiing", "skied", "skimo", "touring"; "hiking", "hikes";
   "climbing", "climbed"; "mountain biking", "bikes", "rides", "cycling"; for Other, its type ("paddleboarding",
   "paddling", "SUP", "rafting", "kayaking", "mountaineering");
-- the summits in `map: peaks:`;
+- the summits in `map: peaks:` and the names in `summits:` (7.13);
 - the dates: the year (both years when a trip ends in the next one) and the name of every month it spans, so
   `june 2024` finds the trips of June 2024. Never the day of the month: search by month and year. The words are not
   paired, so a trip from December 2023 to January 2024 is also found by `december 2024`;
@@ -436,7 +466,7 @@ report. A word is not found inside another one, so `horn` no longer finds the Ma
 alias when people really type the short form). Case, accents and punctuation do not matter: `chamonix zermatt` finds
 `Chamonix – Zermatt`. An apostrophe is not a word break: `lovers leap`, `lover's leap` and `lovers` all find Lover's
 Leap, typed with a straight or a curly apostrophe. After a single letter it is one (`d'Argentière` reads as
-`d argentiere`), so `argentiere` finds it. Not searched: party, beta rows, conditions, stats, photo captions. The
+`d argentiere`), so `argentiere` finds it. Not searched: party, beta rows, stats, photo captions. The
 search data is a public file, `trips/search.json`, built from exactly those fields: no coordinates, no GPX, never a
 draft.
 
@@ -469,6 +499,16 @@ When a search matches only in the write-up, the card shows the words around the 
 browse block (shown without JavaScript; with it the form's menus do the same): to its own page when it has one
 (section 11), else to its list on the Map page. A region whose only reports are journals (the PCT's) is in neither the
 browse block nor the Region menu, as the Map page leaves it out: the journal is found with Format: Series.
+
+**What makes a report findable.** People search for a place or a peak more often than for a title. For each report:
+
+- a `place:` line: the named area inside the region (`python3 tools/content_report.py --missing place` lists the
+  reports without one); names, not addresses;
+- a `map: peaks:` line for the summits on the route: it labels them on the map and the search finds them (the check's
+  note names a title with Peak, Mount, Couloir and the like that has none);
+- a `summits:` list for the summits you reached (7.13);
+- `search_aliases` for a nickname or an abbreviation people type (`PCT`);
+- a title of your own: a Strava default (`Morning Hike`) says nothing a search can use (`content_report.py` flags them).
 
 **Journal days.** A search also reads the days of the PCT journal on their own, every one of them. The days it finds
 are listed under "Journal days", after the reports, and the count line above the results
@@ -892,6 +932,63 @@ map and offers no downloads, and the warning `none of the N days has a GPX …` 
 
 None of this takes a file out of the repository or its history: [PRIVACY_NOTES.md](PRIVACY_NOTES.md), decision 3.
 
+### 7.11 The stats note: `source:`
+
+Under the stats strip of every report with a track, the note opens with where the numbers came from. Which service it
+names follows the files:
+
+| `index.md` has | The note opens |
+| --- | --- |
+| `source: Garmin` (or `Strava`, `CalTopo`) | `Stats from the GPS recording via Garmin.` |
+| no `source:` line, and a `strava_id:` line (on a multi-day trip or the PCT: on every day file) | `Stats from the GPS recording via Strava.` |
+| neither | `Stats from the GPS recording.` |
+
+Multi-day trips and the PCT say "recordings". Every report on the site today has `strava_id` lines and says "via
+Strava". `add_trip.py` writes `source: Strava` for an import from a Strava export; a FIT or GPX file does not say which
+service it came through, so it writes the line only when you name one: `--source Garmin`. `add_trip.py --update`
+replaces the stats of a trip that names a service only with `--source` (where the new recording came from) or
+`--keep-stats`, so new figures never go out under the old recording's name. Any other value stops
+the check: `source must be one of Strava, Garmin, CalTopo (the service the recording came through, named in the stats
+note), got 'Suunto'; leave the line out when it is none of them`. No render is needed after changing it.
+
+### 7.12 Conditions go in `beta:` rows
+
+Snow, weather, water level and other conditions are `beta:` rows, shown beside the report with its own date above them
+(the footer already says reports describe past conditions):
+
+```yaml
+beta:
+  - label: Snow
+    value: Firm until 10, corn after
+  - label: Water level
+    value: Low; the second crossing was dry
+```
+
+The old `conditions:` key is not read by any page; the check warns `unknown key 'conditions' (conditions go in beta:
+rows, ...)` so its words can be moved.
+
+### 7.13 Summits: `summits:`
+
+The summits you reached on a trip, typed by you, one entry each, in `index.md` or in a day's `days/NN.md`:
+
+```yaml
+summits:
+  - name: Mount Tallac
+  - name: Dicks Peak
+    outcome: turned-around
+    route: the east ridge
+```
+
+- `name` is required. `outcome` is `summit` (the default, said by nothing), `turned-around` or `traverse`; `route` is
+  free text. A name is in one file's list once.
+- A single-day report shows them as the last row of its Beta block, `Summits`: one name alone, two or more one per
+  line, a route and an outcome after the name (`Dicks Peak via the east ridge (turned around)`). The search finds the
+  names wherever they are (section 6); on a multi-day trip, the PCT and a day file no page shows the list yet.
+- Never filled in from `map: peaks:`, the GPS max, a title or a write-up: a peak on the map is a label, not a claim
+  that it was reached. A list of every summit across the site waits until the names are typed and spelt one way.
+- Any other outcome, an entry without a name, or a name twice stops the build: `summits[1].outcome must be one of
+  summit, turned-around, traverse, got 'topped'`. No render is needed.
+
 ## 8. Publication dates: `published_at` and `updated_at`
 
 Two optional lines in a report's `index.md`, among the front-matter lines above the closing `---`:
@@ -902,8 +999,9 @@ updated_at: 2026-10-05
 ```
 
 - `published_at` is the day the report first went online on this site. `updated_at` is the day its content last
-  changed in a way a reader should know about. Both are yours to state: the build never fills them in, and no trip has
-  them today.
+  changed in a way a reader should know about. Both are yours to state: the build never fills them in. `add_trip.py`
+  writes an empty `published_at:` line into a new trip's `index.md`; fill it with the day you publish (ADDING-TRIPS.md,
+  step 5). The reports published before the line existed have neither, and stay that way unless you know the day.
 - **Accepted forms.** A date, `2026-10-03`, or a date and time with an explicit offset: `2026-10-03T18:30:00-07:00` or
   `2026-10-03T18:30Z` (seconds are optional; the offset is `Z`, `+HH:MM` or `-HH:MM`, and no more than 14:00 either
   way). Only the digits 0 to 9 count as digits. Quotes around the value are optional. A line with nothing after the
@@ -918,12 +1016,16 @@ updated_at: 2026-10-05
   PCT after the day log. It shows the calendar date as written, never a time.
 - `article:published_time` and `article:modified_time` in the page's head, holding the value exactly as written.
 - `datePublished` and `dateModified` in the page's structured data, when the page has any (section 9).
+- The report's item in the RSS feed: `published_at` is its `<pubDate>` (a date alone counts as 12:00 UTC) and its
+  place in the feed, which lists the 30 newest by that moment, so a trip written up weeks later reaches feed readers
+  as new. A report without the line keeps its trip date there.
+- `<lastmod>` for the report in `sitemap.xml`: `updated_at`, else `published_at`, exactly as written.
 
 **What they are not**
 
 - Not the trip date. `date:` and `end_date:` stay the days of the trip and drive what they always did: the order of
-  every list, the dates on cards and pages, "As recorded on" (7.4) and the dates in the RSS feed. Neither new line
-  reorders anything or changes the feed, the sitemap or the home page.
+  every list, the dates on cards and pages, "As recorded on" (7.4) and, for a report without `published_at`, its date
+  in the RSS feed. Neither new line reorders anything on the site or changes the home page.
 - Never guessed. Without the lines a page has no "Published" line and no `article:` tags, and its structured data
   carries no date. Leave them out when the day is not known; do not copy the trip date in.
 
@@ -1101,7 +1203,8 @@ In this order:
    counted together. Up to four are all named; with more, the first three and `N MORE`:
    `TAHOMA · EMERALD BAY · KINGSBURY · 7 MORE` on Lake Tahoe's page today. A place too long for the line wraps at
    its spaces, and a single word too long for a line is broken across lines. A region whose reports state no place
-   has no second line. That is all the introduction the page has.
+   has no second line. Nothing else is written for the page; words of your own go under these lines from
+   `content/regions/<slug>.md` (11.8).
 2. **The map**, with its caption and legend as on the Map page, and beside it the list the Map page has for a region:
    "In this region", the counts again, and one row for every report and planned route of the page, newest first, the
    planned routes last. The legend is the key to the map, not to the list: it names the activities of the reports the
@@ -1326,3 +1429,67 @@ region_days:
   `python3 tools/render.py --site` (internet needed) and commit `rendered/site/` with `index.md`, the new
   `*-g64.svg.html` drawings included. Until then the rows are there and the map shows what it was last drawn with;
   `validate.py` says so (5.3). A region without a region map shows the days on no map.
+
+### 11.8 A region's introduction: `content/regions/<slug>.md`
+
+A region page opens with its name, its counts and its places, all taken from the trips. Words of your own about the
+region go in `content/regions/<slug>.md`, where the slug is the page's address (`content/regions/lake-tahoe.md` for
+`regions/lake-tahoe/`). Everything under the front matter is shown as written, as a write-up is, under the counts:
+
+```markdown
+---
+title: Lake Tahoe
+---
+
+A few sentences about the region, in your own words.
+```
+
+The `title:` line is optional; when it is there it must be the region's name exactly as the trips spell it. A `#`
+heading in the words is the page's second level. Without the file the page is as it was. The check says when the file
+cannot be shown: `no region is called this: the file name must be a region's slug ...` (with the nearest slug when one
+is close) is an error, and a region that has no page (fewer than three trips with a track, so no region map) gets a
+warning that the words are shown nowhere. A region spelt two ways is two regions (11.4, 11.9): the file follows the
+spelling that has the page. No render is needed; stage the file and push it.
+
+### 11.9 Region and place names
+
+`region:` is the map grouping: a trip joins its region's map, its page and its filter on the Trips page. `place:` is the
+named area inside the region (a peak, a trailhead, a crag), which cards and lists print; without one they print the
+region. `python3 tools/content_report.py --taxonomy` lists every region and place with its count and names what looks
+like one name written two ways (5.5).
+
+**Merging two names.** When two names are one place (`Mount Rose` and `Mount Rose Summit`, or a region of one report that
+belongs to a larger one, such as `Idaho` beside `Boise`):
+
+1. Keep the spelling that has a region page (`regions/boise/` exists; `regions/idaho/` does not), so no saved link
+   breaks.
+2. Change the `region:` or `place:` line of every trip that uses the other spelling. A place needs nothing more.
+3. For a region, run `python3 tools/render.py --site --force` (internet needed) and commit `rendered/site/` with the
+   trips: the region maps are drawn from the regions as the trips name them.
+4. Build with `--check` and look for `DUPLICATE IDS`: it means a spelling is still on a trip (11.4).
+
+## 12. The About page: `content/about.md`
+
+The About page is numbers, the method and the units switch; nothing on it is in your words until you write them.
+`content/about.md` is optional:
+
+```markdown
+---
+---
+
+A few sentences in your own words, as Markdown.
+```
+
+- **Words.** Everything under the front matter takes the place of the opening line ("Trip reports by Eric Sichak:
+  ..."), shown as written, in the same type. A `#` heading is the page's second level. A file with no words changes
+  nothing.
+- **A photo.** `python3 tools/about_photo.py ~/Desktop/portrait.jpg` makes the copies a trip photo gets (no EXIF, no
+  GPS) in `content/about/photos/` and writes a `photo:` block with its size and an empty `alt:` line. The page shows the
+  photo above the words, cropped to 4:5, once the `alt:` line says what is in it; until then the check stops the build
+  (`photo has no alt text: describe what it shows ...`). `cover_focal_x` and `cover_focal_y` (0 to 100) move the
+  crop, as on a cover. Replacing the photo writes the next number and names the old files to delete. Whether a
+  portrait belongs on a public site is your call; the file publishes nothing on its own.
+- Publish with `git add content/about.md content/about/photos`, commit and push (`publish.py` stages trips only).
+
+The page's figures (the totals, By activity and By year, which counts each calendar year's reports, the days out on
+distinct dates, and their distance and gain) come from the trips and need nothing from you.

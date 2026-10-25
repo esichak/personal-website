@@ -298,6 +298,12 @@ class Fixture(unittest.TestCase):
         self.assertEqual(texts(checks.warnings(found)), sorted(warnings))
 
 
+def CAPTIONS(photos, files):
+    """The one note that counts the photos without a caption (Phase 9: it was one note per file)."""
+    return ('content/trips: %s without a caption, in %s (a caption is optional; python3 tools/content_report.py --alt '
+            'lists the most-seen photos)' % (photos, files))
+
+
 def I(slug, msg):   # noqa: E743  (index.md of a trip)
     return 'content/trips/%s/index.md: %s' % (slug, msg)
 
@@ -488,7 +494,10 @@ CASES = [
     ('featured: "false" (quoted)', OK, hike_line('featured: "false"'), [I(HIKE, "featured must be true or false, got 'false'")], []),
     ('subtype unknown on other', OK, hike('activity: hike', 'activity: other\nsubtype: Zorbing'),
      [], [I(HIKE, "subtype 'Zorbing' is not one of SUP, Rafting, Kayaking, Mountaineering; it is shown as written")]),
-    ('conditions a string', OK, hike_line('conditions: icy'), [], []),
+    # Phase 9 (features-11): conditions: is retired; the warning says where the words go
+    ('conditions: (retired)', OK, hike_line('conditions: icy'), [],
+     [I(HIKE, "unknown key 'conditions' (conditions go in beta: rows, such as Snow, Weather or Water level, under the "
+              "report's own date); nothing reads it")]),
     ('party a list', TB, hike_line('party: [Sam, Alex]'), [I(HIKE, "party must be text, got ['Sam', 'Alex']")], []),
     ('place a number', TB, hike('place: Desolation', 'place: 9000'), [I(HIKE, 'place must be text, got 9000')], []),
     ('front matter not closed', CLEAN, lambda s: write(s.index(HIKE), '---\ntitle: X\nactivity: hike\n'), [SAME], []),
@@ -772,8 +781,10 @@ class SurfaceTests(Fixture):
         self.assertEqual(checks.warnings(found), [])
         self.assertEqual(texts(checks.notes(found)), sorted([
             I('draft-trip', 'no photos'), I('draft-trip', 'no place'),
-            D(HUT, '01', '1 photo without a caption'), I(JOURNAL, 'no photos'),
-            I(HIKE, 'no photos'), I(HIKE, 'no write-up'), I(SKI, '2 photos without a caption')]))
+            CAPTIONS('3 photos', '2 files'), I(JOURNAL, 'no photos'),
+            I(HIKE, 'no photos'), I(HIKE, 'no write-up'),
+            I(SKI, 'the title names a summit or a feature (Couloir) and there is no map: peaks: line; the name there labels '
+                   'the map and is found by the search')]))
         self.assertEqual(counts, {'trips': 8, 'photos': 4, 'gpx': 9})
 
     def test_run_is_the_findings_of_survey(self):
@@ -891,16 +902,18 @@ class SurfaceTests(Fixture):
 
     def test_the_known_keys_are_named_constants(self):
         for key in ('title', 'activity', 'kind', 'date', 'end_date', 'stats', 'photos', 'beta', 'map', 'cover_photo', 'card_summary',
-                    'search_aliases', 'journal_highlights', 'published_at', 'updated_at', 'strava_id', 'draft', 'featured'):
+                    'search_aliases', 'journal_highlights', 'published_at', 'updated_at', 'strava_id', 'draft', 'featured',
+                    'source', 'summits'):
             self.assertIn(key, checks.INDEX_KEYS)
-        for key in ('day', 'title', 'date', 'start_time', 'stats', 'photos', 'hut', 'transfer_before'):
+        self.assertNotIn('conditions', checks.INDEX_KEYS)                    # Phase 9: retired
+        for key in ('day', 'title', 'date', 'start_time', 'stats', 'photos', 'hut', 'transfer_before', 'summits'):
             self.assertIn(key, checks.DAY_KEYS)
         self.assertNotIn('published_at', checks.DAY_KEYS)
         self.assertNotIn('updated_at', checks.DAY_KEYS)
         self.assertEqual(checks.PHOTO_KEYS, ('file', 'w', 'h', 'alt', 'caption'))
         self.assertEqual(checks.STATS_KEYS, ('distance_km', 'moving', 'elapsed', 'gain_m', 'loss_m', 'high_m', 'low_m'))
         self.assertEqual(checks.MAP_KEYS, ('peaks', 'places', 'water_labels'))
-        self.assertEqual(checks.HOME_KEYS, ('featured_slugs',))
+        self.assertEqual(checks.HOME_KEYS, ('featured_slugs', 'region_maps'))
         self.assertEqual(checks.KINDS, ('trip', 'multi-day', 'series', 'planned'))
         self.assertEqual(checks.ROUTE_SHAPES, ('loop', 'out-and-back', 'point-to-point'))
 
@@ -1661,7 +1674,7 @@ class PhotoTests(Fixture):
         ski(P2, P2 + '  - file: photos/02.webp\n  - file: ./photos/02.webp\n')(self.s)
         self.assertFindings(warnings=[I(SKI, 'photos[2] declares photos/02.webp again (first in index.md, photos[1]); the page shows it twice'),
                                       I(SKI, 'photos[3] declares photos/02.webp again (first in index.md, photos[1]); the page shows it twice')])
-        self.assertIn(I(SKI, '2 photos without a caption'), self.notes())
+        self.assertIn(CAPTIONS('3 photos', '2 files'), self.notes())
 
     def test_copies_of_a_photo_nobody_declared_are_stray_files_too(self):
         s = self.s
@@ -1679,15 +1692,16 @@ class PhotoTests(Fixture):
         self.assertFindings(warnings=['content/trips/loop-hike/photos/01.webp: not declared under photos: in index.md or a days/NN.md, and '
                                       'not the .sm or .th copy of a declared photo; the build publishes it all the same'])
 
-    def test_captions_are_counted_per_file(self):
+    def test_captions_are_counted_in_one_note(self):
         s = self.s
-        self.assertIn(I(SKI, '2 photos without a caption'), self.notes())
+        self.assertIn(CAPTIONS('3 photos', '2 files'), self.notes())
         ski('alt: Skier in the couloir', 'alt: Skier in the couloir\n    caption: Dropping in')(s)
-        self.assertIn(I(SKI, '1 photo without a caption'), self.notes())
+        self.assertIn(CAPTIONS('2 photos', '2 files'), self.notes())
         ski('alt: The summit ridge', 'alt: The summit ridge\n    caption: "  "')(s)       # spaces are no caption
-        self.assertIn(I(SKI, '1 photo without a caption'), self.notes())
+        self.assertIn(CAPTIONS('2 photos', '2 files'), self.notes())
         ski('caption: "  "', 'caption: On top')(s)
-        self.assertEqual([n for n in self.notes() if n.startswith('content/trips/ski-report/')], [])
+        self.assertIn(CAPTIONS('1 photo', '1 file'), self.notes())
+        self.assertEqual([n for n in self.notes() if 'without a caption' in n and not n.startswith('content/trips: ')], [])
 
 
 # ---------------------------------------------------------------- tracks and rendered maps
@@ -2117,13 +2131,13 @@ class UnknownKeyTests(Fixture):
         value = {'title': 'T', 'activity': 'hike', 'kind': 'trip', 'date': '2025-08-10', 'end_date': '2025-08-10', 'start_time': '"06:10"',
                  'stats': '\n  distance_km: 1.0', 'featured': 'false', 'draft': 'false', 'beta': '\n  - label: A\n    value: B',
                  'map': '\n  peaks: [A]', 'photos': '', 'cover_focal_x': '50', 'cover_focal_y': '50', 'card_summary': 'Text.',
-                 'search_aliases': '[A]', 'journal_highlights': '[]', 'cover_photo': '', 'conditions': '', 'strava_id': '"123"',
+                 'search_aliases': '[A]', 'journal_highlights': '[]', 'cover_photo': '', 'source': 'Garmin', 'summits': '\n  - name: A', 'strava_id': '"123"',
                  'published_at': '', 'updated_at': '', 'region_days': ''}
         write(s.index(HIKE), '---\n%s\n---\n' % '\n'.join('%s: %s' % (k, value.get(k, 'Text')) for k in checks.INDEX_KEYS))
         self.assertEqual([w for w in self.warnings() if 'unknown key' in w], [])
         self.assertEqual(self.errors(), [])
         dvalue = {'day': '"2"', 'date': '2024-03-02', 'start_time': '"07:00"', 'stats': '\n  distance_km: 1.0', 'photos': '',
-                  'transfer_before': 'true', 'strava_id': '"9"'}
+                  'transfer_before': 'true', 'strava_id': '"9"', 'summits': '\n  - name: B'}
         write(s.day(HUT, '02'), '---\n%s\n---\n' % '\n'.join('%s: %s' % (k, dvalue.get(k, 'Text')) for k in checks.DAY_KEYS))
         self.assertEqual([w for w in self.warnings() if 'unknown key' in w], [])
         self.assertEqual(self.errors(), [])
@@ -2171,6 +2185,120 @@ class LegacyShapeTests(unittest.TestCase):
             I('ski-course', 'no place'), I('ski-course', 'no write-up'), I('ski-course', 'no photos'),
             D('ski-course', '01', 'no title'), D('ski-course', '02', 'no title')]))
         self.assertEqual(counts, {'trips': 4, 'photos': 0, 'gpx': 5})
+
+
+
+# ---------------------------------------------------------------- Phase 9: a title that names a summit, without peaks
+
+class SummitTitleNoteTests(unittest.TestCase):
+
+    def notes(self, **meta):
+        with tempfile.TemporaryDirectory() as tmp:
+            helpers.make_trip(os.path.join(tmp, 'trips'), 'synk-trip', date='2026-01-02', place='Synthetic Basin', **meta)
+            found = checks.run(os.path.join(tmp, 'trips'), os.path.join(tmp, 'home.json'), os.path.join(tmp, 'rendered'))
+        return [f['text'] for f in found if f['level'] == 'note' and 'summit or a feature' in f['text']]
+
+    def test_a_title_naming_a_summit_or_feature_without_peaks_gets_a_note(self):
+        for title, word in (('Synthetic Peak', 'Peak'), ('Mount Synthetic', 'Mount'), ('Synthetic Couloir', 'Couloir'),
+                            ('Up the Synthetic Chute', 'Chute'), ('Synthetic Lake Loop', 'Lake'), ('Synthetic Bowl', 'Bowl'),
+                            ('Synthetic Mountain', 'Mountain')):
+            with self.subTest(title=title):
+                self.assertEqual(self.notes(title=title),
+                                 ['content/trips/synk-trip/index.md: the title names a summit or a feature (%s) and there is no '
+                                  'map: peaks: line; the name there labels the map and is found by the search' % word])
+
+    def test_peaks_or_another_title_say_nothing(self):
+        self.assertEqual(self.notes(title='Synthetic Peak', map={'peaks': ['Synthetic Peak']}), [])
+        self.assertEqual(self.notes(title='Synthetic Ridge Walk'), [])
+        self.assertEqual(self.notes(title='Lakeside Synthetic Stroll'), [])       # a whole word only
+        self.assertEqual(self.notes(title='Synthetic Peak', kind='planned'), [])  # a goal is not a report
+        self.assertEqual(self.notes(title='Hike near Synthetic Lake Town'), [])   # a Strava default names a town
+
+
+
+# ---------------------------------------------------------------- Phase 9: source:, the service named in the stats note
+
+class SourceTests(unittest.TestCase):
+
+    def findings(self, **meta):
+        with tempfile.TemporaryDirectory() as tmp:
+            helpers.make_trip(os.path.join(tmp, 'trips'), 'synk-trip', title='Synthetic Ridge Walk', date='2026-01-02',
+                              place='Synthetic Basin', **meta)
+            found = checks.run(os.path.join(tmp, 'trips'), os.path.join(tmp, 'home.json'), os.path.join(tmp, 'rendered'))
+        return [(f['level'], f['text']) for f in found if 'source' in f['text']]
+
+    def test_the_three_services_are_quiet(self):
+        for name in ('Strava', 'Garmin', 'CalTopo'):
+            with self.subTest(source=name):
+                self.assertEqual(self.findings(source=name), [])
+        self.assertEqual(self.findings(), [])
+
+    def test_anything_else_is_an_error(self):
+        for value in ('Suunto', 'strava', ['Strava'], 3):
+            with self.subTest(source=value):
+                self.assertEqual(self.findings(source=value),
+                                 [('error', 'content/trips/synk-trip/index.md: source must be one of Strava, Garmin, CalTopo '
+                                            '(the service the recording came through, named in the stats note), got %r; '
+                                            'leave the line out when it is none of them' % (value,))])
+
+
+
+# ---------------------------------------------------------------- Phase 9: summits:
+
+class SummitsTests(unittest.TestCase):
+
+    def findings(self, days=None, **meta):
+        with tempfile.TemporaryDirectory() as tmp:
+            helpers.make_trip(os.path.join(tmp, 'trips'), 'synk-trip', title='Synthetic Ridge Walk', date='2026-01-02',
+                              place='Synthetic Basin', days=days, **meta)
+            found = checks.run(os.path.join(tmp, 'trips'), os.path.join(tmp, 'home.json'), os.path.join(tmp, 'rendered'))
+        return [(f['level'], f['text'].split(': ', 1)[1]) for f in found if 'summits' in f['text']]
+
+    def test_a_good_list_is_quiet(self):
+        self.assertEqual(self.findings(summits=[{'name': 'Synthetic Peak'}, {'name': 'Synthetic Dome', 'outcome': 'turned-around',
+                                                                             'route': 'the north ridge'}]), [])
+
+    def test_each_rule(self):
+        self.assertEqual(self.findings(summits='Synthetic Peak'),
+                         [('error', "summits must be a list of entries, each starting with - name: <summit>, got 'Synthetic Peak'")])
+        self.assertEqual(self.findings(summits=[{'name': 'Synthetic Peak', 'outcome': 'topped', 'route': 3, 'grade': 'II'},
+                                                {'outcome': 'summit'}, {'name': 'synthetic peak'}, 'Synthetic Dome']), [
+            ('error', "summits[0].outcome must be one of summit, turned-around, traverse, got 'topped'"),
+            ('error', 'summits[0].route must be text, got 3'),
+            ('error', 'summits[1] has no name: line; each entry names one summit'),
+            ('error', "summits[2]: 'synthetic peak' is in the list twice"),
+            ('error', "summits[3] must be an entry with a name: line (- name: <summit>), got 'Synthetic Dome'"),
+            ('warning', "unknown key 'grade' in summits[0]; nothing reads it"),
+        ])
+
+    def test_a_day_file_is_checked_too(self):
+        got = self.findings(kind='multi-day', days=[{'date': '2026-01-02', 'summits': [{'name': 'Synthetic Dome', 'outcome': 'x'}]}])
+        self.assertEqual(got, [('error', "summits[0].outcome must be one of summit, turned-around, traverse, got 'x'")])
+
+
+
+# ---------------------------------------------------------------- Phase 9: home.json's region_maps
+
+class HomeRegionMapsTests(unittest.TestCase):
+
+    def findings(self, manifest, meta=None):
+        with tempfile.TemporaryDirectory() as tmp:
+            helpers.make_trip(os.path.join(tmp, 'trips'), 'synk-trip', title='Synthetic Ridge Walk', date='2026-01-02',
+                              place='Synthetic Basin', region='Synthetic Coast')
+            with open(os.path.join(tmp, 'home.json'), 'w') as fh:
+                json.dump(manifest, fh)
+            os.makedirs(os.path.join(tmp, 'rendered', 'site'))
+            with open(os.path.join(tmp, 'rendered', 'site', 'meta.json'), 'w') as fh:
+                json.dump(meta or {'maps': {'region-synthetic-coast-desktop': {}}, 'regions': ['Synthetic Coast']}, fh)
+            found = checks.run(os.path.join(tmp, 'trips'), os.path.join(tmp, 'home.json'), os.path.join(tmp, 'rendered'))
+        return [(f['level'], f['text']) for f in found if f['file'] == 'content/home.json']
+
+    def test_a_region_with_a_map_is_quiet_and_one_without_is_an_error(self):
+        self.assertEqual(self.findings({'featured_slugs': [], 'region_maps': ['Synthetic Coast']}), [])
+        self.assertEqual(self.findings({'featured_slugs': [], 'region_maps': ['Synthetic Desert']}),
+                         [('error', "content/home.json: region_maps: 'Synthetic Desert' has no region map in rendered/site/meta.json "
+                                    "(the name as the trips spell it; a region gets a map once it has three trips with a track "
+                                    "and python3 tools/render.py --site has run)")])
 
 
 if __name__ == '__main__':

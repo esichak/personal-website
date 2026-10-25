@@ -1653,6 +1653,10 @@ def site_pages():
                     raise AssertionError('%s would read outside the temp dir' % t['slug'])
             site = build.site_of(helpers.newest_first(trips))
             site['featured'] = [site['by_slug'][SLUGS[k]] for k in ('story', 'tour', 'journal')]
+            # Phase 9: the first region page carries an introduction (content/regions/<slug>.md), so its block is
+            # checked with the rest of the page
+            site['region_intros'] = {RS: {'title': None, 'meta': {}, 'file': 'content/regions/%s.md' % RS,
+                                          'body_md': 'A synthetic introduction to the region, written for a test.'}}
             # with the site meta as it is on disk (the temp dir's), as tools/build.py does: the two regions with a
             # region map get their pages (registered without a meta, no region would have one)
             if core.read_site_meta() != meta:

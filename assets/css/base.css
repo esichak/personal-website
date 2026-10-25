@@ -464,6 +464,8 @@ picture.cover-pic { display: contents; }
   .strip--5 .strip-s { font-size: 11px; line-height: 16px; }
 }
 .strip-note { padding-top: 12px; font: 400 14px/20px var(--sans); color: var(--ink-3); }
+/* its last sentence links to About's method (core.how_link): underlined, as a link inside running text must be */
+.strip-note a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
 /* ---------------------------------------------------------------- photos */
 .photo img { width: 100%; background: var(--sunk); }

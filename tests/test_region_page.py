@@ -56,6 +56,7 @@ from unittest import mock
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo root, from tests/
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
+import checks  # noqa: E402
 import content  # noqa: E402
 from sitegen import core  # noqa: E402
 from sitegen.core import esc, icon  # noqa: E402
@@ -3528,6 +3529,74 @@ class ScriptGuardTests(unittest.TestCase):
         for hook in ("document.getElementById(b.getAttribute('aria-controls'))", "ol.classList.add('arc-collapsed')", "b.hidden = false",
                      "ol.querySelector('.arc-more a')", 'b.firstChild.nodeValue'):
             self.assertIn(hook, code)
+
+
+
+# ---------------------------------------------------------------- Phase 9 (features-17): Eric's introduction
+
+class IntroTests(RegionFixture):
+    """content/regions/<slug>.md (content.load_region_intros; build.build puts it in site['region_intros']): its words
+    under the region's H1 and counts, verbatim; no file, no block. checks._region_intro_findings names a file that no
+    region's slug matches, one whose region has no page, and a title: that is not the region's name."""
+
+    def write(self, slug, text):
+        os.makedirs(os.path.join(self.tmp, 'regions'), exist_ok=True)
+        with open(os.path.join(self.tmp, 'regions', slug + '.md'), 'w', encoding='utf-8') as fh:
+            fh.write(text)
+
+    def rebuilt(self, name):
+        with mock.patch.object(core, '_DROP_WARNED', set()), contextlib.redirect_stderr(io.StringIO()):
+            pages = {p.url: p for p in self.region.build(self.site)}
+        return pages[self.here(name)].html
+
+    def test_no_file_no_block(self):
+        self.assertEqual(content.load_region_intros(self.tmp), {})
+        self.assertNotIn('reg-intro', ''.join(p.html for p in self.built))
+
+    def test_the_words_sit_under_the_counts_verbatim(self):
+        self.write('synthetic-coast', '---\ntitle: Synthetic Coast\n---\n\nSynthetic words about the *coast*.\n\n'
+                                      '# Synthetic heading\n<!-- a note -->\n')
+        self.site['region_intros'] = content.load_region_intros(self.tmp)
+        self.assertEqual(sorted(self.site['region_intros']), ['synthetic-coast'])
+        html_ = self.rebuilt(COAST)
+        self.assertIn('</p><div class="prose t-body reg-intro"><p>Synthetic words about the <em>coast</em>.</p>\n'
+                      '<h2>Synthetic heading</h2></div></section>', html_)
+        self.assertNotIn('a note', html_)
+        self.assertLess(html_.index('class="reg-stats"'), html_.index('reg-intro'))
+        self.assertNotIn('reg-intro', self.rebuilt(RANGE))                # another region: nothing
+
+    def findings(self):
+        # the fixture's GPX files are empty, which the check refuses; one point each lets every trip load
+        for dirpath, _dirs, files in os.walk(self.trips_dir):
+            for f in files:
+                if f.endswith('.gpx') and not os.path.getsize(os.path.join(dirpath, f)):
+                    with open(os.path.join(dirpath, f), 'w', encoding='utf-8') as fh:
+                        fh.write('<?xml version="1.0"?><gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>'
+                                 '<trkpt lat="38.9" lon="-120.1"><ele>2000</ele></trkpt></trkseg></trk></gpx>')
+        found = checks.run(self.trips_dir, os.path.join(self.tmp, 'home.json'), os.path.join(self.tmp, 'rendered'))
+        return [(f['level'], f['text']) for f in found if f['file'].startswith('content/regions')]
+
+    def test_the_content_check(self):
+        self.write('synthetic-coast', 'Synthetic words.\n')                        # a page: quiet
+        self.assertEqual(self.findings(), [])
+        self.write('synthetic-coats', 'Synthetic words.\n')
+        self.write('synthetic-desert', 'Synthetic words.\n')                       # a region without a region map
+        self.write('synthetic-plans', 'Synthetic words.\n')                        # a map, and only a planned route
+        self.write('synthetic-range', '---\ntitle: Synthetic Ranges\nsubtitle: x\n---\n\n# One\n\n### Three\n')
+        self.assertEqual(self.findings(), [
+            ('error', "content/regions/synthetic-coats.md: no region is called this: the file name must be a region's slug "
+                      "(the name in lower case, hyphens for spaces: Eastern Sierra is eastern-sierra.md) (did you mean "
+                      "synthetic-coast.md?)"),
+            ('warning', "content/regions/synthetic-desert.md: the region 'Synthetic Desert' has no page (a region page needs a "
+                        "region map and a published report), so these words are shown nowhere"),
+            ('warning', "content/regions/synthetic-plans.md: the region 'Synthetic Plans' has no page (a region page needs a "
+                        "region map and a published report), so these words are shown nowhere"),
+            ('error', 'content/regions/synthetic-range.md: a heading of the write-up skips a level (### after #): go one '
+                      'level at a time, ## after #'),
+            ('error', "content/regions/synthetic-range.md: title 'Synthetic Ranges' is not the region's name as the trips "
+                      "spell it, 'Synthetic Range'"),
+            ('warning', "content/regions/synthetic-range.md: unknown key 'subtitle' (did you mean 'title'?); nothing reads it"),
+        ])
 
 
 if __name__ == '__main__':
