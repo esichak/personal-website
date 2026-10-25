@@ -3132,3 +3132,27 @@ Written before the push. The durable path: `git revert --no-edit <oldest>^..<new
 temporary path: `gh run rerun` of the last good run of `1cb9cf2` within 30 days deploys that commit's site until the
 next push (ADDING-TRIPS.md, "When something goes wrong"). Never a forced push. Either way the history keeps everything
 the inventory lists, the address included.
+
+## Publication (2026-10-25)
+
+Eric's word in the session: "Yes push now", after the inventory and the rollback above.
+
+- `main` was fast-forwarded through the twelve branches in phase order (`phase-6-author-tools` … `phase-15-render-round`;
+  each `git merge --ff-only`, no merge commit) to `48c7008`, and pushed at 14:44:00 PDT: `1cb9cf2..48c7008`.
+- Run 40236872785 ('Deploy site', on the push): build with the unit tests 21:44:09 to 21:49:55 UTC, deploy 21:49:58 to
+  21:50:11, smoke test in Chrome 21:49:57 to 21:50:28; all three green. The site was live about 6 minutes 11 seconds
+  after the push. The run's annotations: the pinned actions target the deprecated Node.js 20 and ran on Node.js 24, and
+  the `ubuntu-latest` label moves to Ubuntu 26 from 2026-10-19 (both now in DEVELOPING.md, Yearly upkeep, items 2 and
+  3).
+- **The live site against the build:** `curl -I` of `assets/site.css?v=59abca29`: 200, `text/css`, `max-age=600`. The
+  live home, the Matterhorn report, the Haute Route, map/, the PCT, the Lake Tahoe region page, Mountain biking, Hiking
+  and the 404 page are byte-identical to the local build of the gate. A card drawing, `map/lake-tahoe/`, a panel map,
+  a font, the home-screen icon, the feed and the sitemap answer 200; the Matterhorn GPX download is byte-identical to
+  its `track.gpx`; the untracked `map-wide.png` iCloud put back is not on the site (404).
+- **Lighthouse on the live site (mobile):** home 100 in accessibility, best practices, SEO and agentic browsing (the
+  weight-0 audit on the activity tiles, as before); the Matterhorn report 100 in all four, no failed audit.
+- **Not done (Eric's):** the sitemap submission in Search Console, the Rich Results Test, the W3C feed validator and
+  the share preview paste (README.md lists them); the VoiceOver script; the real-phone look.
+- This entry and the two checklist lines are a later commit on `main`, not pushed. The log is on `pages.yml`'s
+  ignore list but `docs/DEVELOPING.md` is not (its `*.md` matches only files at the top), so pushing them starts a
+  content-only run (no unit tests, about a minute) that publishes the same site.

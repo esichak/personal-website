@@ -2317,15 +2317,16 @@ in place of the old one and the date at the top of the list.
 2. **Workflow actions.** For each `uses:` in `.github/workflows/pages.yml`, look up the newest major release and any
    deprecation notice on its repository's releases page (`gh api repos/actions/<name>/releases/latest --jq .tag_name`).
    2026-10-25, pinned → newest: checkout v4 → v7, setup-python v5 → v7, setup-node v4 → v7, configure-pages v5 → v6,
-   upload-pages-artifact v3 → v5, download-artifact v4 → v8, deploy-pages v4 → v5; none of the pinned ones had
-   stopped working. If one has: bump them all in one commit, read each release note for a changed input, and prove the
-   commit with a `workflow_dispatch` run (ADDING-TRIPS.md, "When something goes wrong") on a quiet day, not with a
-   trip push.
+   upload-pages-artifact v3 → v5, download-artifact v4 → v8, deploy-pages v4 → v5; none had stopped working, but
+   that day's run warned that they target Node.js 20, which is deprecated (GitHub ran them on Node.js 24), so the
+   bump is due. Bump them all in one commit, read each release note for a changed input, and prove the commit with a
+   `workflow_dispatch` run (ADDING-TRIPS.md, "When something goes wrong") on a quiet day, not with a trip push.
 3. **Runner.** Read the `ubuntu-latest` image README
    (https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md). 2026-10-25: image
    20261023.334.3, Ubuntu 24.04.5 LTS, Node.js 22.23.3 (the `node-version: '22'` the Node-run tests use), Python 3.12.3
-   on the image and 3.12.15 in its tool cache (what `setup-python` installs for `'3.12'`). If the image's Node or
-   Python major moved, run the unit tests on that version before the next push of code. CPython 3.12 stops getting
+   on the image and 3.12.15 in its tool cache (what `setup-python` installs for `'3.12'`); that day's run said the
+   `ubuntu-latest` label moves to Ubuntu 26 from 2026-10-19 (actions/runner-images issue 14748). If the image's Node
+   or Python major moved, run the unit tests on that version before the next push of code. CPython 3.12 stops getting
    security fixes in October 2028: move `pages.yml` to a newer Python before then, and keep the tools 3.9-compatible as
    long as the Mac's `/usr/bin/python3` is 3.9.6.
 4. **GitHub's limits.** Re-read the two pages the Storage budget cites and change the table, `size_report.LIMITS`
