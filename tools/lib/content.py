@@ -26,6 +26,13 @@ CAT = {k: v[2] for k, v in ACTIVITIES.items()}  # activity -> mapkit category co
 SOURCES = ('Strava', 'Garmin', 'CalTopo')
 # a summits: entry's outcome (docs/CONTENT_GUIDE.md); checks.py refuses others
 SUMMIT_OUTCOMES = ('summit', 'turned-around', 'traverse')
+_WEB_URL = re.compile(r'^https?://[^/\s?#]+', re.I)
+
+
+def web_url(v):
+    """v when it is a full http or https address (the scheme, '//' and a host), else None. A beta row's url: is a link
+    only then: the content check (checks.py) and the page (report.beta_list) ask this one question."""
+    return v if isinstance(v, str) and _WEB_URL.match(v) else None
 OTHER_SUBTYPES = ['SUP', 'Rafting', 'Kayaking', 'Mountaineering']
 
 

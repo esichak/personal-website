@@ -70,7 +70,8 @@ PHOTO_KEYS = ('file', 'w', 'h', 'alt', 'caption')
 RETIRED = {'conditions': 'conditions go in beta: rows, such as Snow, Weather or Water level, under the report\'s own date'}
 STATS_KEYS = ('distance_km', 'moving', 'elapsed', 'gain_m', 'loss_m', 'high_m', 'low_m')
 MAP_KEYS = ('peaks', 'places', 'water_labels')
-BETA_KEYS = ('label', 'value')
+BETA_KEYS = ('label', 'value')                       # both required
+BETA_OPTIONAL = ('url',)                             # a guidebook or route page the value links to (benchmark-11)
 HOME_KEYS = ('featured_slugs', 'region_maps')
 ABOUT_KEYS = ('photo', 'cover_focal_x', 'cover_focal_y')       # content/about.md (content.load_about)
 REGION_INTRO_KEYS = ('title',)                                  # content/regions/<slug>.md (content.load_region_intros)
@@ -486,14 +487,25 @@ def _check_beta(meta, file, out):
     for i, r in enumerate(rows):
         if not isinstance(r, dict):
             continue
+        hinted = set()     # keys the missing-key error already names as a typo, not reported twice below
         for k in BETA_KEYS:
             v = r.get(k)
             if v is None or v == '':
                 near = difflib.get_close_matches(k, [x for x in r if x not in BETA_KEYS], n=1, cutoff=0.6)
+                hinted.update(near)
                 _err(out, file, 'beta[%d] has no %s%s' % (i, k, (' (is %r a typo for it?)' % near[0]) if near else ''))
             elif not isinstance(v, str):
                 hint = ' (quote a number to keep it as written)' if _is_number(v) else ''
                 _err(out, file, 'beta[%d].%s must be text, got %r%s' % (i, k, v, hint))
+        url = r.get('url')
+        if url is not None and not content.web_url(url):
+            _err(out, file, 'beta[%d].url must be a full http or https address, such as '
+                            'https://www.example.org/route, got %r' % (i, url))
+        for k in r:
+            if k not in BETA_KEYS + BETA_OPTIONAL and k not in hinted:
+                near = difflib.get_close_matches(str(k).lower(), BETA_KEYS + BETA_OPTIONAL, n=1, cutoff=0.6)
+                _warn(out, file, 'beta[%d] has an unknown key %r%s; a row takes label:, value: and url:'
+                                 % (i, k, (' (is it %s:?)' % near[0]) if near else ''))
 
 
 def _check_map(meta, file, out):

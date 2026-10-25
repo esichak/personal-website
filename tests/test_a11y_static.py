@@ -1863,11 +1863,13 @@ class PageTests(SiteFixture):
             self.assertIsNotNone(bar, 'the walk has %d sections to jump to and no phone bar' % len(sections))
             self.assertEqual([(a.find('span').text(), a['href']) for a in bar.find_all('a')], sections)
             self.assertEqual(bar['style'], '--n:%d' % len(sections))
-        self.assertEqual([(a.text(), a['href']) for a in doc.find('div', cls='rep-actions').find_all('a')], [('Read the report', '#report')])
+        # Phase 10 (report-01): its write-up clears the 100-character floor and has no photo, so it leads the page and no
+        # title action needs to jump to it
+        self.assertEqual([(a.text(), a['href']) for a in doc.find('div', cls='rep-actions').find_all('a')], [])
         # the reports beside it keep their map section, their two controls and their map page
         lap = page_doc(trip_url('lap'))
         self.assertIsNotNone(lap.by_id('map'))
-        self.assertEqual([a.find('span').text() for a in lap.find('nav', cls='bbar').find_all('a')], ['Map', 'Stats', 'GPX'])
+        self.assertEqual([a.find('span').text() for a in lap.find('nav', cls='bbar').find_all('a')], ['Stats', 'Map', 'GPX'])   # page order
         self.assertIn(trip_url('lap', 'map/'), self.pages)
 
     def test_every_link_into_its_own_page_has_a_target(self):

@@ -17,12 +17,20 @@ body.p-multiday { --dnav-h: 48px; }
 /* ---------------------------------------------------------------- overview map (key rows: core.key_rows, caption: core.map_caption) */
 /* 560–1199: map, key row and caption share the left-aligned --col-max column (report.css .rep-map) */
 /* phones (Phone-MultiDay-A): no title actions (the bottom bar carries Map · Days · Report · GPX), no strip sub-lines;
-   the stats footnote moves under the map caption (.rep-note-ph) */
+   the stats footnote stays under the strip */
 @media (max-width: 759.98px) {
   body.p-multiday .site-f { padding-bottom: 72px; }
   body.p-multiday .rep-actions { display: none; }
-  body.p-multiday .rep-strip .strip-s, body.p-multiday .rep-strip .strip-note { display: none; }
+  body.p-multiday .rep-strip .strip-s { display: none; }
 }
+
+/* ---------------------------------------------------------------- the days with photos, under the stage table (photo_strip) */
+.mul-pst { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; }
+.mul-pst-a { display: flex; flex-direction: column; gap: 6px; width: 96px; color: var(--ink-2); }
+.mul-pst-a img { display: block; width: 96px; height: 96px; object-fit: cover; background: var(--sunk); }
+.mul-pst-a:hover { color: var(--ink); }
+.mul-pst-a:hover img { filter: brightness(1.04); }
+@media (min-width: 760px) { .mul-pst-a { width: 120px; } .mul-pst-a img { width: 120px; height: 120px; } }
 
 /* ---------------------------------------------------------------- sticky day nav */
 .mul-body { margin-top: 24px; }
@@ -46,6 +54,18 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-dn-date { font: 500 15px/20px var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mul-dn-dist { font: 400 12px/16px var(--mono); color: var(--ink-2); white-space: nowrap; }
 .mul-dn-i .mul-dshort { display: none; }
+/* what a day holds (day_content): a written day's dot beside its number on every screen, the words on a fourth line from
+   1200 px (80 px bar), read out but not shown below that */
+.mul-dn-day.is-written .mul-dn-d::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px;
+  border-radius: 50%; background: var(--ink); vertical-align: 1px; }
+.mul-dn-c { font: 400 11px/14px var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* one line in the 80 px bar: the meta line does not wrap here, and the photo count gives way (ellipsis) in a narrow chip */
+.mul-dn-c .ml { flex-wrap: nowrap; }
+.mul-dn-c .ml > .mi { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mul-dn-c .ml > .mi:first-child { flex-shrink: 0; }
+@media (max-width: 1199.98px) {
+  .mul-dn-c { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+}
 .mul-dn-i[aria-current] .mul-dn-d, .mul-dn-i[aria-current] .mul-dn-dist { color: var(--ink); font-weight: 600; }
 .mul-dn-i[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--route); }
 .mul-sp svg { width: 64px; height: 16px; }

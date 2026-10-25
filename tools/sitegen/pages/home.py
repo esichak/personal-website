@@ -157,7 +157,7 @@ def recent_trips(site):
 def rcard(t, repeated=()):
     """A recent-outing card: the shared core.trip_card (cover photo, else route tile, else activity disc; DATE · PLACE;
     the H3 title link; activity + stats), with the opening of Eric's write-up where the trip has one (trip_card leaves out
-    a facts-only summary, so a track-only outing stays bare). repeated: the titles more than one trip on the page carries
+    a facts-only summary, so a track-only outing has no excerpt and carries the Track only tag). repeated: the titles more than one trip on the page carries
     (core.repeated_titles), whose links also name the date."""
     return core.trip_card(t, HERE, RECENT_SIZES, ns='rc', summary=True, repeated=repeated)
 

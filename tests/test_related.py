@@ -478,23 +478,25 @@ class RelatedBlockTests(RelatedFixture):
         self.assertEqual(len(doc.find_all('section')), 1)
         self.assertEqual([h.text() for h in doc.find_all('h2')], ['More like this'])
 
-    def test_rule_line_says_how_the_reports_were_chosen(self):
-        # section 3, with Phase 7's first tier: core.meta_items of [RULE, 'NEAREST IN DATE']
+    def test_the_head_says_what_the_cards_share_with_the_page(self):
+        # Phase 10 (visual-03): the meta line states facts the picked reports share with the page, not the picking rule:
+        # REGION · ACTIVITY when all share both
         line = Doc(self.block()).find('span', cls='shead-m')
         self.assertEqual(line.classes, ['shead-m', 't-mono-s'])
-        self.assertEqual(ml_items(line), [RULE, 'NEAREST IN DATE'])
+        self.assertEqual(ml_items(line), ['SYNTHETIC RANGE', 'HIKING'])
         self.assertIsNotNone(line.find('span', cls='ml'))
+        self.assertNotIn('NEAREST IN DATE', self.block())
+        self.assertNotIn(core.nb(TIERS[0]), self.block())
 
-    def test_rule_line_without_a_region(self):
-        # section 3: no region tiers when t has no region
+    def test_the_head_says_only_what_all_share(self):
+        # no region on the page: the activity alone; cards of mixed activities and regions: their count
         line = Doc(self.block('rel-act-far')).find('span', cls='shead-m')
-        self.assertEqual(ml_items(line), [RULE_NO_REGION, 'NEAREST IN DATE'])
-
-    def test_the_long_rule_wraps_only_after_a_comma(self):
-        # a phone is narrower than the first rule: it may break after each comma, never inside a clause
-        html_ = self.block()
-        self.assertIn(', '.join(core.nb(c) for c in TIERS), html_)
-        self.assertNotIn(RULE, html_)                 # its plain spaces are no-break spaces but for the one after each comma
+        self.assertEqual(ml_items(line), ['HIKING'])
+        t = dict(self.t, region=None, activity='climb')
+        others = [dict(x, activity=a) for x, a in zip(self.related(self.t, self.site), ('hike', 'ski', 'mtb'))]
+        with mock.patch.object(core, 'related', lambda *a, **k: others):
+            line = Doc(self.related_block(t, HERE, self.site)).find('span', cls='shead-m')
+        self.assertEqual(ml_items(line), ['%d REPORTS' % len(others)])
 
     def test_list_of_cards_in_related_order(self):
         # section 3: <ul class="rep-rel tgrid"> of li.tcard, one per related report, in core.related's order
@@ -516,7 +518,7 @@ class RelatedBlockTests(RelatedFixture):
         rel = self.related(self.t, self.site)
         want = ('<section class="rep-related wrap sec" aria-labelledby="rel-h"><div class="shead"><h2 class="shead-t" id="rel-h">More like this</h2>'
                 '<span class="shead-m t-mono-s">%s</span></div><ul class="rep-rel tgrid">%s</ul></section>'
-                % (core.meta_items([', '.join(core.nb(c) for c in TIERS), core.nb('NEAREST IN DATE')]),
+                % (core.meta_items([core.nb('SYNTHETIC RANGE'), core.nb('HIKING')]),     # what the cards share (Phase 10)
                    ''.join(core.trip_card(x, HERE, self.sizes, ns='rel') for x in rel)))
         self.assertEqual(self.block(), want)
 
@@ -600,29 +602,15 @@ class RelatedBlockTests(RelatedFixture):
         self.assertEqual(self.block(skip=(None, one)), self.block(skip=(one,)))
         self.assertNotEqual(self.block(skip=(one,)), self.block())
 
-    def test_skip_changes_the_cards_and_says_so_in_the_rule_line(self):
-        # section 10.3: the heading is unchanged; the rule line gains one item, so the printed rule stays the whole rule
-        # (the nearest reports in date are the two the pager shows just below)
+    def test_skip_changes_the_cards_and_the_head_stays_factual(self):
+        # section 10.3: the heading is unchanged; the cards are the related ones once the pager's are left out, and the
+        # meta line says what those share with the page (Phase 10)
         skip = (self.by['rel-near-after'], self.by['rel-near-before'])
         html_ = self.block(skip=skip)
         self.assertEqual(html_.split('<span class="shead-m', 1)[0], self.block().split('<span class="shead-m', 1)[0])
-        self.assertEqual(ml_items(Doc(html_).find('span', cls='shead-m')),
-                         [RULE, 'NEAREST IN DATE', 'NEWER / OLDER NOT REPEATED'])
-        self.assertIn('<ul class="rep-rel tgrid">%s</ul>' % ''.join(core.trip_card(x, HERE, self.sizes, ns='rel')
-                                                                   for x in self.related(self.t, self.site, skip=skip)), html_)
-
-    def test_the_rule_line_names_the_pager_only_when_something_was_skipped(self):
-        # nothing skipped (no pager on the page, or both ends missing): the two-item rule, exactly as without skip
-        self.assertEqual(self.block(skip=()), self.block())
-        self.assertEqual(self.block(skip=(None, None)), self.block())
-        self.assertEqual(ml_items(Doc(self.block(skip=(None, None))).find('span', cls='shead-m')), [RULE, 'NEAREST IN DATE'])
-        # one neighbour is enough (the newest or the oldest report of an activity has only one)
-        one = self.block(skip=(None, self.by['rel-near-before']))
-        self.assertEqual(ml_items(Doc(one).find('span', cls='shead-m'))[-1], 'NEWER / OLDER NOT REPEATED')
-        # a subject without a region keeps its own first item
-        t = dict(self.t, region=None)
-        line = Doc(self.related_block(t, HERE, self.site, skip=(self.by['rel-near-after'],))).find('span', cls='shead-m')
-        self.assertEqual(ml_items(line), [RULE_NO_REGION, 'NEAREST IN DATE', 'NEWER / OLDER NOT REPEATED'])
+        rel = self.related(self.t, self.site, skip=skip)
+        self.assertIn('<ul class="rep-rel tgrid">%s</ul>' % ''.join(core.trip_card(x, HERE, self.sizes, ns='rel') for x in rel), html_)
+        self.assertNotIn('NEWER / OLDER', html_)
 
     def test_empty_string_when_every_related_report_is_skipped(self):
         # sections 3 and 10.3: '' when empty: never a heading above no cards

@@ -274,6 +274,35 @@ class GpxBytesTests(unittest.TestCase):
         got = fit_reader.read_gpx_bytes(gf.NO_TIME.encode('utf-8'))
         self.assertEqual([p[3] for p in got], [None] * 12)
 
+    def test_fractional_seconds_and_offsets_give_the_same_instant_on_any_machine(self):
+        # '18:40:00.000Z' once lost its offset with its fraction and was read in the build machine's zone; the same
+        # instant written five ways, under two TZ settings, is one timestamp (time.tzset: not on Windows, nor needed)
+        whens = ('2026-01-17T18:40:00Z', '2026-01-17T18:40:00.000Z', '2026-01-17T10:40:00.5-08:00',
+                 '2026-01-17T19:40:00.123456+01:00', '2026-01-17T18:40:00')
+        gpx = (gf.HEAD + '<trk><trkseg>' + ''.join('<trkpt lat="38.9" lon="-120.1"><ele>1900</ele><time>%s</time></trkpt>' % w
+                                                   for w in whens) + '</trkseg></trk>\n</gpx>\n')
+        want = datetime(2026, 1, 17, 18, 40, tzinfo=timezone.utc).timestamp()
+        import time
+        if not hasattr(time, 'tzset'):
+            self.skipTest('no time.tzset')
+        old = os.environ.get('TZ')
+        try:
+            for tz in ('UTC', 'America/New_York', 'Asia/Tokyo'):
+                os.environ['TZ'] = tz
+                time.tzset()
+                with self.subTest(tz=tz):
+                    self.assertEqual([p[3] for p in fit_reader.read_gpx_bytes(gpx.encode('utf-8'))], [want] * len(whens))
+        finally:
+            if old is None:
+                os.environ.pop('TZ', None)
+            else:
+                os.environ['TZ'] = old
+            time.tzset()
+
+    def test_a_time_that_is_not_iso_8601_gives_none(self):
+        gpx = gf.HEAD + '<trk><trkseg><trkpt lat="38.9" lon="-120.1"><ele>1900</ele><time>yesterday</time></trkpt></trkseg></trk>\n</gpx>\n'
+        self.assertEqual(fit_reader.read_gpx_bytes(gpx.encode('utf-8'))[0][3], None)
+
     def test_read_gpx_bytes_is_read_gpx_on_the_same_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = write(os.path.join(tmp, 'walk.gpx'), gf.SINGLE.encode('utf-8'))

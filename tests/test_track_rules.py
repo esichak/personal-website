@@ -46,6 +46,7 @@ RECORDING = 'Stats from the GPS recording.'
 GPS_MAX = 'GPS max is the highest point in the GPX file, not a surveyed summit height.'
 AVG_SPEED = 'Average speed is distance divided by moving time.'
 PACE = 'Pace is moving time divided by distance.'
+MOVING = 'Moving time leaves out stops.'            # Phase 10 (gap6-05): a recorded report whose strip shows Moving
 TRACK_LINE = 'Track: Synthetic recorder &amp; one synthetic gap.'
 CLOSING = ('with map and GPX', 'with map, elevation profile and GPX', 'with map, speed chart and GPX')
 
@@ -282,9 +283,10 @@ class StatsNoteTests(Fixture):
             self.assertEqual(core.is_flat(with_), kind == 'flat-water')
             track_line = [TRACK_LINE] if beta else []
             gps_max = [] if kind == 'flat-water' else [GPS_MAX]
+            moving = [MOVING] if meta['stats'].get('moving') else []
             with self.subTest(kind=kind, beta=beta, track=True):
-                # as it always was: the source, the beta's Track line, the derived value, what GPS max means
-                self.assertEqual(core.stats_note(with_), self.note([RECORDING] + track_line + derived + gps_max))
+                # the source, the beta's Track line, the derived value, what GPS max means, what Moving means (Phase 10)
+                self.assertEqual(core.stats_note(with_), self.note([RECORDING] + track_line + derived + gps_max + moving))
             with self.subTest(kind=kind, beta=beta, track=False):
                 left = track_line + derived
                 got = core.stats_note(without)
@@ -322,10 +324,10 @@ class StatsNoteTests(Fixture):
         self.assertEqual(core.stats_note(t),
                          '<p class="strip-note">Stats from the GPS recording. Track: Synthetic recorder &amp; one synthetic gap. '
                          'Average speed is distance divided by moving time. GPS max is the highest point in the GPX file, not a surveyed '
-                         'summit height.</p>')
+                         'summit height. Moving time leaves out stops.</p>')
         t = self.trip(track=True, **self.KINDS['flat-water'][0])
         self.assertEqual(core.stats_note(t), '<p class="strip-note">Stats from the GPS recording. Pace is moving time divided by '
-                                             'distance.</p>')
+                                             'distance. Moving time leaves out stops.</p>')
 
     def test_the_class_is_added_to_a_note_and_never_makes_one(self):
         with_, without = self.pair(activity='hike', stats=STATS)
@@ -378,9 +380,10 @@ class DerivedValueNoteTests(Fixture):
                     meta['stats'] = stats
                 with_, without = self.pair(**meta)
                 derived = [sentence] if name in ('both', 'all') else []
+                moving = [MOVING] if name in ('moving', 'zero', 'both', 'all') else []
                 with self.subTest(act=act, subtype=extra.get('subtype'), stats=name):
                     self.assertEqual(core.is_flat(with_), not gps_max)
-                    self.assertEqual(core.stats_note(with_), self.note([RECORDING] + derived + ([GPS_MAX] if gps_max else [])))
+                    self.assertEqual(core.stats_note(with_), self.note([RECORDING] + derived + ([GPS_MAX] if gps_max else []) + moving))
                     self.assertEqual(core.stats_note(without), self.note(derived))
                     # the sentence explains a value: it is there exactly when the strip shows that value
                     for t in (with_, without):
@@ -396,12 +399,16 @@ class DerivedValueNoteTests(Fixture):
         self.assertEqual(core.stats_note(self.trip(stats={'distance_km': 20.0}, **ride)), core.stats_note(self.trip(**ride)))
         self.assertEqual(core.stats_note(self.trip(stats={'distance_km': 20.0, 'moving': '2:00'}, **ride)),
                          '<p class="strip-note">Stats from the GPS recording. Average speed is distance divided by moving time. GPS '
-                         'max is the highest point in the GPX file, not a surveyed summit height.</p>')
+                         'max is the highest point in the GPX file, not a surveyed summit height. Moving time leaves out stops.</p>')
+        self.assertTrue(core.stats_note(self.trip(stats={'distance_km': 20.0, 'moving': '2:00', 'elapsed': '2:40'}, **ride))
+                        .endswith(' Moving time leaves out stops; elapsed time includes them.</p>'))
         paddle = dict(activity='other', subtype='SUP', track=True)
         self.assertEqual(core.stats_note(self.trip(**paddle)), '<p class="strip-note">Stats from the GPS recording.</p>')
-        self.assertEqual(core.stats_note(self.trip(stats={'moving': '1:00'}, **paddle)), '<p class="strip-note">Stats from the GPS recording.</p>')
+        self.assertEqual(core.stats_note(self.trip(stats={'moving': '1:00'}, **paddle)),
+                         '<p class="strip-note">Stats from the GPS recording. Moving time leaves out stops.</p>')
         self.assertEqual(core.stats_note(self.trip(stats={'distance_km': 5.0, 'moving': '1:00'}, **paddle)),
-                         '<p class="strip-note">Stats from the GPS recording. Pace is moving time divided by distance.</p>')
+                         '<p class="strip-note">Stats from the GPS recording. Pace is moving time divided by distance. Moving time '
+                         'leaves out stops.</p>')
         # without a track and without both values: nothing to say at all
         for meta in (dict(activity='mtb'), dict(activity='mtb', stats={'distance_km': 20.0}), dict(activity='other', subtype='SUP'),
                      dict(activity='other', subtype='SUP', stats={'moving': '1:00'})):
@@ -417,8 +424,8 @@ class DerivedValueNoteTests(Fixture):
     def test_other_activities_never_had_the_sentence(self):
         for act in ('hike', 'ski', 'climb'):
             with_, without = self.pair(activity=act, stats=self.STATS['all'])
-            self.assertEqual(core.stats_note(with_), self.note([RECORDING, GPS_MAX]))
-            self.assertEqual(core.stats_note(without), '')
+            self.assertEqual(core.stats_note(with_), self.note([RECORDING, GPS_MAX, MOVING]))
+            self.assertEqual(core.stats_note(without), '')     # no recording: nothing said of its moving time either
 
 
 # ---------------------------------------------------------------- core.render_meta, core.glyph, core.tile
@@ -614,7 +621,9 @@ class PhotoSizeTests(Fixture):
                     core._TRIPS_BY_URL.update(state[0])
                     core._OTHER_SUBS[:] = state[1]
                     core._HAS_PCT[0], core._SITE_SHARE[0] = state[2], state[3]
-                imgs = Doc(html_).by_id('photos').find_all('img')
+                # Phase 10 (report-02): the first leads the page (a photo without both dimensions counts as a landscape)
+                doc = Doc(html_)
+                imgs = doc.by_id('hero').find_all('img') + doc.by_id('photos').find_all('img')
                 self.assertEqual([i['src'] for i in imgs], ['../../%sphotos/01.webp' % t['url'], '../../%sphotos/02.webp' % t['url']])
                 for i in imgs:
                     self.assertNotIn('width', i)

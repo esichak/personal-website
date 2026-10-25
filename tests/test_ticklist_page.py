@@ -695,11 +695,17 @@ class GoalPageTests(TickListFixture):
         self.assertIn('Completed', [t.text() for t in self.doc('done-traverse').find(cls='rep-chips').find_all(cls='tag')])
         self.assertIn('Archived', [t.text() for t in self.doc('old-archived').find(cls='rep-chips').find_all(cls='tag')])
 
-    def test_title_value_slot_shows_the_approximate_distance(self):
-        head = self.doc('couloir-short').find(cls='rep-title').text()
-        self.assertIn('≈', head)
-        self.assertIn('12.3 MI', head)
+    def test_the_approximate_distance_is_said_once(self):
+        # Phase 10 (visual-19): the strip under the title states ≈ distance, so the title's value slot leaves it out;
+        # the strip is one cell, capped like a four-cell strip's cells (strip--1)
+        doc = self.doc('couloir-short')
+        self.assertNotIn('≈', doc.find(cls='rep-title').text())
+        strip = doc.by_id('stats')
+        self.assertIn('≈', strip.text())
+        self.assertIn('12.3', strip.text())
         self.assertNotIn('≈', self.doc('ridge-idea').find(cls='rep-title').text())
+        cells = len(strip.find_all(cls='strip-c'))
+        self.assertEqual('strip--%d' % cells in strip.find('dl')['class'], cells in (1, 2, 5))
 
     def test_actions(self):
         actions = self.doc('couloir-short').find(cls='rep-actions')
@@ -917,7 +923,7 @@ class GoalPageTests(TickListFixture):
         self.assertEqual(a.text(), 'Done Traverse')
         other = Doc(self.report.page(self.by['other-report'], self.site).html)
         self.assertNotIn('On the tick list', other.by_id('main').text())
-        self.assertIn('Trip report', self.report.page(self.by['real-report'], self.site).html)   # reports keep their heading
+        self.assertIn('<h2 class="t-h3 rep-h" id="report-h">Report</h2>', self.report.page(self.by['real-report'], self.site).html)   # reports keep their heading
 
 
     def test_backlink_on_multi_day_and_series_reports(self):

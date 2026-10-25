@@ -53,7 +53,7 @@ tools/lib/goals.py                goal.json defaults, validation, is_active(), s
 tools/lib/gpxroute.py             safe GPX inspection for goals: routes and tracks, segments kept, selection among alternatives, measure()
 tools/ticklist.py                 the local goal workflow: add, update, log-outing, review-packet, export (never pushes or deploys)
 tools/sitegen/pages/*.py          one module per page type; each has build(site) -> [core.Page]
-tools/sitegen/pages/report.py     single-day reports in two layouts (report.narrative: story or compact), goal pages, full-screen map pages
+tools/sitegen/pages/report.py     single-day reports in four cases (story, written first, photo-only, compact), goal pages, full-screen map pages
 tools/sitegen/pages/series.py     the PCT journal: lead photo, facts-only introduction, highlights, written-entry navigation, month log
 tools/sitegen/pages/region.py     the region pages (regions/<slug>/): one per region with a region map and a published report filed under
                                   it; map/'s panel and table (archive.py draws both) for the trips filed under the region, under a head
@@ -67,6 +67,7 @@ assets/js/pages/trips.js          the explorer's behaviour: URL state, history, 
                                   journal-day hits (node-testable)
 assets/js/pages/ticklist.js       the tick list's behaviour: scope, filters over data attributes, priority / added / name order (node-testable)
 assets/js/pages/series.js         the journal's behaviour: month scrollspy, write-ups filter on by default, reveal on hash (node-testable)
+assets/js/pages/profile.js        the profile readout on single-day reports: crosshair and distance · elevation from data-pf (node-testable)
 assets/css/pages/region.css       the region pages' own rules (head, Featured grid, the links into trips/); archive.css draws the rest
 assets/js/pages/archive.js        map/'s region tabs, "Show all" and the table's activity filter; the last two also run on a region page
 docs/TICK_LIST_GUIDE.md           how to save, import, review, publish, update and complete a goal; the research prompt
@@ -124,7 +125,15 @@ menu button below 1140px.
 - Maps are static: `core.map_block(t, here, [(name, size)…], asset_dir, ns)` shows exactly one variant per
   breakpoint (`wide` ≥1200, `col` 560–1199 or ≥1200 with `map--nowide`, `desktop` ≥560, `phone` <560).
   Charts: `core.chart_block`. Every inline fragment needs a unique `ns` (ids are namespaced with it).
-- Key rows decode symbols only, never values (`core.key_row(['skin','ski','start_end','gps','mile'])`).
+- Key rows decode symbols only, never values (`core.key_row(['skin','ski','start_end','gps','mile'])`). A label may be
+  HTML (`core.KEY_HTML`: `Mile` / `Mile (1.6 km)` through `U`, since a mile disc stays a mile under KM). Trail and road
+  lines are decoded only where the map's base layer draws them (`core.base_keys(t, names)`, looked up in each
+  `<name>.base.svg`; phone renders draw no trails), on report, multi-day and section maps from Phase 10.
+- Map captions end with the contour interval each rendered width was drawn with (`core.contour_items(t, variants,
+  nowide)`, from meta.json `maps.*.interval_ft`, through `U`, one item per width with the `.vx--…` classes when they
+  differ), and chart lines say `VERTICAL SCALE ×N` (`core.vx_line`). Multi-day day maps pass through the same helper,
+  but none of today's 68 day renders records `interval_ft`, so their captions gain the item only after a redraw
+  (Phase 15); the overview caption does not ask.
 - Mono-S meta lines are ALL CAPS with units (`SAT, JAN 17, 2026 · 12.8 MI`).
 
 ### Accessibility and copy
@@ -235,13 +244,13 @@ menu button below 1140px.
 - Lists: `core.trip_row` is the one index row and `core.trip_card` the one card (explorer and Recent outings); a single-day
   row with no excerpt is `.trow--brief` (120px tile in the same column, tighter row), and phones show a Mono-S stats
   line (`.trow-ps`) instead of the stat grid. `core.trip_tags` writes `Multi-day · 1 day` for a trip with one day file
-  and `Multi-day · N days` otherwise.
+  and `Multi-day · N days` otherwise, and `Track only` for a single-day report with neither a write-up nor a photo
+  (`core.track_only(t)`, copy-04), on cards, rows and the title chips alike.
 - No file, no control: a page offers, links to or mentions a download, a map or a route only when the file behind it
   is built, so nothing leads to a file that is not there. `core.has_track(t)` is the test (the trip's own `track.gpx`,
   or any day's). A single-day report without `t['track']` has no `Download GPX` and no `View route` title action, no
-  `#map` section, no Route item in `report.section_nav`, no Map and no GPX item in `report.bottom_bar`, and no
-  `trips/<slug>/map/` page. When it has no stats to show either, it has no `#stats` strip, no Trip details item unless
-  it has beta rows and no Stats item in the bar (`has_stats`, under Report pages below). A trip's renders go with its
+  `#map` section, no Map item in `report.section_nav`, no Map and no GPX item in `report.bottom_bar`, and no
+  `trips/<slug>/map/` page. When it has no stats to show either, it has no `#stats` strip and no Stats item in the bar (`has_stats`, under Report pages below). A trip's renders go with its
   track: without one `core.render_meta(t)` returns no maps and no charts and `core._drawing`, behind `core.glyph` and
   `core.tile`, returns `''`, so the page has no profile or speed section, no key and no map preload and no card, row or
   pager draws the route, and `build.copy_trip_assets` publishes neither `tile.svg`, `g112.svg` and `g64.svg` nor the
@@ -595,18 +604,25 @@ menu button below 1140px.
 
 ### Report pages, related reports and the journal
 
-- Report pages (`tools/sitegen/pages/report.py`, `kind: trip`): `report.narrative(t)` is True for a single-day trip with
-  a write-up (`t['body_md']`) and a cover (`t['cover']`, so any photo). `page()` then builds the story layout
-  (`body_cls='p-report p-report--story'`), else the compact one (`p-report`). Both keep `#title #stats #map #profile
-  #beta #report #photos` wherever the section exists, and no nav item points at a section the page lacks.
-  - Story order: `title_block` (its actions are `View route`, a link to `#map`, and the ink `Download GPX`, both only
-    when the trip has a track, then `core.copy_link`), then `tick_backlink`, `report.hero` (only with a lead photo:
-    `lead_photo` below), `#stats`, `report.section_nav`, `.rep-body` (Beta rail `#beta`, `#report`), `#map` (only with a
-    track), `#profile`, `gallery` (`#photos`), `report.published_line`, `report.share_row`, `core.related_block` and
-    `pager`.
+- Report pages (`tools/sitegen/pages/report.py`, `kind: trip`), four cases since Phase 10. `report.narrative(t)` is True
+  for a single-day trip with a write-up (`t['body_md']`) and a cover (`t['cover']`, so any photo): the story layout
+  (`body_cls='p-report p-report--story'`). `report.written_first(t)` is True for one with a write-up, no photo and
+  `core.written_report(t)` (its plain text clears `core.STRUCTURED_MIN_CHARS`, 100): the same order without a lead
+  photo (`p-report p-report--written`). A photo-only report (no write-up, photos) keeps the compact order with its cover
+  leading when `lead_photo` allows. Every other report, a track alone or a note under the floor, is compact (`p-report`).
+  All keep `#title #stats #map #profile #beta #report #photos` wherever the section exists, and no nav item points at a
+  section the page lacks. Phase 10 reversed plan 9.1 and the Phase 3 note on two points, where their reason (no page
+  manufactures content) did not apply: a photo-only report shows its own photo first, and a written report without a
+  photo shows its own words first.
+  - Story and written-first order: `title_block` (its actions are `View route`, a link to `#map`, and the ink
+    `Download GPX`, both only when the trip has a track, then `core.copy_link`), then `tick_backlink`, `report.hero`
+    (story only, with a lead photo: `lead_photo` below), `#stats`, `report.section_nav`, `.rep-body` (Beta rail
+    `#beta`, `#report`), `#map` (only with a track), `#profile`, `gallery` (`#photos`), `report.published_line`,
+    `report.share_row`, `core.related_block` and `pager`.
   - Compact order: `title_block` (`Read the report`, a link to `#report`, when there is a write-up, `Download GPX` when
-    the trip has a track, `core.copy_link`), then `tick_backlink`, `#stats`, `#map` (only with a track), `#profile`,
-    `.rep-body`, `gallery`, `published_line`, `share_row`, `related_block` and `pager`.
+    the trip has a track, `core.copy_link`), then `tick_backlink`, `report.hero` (a photo-only report with a lead
+    photo), `#stats`, `#map` (only with a track), `#profile`, `.rep-body`, `gallery`, `published_line`, `share_row`,
+    `related_block` and `pager`.
   - `#stats`: `report.page` builds the strip section when `has_stats = bool(cells) or has_map`, where `cells` is
     `core.strip_cells(t)`. So a report with a track always has it, as before, and a report without a track has it only
     when it has a stats value to show. Without the strip the page has no `id="stats"`, `section_nav` and `bottom_bar`
@@ -626,28 +642,30 @@ menu button below 1140px.
     put in it; it still fronts the cards and is still the share image. The automatic cover pick prefers a photo that
     clears the same line (`content.resolve_cover`), so a square first photo does not keep a later landscape from
     leading. series.py applies the same rule.
-  - `page()` shows the hero when `narrative(t)`, not `lone_portrait(t)` and `lead_photo(t)`. With a hero: `gallery`
+  - `page()` shows the hero when the report is a story or photo-only, not `lone_portrait(t)`, and `lead_photo(t)`. With a hero: `gallery`
     gets `t['photos']` minus the cover file (order kept) and `lead=1`, the head carries `core.cover_preload(t, here,
     HERO_SIZES)` in place of `core.map_preloads`, and `map_block` gets `eager=False`. When no photo remains for the
     grid there is no Photos section; the hero is then built with `photos_anchor=True`, so an old link to `#photos`
     still lands on the photo, and the section row and the bottom bar list no Photos item. Without a hero every photo
-    stays where it was, and the map preloads and the eager map stay. That is three cases: a compact page; a story
+    stays where it was, and the map preloads and the eager map stay. That is three cases: a compact page without a hero; a story
     whose only photo is a portrait, which keeps `aside_photo` beside the write-up and has no `#photos`; and any other
     story whose cover is narrower than 6:5 (a portrait or square cover among several photos, or a single square or
     near-square photo), which keeps the story order with every photo in `#photos`. The share image is the cover file
-    whenever `t['cover']` exists, with or without a hero, on both layouts (`core.share_photo(t)`).
+    whenever `t['cover']` exists, with or without a hero, on every layout (`core.share_photo(t)`).
   - `report.gallery(t, here, photos, ns='ph', lead=0)` puts `data-lb-group="photos"` on the `#photos` section; its
     heading counts the photos in the grid. `lead` goes on to `core.photo_rows(..., lead=0)`, where a grid photo
     without alt text is labelled `Photo <k + lead> of <n + lead>, full size`. A story with a lead photo passes
     `lead=1`, so those labels count as the viewer counts (`Photo 2 of 7` for the first grid photo of a seven-photo
     trip) while the heading still reads `6 PHOTOS`.
-  - `report.section_nav(has_report, has_gallery, has_beta, has_map=True, has_stats=True)` returns `<nav class="rep-toc
-    wrap" aria-label="Sections"><ul>` of `<li><a class="rep-toc-a" href="#…">`: Report (`#report`), Photos (`#photos`,
-    only with a gallery), Route (`#map`, only with `has_map`: a report without a track has no map section), Trip details
-    (`#beta` with beta rows, else `#stats`; left out when the page has neither beta rows nor a stats strip), always in
-    that fixed order, which is not the page's (the gallery follows the map). No link in it is ever marked current. Story
-    layout only: it replaces the rail's old Contents list, which no page can show any more (a trip with a write-up and a
-    gallery is always a story).
+  - One label table names a report's sections wherever a list leads to them (copy-09; decision 12.10 resolved):
+    `report.LABELS` (`#stats` Stats, `#beta` Beta, `#report` Report, `#map` Map, `#profile` Elevation, `#photos`
+    Photos; `report.label(href, chart)` says Speed for a flat-water chart), `report.ICONS`, and the page orders
+    `report.STORY_ORDER` / `report.COMPACT_ORDER`. The write-up's h2 is `Report` too. 'Route' and 'Trip details' are
+    retired.
+  - `report.section_nav(has_report, has_gallery, has_map=True, chart='')` returns `<nav class="rep-toc wrap"
+    aria-label="Sections"><ul>` of `<li><a class="rep-toc-a" href="#…">`: Report, Map (only with `has_map`: a report
+    without a track has no map section), Elevation or Speed (only with a rendered chart), Photos (only with a gallery),
+    in page order. No link in it is ever marked current. Story and written-first layouts only.
   - `report.share_row(here)` → `<div class="wrap rep-share">` + `core.copy_link(core.SITE_URL + here, 'Copy link to this
     page', cls='alink')`: the copy control for phones, where the title actions are hidden. After the gallery and
     before the related block on both single-day layouts, after `.mul-body` and before the related block on multi-day
@@ -656,14 +674,38 @@ menu button below 1140px.
     t-mono-s">Published <time datetime="<as written>">Oct 3, 2026</time></p>`, with ` · Updated <time …>…</time>` before
     `</p>` when `updated_at` is set. The visible date is `core.fdate(…, 'short')` of the value's first ten characters.
     It is the visible, labelled date the page's metadata must agree with. It sits before `share_row` on single-day pages
-    (both layouts) and multi-day pages and before the pager on the journal; a goal page has none (`content` refuses the
+    (every layout) and multi-day pages and before the pager on the journal; a goal page has none (`content` refuses the
     two fields on a planned route).
   - `report.bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery, chart='', story=False, has_map=True,
-    has_stats=True)`: compact unchanged (Map · Beta | Profile / Speed | Stats · Report | Photos · GPX). `story=True`:
-    with a gallery Report · Map · Photos · GPX; no gallery but beta rows Beta · Report · Map · GPX; neither Report · Map
-    · Profile / Speed (Stats without a chart) · GPX. A report without a track passes `gpx_href=''` and `has_map=False`
-    and gets neither the GPX nor the Map item, and `has_stats=False` (the page has no strip) leaves the Stats item out
-    as well; `--n` counts the items shown, and the bar is `''` when fewer than two would be left.
+    has_stats=True)`: the items it has had since Phase 3, in page order and named by `LABELS` since Phase 10. Compact:
+    Map, Beta (else Elevation / Speed, else Stats, which then comes first: the strip sits above the map), Report (else
+    Photos), GPX. `story=True` (story and written-first): with a gallery Report · Map · Photos · GPX; no gallery but beta
+    rows Beta · Report · Map · GPX; neither Report · Map · Elevation / Speed · GPX, or Stats · Report · Map · GPX without
+    a chart. A report without a track passes `gpx_href=''` and `has_map=False` and gets neither the GPX nor the Map item,
+    and `has_stats=False` (the page has no strip) leaves the Stats item out as well; `--n` counts the items shown, and
+    the bar is `''` when fewer than two would be left.
+  - The stats footnote (`core.stats_note`) sits under the strip on every screen (gap6-04): phones hide the strip's
+    sub-lines but the Moving cell's (`strip-c--time`: `Elapsed 5:10 · Start 8:15 AM`, `core.time_items`, never a
+    derived finish time), and no copy of the note goes under the map caption any more. With a recording and a moving
+    time it says `Moving time leaves out stops.` (`; elapsed time includes them.` when the strip shows Elapsed:
+    `core.MOVING_NOTE`). `core.strip` takes an optional fourth item per cell, its class, and marks one-, two- and
+    five-cell strips `strip--1|2|5` (base.css caps one and two cells at a four-cell strip's width from 760).
+  - The mile table: `core.read_track(path, key, cat)` → `mapkit.Track` of the published GPX (None without one);
+    `core.elevation_table(tr, stats, zone=None)` → the 'View as table' `<details class="eltab">`, both units through
+    `U`; with `zone` (single-day reports pass `t['timezone']`) a Time column from each point's time in that zone
+    (`core.clock`: '' without a time, a zone or zoneinfo, never a UTC clock), and `profile_section` ends the GPS MAX item
+    with ` AT 11:40 AM` (`core.gps_max_clock`). Multi-day day charts (`multiday.day_profile`) and the section featured
+    chart (`section.profile_block`) carry the table too, without the Time column. A track whose zone is wrong
+    (docs/IMPLEMENTATION_REPORT.md 12.12) shows wrong clock times until `add_trip.py --retime` fixes the zone.
+  - The profile readout (maps-04): `core.profile_readout(tr, stats)` → (elevations at `READOUT_SAMPLES + 1` evenly
+    spaced fractions of the track's length, total km); `core.chart_block(..., readout=)` writes them as `data-pf` and
+    `data-pf-km` on `.chart` and each render's `data-w` and `data-pad` (the x axis runs from pad to w in viewBox units)
+    on its `.cv`. `assets/js/pages/profile.js` draws a crosshair and `7.2 MI · 11,650 FT` under a pointer or a finger
+    (`touch-action: pan-y pinch-zoom` keeps the page scrolling and zooming), hidden on pointerleave, pointercancel and
+    Escape; the table stays the accessible alternative. Single-day reports only. The one distance and elevation the
+    site formats outside `core.U`: the script converts with `content.FT` and `content.MI`'s values and picks the pair
+    from `html.km` at each move, as U's spans switch; the elevations are whole metres, so a value can differ from the
+    table's by a foot or two.
   - `report.neighbours(t, site)` → `(newer, older)`: the published reports of `t`'s activity on either side of it in
     `site['published']` order, None at an end, `(None, None)` when `t` is not a published report. `report.pager` draws
     them, and `report.page` and `multiday.page` hand them to `core.related_block` as `skip`.
@@ -671,9 +713,12 @@ menu button below 1140px.
     hero, no section row, no related block. Multi-day pages (`multiday.page`): `Download all GPX` is a title action
     only when `multiday.has_gpx(t)`, `core.copy_link` is the last title action, then `published_line`, `share_row` and
     `core.related_block` before the pager, and the share image is `multiday.share_image(t)`, which returns
-    `core.share_photo(t)` (the cover's dict, or None). Decision for Phase 3: multi-day pages keep their map-first
-    layout. They get no lead photo and no section row, whatever their cover, and `multiday.page` calls neither
-    `report.hero` nor `report.section_nav`.
+    `core.share_photo(t)` (the cover's dict, or None). Multi-day pages keep their map-first layout and get no section row
+    (the day nav is one). Since Phase 10 (report-11, reversing the Phase 3 note) a landscape cover leads them
+    (`report.hero` after the title block, `core.cover_preload` in place of the overview's preloads), and the Overview
+    ends with `multiday.photo_strip`: one card-size square per day with photos, linking to `#day-N`. The day nav marks a
+    written day with a dot and says `WRITE-UP · N PHOTOS` (a fourth line from 1200 px, read out below that), the phone
+    rows say the same, and the Overview head counts them (`days_meta(t, content=True)`).
 - Related reports: `core.related(t, site, k=3, skip=())` → up to k trips from `site['published']`: never `t`, never
   planned, never a report in `skip` (None entries are ignored), each slug once (drafts are never loaded). Candidates
   share `t['region']` (when set; exact string) or `t['activity']`. Order: same activity and `core.same_name(t, x,
@@ -684,14 +729,12 @@ menu button below 1140px.
   region, then same activity; within a tier the smallest gap in days to `t['date']` first (an undated candidate after
   the dated ones; every candidate counts as undated when `t` has no date), then the newer one, then
   `site['published']` order. `core.related_block(t, here, site, k=3, skip=())` → `''` when empty, else `<section
-  class="rep-related wrap sec" aria-labelledby="rel-h">` with the h2 `More like this` (`id="rel-h"`), the rule as
-  `core.meta_items` (`SAME PLACE OR NAME AND ACTIVITY, THEN REGION AND ACTIVITY, THEN REGION, THEN ACTIVITY`, or `SAME
-  PLACE OR NAME AND ACTIVITY, THEN ACTIVITY` when `t` has no region, its clauses no-break inside and joined by ', ' so a
-  phone wraps it after a comma; then `NEAREST IN DATE`;
-  then `NEWER / OLDER NOT REPEATED` when `skip` holds a report) and `<ul class="rep-rel tgrid">` of `core.trip_card(x,
-  here, core.RELATED_SIZES, ns='rel')`. Called by `report.page` (both layouts) and `multiday.page`, before the pager,
-  with `skip=report.neighbours(t, site)`: the block leaves out the two reports the pager right under it links as Newer /
-  Older, and the rule line says so. Never on goal or series pages. `RELATED_SIZES = '(min-width: 1200px) 400px,
+  class="rep-related wrap sec" aria-labelledby="rel-h">` with the h2 `More like this` (`id="rel-h"`), a meta line of
+  what the picked reports share with the page (visual-03, since Phase 10): `EASTERN SIERRA · BACKCOUNTRY SKI` when all
+  share its region and activity, the region or the activity word when all share only that, else `N REPORTS`; and `<ul
+  class="rep-rel tgrid">` of `core.trip_card(x, here, core.RELATED_SIZES, ns='rel')`. Called by `report.page` (every
+  layout) and `multiday.page`, before the pager, with `skip=report.neighbours(t, site)`: the block leaves out the two
+  reports the pager right under it links as Newer / Older. Never on goal or series pages. `RELATED_SIZES = '(min-width: 1200px) 400px,
   (min-width: 560px) calc((100vw - 104px) / 2), 112px'`.
 - Copy link: `core.copy_link(url, label='Copy link', cls='btn', of='')` → `<span class="copy"><button type="button"
   class="<cls> copy-btn" data-copy="<url>">` + `icon('link', 18)` + `<span><label></span></button><span
@@ -855,7 +898,8 @@ menu button below 1140px.
     `photos.thumb_size(w, h)` writes; tests/test_thumbs.py holds the two to each other.
   - `sizes`: `core.PHONE_FULL` ends `report.HERO_SIZES`, home's `LEAD_SIZES`, `SUB_SIZES` and `WIDE_SUB_SIZES`, the
     default of `core.photo`, the three `core.photo_rows` strings (a portrait shown two to a row on a phone keeps
-    `50vw`), `report.aside_photo` and `section.featured`. `core.phone_sizes(sizes, p)` returns the string as it is when
+    `50vw`; below 760 a landscape keeps its own shape, `--ar`, and a photo alone on its row its own shape down to
+    `core.PHONE_SOLO_MIN_AR`, 0.6, `--arp`, where the phone grid cropped both square until Phase 10), `report.aside_photo` and `section.featured`. `core.phone_sizes(sizes, p)` returns the string as it is when
     it does not hold `PHONE_FULL`, or when the photo's recorded `w / h` lies within `core.PHONE_SHAPES` (`(1.2, 1.6)`,
     both ends included); otherwise it returns it with `PHONE_FULL` replaced by `100vw`. So below 560 px the slot of a
     landscape photo between 6:5 and 8:5 is declared as 55vw, and a 3x phone up to 484 px wide asks for no more than 800
@@ -881,7 +925,7 @@ menu button below 1140px.
 - Share metadata and structured data (`core.document`; tests/test_metadata.py pins the tags, their order and the cases):
   - `core.share_photo(t)` returns `{'path': t['url'] + file, 'w', 'h', 'alt'}` from `t['cover']`, or None for a trip
     without a photo. Every page that shares a trip's photo takes it from here, so the card, the lead photo and the share
-    image cannot disagree: single-day pages (both layouts), goal pages, multi-day pages (`multiday.share_image`), the
+    image cannot disagree: single-day pages (every layout), goal pages, multi-day pages (`multiday.share_image`), the
     journal, the home page (its lead feature), section pages (`section.og_image(ts)`: the first trip with a cover,
     the featured trip first) and region pages (`region.share_image(feat, pub)`: the first Featured pick with a cover,
     else the first report of the region with one).
@@ -1339,7 +1383,7 @@ menu button below 1140px.
 ## Trip dict (from tools/lib/content.py)
 `slug, dir (the trip folder), meta (index.md's front matter as parsed), title, activity (ski|climb|hike|mtb|other),
 activity_label, cat, subtype, kind (trip|multi-day|series|planned), date, end_date, start_time, timezone, place, region,
-party, route_shape, featured, draft, beta[{label,value}], map{}, source, body_md, photos[{file, sm, th, w, h, alt,
+party, route_shape, featured, draft, beta[{label,value,url?}], map{}, source, body_md, photos[{file, sm, th, w, h, alt,
 caption}], days[…], url ('trips/<slug>/'), track, rendered, stats{distance_km, gain_m, loss_m, high_m, low_m, moving_s,
 elapsed_s}, season, has_writeup, cover_photo, cover_focal (x, y), card_summary, cover{photo, source
 ('explicit'|'parent'|'day'), day, focal}, aliases, published_at, updated_at, journal_highlights, region_days, goal
@@ -1428,7 +1472,9 @@ They feed `report.published_line`, the two `article:*` meta tags, the `BlogPosti
 and its place in the feed (`build.pub_moment`) and the sitemap's `<lastmod>`, and nothing else: not the order of any
 list on the site or the home page.
 `summits`: the optional `summits:` list as `[{'name', 'outcome', 'route'}]` (`content._summits`: the entries with a
-name; checks.py reports the rest, `content.SUMMIT_OUTCOMES`). `report.beta_list` shows them as the Beta block's last
+name; checks.py reports the rest, `content.SUMMIT_OUTCOMES`). A beta row's optional `url:` (`checks.BETA_OPTIONAL`) links
+its value when `content.web_url` accepts it (http or https, `//` and a host); checks.py refuses any other value with the
+same test and warns of a key a row does not take. `report.beta_list` shows the summits as the Beta block's last
 row and `search.entry` adds the names (the trip's and its days') to `k`.
 Day: `n, id, label, title, date, start_time, hut, transfer_before, stats, photos, body_md, track, strava (True when the
 file has a strava_id line), summits`.

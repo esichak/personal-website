@@ -94,7 +94,8 @@ def map_caption(t):
         first.append(core.recorded(t['date']))
     first.append((FULL_TRACK, 'sec-cap-x'))
     first.append('North up')
-    return core.map_caption(first)
+    # the featured map's renders: col (also shown from 1200) and phone
+    return core.map_caption(first + core.contour_items(t, [('map-col', 'col'), ('map-phone', 'phone')], nowide=True))
 
 
 def arrow_link(href, text, cls='alink'):
@@ -208,8 +209,9 @@ def profile_block(t, here, variants, ns, cls=''):
             U(core.nb('MIN %s FT' % n(lo * FT)), core.nb('MIN %s M' % n(lo)))]
     bits += core.vx_line(ch, variants, nowide=('chart--nowide' in cls) or None, items=True)
     return ('<div class="sec-prof"><div class="sec-chart-h"><h3 class="t-label" id="%s-h">Elevation</h3><p class="t-mono-s">%s</p></div>'
-            '<div role="group" aria-labelledby="%s-h">%s</div></div>'
-            % (ns, core.meta_items(bits), ns, core.chart_block(t, here, variants, ns, cls=cls)))
+            '<div role="group" aria-labelledby="%s-h">%s%s</div></div>'
+            % (ns, core.meta_items(bits), ns, core.chart_block(t, here, variants, ns, cls=cls),
+               core.elevation_table(core.read_track(t['track'], t['slug'], t['cat']), st)))
 
 
 def speed_block(t, here):

@@ -405,7 +405,7 @@ picture.cover-pic { display: contents; }
 .keyrow--compact { padding-top: 8px; min-height: 0; border: 0; }
 .keyrow--p { display: none; }
 @media (max-width: 559.98px) { .keyrow--d { display: none; } .keyrow--p { display: flex; } }
-/* VERTICAL ×N differs per chart width: show the value of the chart that is visible (core.vx_line) */
+/* VERTICAL SCALE ×N differs per chart width: show the value of the chart that is visible (core.vx_line) */
 .vx { display: none; }
 @media (min-width: 1200px) { .vx--wide, .vx--nowide { display: inline; } }
 @media (min-width: 560px) and (max-width: 1199.98px) { .vx--col { display: inline; } }
@@ -447,6 +447,9 @@ picture.cover-pic { display: contents; }
   .strip-c:nth-child(2n) { padding-left: 24px; }
   .strip-v .unit { font-size: 14px; }
 }
+/* one or two cells (a goal's ≈ Distance, a report without a track): cells as wide as a four-cell strip's, the rules
+   still spanning the page (visual-19) */
+@media (min-width: 760px) { .strip--1, .strip--2 { grid-template-columns: repeat(var(--cells), minmax(0, 294px)); } }
 /* five cells (MTB with avg speed, multi-day): tighter padding and values on tablets */
 @media (min-width: 760px) and (max-width: 1199.98px) {
   .strip--5 .strip-c { padding: 16px; }
@@ -490,9 +493,12 @@ picture.cover-pic { display: contents; }
   .jrow--one { width: auto; }
   .jph .photo, .jph img { height: auto; }
   .jph--l, .jph--solo { grid-column: 1 / -1; }
-  .jph--l img { aspect-ratio: 3 / 2; }
+  /* a landscape and a photo alone keep their own shape (--ar, --arp written on the link, so the box is sized before the
+     file arrives): a 2.8:1 panorama is not cut to 3:2, a tall portrait only to 0.6 (resilience-06); two portraits side
+     by side stay 3:4 */
+  .jph--l img { aspect-ratio: var(--ar); }
   .jph--p img { aspect-ratio: 3 / 4; }
-  .jph--solo img { aspect-ratio: 4 / 5; }
+  .jph--solo img { aspect-ratio: var(--arp); }
 }
 
 /* ---------------------------------------------------------------- list rows (index pages) */

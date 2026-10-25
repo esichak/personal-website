@@ -1,7 +1,9 @@
 """Multi-day trip report (kind: multi-day) — /trips/<slug>/.
 
-Title block, trip strip, full-bleed overview map, then one block that carries the sticky day nav: the stitched
-elevation profile, the Overview (stage table) and one chapter per day file (#day-N). Ends with the site pager.
+Title block, the lead photo (report.hero, when the cover is at least 6:5 wide), trip strip, full-bleed overview map,
+then one block that carries the sticky day nav: the stitched elevation profile, the Overview (stage table, the phone
+day list and the photo strip: one square per day with photos) and one chapter per day file (#day-N), each with its
+mile table. Ends with More like this and the site pager.
 Shared pieces come from report.py (title block, pager) and core; everything page-specific is prefixed .mul-.
 Rendered fragments are trimmed here before they are inlined (slim, thin_ticks, unclash_band): features outside each
 map frame are clipped and colliding axis labels dropped, which cuts the Chamonix–Zermatt page from 4.2 MB to 1.7 MB
@@ -14,7 +16,7 @@ import markdown
 
 from sitegen import core
 from sitegen.core import esc, U, U_sub, n, icon, FT
-from sitegen.pages import report
+from sitegen.pages import report, series
 
 GENERIC_TITLE = re.compile(r'^\s*day\s*\d+\s*$', re.I)
 
@@ -72,13 +74,31 @@ def arrow_html(text):
     return esc(text).replace(' → ', '\u00a0→ ')
 
 
-def days_meta(t):
-    """['6 DAYS', '5 HUT NIGHTS'] (items for ml())."""
+def days_meta(t, content=False):
+    """['6 DAYS', '5 HUT NIGHTS'] (items for ml()); content=True (the Overview's head) adds the days' write-ups and
+    photos: '2 WRITE-UPS', '7 PHOTOS'."""
     bits = ['%d DAYS' % len(t['days'])]
     h = hut_nights(t)
     if h:
         bits.append('%d HUT NIGHT%s' % (h, '' if h == 1 else 'S'))
+    if content:
+        w = sum(1 for d in t['days'] if d['body_md'])
+        k = sum(day_photos(d) for d in t['days'])
+        if w:
+            bits.append(core.nb('%d WRITE-UP%s' % (w, '' if w == 1 else 'S')))
+        if k:
+            bits.append(core.nb('%d PHOTO%s' % (k, '' if k == 1 else 'S')))
     return bits
+
+
+def day_photos(d):
+    return sum(1 for p in d['photos'] if p.get('file'))
+
+
+def day_content(d):
+    """['WRITE-UP', '3 PHOTOS']: what a day's chapter holds beyond its track (report-10); [] for a track alone."""
+    k = day_photos(d)
+    return (['WRITE-UP'] if d['body_md'] else []) + ([core.nb('%d PHOTO%s' % (k, '' if k == 1 else 'S'))] if k else [])
 
 
 def ml(bits, br_after=None):
@@ -135,7 +155,7 @@ def key_items(t, names, route_label=None):
         items.append('gps')
     if f.get('mile'):
         items.append('mile')
-    return items
+    return items + core.base_keys(t, [nm for nm in names if not nm.endswith('-phone')])
 
 
 # ---------------------------------------------------------------- fragment weight (local until render.py clips)
@@ -343,11 +363,12 @@ def strip(t):
 
 
 def stats_note(t, cls='', here=None):
-    """The one stats footnote (under the strip; phones show the rep-note-ph copy under the overview map caption instead).
-    Plural: a multi-day trip is one recording per day. With here, it ends with core.how_link."""
+    """The one stats footnote, under the strip on every screen. Plural: a multi-day trip is one recording per day. With
+    here, it ends with core.how_link. The Moving sentence leaves elapsed time out: the trip's strip shows none."""
+    moving = (' ' + core.MOVING_NOTE[False]) if t['stats'].get('moving_s') else ''
     return ('<p class="strip-note%s">%s '
-            'GPS max is the highest point in the GPX files, not a surveyed summit height.%s</p>'
-            % ((' ' + cls) if cls else '', core.via('Stats from the GPS recordings', t),
+            'GPS max is the highest point in the GPX files, not a surveyed summit height.%s%s</p>'
+            % ((' ' + cls) if cls else '', core.via('Stats from the GPS recordings', t), moving,
                (' ' + core.how_link(here)) if here is not None else ''))
 
 
@@ -380,25 +401,26 @@ def fullscreen(t):
                                   'map--fs' + ('' if name == 'overview-wide' else ' map--fscol'), overview_caption(t), post=slim)
 
 
-def overview_map(t, here, meta):
+def overview_map(t, here, meta, eager=True):
+    """eager=False: a lead photo above it is the page's first image (page())."""
     maps = meta.get('maps', {})
     if not maps and has_gpx(t):
         # the days' tracks are there but render.py has not drawn them yet: say so (report.not_rendered_section) rather
         # than show an empty map with its key and caption. Without any day track the empty map stays (the validator
         # warns about that case on its own)
         return report.not_rendered_section('Route map, all days', 'Map not rendered yet. The GPX files of the days are '
-                                           'published: use the Download all GPX button.', stats_note(t, 'rep-note-ph', here))
+                                           'published: use the Download all GPX button.')
     desk = key_items(t, ['overview-wide', 'overview-col'], 'Route by day')
     phone = key_items(t, ['overview-phone'])
     cls = 'map--report' + ('' if 'overview-wide' in maps else ' map--nowide')
     # the shared caption (as on reports and the series map); no GPX button: the ink title button (>= 760) and the phone
     # bottom bar carry 'Download all GPX'
     cap = overview_caption(t)
-    mp = slim(core.map_block(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', 'ov', eager=True, cls=cls,
+    mp = slim(core.map_block(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', 'ov', eager=eager, cls=cls,
                              fullscreen_href=core.link(here, t['url'] + 'map/')))
     return ('<section class="rep-map mul-map" id="map" aria-label="Route map, all days"><div class="bleed">%s</div>'
-            '<div class="wrap">%s%s%s</div></section>'
-            % (mp, core.key_rows(desk, phone), cap, stats_note(t, 'rep-note-ph', here)))
+            '<div class="wrap">%s%s</div></section>'
+            % (mp, core.key_rows(desk, phone), cap))
 
 
 # ---------------------------------------------------------------- sticky day nav
@@ -411,13 +433,17 @@ def day_nav(t, here):
              % (len(days), caps_dist(t['stats'].get('distance_km')))]
     for d in days:
         dd = d['date']
-        items.append('<a class="mul-dn-i mul-dn-day" href="#day-%d" data-day="%d">'
+        # what the day holds: a fourth line from 1200 px (multiday.css; read out on every screen) and, for a written
+        # day, an ink dot beside the day number
+        held = day_content(d)
+        items.append('<a class="mul-dn-i mul-dn-day%s" href="#day-%d" data-day="%d">'
                      '<span class="mul-dn-top"><span class="mul-dn-d">D%d</span>%s</span>'
                      '<span class="mul-dn-date"><span class="mul-dlong">%s</span><span class="mul-dshort">%s</span></span>'
-                     '<span class="mul-dn-dist">%s</span></a>'
-                     % (d['n'], d['n'], d['n'], spark(t, here, d),
+                     '<span class="mul-dn-dist">%s</span>%s</a>'
+                     % (' is-written' if d['body_md'] else '', d['n'], d['n'], d['n'], spark(t, here, d),
                         core.fdate(dd, 'day') if dd else '', ('%s %d' % (dd.strftime('%b'), dd.day)) if dd else '',
-                        caps_dist(d['stats'].get('distance_km'))))
+                        caps_dist(d['stats'].get('distance_km')),
+                        ('<span class="mul-dn-c">%s</span>' % ml(held)) if held else ''))
     return '<nav class="mul-dnav" aria-label="Days"><div class="mul-dn-in">%s</div></nav>' % ''.join(items)
 
 
@@ -593,17 +619,35 @@ def day_index(t, here):
         out.append('<li><a href="#day-%d"><span class="mul-di-b"><span class="mul-di-t"><span class="mul-di-d">D%d</span>'
                    '<span class="mul-di-date">%s</span></span>%s<span class="t-mono-s mul-di-m">%s</span></span>%s%s</a></li>'
                    % (d['n'], d['n'], core.fdate(d['date'], 'day') if d['date'] else 'Day %d' % d['n'],
-                      ('<span class="mul-di-r">%s</span>' % arrow_html(title)) if title else '', ml(bits),
+                      ('<span class="mul-di-r">%s</span>' % arrow_html(title)) if title else '', ml(bits + day_content(d)),
                       '<span class="mul-sp mul-sp--96" aria-hidden="true">%s</span>'
                       % core.frag(core.rendered(t, 'spark-%s.svg.html' % d['id']), here), icon('chevron-right', 20)))
     return '<ol class="mul-di" aria-label="Days">%s</ol>' % ''.join(out)
+
+
+def photo_strip(t, here):
+    """Under the stage table: one square per day with photos, its first photo's card-size copy (the .sm copy where no .th
+    exists, as series.thumbs does), linking to the day (report-11). The day number is the link's text; the picture
+    repeats a photo the chapter shows with its own description, so it is not described again here."""
+    base = core.link(here, t['url'])
+    out = []
+    for d in t['days']:
+        ps = [p for p in d['photos'] if p.get('file')]
+        if not ps:
+            continue
+        p = ps[0]
+        src = series.thumb_file(t, p) or p['sm'] or p['file']
+        out.append('<li><a class="mul-pst-a" href="#day-%d"><img src="%s" alt="" width="%d" height="%d" loading="lazy" decoding="async">'
+                   '<span class="t-mono-s mul-pst-l">%s</span></a></li>'
+                   % (d['n'], base + src, 160, 160, core.nb('DAY %d' % d['n'])))
+    return ('<ul class="mul-pst" aria-label="Days with photos">%s</ul>' % ''.join(out)) if out else ''
 
 
 def overview(t, here):
     prose = ('<div class="prose t-body mul-ov-p">%s</div>' % markdown.to_html(t['body_md'])) if t['body_md'] else ''
     return ('<section class="wrap mul-ov" id="overview" aria-labelledby="overview-h">'
             '<div class="shead"><h2 class="shead-t" id="overview-h">Overview</h2><span class="shead-m t-mono-s">%s</span></div>'
-            '%s%s%s</section>' % (ml(days_meta(t)), prose, stage_table(t, here), day_index(t, here)))
+            '%s%s%s%s</section>' % (ml(days_meta(t, content=True)), prose, stage_table(t, here), day_index(t, here), photo_strip(t, here)))
 
 
 # ---------------------------------------------------------------- day chapters
@@ -619,8 +663,9 @@ def rail_stats(d):
         if v is not None:
             rows.append((lab, U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'FT', 'M'), cls))
     if st.get('moving_s'):
+        bits = core.time_items(st, d.get('start_time'))
         rows.append(('Moving', '%s<span class="unit">h:mm</span>' % core.hm(st['moving_s']),
-                     ('START ' + core.ftime(d['start_time'])) if d.get('start_time') else '', ''))
+                     core.meta_items([b.upper() for b in bits]) if bits else '', ''))
     # position in the phone 2-column grid (loss is hidden there: the profile line carries it); an odd last cell spans both
     shown = sum(1 for r in rows if r[3] != 'mul-ds-loss')
     out, i = [], 0
@@ -654,9 +699,11 @@ def day_profile(t, here, meta, d):
         bits.append(U('−%s FT' % n(st['loss_m'] * FT), '−%s M' % n(st['loss_m'])))
     bits += core.vx_line(ch, [(col, 'col'), (ph, 'phone')], items=True)  # chart--nowide: the col value also shows >= 1200
     keys = core.key_row(['hatch', 'fill'], 'keyrow--inline', label='Elevation key') if t['activity'] == 'ski' else ''
-    return ('<div class="mul-dp"><div class="mul-dp-h"><p class="t-label">Elevation · Day %d</p>%s<p class="t-mono-s mul-dp-m">%s</p></div>%s</div>'
+    # the day's own mile table under its chart (a11y-09); no Time column: a day's zone waits on the trip's (12.12)
+    return ('<div class="mul-dp"><div class="mul-dp-h"><p class="t-label">Elevation · Day %d</p>%s<p class="t-mono-s mul-dp-m">%s</p></div>%s%s</div>'
             % (d['n'], keys, ml(bits),
-               thin_ticks(core.chart_block(t, here, [(col, 'col'), (ph, 'phone')], 'd%s' % d['id'], cls='chart--nowide'))))
+               thin_ticks(core.chart_block(t, here, [(col, 'col'), (ph, 'phone')], 'd%s' % d['id'], cls='chart--nowide')),
+               core.elevation_table(core.read_track(d['track'], '%s-%s' % (t['slug'], d['id']), t['cat']), st)))
 
 
 _PH_NAME = re.compile(r'aria-label="Photo (\d+) of (\d+), full size"')
@@ -739,8 +786,8 @@ def chapter(t, here, meta, d):
     ns = 'd%s' % d['id']
     mp = slim(core.map_block(t, here, [('day-%s-col' % d['id'], 'col'), ('day-%s-phone' % d['id'], 'phone')], t['url'] + 'map/', ns,
                              cls='map--nowide mul-dmap'))
-    cap = '<p class="mul-dcap">%s</p>' % ml(['North up', 'Terrain: AWS Terrain Tiles', 'Map data © OpenStreetMap contributors',
-                                            'Not for navigation'])
+    cap = '<p class="mul-dcap">%s</p>' % ml(['North up'] + core.contour_items(t, [('day-%s-col' % d['id'], 'col'), ('day-%s-phone' % d['id'], 'phone')], nowide=True)
+                                           + ['Terrain: AWS Terrain Tiles', 'Map data © OpenStreetMap contributors', 'Not for navigation'])
     xfer = ('<p class="mul-xfer"><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>Road transfer before this day</p>'
             % core.KEY_SYMBOLS['transfer'][1]) if d.get('transfer_before') else ''
     prose = ('<div class="prose t-body mul-prose">%s</div>' % markdown.to_html(d['body_md'], heading_shift=3)) if d['body_md'] else ''
@@ -763,10 +810,10 @@ def share_image(t):
 def bottom_bar(t):
     """Phone bottom bar (< 760; CSS and the current-section scrollspy are shared with single-day reports in report.css /
     base.js): Map · Days · Report (the first day with a write-up, when there is one) · GPX (all days)."""
-    items = [('#map', 'map', 'Map', ''), ('#overview', 'list', 'Days', '')]
+    items = [('#map', 'map', report.LABELS['#map'], ''), ('#overview', 'list', 'Days', '')]
     rd = next((d for d in t['days'] if d['body_md']), None)
     if rd:
-        items.append(('#day-%d' % rd['n'], 'report', 'Report', ''))
+        items.append(('#day-%d' % rd['n'], 'report', report.LABELS['#report'], ''))
     if has_gpx(t):
         items.append((gpx_all(t), 'download', 'GPX', ' download'))
     return ('<nav class="bbar" aria-label="Trip sections" style="--n:%d">%s</nav>'
@@ -792,9 +839,13 @@ def page(t, site):
     if has_gpx(t):
         actions += '<a class="btn btn--ink" href="%s" download>%sDownload all GPX</a>' % (gpx_all(t), icon('download', 18))
     actions += core.copy_link(core.SITE_URL + here)
-    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site),
-            '<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note(t, here=here)),
-            overview_map(t, here, meta)]
+    # the cover (a day photo, content.resolve_cover) leads when it is a landscape, as on a single-day story (report-11)
+    lead = report.lead_photo(t)
+    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site)]
+    if lead:
+        body.append(report.hero(t, here))
+    body += ['<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note(t, here=here)),
+             overview_map(t, here, meta, eager=lead is None)]
     chapters = ''.join(chapter(t, here, meta, d) for d in t['days'])
     body.append('<div class="mul-body">%s%s%s<section class="mul-days" aria-labelledby="days-h">'
                  '<h2 class="sr" id="days-h">Day by day</h2>%s</section></div>'
@@ -803,7 +854,8 @@ def page(t, site):
     body.append(report.share_row(here))   # phones hide the title actions here too (multiday.css); the copy link moves down
     body.append(core.related_block(t, here, site, skip=report.neighbours(t, site)))
     body.append(report.pager(t, here, site))
-    head = core.map_preloads(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', nowide='overview-wide' not in meta.get('maps', {}))
+    head = (core.cover_preload(t, here, report.HERO_SIZES) if lead else
+            core.map_preloads(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', nowide='overview-wide' not in meta.get('maps', {})))
     return core.Page(here, core.document(here, t['title'], ''.join(body), description(t), active=t['activity'], image=share_image(t),
                                          extra_head=head, body_cls='p-multiday', bottom=bottom_bar(t), og_type='article', report=t),
                      t['title'])

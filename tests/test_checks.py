@@ -1516,7 +1516,8 @@ class TypeTests(Fixture):
         ski(BETA, 'beta:\n')(s)
         self.assertFindings()
         ski('beta:\n', 'beta:\n  - note: Firm snow\n')(s)
-        self.assertFindings(errors=[I(SKI, 'beta[0] has no label'), I(SKI, 'beta[0] has no value')])
+        self.assertFindings(errors=[I(SKI, 'beta[0] has no label'), I(SKI, 'beta[0] has no value')],
+                            warnings=[I(SKI, "beta[0] has an unknown key 'note'; a row takes label:, value: and url:")])
 
     def test_map_peaks(self):
         for ok in ('peaks: Mount Tallac', 'peaks: [Mount Tallac, Dicks Peak]', 'peaks: []', 'peaks:',
@@ -2299,6 +2300,40 @@ class HomeRegionMapsTests(unittest.TestCase):
                          [('error', "content/home.json: region_maps: 'Synthetic Desert' has no region map in rendered/site/meta.json "
                                     "(the name as the trips spell it; a region gets a map once it has three trips with a track "
                                     "and python3 tools/render.py --site has run)")])
+
+
+
+# ---------------------------------------------------------------- Phase 10: a Beta row's url
+
+class BetaUrlTests(unittest.TestCase):
+
+    def findings(self, url=None, row=None):
+        row = row or {'label': 'Route', 'value': 'Synthetic Line', 'url': url}
+        with tempfile.TemporaryDirectory() as tmp:
+            helpers.make_trip(os.path.join(tmp, 'trips'), 'synk-trip', title='Synthetic Ridge Walk', date='2026-01-02',
+                              place='Synthetic Basin', beta=[row])
+            found = checks.run(os.path.join(tmp, 'trips'), os.path.join(tmp, 'home.json'), os.path.join(tmp, 'rendered'))
+        return [f['text'].split(': ', 1)[1] for f in found if 'beta[' in f['text']]
+
+    def test_http_and_https_pass_and_anything_else_is_refused(self):
+        for url in ('https://example.test/route', 'http://example.test/x'):
+            self.assertEqual(self.findings(url), [], url)
+        # 'https:example.test' and an address without a host: the page would not link them, so the check refuses them
+        for url in ('javascript:alert(1)', 'mailto:someone@example.test', 'ftp://example.test/', '../other-trip/', 'example.test',
+                    'https:example.test', 'https://', 'http:///route'):
+            with self.subTest(url=url):
+                self.assertEqual(self.findings(url), ['beta[0].url must be a full http or https address, such as '
+                                                      'https://www.example.org/route, got %r' % url])
+
+    def test_an_unknown_key_in_a_row_is_a_warning_naming_the_near_one(self):
+        self.assertEqual(self.findings(row={'label': 'Route', 'value': 'Synthetic Line', 'URL': 'https://example.test/'}),
+                         ["beta[0] has an unknown key 'URL' (is it url:?); a row takes label:, value: and url:"])
+        self.assertEqual(self.findings(row={'label': 'Route', 'value': 'Synthetic Line', 'source': 'a guidebook'}),
+                         ["beta[0] has an unknown key 'source'; a row takes label:, value: and url:"])
+
+    def test_a_misspelt_value_is_named_once_by_the_missing_key_error(self):
+        self.assertEqual(self.findings(row={'label': 'Route', 'vlaue': 'Synthetic Line'}),
+                         ["beta[0] has no value (is 'vlaue' a typo for it?)"])
 
 
 if __name__ == '__main__':

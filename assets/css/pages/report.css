@@ -17,7 +17,6 @@
 
 .rep-map { margin-top: 32px; }
 .rep-map .keyrow { padding-top: 12px; }
-.rep-note-ph { display: none; }
 /* 560–1199: map, key row, caption and profile (header, chart, 'View as table') share one column capped at --col-max and
    hung from the page margin, the same left edge as the strip (the 718 renders never scale past 1.2×) */
 @media (min-width: 560px) and (max-width: 1199.98px) {
@@ -45,9 +44,11 @@
   .rep-place { margin-top: 4px; }
   body.p-report .rep-actions { display: none; }
   .rep-strip { margin-top: 12px; }
-  body.p-report .rep-strip .strip-s, body.p-report .rep-strip .strip-note { display: none; }
+  /* the sub-lines go, but the Moving cell's (ELAPSED · START: the times a phone reader has no other place for), and the
+     stats footnote stays under the strip as on the goal and series pages (gap6-04) */
+  body.p-report .rep-strip .strip-s { display: none; }
+  body.p-report .rep-strip .strip-c--time .strip-s { display: block; }
   .rep-map { margin-top: 12px; }
-  .rep-note-ph { display: block; padding-top: 12px; }
 }
 
 .rep-prof-h { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 16px; row-gap: 6px; padding-bottom: 12px; }
@@ -122,7 +123,8 @@
 .rep-body--ph > .rep-main:empty { display: none; }
 
 /* ---------------------------------------------------------------- story layout (p-report--story): lead photo · strip · section
-   nav · write-up (+ Beta rail) · map · profile · remaining photos. The compact layout above is untouched. */
+   nav · write-up (+ Beta rail) · map · profile · remaining photos; the written-first layout (p-report--written) is the
+   same without the photo. A photo-only report keeps the compact layout with the lead photo above its strip. */
 .rep-hero { margin-top: 24px; }
 .rep-anchor { display: block; height: 0; }   /* the old #photos target on a report whose one photo is the lead photo */
 .rep-hero-a { display: block; background: var(--sunk); }
@@ -135,16 +137,18 @@
   .rep-hero .cover-img { aspect-ratio: 4 / 3; }
   .rep-hero figcaption { padding-inline: var(--m); }
 }
-@media (min-width: 1200px) { .rep-hero { margin-top: 32px; } .rep-hero .cover-img { aspect-ratio: 2 / 1; } }
-.p-report--story .rep-strip { margin-top: 24px; }
+/* 3:2 on every screen from 560 (report-03): a 4:3 photo loses about an eleventh of its height, not the third a 2:1 band
+   cut off */
+@media (min-width: 1200px) { .rep-hero { margin-top: 32px; } }
+.p-report--story .rep-strip, .rep-hero + .rep-strip { margin-top: 24px; }
 .rep-toc { margin-top: 20px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .rep-toc ul { display: flex; flex-wrap: wrap; column-gap: 28px; }
 /* no current-section marker here: the row scrolls away with the header, so it is on screen only above what it lists */
 .rep-toc-a { display: inline-flex; align-items: center; min-width: 44px; min-height: 48px; font: 500 15px/20px var(--sans); color: var(--ink-2); }
 .rep-toc-a:hover { color: var(--ink); }
-.p-report--story .rep-toc + .rep-body { margin-top: 40px; }
-.p-report--story .rep-map { margin-top: var(--sec); }
-@media (max-width: 759.98px) { .p-report--story .rep-strip { margin-top: 16px; } }
+.p-report--story .rep-toc + .rep-body, .p-report--written .rep-toc + .rep-body { margin-top: 40px; }
+.p-report--story .rep-map, .p-report--written .rep-map { margin-top: var(--sec); }
+@media (max-width: 759.98px) { .p-report--story .rep-strip, .rep-hero + .rep-strip { margin-top: 16px; } }
 
 /* 'More like this' (core.related_block): the shared trip cards, two to a row from 560 and three from 1200 */
 .rep-rel { margin-top: 16px; display: grid; row-gap: 20px; }
@@ -222,3 +226,13 @@ body.p-report:not(:has(.bbar)) .site-f { padding-bottom: 0; }
 .goal-outs { display: flex; flex-direction: column; gap: 16px; }
 .goal-out { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .goal-outs .t-excerpt { margin-top: 6px; }
+
+/* ---------------------------------------------------------------- profile readout (maps-04, assets/js/pages/profile.js)
+   A pointer on a single-day report's elevation profile draws a 1px ink crosshair (.pf-x) and a Mono-S label (.pf-l) above
+   the chart, over the head line if it must, on paper. pan-y pinch-zoom: a finger still scrolls the page vertically and two
+   still zoom it over the chart; moving sideways drives the readout. The script writes both spans, hidden ([hidden],
+   base.css) until a pointer moves. */
+.chart[data-pf] .cv { position: relative; touch-action: pan-y pinch-zoom; }
+.pf-x { position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--ink); pointer-events: none; }
+.pf-l { position: absolute; bottom: 100%; left: 0; z-index: 1; padding: 0 4px; font: 400 12px/16px var(--mono); letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums; color: var(--ink); background: var(--paper); white-space: nowrap; pointer-events: none; }

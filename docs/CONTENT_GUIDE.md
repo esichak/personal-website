@@ -306,6 +306,8 @@ the row says otherwise:
 | `photos[1] (photos/02.webp) has w but no h; record both (the pixel size) or neither` | one of the two size lines is missing | Add it, or delete the other. |
 | `beta[0] has no value` | a `- label:` row without its `value:` line | Add the line, or delete the row. |
 | `beta[0].value must be text, got 5.1 (quote a number to keep it as written)` | a bare number: `value: 5.10` is read as 5.1 | `value: "5.10"` |
+| `beta[0].url must be a full http or https address, such as https://www.example.org/route, got 'www.example.org'` | a row's `url:` without `https://`, or another kind of address | Write the whole address, `https://` included, or delete the line. |
+| `beta[0] has an unknown key 'URL' (is it url:?); a row takes label:, value: and url:` (a warning) | a row line other than `label:`, `value:` and `url:`, often a capital or a typo; the page ignores it | Rename it, or move its words into `value:`. |
 | `write-up link '/trips/peak-bagging-szn/' starts with /, which leaves the site (it is served under https://esichak.github.io/personal-website/); write a relative link such as ../other-trip/ or the full address` | a Markdown link in the write-up that starts with `/` | From one report to another: `[text](../peak-bagging-szn/)`. |
 | `write-up link '../no-such-trip/' points at trips/no-such-trip/, which is not a page of the site (no content/trips/no-such-trip/index.md)` | a link to a report that does not exist. For a draft the message ends `a draft, which has no page` | Check the slug against `ls content/trips/`. |
 | `the file is empty; a report's track must be a GPX file with at least one point (without the file there is no map and no download for it)` | the file named is `content/trips/<slug>/track.gpx`, or a day's `days/NN.gpx`: an empty track file | Export the track again, or delete the file. |
@@ -561,50 +563,87 @@ when the track was recorded; reports end with up to three related reports; and p
 | a write-up and photos, the cover at least 6:5 wide | story | the cover photo (7.3) | the other photos, in their order; left out when the cover is the only photo |
 | a write-up and photos, the cover narrower than 6:5 (a portrait, a square or a near-square) | story, without a lead photo | the stats strip and the write-up | every photo, the cover among them |
 | a write-up and one photo, a portrait | story, without a lead photo | the stats strip and the write-up; the portrait sits beside the write-up, as before | none |
-| a write-up and no photos | compact | the map | none |
-| photos and no write-up | compact | the map | every photo; a single portrait is shown on its own instead, as before |
-| a track only | compact | the map | none |
+| a write-up of at least 100 characters and no photos | written first | the stats strip and the write-up | none |
+| a shorter write-up and no photos | compact | the map | none |
+| photos and no write-up, the cover at least 6:5 wide | compact, with a lead photo | the cover photo | the other photos; left out when the cover is the only photo |
+| photos and no write-up, the cover narrower than 6:5 | compact | the map | every photo; a single portrait is shown on its own instead, as before |
+| a track only | compact | the map | none; its cards, list rows and title carry a `Track only` tag |
 
 The build decides from the trip folder. No field switches the layout: a trip gets the story layout when it has both a
-write-up (text under the closing `---` of `index.md`) and at least one photo declared under `photos:`. Whether a story
-opens with a lead photo depends only on the shape of its cover (7.3). Track-only, photo-only and no-photo reports keep
-the compact page, and nothing is written or added to fill them out. Multi-day trips, the PCT and tick-list goals have
-their own pages and do not use these two layouts.
+write-up (text under the closing `---` of `index.md`) and at least one photo declared under `photos:`. Whether a page
+opens with a lead photo depends only on the shape of its cover (7.3). A written report without photos gets the story
+order without a lead photo (written first) when its text, counted without Markdown, runs to 100 characters, the same
+floor that makes a report count as written for search engines (section 9). Nothing is written or added to fill any page
+out. Multi-day trips, the PCT and tick-list goals have their own pages and do not use these layouts.
 
-Multi-day trips keep their map-first page in Phase 3. That is a decision: a multi-day page has no lead photo and no
-row of section links, whatever its cover. It did gain Copy link (7.6), More like this (7.5), the "As recorded" caption
-(7.4) and the cover as its share image (7.3).
+Phase 10 changed two Phase 3 decisions. A photo-only report now opens with its own cover when the cover is at least
+6:5 wide, and a written report with no photos opens with its own words, not the map. In both cases the page leads with
+something the trip folder holds.
+
+Multi-day trips keep their map-first page and have no row of section links (the day list is one). Since Phase 10 a
+multi-day trip whose cover is at least 6:5 wide opens with it as its lead photo, and the Overview ends with a strip of
+squares, one photo for each day that has photos (the first photo in the day's own list), each linking to that day.
+As on the PCT page, the lead photo opens in the viewer on its own, and the same picture still
+appears in its day. The day list marks a day with a write-up with a dot and says `WRITE-UP · 3 PHOTOS` (on wide screens as a fourth
+line), and the Overview's line counts them (`4 WRITE-UPS · 23 PHOTOS`). It also has Copy link (7.6), More like this
+(7.5), the "As recorded" caption (7.4) and the cover as its share image (7.3).
 
 ### 7.2 The order of a story page
+
+A written-first page has the same order without item 2.
 
 1. The title block. Its buttons are "View route" (jumps to the map), "Download GPX" and "Copy link" (7.6).
 2. The lead photo, with its caption when the photo has one. A cover narrower than 6:5 does not lead (7.3), and the
    page then goes from the title block straight to the stats strip.
 3. The stats strip.
-4. A row of section links: Report, Photos, Route, Trip details. The row is always in that order, which is not the
-   order of the page (the photos come after the route). Photos is listed only when the page has a Photos section. Trip
-   details jumps to the Beta block when the trip has beta rows and to the stats strip when it has none. No link in the
-   row is marked as the current section. The row is hidden on phones, where the bottom bar does the same job.
-5. The write-up under "Trip report", word for word, with the Beta block beside it.
+4. A row of section links in the order of the page: Report, Map, Elevation (Speed for flat water), Photos. Map is
+   listed only when the trip has a track, Elevation only when its chart is drawn, and Photos only when the page has a
+   Photos section. No link in the row is marked as the current section. The row is hidden on phones, where the bottom
+   bar does the same job.
+5. The write-up under "Report", word for word, with the Beta block beside it.
 6. The map with its key and caption (7.4), then the elevation profile (the speed chart for flat water).
 7. Photos: every photo except the lead.
 8. On phones only, "Copy link to this page" (7.6).
 9. More like this (7.5), then Newer / Older.
 
 A compact page keeps its earlier order: the title block ("Read the report" when there is a write-up, "Download GPX",
-"Copy link"), stats, map, profile, the write-up and Beta, photos, and then items 8 and 9 above.
+"Copy link"), the lead photo of a photo-only report (7.1), stats, map, profile, the write-up and Beta, photos, and then
+items 8 and 9 above.
+
+The section row, the bottom bar and the headings use one set of names: Stats, Beta, Report, Map, Elevation (Speed),
+Photos. "Route", "Profile", "Trip details" and "Trip report" are no longer used.
+
+What the stats, the map and the profile show, on every layout:
+
+- The note under the stats strip, which since Phase 10 ends "Moving time leaves out stops; elapsed time includes them."
+  when the strip shows both, is shown on phones too. Phones hide the small lines under the figures except the Moving one, which
+  keeps `Elapsed 5:10 · Start 8:15 AM`. The page never works out a finish time.
+- The map caption names the contour interval of the map in view (`Contours every 200 ft`, `61 m` under KM) on a
+  single-day report and an activity page's featured map. A multi-day trip's maps get it once `render.py` has drawn
+  them again (their renders do not record the interval yet). The key decodes the trail and road lines when the map
+  draws them (phone maps draw no trails). The mile discs and the
+  numbers inside the map stay in feet until the maps are drawn again.
+- The profile's line reads `VERTICAL SCALE ×4.0`, and its GPS max adds the time of day it was reached (`AT 11:40 AM`)
+  on a single-day report with a `timezone:`.
+- "View as table" lists the elevation at each mile (or kilometre), with the time of day on a single-day report that
+  has a `timezone:`. Multi-day day charts and the featured chart on an activity page have the table too, without
+  times. A trip whose `timezone:` is wrong shows wrong times until `add_trip.py --retime` corrects it.
+- On a single-day report, moving a pointer or a finger along the profile shows the distance and elevation at that
+  point (`7.2 MI · 11,650 FT`); "View as table" gives the elevations to keyboards and screen readers.
+- A beta row may carry a `url:`, a full http or https address (`https://` and a host); its value is then a link.
+  Anything else is refused by the check (5.3).
 
 Three things on either layout follow from what the trip folder holds:
 
 - A report whose `index.md` states `published_at` shows a `PUBLISHED …` line after the photos (section 8).
 - A report without a `track.gpx` is a page of its words, its photos and whatever `stats:` its `index.md` states. It
   has no map section, no full-screen map page, no elevation profile or speed chart and no GPX download: no "View
-  route" or "Download GPX" button, no Route link in the row of section links, no Map or GPX item in the bottom bar, and
+  route" or "Download GPX" button, no Map link in the row of section links, no Map or GPX item in the bottom bar, and
   no bottom bar when fewer than two items would be left. Nothing is drawn in their place, and no card, list row or
   Newer / Older link shows a route drawing beside its name. The facts line that describes it in the RSS feed, and in a
   search result or a shared link when it has no write-up, does not end `with map and GPX`, and the note under its
-  stats strip says nothing about a GPS recording. With no `stats:` block either, the page has no stats strip, Trip
-  details is listed only when the trip has beta rows, and a beta row labelled Track stays in the Beta block (with a
+  stats strip says nothing about a GPS recording. With no `stats:` block either, the page has no stats strip and no
+  Stats item in the bottom bar, and a beta row labelled Track stays in the Beta block (with a
   strip, the note under it prints that row instead). Such a report is never its section page's Featured trip, whatever
   its `featured:` line says (section 1). What deleting the `track.gpx` of a published report takes off the site, and
   what it leaves, is in 7.10.
@@ -616,9 +655,11 @@ Three things on either layout follow from what the trip folder holds:
   `python3 tools/render.py <slug>` has run (needs the internet).
 
 On a phone a story page's bottom bar reads Report, Map, Photos, GPX. When the page has no Photos section it reads
-Beta, Report, Map, GPX for a trip with beta rows, and Report, Map, Profile, GPX otherwise (Speed in place of Profile
-for flat water, Stats when the trip has no chart). A compact page's bottom bar is unchanged. On both layouts the bar
-marks the section being read, and an item the reader presses stays marked until the page scrolls on from there.
+Beta, Report, Map, GPX for a trip with beta rows, and Report, Map, Elevation, GPX otherwise (Speed in place of
+Elevation for flat water; Stats, Report, Map, GPX when the trip has no chart). A compact page's bar holds the same
+items it always did (Map, Beta or the chart or Stats, Report or Photos, GPX), now in the order of the page and under
+the names above. On every layout the bar marks the section being read, and an item the reader presses stays marked
+until the page scrolls on from there.
 
 Nothing on either layout is written by the build. The write-up is rendered word for word and the lead photo is a
 photo declared in the trip's `index.md`.
@@ -635,8 +676,8 @@ PCT (section 9).
   in `index.md` that is at least 6:5 wide, else the first that is at least as wide as tall, else the first photo. A
   square first photo therefore does not keep a later landscape from leading the page. It is the first file that fits,
   not a choice. On reports that matter, look at the photos and set `cover_photo`.
-- **One focal point, several crops.** The lead photo's frame is 4:3 on screens under 560 px wide, 3:2 from 560 to
-  1199 px and 2:1 from 1200 px, and the card crops differ again. All of them are anchored on `cover_focal_x` /
+- **One focal point, several crops.** The lead photo's frame is 4:3 on screens under 560 px wide and 3:2 from 560 px
+  (the 2:1 frame wide screens had until Phase 10 cut too much off most covers), and the card crops differ again. All of them are anchored on `cover_focal_x` /
   `cover_focal_y`. Look at the report at phone width and at desktop width in the preview before settling on the numbers.
 - **The lead photo is left out of the Photos grid.** The grid shows the other photos in their original order, and its
   heading counts only those: "6 PHOTOS" for a trip with seven. The lead photo and the grid open in the same viewer,
@@ -683,7 +724,7 @@ current conditions. A goal page keeps "Planned route, not a recorded track".
 
 ### 7.5 More like this
 
-Single-day reports (both layouts) and multi-day trips end with "More like this": up to three cards above Newer /
+Single-day reports (every layout) and multi-day trips end with "More like this": up to three cards above Newer /
 Older. The rule, in one sentence: other published reports of the same activity at the same place or of the same name
 come first, then those that share this trip's region and its activity, then those that share only its region, then
 those that share only its activity, and within each of those groups the report closest in date to this one comes
@@ -700,10 +741,9 @@ There is nothing to configure.
 - Never the report itself, a planned route or a draft, and no report twice. The two reports the page already links as
   Newer / Older are left out as well, so the block never repeats the links right under it. A multi-day trip or the PCT
   can be one of the cards.
-- The line beside the heading states the rule: `SAME PLACE OR NAME AND ACTIVITY, THEN REGION AND ACTIVITY, THEN
-  REGION, THEN ACTIVITY · NEAREST IN DATE`, or `SAME PLACE OR NAME AND ACTIVITY, THEN ACTIVITY · NEAREST IN DATE` on a
-  trip with no `region:`. When the page has a Newer or an Older report it ends `· NEWER / OLDER
-  NOT REPEATED`, because the nearest reports in date are usually those two.
+- The line beside the heading says what the cards share with this trip (since Phase 10): `EASTERN SIERRA ·
+  BACKCOUNTRY SKI` when every card shares its region and its activity, the region or the activity alone when they all
+  share only that, else the number of cards (`3 REPORTS`).
 - The region match is on the exact text of `region:`, so spell a region the same way on every trip that belongs to it.
 - A report without a date comes last in its group. When the trip itself has no date, each group is newest first.
 - When nothing is left to show, the block is left out: no other report shares the region or the activity, or the only
@@ -714,7 +754,7 @@ There is nothing to configure.
 
 | Page | 760 px and wider | Phones (under 760 px) |
 | --- | --- | --- |
-| single-day report, both layouts | "Copy link", the last button in the title block | "Copy link to this page" near the end of the page, after the photos and above More like this (the title buttons are hidden on phones) |
+| single-day report, every layout | "Copy link", the last button in the title block | "Copy link to this page" near the end of the page, after the photos and above More like this (the title buttons are hidden on phones) |
 | multi-day trip | "Copy link", the last button in the title block | "Copy link to this page" after the last day, above More like this (the title buttons are hidden on phones) |
 | goal page | "Copy link", the last button in the title block | "Copy link to this page", above "Back to the tick list" |
 | the PCT | "Copy link", the last button in the title block | the same button (the PCT keeps its title buttons on phones) |

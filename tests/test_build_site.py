@@ -1085,7 +1085,8 @@ class NoTrackSiteTests(BuiltCase):
         # slug -> title actions, the phone bar (None: no bar), the stats note, the labels of its stats strip (None: no
         # strip, contract 10.3: the report states no stat)
         want = {'synb-nt-flag': ([], (['Report', 'Photos'], 2), None, None),
-                'synb-nt-twin': ([('Read the report', '#report', False)], (['Stats', 'Report'], 2), None, ['Distance', 'Gain']),
+                # Phase 10 (report-01): a write-up over 100 characters without photos leads the page, so no action jumps to it
+                'synb-nt-twin': ([], (['Stats', 'Report'], 2), None, ['Distance', 'Gain']),
                 'synb-nt-climb': ([('Read the report', '#report', False)], (['Stats', 'Report'], 2), None, ['Distance']),
                 'synb-nt-ride-a': ([], None, 'Average speed is distance divided by moving time.', ['Distance', 'Moving', 'Avg speed']),
                 'synb-nt-ride-b': ([], None, None, None)}
@@ -1114,12 +1115,12 @@ class NoTrackSiteTests(BuiltCase):
                 ids = {n['id'] for n in doc.root.walk() if n['id']}
                 self.assertEqual([h for h in re.findall(r'href="#([^"]+)"', text) if h not in ids], [])
                 self.assertEqual([f for _h, f in self.links(url) if f.startswith('trips/%s/map' % slug)], [])
-        # the story's section row lists the two sections it has (10.3: no stats and no beta, so no 'Trip details')
+        # the story's section row lists the two sections it has (no track, so no Map item)
         row = self.doc('trips/synb-nt-flag/').find('nav', cls='rep-toc')
         self.assertEqual([(a.text(), a['href']) for a in row.find_all('a')], [('Report', '#report'), ('Photos', '#photos')])
         # the report with a track beside them is whole
-        self.assertEqual(self.actions('trips/synb-twin/'), [('Read the report', '#report', False), ('Download GPX', 'synb-twin.gpx', True)])
-        self.assertEqual(self.bar('trips/synb-twin/'), (['Map', 'Stats', 'Report', 'GPX'], 4))
+        self.assertEqual(self.actions('trips/synb-twin/'), [('View route', '#map', False), ('Download GPX', 'synb-twin.gpx', True)])
+        self.assertEqual(self.bar('trips/synb-twin/'), (['Stats', 'Report', 'Map', 'GPX'], 4))     # written first: page order
 
     # ------------------------------------------------------------ the featured block of each section
 

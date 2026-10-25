@@ -170,9 +170,13 @@ def _gpx_points(root):
         t = p.find(ns + 'time')
         ts = None
         if t is not None and t.text:
-            s = t.text.strip().replace('Z', '+00:00')
+            # 3.9's fromisoformat reads neither 'Z' nor every fraction: drop the fraction but keep the offset after it
+            # (dropping both read '18:40:00.000Z' in the build machine's zone), and a time without an offset is UTC
+            s = re.sub(r'(T\d{2}:\d{2}:\d{2})\.\d+', r'\1', t.text.strip().replace('Z', '+00:00'))
+            if not re.search(r'[+-]\d{2}:\d{2}$', s):
+                s += '+00:00'
             try:
-                ts = datetime.fromisoformat(s.split('.')[0] + ('+00:00' if '+' not in s[10:] else '')).timestamp()
+                ts = datetime.fromisoformat(s).timestamp()
             except ValueError:
                 ts = None
         pts.append((float(p.get('lat')), float(p.get('lon')), float(e.text) if e is not None else None, ts))

@@ -1745,3 +1745,174 @@ validator (after a deploy); the suite with the deploy runner's `html.parser`.
   / "via CalTopo". New command output: content_report.py, trip_photos.py, about_photo.py, `add_trip.py --update` and
   `--source`, and the new check messages (source, summits, about.md, region intros, region_maps, the caption count,
   the summit note).
+
+## Phase 10 - Report and multi-day pages (2026-10-25)
+
+The fifth phase of the second plan (`docs/personal-website-improvement-plan-2.md`, section 10, and the Phase 10 prompt
+of `docs/claude-code-website-prompt-2.md`), built on branch `phase-10-report-pages` from `phase-9-content` at
+`43a2d9c`. Eric asked for the phases to run on without waiting for him, so the prompt's recommended answers stand: (a)
+yes to report-02, report-01 and report-11 (photo-only reports get their lead photo, written reports without photos lead
+with the words, multi-day pages get a lead photo and a day strip); (c) yes to the `Track only` tag and a factual More
+like this head; (d) elapsed time in the strip, a clock column in the mile table and the GPS max time, all from the
+content and the published GPX, and no derived finish time. (b), the lead photo's frame, waits on Eric's look at the
+side-by-side sheet (`.cache/plan2/phase10/sheet/hero-frame-sheet.png`); variant A (3:2 from 560 px, one CSS rule) is
+built until he picks. Nothing under `content/` or `rendered/` changed, and `render.py` was not run. The disk had about
+21 GB free, under the plan's 30 GB line: builds were linked into the session's scratch folder, and no worktree or copy
+of the checkout was made.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/report.py` | Four layout cases: `has_photos()`, `written_first()` (a write-up, no photo, `core.written_report`), the hero for a story or a photo-only report; one label table `LABELS` / `ICONS` / `label()` with `STORY_ORDER` / `COMPACT_ORDER`; `section_nav(has_report, has_gallery, has_map=True, chart='')` in page order (Report · Map · Elevation/Speed · Photos); `bottom_bar` items in page order under the table's names; the write-up's h2 `Report`; the phone copy of the stats note under the map (`rep-note-ph`) removed; beta rows link a `url:` (http/https only); the profile section reads the published GPX once (`core.read_track`) for the GPS max time, the mile table's Time column and the readout data; key rows add the base layer's trail and road; captions add the contour interval. `report.elevation_table` moved to core. |
+| `tools/sitegen/pages/multiday.py` | Lead photo (`report.hero`, `core.cover_preload` in place of the overview preloads); `photo_strip()` under the stage table; `day_photos()`, `day_content()`; the day nav's written dot and `WRITE-UP · N PHOTOS` line, the phone rows' same words, the Overview line's counts (`days_meta(t, content=True)`); the Moving sub-line (Elapsed · Start) on the rail; a mile table under each day chart; base-layer keys and contour items; the bar's names from `report.LABELS`; the stats note's Moving sentence. |
+| `tools/sitegen/pages/section.py`, `series.py` | The featured map's contour item and the featured chart's mile table; the series note's Moving sentence. |
+| `tools/sitegen/core.py` | `time_items()`, the Moving cell's 4th item (`strip-c--time`), `strip--1|2`; `read_track()`, `clock()`, `elevation_table(tr, stats, zone=None)` (Time column with a zone), `gps_max_clock()`; `MOVING_NOTE` in `stats_note`; `VERTICAL SCALE ×N`; `contour_items()`; `KEY_SYMBOLS` trail and road, `KEY_HTML` (`Mile (1.6 km)` under KM), `BASE_KEYS` / `base_keys()`, `feature_key` with base keys; `chart_block(..., readout=)`, `READOUT_SAMPLES`, `profile_readout()`; `PHONE_SOLO_MIN_AR` and `--arp` in `photo_rows`; `track_only()` and its tag in `trip_tags`; `related_block`'s head from what the cards share. |
+| `tools/lib/checks.py`, `tools/lib/content.py` | `BETA_OPTIONAL = ('url',)`: a beta row's `url:` must pass `content.web_url` (http or https, `//` and a host), the test the page links by; a warning for a key a row does not take. |
+| `tools/lib/fit_reader.py` | A GPX time with a fraction keeps its offset: `18:40:00.000Z` was read in the build machine's zone (latent: every published track has whole-second times); a negative offset now parses instead of giving no time. |
+| `assets/js/pages/profile.js` (new) | The readout: a crosshair and `7.2 MI · 11,650 FT` (`KM · M` under KM) under a pointer or a sideways finger; hidden on pointerleave, pointercancel and Escape; aria-hidden, never focusable. 3,775 B, 1,731 gzipped. |
+| `assets/css/pages/report.css`, `multiday.css`, `base.css` | Hero 3:2 from 560 px (2:1 from 1200 px retired), the strip right under the hero; the stats note under the strip on phones, the strip's sub-lines hidden there but the Moving cell's; the readout's crosshair and label (`touch-action: pan-y pinch-zoom` on the chart); `.mul-pst` photo strip, the day nav's dot and fourth line (one line, the photo count ellipsized in a narrow chip); phone galleries keep a landscape's shape (`--ar`) and a lone photo's down to 0.6 (`--arp`); one- and two-cell strips capped at a four-cell strip's cell width. |
+| Docs | DEVELOPING.md (file list, key rows and captions, `trip_tags`, no-file rules, the report-pages section rewritten for the four cases, the label table, the page-order bars, the footnote, the mile table and readout, multi-day lead and strip, the factual head, `--arp`, the trip dict's `url?`); CONTENT_GUIDE.md 7.1, 7.2, 7.3 (frame), 7.5 (head), 7.6, the beta `url` message; README.md (`cover_photo` row); `home.py`'s `rcard` docstring. |
+| Tests | New: test_report_phase10 (27: the four cases, multi-day lead and strip, frame, strip time, caption and key items, the tag, beta url, tables everywhere, gallery shapes, readout data), test_profile_js (7, running `tests/profile_js_harness.js`, 35 checks, against the script and against copies broken one line each). Changed: test_report_page (labels, bars in page order, section row, the no-track cases), test_track_rules and test_ticklist_page (the Moving sentence, `Report`), test_related (the head), test_build_site, test_a11y_static, test_checks (beta url, unknown row keys), test_fit_reader (fractional seconds and offsets under three `TZ` settings). |
+
+### Behaviour
+
+- **Which pages changed.** A `--link` build against one of `43a2d9c` made before any edit differs in the 168 trip
+  pages, the 167 full-screen map pages (key rows and the contour item), the four section pages with a featured block (the
+  featured map's key and contour item, the featured chart's mile table, the tag), and, by the `Track only` tag alone,
+  the Ski page, the home page, the explorer (39), the Map page's table (39) and five region pages; and the two bundles. Nothing else.
+- **Report layouts today** (156 single-day reports): 61 story; 15 written first; 27 photo-only with a lead photo;
+  8 photo-only without one (portrait or square cover); 6 with a write-up under the 100-character floor and no photos,
+  which stay compact; 39 track only.
+  - The 27 photo-only reports that now lead with their cover, but for three left out here under
+    docs/PRIVACY_NOTES.md (two Strava default titles that name a start town, one title that names a routine time):
+    tallac-2026-09-24, white-salmon-rafting, tamolich-blue-pool, tumalo-falls-north-fork-to-bridge-creek-loop,
+    misery-ridge-loop, tallac-2026-08-23, maggies-peak-with-the-family, false-white-mountain, mount-glory-2026-03-03,
+    echo-peak-with-ross, back-at-tallac-with-connor, green-creek-virginia-pass, mount-tallac-sunrise,
+    zion-canyon-overlook-and-angel-landing, bryce-canyon, mount-tallac, red-lake-peak-x2, jakes-peak-x-2,
+    jakes-peak-to-emerald-bay, scoping-out-the-emerald-bay-chutes, finally-back-to-double-digit-temps,
+    exploring-new-trails-in-santa-cruz, little-pre-wedding-hike-in-redwing-mn, half-dome. Locally the full list is the
+    rows of `python3 tools/content_report.py --missing writeup` with photos.
+  - The 15 written reports without photos that now lead with their words, but for one left out under the same rule:
+    cal-trans-wall-climbing-with-adam, pie-shop-climbing-approach, first-uphill-of-the-season,
+    fatigued-ride-for-the-enduro-training, first-ride-back-in-awhile, took-some-souls-on-the-climbs-today,
+    finally-made-it-back-to-the-flow-trail, good-fun, new-tires-good-conditions-so-much-grip, soquel-demo-forest,
+    stretching-out-the-legs, converted-to-clipless, love-a-fire-road-climb-with-a-rave-in-the-background,
+    hit-the-three-piece. The six under the floor are not listed (three titles name a start place).
+- **Multi-day**: 7 of the 10 multi-day trips have a cover at least 6:5 wide and now open with it; the other three keep
+  the map first. Each has the photo strip when a day has photos.
+- **The readout** runs on the 149 single-day reports with a drawn chart; its data adds 865 bytes per page (394
+  gzipped; the plan estimated about 1.5 KB). Touch emulation (390 px, Chrome's touch events): a vertical swipe that
+  starts on the chart scrolls the page 303 px, a sideways drag shows the distance and elevation, lifting the finger
+  hides it.
+- **Phone loads** (DEVELOPING.md "Measuring page loads": 390 × 844 at 3x, Slow 4G, 4x CPU, median of 3, a gzip server):
+
+  | Page | LCP before → after | Image bytes | Total bytes | Document (gzip) | CLS |
+  | --- | --- | --- | --- | --- | --- |
+  | half-dome (photo-only, now with a lead photo) | 1,560 → 1,820 ms | 613,590 → 298,402 | 709,305 → 390,544 | 29,422 → 29,818 | 0 → 0 |
+  | chamonix-zermatt-haute-route (multi-day) | 1,624 → 1,588 ms | 105,337 → 232,630 | 220,562 → 348,787 | 43,917 → 53,833 | 0 → 0 |
+
+  Both stay under 2.5 s. On half-dome the LCP is now the lead photo (preloaded), and the map preloads it replaced no
+  longer pull the map and the first gallery photos in. On the Haute Route the lead photo and the day strip add the
+  image bytes, and the six new mile tables add about 8.7 KB of gzipped HTML (1.5 KB on their own: inside the page,
+  between the day maps, they compress less).
+- **validate.py**: 0 errors, 1 warning, 346 notes, as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **Two Phase 3 decisions reversed** (Eric's yes to report-02 and report-01, decision (a)): plan 9.1's "photo-only
+  reports keep the compact page" and the Phase 3 note "multi-day pages get no lead photo". DEVELOPING.md and
+  CONTENT_GUIDE 7.1 say so.
+- **The written-first floor is `core.written_report`** (100 plain characters), the rule that already decides the
+  BlogPosting markup: of the 21 written reports without photos, 15 clear it and the 6 notes under it keep the map
+  first.
+- **Section names**: the row and bar say Map (not Route), Elevation (not Profile), and Trip details is gone (the row
+  never needed it once it followed the page). The write-up's heading is `Report`. A section page's featured block keeps
+  its `Trip report` h3 (it is not a report section), and the multi-day stage table keeps its `Route` column.
+- **The compact bar kept its items** and only changed order and names, so a phone reader still reaches the same four
+  places.
+- **The finish time is not shown** (decision (d) and PRIVACY_NOTES 6.2); the mile table's Time column and the GPS max
+  time are the recording's own clock in the trip's `timezone:`, and nothing without a zone shows a clock.
+- **Multi-day day charts and the section page's featured chart get the mile table without times** (a day has no zone
+  of its own in the content); the readout stays on single-day reports, as the prompt says.
+- **The map dot** for the readout waits (a ski report draws two route paths), as the prompt says.
+- **Contour labels and mile discs inside the renders stay in feet** until Phase 15 draws them again; the caption's
+  interval and the key's `Mile (1.6 km)` carry both units now. The contour item shows on single-day and featured
+  maps; none of the 68 multi-day day renders records its interval, so those captions gain it at the redraw.
+- **The readout formats its numbers in the script**, the one place a distance and an elevation do not go through
+  `core.U` (the plan asked for both values prepared at build time: that would double the data). It uses
+  `content.FT` and `content.MI`'s values and `html.km`; the elevations are whole metres, so a value can differ from
+  the table's by a foot or two. DEVELOPING.md says so.
+- **Written-first pages keep the map preloads** by the rule stories without a lead photo already follow: on a desktop
+  their short write-ups put the map on the first screen.
+- **The multi-day lead photo opens in the viewer on its own** and shows again in its day, as the PCT page's does; the
+  footnote's Moving sentence there leaves elapsed time out (the trip strip shows none).
+
+### Review
+
+One independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It ran both suites, the linked build check and checks over the built site, and confirmed: every section-row and
+bar link lands on an id the page has, 39 title blocks carry Track only, 27 photo-only reports and 7 multi-day pages
+gained a lead photo, on all 149 timed tables the strip's Start equals the first row's time, every chart in meta.json
+has `pad_l`, the readout's total is within 1.7% of the chart axis, nothing breaks Python 3.9. Its findings:
+
+1. The day nav's fourth line wrapped (`.ml` is a wrapping flex row), so at 1200 px a chip grew to about 92 px in the 80 px
+   bar. Fixed: one line, the photo count ellipsized; checked in Chrome at 1200 px (every chip 78 px), CSS test.
+2. `touch-action: pan-y` stopped a pinch that starts on the chart from zooming the page. Fixed: `pan-y pinch-zoom`.
+3. A GPX time with a fraction lost its offset and was read in the build machine's zone (a Mac and CI would disagree).
+   Latent today. Fixed in `fit_reader`, tested under three `TZ` settings.
+4. The check passed `https:example.org`, which the page would not link, and ignored misspelt row keys. Fixed: one test
+   for both (`content.web_url`) and a warning for an unknown key.
+5. The readout formats outside `core.U`. Documented as the one exception (above).
+6. The multi-day contour item never shows (no interval in the day renders). The guides now say it waits for a redraw.
+7. The multi-day footnote said "elapsed time includes them" under a strip that shows none. Fixed.
+8. Docstrings of `report.bottom_bar`, `report.hero` and multiday.py lagged. Fixed.
+9. The mile table's last row is the track's end time: a finish time read from the GPX, which the download carries too.
+   Kept (decision 13 B); listed below for Eric.
+10. Example times in the new docs and a docstring were one named report's real values. Replaced with made-up ones; this
+    entry gives none.
+11. The multi-day lead photo opens a one-photo viewer. Kept, as on the PCT page, and now documented.
+12. Written-first pages preload a map that sits below the write-up. Kept (above).
+13. Test gaps: a timed track without a zone or with one zoneinfo does not know, `https:host`, fractional seconds.
+    Tests added.
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 2,996 tests, OK, 96 s (2,966 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 2,996 tests, OK, 122 s |
+| `python3 tests/run_orders.py --reverse` | OK |
+| `node tests/*_harness.js` (node 25.8.2) | profile 35, maplist 14, series 49, ticklist 103, trips 167 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 357 pages, 168 trips, link check OK |
+| `diff -rq` against a `--link` build of `43a2d9c` made before any edit | the pages under Behaviour |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| Phone measurements (`measure.mjs`, the DEVELOPING.md method) | the table under Behaviour, taken before the review's fixes (CSS rules, a footnote sentence and the stricter check, none of which changes what those pages load beyond a few bytes) |
+| Touch emulation over the chart (CDP `synthesizeScrollGesture` and touch events) | page scrolls, readout shows and hides |
+| Screenshots (headless Chrome; 390 px in an emulated phone) | `.cache/plan2/phase10/`: before and after of the Matterhorn report, back-to-clipless, hit-the-three-piece and the Haute Route at 1280 and 390; the frame sheet; the Matterhorn report at 390 with the footnote under the strip; the readout at 1280; the Haute Route's day nav at 1200 after the fix |
+
+Not run: `render.py` (nothing to draw); Lighthouse (the pre-push session); a real phone.
+
+### Remaining issues and author inputs
+
+- **The lead photo's frame** (decision (b)): variant A, 3:2 from 560 px, is built; B (each photo's own shape, capped
+  at 72vh) or C (2:1 from 1200 px, as before) is one CSS rule (`report.css`, `.rep-hero .cover-img`), pinned by
+  `HeroFrameTests`. Eric picks from `.cache/plan2/phase10/sheet/hero-frame-sheet.png`.
+- **Time zones (IMPLEMENTATION_REPORT 12.12)**: a trip whose `timezone:` is wrong now shows wrong clock times in the
+  mile table and after GPS max, until `add_trip.py --retime` fixes the zone.
+- **The derived finish time** waits on PRIVACY_NOTES 6.2. With decision 13 B the mile table's last row is the track's
+  end time, read from the GPX (which the download carries too): if Eric wants B without it, the table can leave the
+  last row's time out.
+- **The readout's map dot** waits (two route paths on ski maps).
+- **Interface copy, new on the site:** the section names Stats, Beta, Report, Map, Elevation (Speed), Photos (Route,
+  Profile, Trip details and Trip report retired on report pages); "Track only"; "Elapsed 5:10 · Start 8:15 AM" on
+  phones; "Moving time leaves out stops." and "Moving time leaves out stops; elapsed time includes them."; "Contours
+  every 200 ft" / "Contours every 61 m"; "VERTICAL SCALE ×4.0"; "Mile (1.6 km)", "Mile (1.6 km), outbound", "Trail
+  (OSM)", "Road"; "GPS MAX … FT AT 10:55 AM"; the mile table's "Time" column; the readout "7.2 MI · 11,650 FT" /
+  "11.6 KM · 3,551 M"; More like this heads "EASTERN SIERRA · BACKCOUNTRY SKI", "SANTA CRUZ", "MOUNTAIN BIKING",
+  "3 REPORTS"; on multi-day pages "WRITE-UP", "3 PHOTOS", "2 WRITE-UPS · 7 PHOTOS", "DAY 4" and the list name "Days
+  with photos". New check messages: "beta[N].url must be a full http or https address, such as
+  https://www.example.org/route, got '…'" and the warning "beta[N] has an unknown key 'URL' (is it url:?); a row takes
+  label:, value: and url:".

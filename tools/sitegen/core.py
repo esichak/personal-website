@@ -10,12 +10,14 @@ import math
 import os
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
+import fit_reader  # noqa: E402
 import icons  # noqa: E402
+import mapkit  # noqa: E402
 import markdown  # noqa: E402
 
 FT, MI = content.FT, content.MI
@@ -359,8 +361,13 @@ SHAPE = {'loop': 'Loop', 'out-and-back': 'Out-and-back', 'point-to-point': 'Poin
 SHAPE_CAPS = {k: v.upper().replace('-', '\u2011') for k, v in SHAPE.items()}  # 'OUT‑AND‑BACK' (non-breaking hyphens)
 
 
+def track_only(t):
+    """A single-day report with neither a write-up nor a photo: its page is the track, the map and the numbers."""
+    return t['kind'] == 'trip' and not t.get('has_writeup') and not any(p.get('file') for p in t.get('photos') or [])
+
+
 def trip_tags(t, shape=True, status=True):
-    """Status tags (MULTI-DAY · N DAYS, SERIES, PLANNED) and, with shape=True (title chip rows), the route-shape tag.
+    """Status tags (MULTI-DAY · N DAYS, SERIES, PLANNED, TRACK ONLY) and, with shape=True (title chip rows), the route-shape tag.
     List rows pass shape=False: they carry the route shape in their Mono-S meta line instead. status=False drops the
     status tags (planned list rows: their meta line already opens 'PLANNED ROUTE')."""
     out = []
@@ -370,6 +377,8 @@ def trip_tags(t, shape=True, status=True):
         out.append(tag('Series'))
     if status and t['kind'] == 'planned':
         out.append(tag('Planned'))
+    if status and track_only(t):
+        out.append(tag('Track only'))    # copy-04: what the card is, where data-writeup="0" was the only marker
     if shape and t.get('route_shape') and t['kind'] in ('trip', 'multi-day', 'planned'):
         out.append(tag(SHAPE.get(t['route_shape'], t['route_shape'])))
     return ''.join(out)
@@ -632,7 +641,7 @@ def map_preloads(t, here, variants, asset_dir, nowide=False, site_maps=False):
 
 
 def vx_line(charts, variants, nowide=None, items=False):
-    """'VERTICAL ×N' per chart width: each rendered width has its own exaggeration, so one item per (name, size) and CSS
+    """'VERTICAL SCALE ×N' per chart width: each rendered width has its own exaggeration, so one item per (name, size) and CSS
     shows the one that matches the visible chart (.vx--wide|col|phone). One item when every rounded value is the same.
     nowide: the col chart also serves >= 1200 (chart--nowide); None = when no wide variant is present.
     items=True: [(html, cls)] for meta_items(); default: the legacy run of spans."""
@@ -640,14 +649,33 @@ def vx_line(charts, variants, nowide=None, items=False):
     if not vals:
         return [] if items else ''
     if len({'%.1f' % v for _, v in vals}) == 1:
-        its = [(nb('VERTICAL ×%.1f' % vals[0][1]), '')]
+        its = [(nb('VERTICAL SCALE ×%.1f' % vals[0][1]), '')]
     else:
         if nowide is None:
             nowide = not any(size == 'wide' for size, _ in vals)
-        its = [(nb('VERTICAL ×%.1f' % v), 'vx vx--%s%s' % (size, ' vx--nowide' if (nowide and size == 'col') else '')) for size, v in vals]
+        its = [(nb('VERTICAL SCALE ×%.1f' % v), 'vx vx--%s%s' % (size, ' vx--nowide' if (nowide and size == 'col') else '')) for size, v in vals]
     if items:
         return its
     return ''.join('<span%s>%s</span>' % ((' class="%s"' % c) if c else '', h) for h, c in its)
+
+
+def contour_items(t, variants, nowide=None):
+    """The map caption's 'Contours every 200 ft' (| '61 m' under KM, through U): the interval each rendered width was
+    drawn with (meta.json maps.*.interval_ft), one item per width shown with that width's map (the .vx--wide|col|phone
+    classes vx_line uses; nowide as there), or one item when every width has the same interval. The numbers inside
+    the renders stay in feet until Phase 15 draws them again."""
+    maps = render_meta(t).get('maps', {})
+    vals = [(size, maps[name]['interval_ft']) for name, size in variants if name in maps and maps[name].get('interval_ft')]
+    if not vals:
+        return []
+
+    def item(ft):
+        return U(nb('Contours every %s ft' % n(ft)), nb('Contours every %s m' % n(ft / FT)))
+    if len({v for _s, v in vals}) == 1:
+        return [(item(vals[0][1]), '')]
+    if nowide is None:
+        nowide = not any(size == 'wide' for size, _ in vals)
+    return [(item(v), 'vx vx--%s%s' % (size, ' vx--nowide' if (nowide and size == 'col') else '')) for size, v in vals]
 
 
 _START_MK = re.compile(r'<circle[^>]*r="[57]"[^>]*fill: #16171A; stroke: #FFFFFF')
@@ -671,9 +699,13 @@ def speed_meta(t):
     return meta_items([nb('MPH, 3\u2011MIN %s' % how), nb('FLAT WATER, NO ELEVATION PROFILE')])
 
 
-def chart_block(t, here, variants, ns, cls=''):
-    """Responsive profile / speed chart: [(name, size)] with size wide|col|phone."""
+def chart_block(t, here, variants, ns, cls='', readout=None):
+    """Responsive profile / speed chart: [(name, size)] with size wide|col|phone. readout: (elevations, total_km) from
+    profile_readout(): the .chart then carries data-pf (the elevations, metres, at evenly spaced fractions of the
+    track's length) and data-pf-km, and each .cv its render's width and left padding in viewBox units (data-w,
+    data-pad: the profile's x axis runs from pad to w), for the pointer readout (assets/js/pages/profile.js)."""
     out = []
+    charts = render_meta(t).get('charts', {}) if readout else {}
     for name, size in variants:
         p = rendered(t, name + '.svg.html')
         if not os.path.exists(p):
@@ -681,8 +713,32 @@ def chart_block(t, here, variants, ns, cls=''):
         svg = frag(p, here, '%s-%s-%s' % (ns, name, size))
         m = re.match(r'<svg width="(\d+)" height="(\d+)"', svg)
         ar = ('aspect-ratio:%s/%s' % (m.group(1), m.group(2))) if m else ''
-        out.append('<div class="cv cv--%s" style="%s">%s</div>' % (size, ar, _strip_size(svg)))
-    return '<div class="chart%s">%s</div>' % ((' ' + cls) if cls else '', ''.join(out))
+        axis = ''
+        if readout and m:
+            axis = ' data-w="%s" data-pad="%s"' % (m.group(1), _pct(float((charts.get(name) or {}).get('pad_l') or 0)))
+        out.append('<div class="cv cv--%s"%s style="%s">%s</div>' % (size, axis, ar, _strip_size(svg)))
+    data = ''
+    if readout and out:
+        data = ' data-pf="%s" data-pf-km="%s"' % (json.dumps(readout[0], separators=(',', ':')), _pct(round(readout[1], 2)))
+    return '<div class="chart%s"%s>%s</div>' % ((' ' + cls) if cls else '', data, ''.join(out))
+
+
+READOUT_SAMPLES = 150   # about 0.8 KB of elevations per report (maps-04)
+
+
+def profile_readout(tr, stats, k=READOUT_SAMPLES):
+    """(elevations, total_km) for chart_block's readout: the smoothed elevation (metres) at k + 1 evenly spaced fractions
+    of the track's length, the profile's own x axis, and the distance the stats state (else the track's). None
+    without a track."""
+    if tr is None:
+        return None
+    out, j = [], 0
+    for i in range(k + 1):
+        target = tr.total * i / k
+        while j < len(tr.cd) - 1 and tr.cd[j] < target:
+            j += 1
+        out.append(int(round(tr.ele[j])))
+    return out, (stats.get('distance_km') or tr.total / 1000.0)
 
 
 GLYPH_SIZES = {'g112': (112, 64), 'g64': (64, 48), 'tile': (200, 152)}
@@ -721,6 +777,9 @@ KEY_SYMBOLS = {
     'gps': ('GPS max', '<path d="M8 0.5l5 9h-10z" style="fill:var(--route)"/>'),
     'mile': ('Mile', '<circle cx="8" cy="5" r="4.5" style="fill:#fff;stroke:#16171A;stroke-width:1"/>'),
     'mile_out': ('Mile, outbound', '<circle cx="8" cy="5" r="4.5" style="fill:#fff;stroke:#16171A;stroke-width:1"/>'),
+    # the base layer's OSM paths and roads (mapkit .mk-trail; .mk-minorc / .mk-minor, which report maps mostly carry)
+    'trail': ('Trail (OSM)', '<path d="M1 5H15" style="stroke:#8F8A7E;stroke-width:0.75;stroke-dasharray:3 2"/>'),
+    'road': ('Road', '<path d="M1 5H15" style="stroke:#A6A298;stroke-width:2.2;stroke-linecap:round"/><path d="M1 5H15" style="stroke:#FFFFFF;stroke-width:1.4;stroke-linecap:round"/>'),
     'dayend': ('End of day', '<rect x="3" y="0" width="10" height="10" style="fill:#16171A"/><text x="8" y="5.5" style="font:600 7px/1 var(--mono);fill:#fff;text-anchor:middle;dominant-baseline:central">1</text>'),
     'hut': ('Hut (night)', '<rect x="3" y="0" width="10" height="10" style="fill:#16171A"/><text x="8" y="5.5" style="font:600 7px/1 var(--mono);fill:#fff;text-anchor:middle;dominant-baseline:central">1</text>'),
     'day': ('Day label', '<text x="8" y="5.5" style="font:600 9px/1 var(--mono);fill:#B8300F;text-anchor:middle;dominant-baseline:central">D1</text>'),
@@ -736,6 +795,10 @@ KEY_SYMBOLS = {
 }
 
 
+# key labels written as HTML (not escaped): a mile disc marks a mile, which the KM view says in kilometres too
+KEY_HTML = {'mile': U('Mile', 'Mile (1.6 km)'), 'mile_out': U('Mile, outbound', 'Mile (1.6 km), outbound')}
+
+
 def key_row(items, cls='', label='Map key'):
     """items: ['skin', 'ski', ('gps', 'GPS max'), …] -> Mono caps legend decoding map symbols (never values).
     label: the list's accessible name ('Elevation key' / 'Speed key' for chart legends)."""
@@ -743,7 +806,8 @@ def key_row(items, cls='', label='Map key'):
     for it in items:
         k, lab = (it if isinstance(it, tuple) else (it, None))
         name, sym = KEY_SYMBOLS[k]
-        out.append('<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>%s</li>' % (sym, esc(lab or name)))
+        text = esc(lab) if lab else KEY_HTML.get(k, esc(name))
+        out.append('<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>%s</li>' % (sym, text))
     return '<ul class="keyrow%s" aria-label="%s">%s</ul>' % ((' ' + cls) if cls else '', esc(label), ''.join(out))
 
 
@@ -764,6 +828,25 @@ def _draws(t, name, pattern):
         return False
 
 
+BASE_KEYS = (('trail', r'class="mk-trail"'), ('road', r'class="mk-(?:roadc?|minorc?)"'))
+
+
+def base_keys(t, names):
+    """['trail', 'road']: the OSM symbols the base layer (<name>.base.svg) of every one of these renders draws, so a key
+    row decodes them only where the map it serves carries them. Phone renders draw no trails (render.SMALL)."""
+    out = []
+    for k, pat in BASE_KEYS:
+        found = []
+        for nm in names:
+            try:
+                found.append(re.search(pat, _read(rendered(t, nm + '.base.svg'))) is not None)
+            except OSError:
+                found.append(False)
+        if found and all(found):
+            out.append(k)
+    return out
+
+
 def feature_key(t, variants, miles=True, cls='keyrow--compact'):
     """Compact key row under a featured map (home, section pages): decodes only symbols the rendered variant actually
     draws — skin/ski styling (dashed skin on ski col renders) or a plain route line, the start/end markers, GPS max and,
@@ -781,6 +864,8 @@ def feature_key(t, variants, miles=True, cls='keyrow--compact'):
         row = (['skin', 'ski'] if skin else ['route']) + ends + (['gps'] if gps else [])
         if miles and _draws(t, name, r'class="mk-mile'):
             row.append('mile_out' if (maps.get(name) or {}).get('outbound_only') else 'mile')
+        if _size != 'phone':
+            row += base_keys(t, [name])
         rows.append(row)
     if not rows:
         return ''
@@ -973,6 +1058,9 @@ def photo_partition(photos, per_row=4):
     return [r['ph'] for r in out]
 
 
+PHONE_SOLO_MIN_AR = 0.6   # a tall portrait alone on a phone row is cropped to this, no narrower
+
+
 def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280, gap=24, lead=0):
     """Justified photo rows (reports, multi-day chapters): every row fills the column at one height (1248: a landscape
     alone 1248×624, four portraits 294×392), clamped in CSS so a row of portraits never runs taller than 624. Phones
@@ -1015,8 +1103,10 @@ def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280
             c = 'jph jph--%s%s' % ('l' if land else 'p', ' jph--solo' if i in solo else '')
             name = '' if p.get('alt') else ' aria-label="Photo %d of %d, full size"' % (k + lead, len(photos) + lead)
             cap = (' data-cap="%s"' % esc(p['caption'])) if p.get('caption') else ''
-            figs.append('<a class="%s" href="%s%s" style="--ar:%.4f;--fg:%d"%s%s>%s</a>'
-                        % (c, base, p['file'], a, round(a * 1000), cap, name, photo(t, p, here, sizes=sizes, caption=False)))
+            # --arp: the shape a photo alone on a phone row keeps, no narrower than 0.6 (base.css)
+            figs.append('<a class="%s" href="%s%s" style="--ar:%.4f;--arp:%.4f;--fg:%d"%s%s>%s</a>'
+                        % (c, base, p['file'], a, max(a, PHONE_SOLO_MIN_AR), round(a * 1000), cap, name,
+                           photo(t, p, here, sizes=sizes, caption=False)))
         out.append('<div class="jrow%s" style="--n:%d;--sum:%.4f;--ar:%.4f">%s</div>'
                    % (' jrow--one' if one else '', len(row), tot, ars[0], ''.join(figs)))
         caps = [p['caption'] for p in row if p.get('caption')]
@@ -1066,12 +1156,24 @@ def _cell_m(lab, m):
     return (lab, U(n(m * FT), n(m), 'ft', 'm'), U_sub(n(m * FT), n(m), 'ft', 'm'))
 
 
+def time_items(st, start_time):
+    """['Elapsed 5:10', 'Start 8:15 AM'] as the content states them (stats.elapsed, start_time); never a finish time,
+    which would be derived (docs/PRIVACY_NOTES.md 6.2)."""
+    bits = []
+    if st.get('elapsed_s'):
+        bits.append(nb('Elapsed ' + hm(st['elapsed_s'])))
+    if start_time:
+        bits.append(nb('Start ' + ftime(start_time)))
+    return bits
+
+
 def _cell_moving(t):
+    """Moving, with Elapsed · Start under it; the cell's class (strip-c--time) keeps that sub-line on phones."""
     st = t['stats']
     if not st.get('moving_s'):
         return None
-    sub = nb('Start ' + ftime(t['start_time'])) if t.get('start_time') else ''
-    return ('Moving', '%s<span class="unit">h:mm</span>' % hm(st['moving_s']), sub)
+    bits = time_items(st, t.get('start_time'))
+    return ('Moving', '%s<span class="unit">h:mm</span>' % hm(st['moving_s']), meta_items(bits) if bits else '', 'strip-c--time')
 
 
 def _pace(st):
@@ -1109,13 +1211,82 @@ def strip_cells(t):
 
 
 def strip(cells, cls='', label='Trip stats'):
-    """The Datum data strip: Label / Data-XL value (tightened punctuation) / Mono-S sub-line per cell. Five cells get
-    .strip--5 (tighter tablet padding and values, base.css)."""
-    cls = ' '.join(x for x in (cls.strip(), 'strip--5' if len(cells) == 5 else '') if x)
-    out = ''.join('<div class="strip-c"><dt class="t-label">%s</dt><dd class="t-data-xl strip-v">%s</dd>%s</div>'
-                  % (lab, dx(val), ('<dd class="t-mono-s strip-s">%s</dd>' % sub) if sub else '') for lab, val, sub in cells)
+    """The Datum data strip: Label / Data-XL value (tightened punctuation) / Mono-S sub-line per cell; a cell may carry a
+    fourth item, its own class (strip-c--time). Five cells get .strip--5 (tighter tablet padding and values, base.css),
+    one or two .strip--1 / .strip--2 (cells capped at a four-cell strip's width)."""
+    size = 'strip--%d' % len(cells) if len(cells) in (1, 2, 5) else ''
+    cls = ' '.join(x for x in (cls.strip(), size) if x)
+    out = ''.join('<div class="strip-c%s"><dt class="t-label">%s</dt><dd class="t-data-xl strip-v">%s</dd>%s</div>'
+                  % ((' ' + c[3]) if len(c) > 3 and c[3] else '', c[0], dx(c[1]),
+                     ('<dd class="t-mono-s strip-s">%s</dd>' % c[2]) if c[2] else '') for c in cells)
     return ('<dl class="strip%s" style="--cells:%d" aria-label="%s">%s</dl>'
             % ((' ' + cls) if cls else '', max(len(cells), 1), esc(label), out))
+
+
+# ---------------------------------------------------------------- the published track, read at build time
+
+def read_track(path, key='', cat='HIK'):
+    """The published GPX as a mapkit.Track (smoothed elevation, cumulative distance, each point's time): the source of
+    the mile table and of the profile readout. None when there is no file, it cannot be read, or it has no elevation."""
+    if not path:
+        return None
+    try:
+        tr = mapkit.Track(fit_reader.read_gpx(path), key, cat)
+    except Exception:  # noqa: BLE001 — a damaged file: no table, the chart and the download stay
+        return None
+    return tr if tr.ele and tr.total > 0 else None
+
+
+def clock(ts, zone):
+    """'11:40 AM': a point's time in the trip's own zone (its timezone: line). '' without a time or a zone, or when the
+    zone cannot be loaded: never a UTC clock shown as local time. Read from the published GPX, so a track published
+    without times shows none."""
+    if ts is None or not zone:
+        return ''
+    try:
+        from zoneinfo import ZoneInfo
+        d = datetime.fromtimestamp(ts, ZoneInfo(zone))
+    except Exception:  # noqa: BLE001 — no zoneinfo, or a name it does not know
+        return ''
+    return ftime('%02d:%02d' % (d.hour, d.minute))
+
+
+def _scale(tr, stats):
+    """The track's own length to the distance the stats state, so the table and the readout agree with the strip."""
+    return (stats['distance_km'] * 1000.0 / tr.total) if stats.get('distance_km') else 1.0
+
+
+def elevation_table(tr, stats, zone=None):
+    """'View as table': the elevation every half mile, mile or two miles (by the track's length) and at the end, from
+    the GPX (smoothed), both units through U so MI | KM applies; with zone (single-day reports), a Time column in that
+    zone when the points have times and the zone loads (clock). '' without a track (read_track)."""
+    if tr is None:
+        return ''
+    f = _scale(tr, stats)
+    total_mi = tr.total * f / MI
+    step = 0.5 if total_mi <= 8 else (1 if total_mi <= 20 else 2)
+    marks, m, j = [], 0.0, 0
+    while m <= total_mi + 1e-6:
+        target = m * MI / f
+        while j < len(tr.cd) - 1 and tr.cd[j] < target:
+            j += 1
+        marks.append((U('%g' % m, '%.1f' % (m * MI / 1000)), j))
+        m += step
+    marks.append((U('%.1f' % total_mi, '%.1f' % (total_mi * MI / 1000)), len(tr.ele) - 1))
+    times = [clock(tr.raw[i][3], zone) for _d, i in marks] if zone else []
+    timed = any(times)
+    rows = ''.join('<tr><td>%s</td><td>%s</td>%s</tr>' % (d, U(n(tr.ele[i] * FT), n(tr.ele[i])),
+                                                         ('<td>%s</td>' % (times[k] or '—')) if timed else '')
+                   for k, (d, i) in enumerate(marks))
+    return ('<details class="eltab"><summary>%sView as table</summary><table><thead><tr><th scope="col">%s</th>'
+            '<th scope="col">%s</th>%s</tr></thead><tbody>%s</tbody></table></details>'
+            % (icon('chevron-down', 18), U('Mile', 'Km'), U('Elevation (ft)', 'Elevation (m)'),
+               '<th scope="col">Time</th>' if timed else '', rows))
+
+
+def gps_max_clock(tr, zone):
+    """The time the highest point of the track was reached, in the trip's zone ('' as clock gives it)."""
+    return clock(tr.raw[tr.imax][3], zone) if tr is not None and tr.imax is not None else ''
 
 
 def has_track(t):
@@ -1131,6 +1302,8 @@ def via(sentence, t):
     return '%s via %s.' % (sentence, src) if src else sentence + '.'
 
 
+# what Moving means (gap6-05), true of the tool's rule (tracks.py) and of Strava's Moving Time; with Elapsed shown too
+MOVING_NOTE = {False: 'Moving time leaves out stops.', True: 'Moving time leaves out stops; elapsed time includes them.'}
 HOW_LINK = 'about/#abo-how-h'   # About's "How these reports are made" (about.method), where the footnotes lead
 
 
@@ -1158,6 +1331,8 @@ def stats_note(t, cls='', here=None):
             bits.append('Average speed is distance divided by moving time.')
         if recorded:
             bits.append('GPS max is the highest point in the GPX file, not a surveyed summit height.')
+    if recorded and st.get('moving_s'):
+        bits.append(MOVING_NOTE[bool(st.get('elapsed_s'))])
     if not bits:
         return ''
     if here is not None:
@@ -1496,21 +1671,20 @@ def related(t, site, k=3, skip=()):
 
 
 def related_block(t, here, site, k=3, skip=()):
-    """'More like this': the related() reports as cards (trip_card), or '' when there are none. The meta line states the
-    rule, so the choice is never a mystery, and says so when the page's Newer / Older reports were left out. skip: the
-    reports of the page's Newer / Older pager (related())."""
+    """'More like this': the related() reports as cards (trip_card), or '' when there are none. related() picks the same
+    place or name and activity, then region and activity, then region, then activity, nearest in date, and leaves out
+    the page's Newer / Older reports (skip). The head's meta says what the picked reports share with the page
+    (visual-03): EASTERN SIERRA · BACKCOUNTRY SKI when all share both, the region or the activity when all share only
+    that, else their count."""
     rel = related(t, site, k, skip)
     if not rel:
         return ''
-    # the first rule is long: it may wrap after a comma (a phone), never inside a clause
-    tiers = (('SAME PLACE OR NAME AND ACTIVITY', 'THEN REGION AND ACTIVITY', 'THEN REGION', 'THEN ACTIVITY') if t.get('region')
-             else ('SAME PLACE OR NAME AND ACTIVITY', 'THEN ACTIVITY'))
-    rule = [', '.join(nb(c) for c in tiers), nb('NEAREST IN DATE')]
-    if any(skip):
-        rule.append(nb('NEWER / OLDER NOT REPEATED'))
+    region = t.get('region') if t.get('region') and all(x.get('region') == t['region'] for x in rel) else None
+    act = t['activity'] if all(x['activity'] == t['activity'] for x in rel) else None
+    shared = ([nb(esc(region.upper()))] if region else []) + ([nb(esc(ACT[act][0].upper()))] if act else [])
     return ('<section class="rep-related wrap sec" aria-labelledby="rel-h"><div class="shead"><h2 class="shead-t" id="rel-h">More like this</h2>'
             '<span class="shead-m t-mono-s">%s</span></div><ul class="rep-rel tgrid">%s</ul></section>'
-            % (meta_items(rule), ''.join(trip_card(x, here, RELATED_SIZES, ns='rel') for x in rel)))
+            % (meta_items(shared or [nb(_plural(len(rel), 'REPORT'))]), ''.join(trip_card(x, here, RELATED_SIZES, ns='rel') for x in rel)))
 
 
 def copy_link(url, label='Copy link', cls='btn', of=''):

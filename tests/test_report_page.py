@@ -105,7 +105,7 @@ MAP = ('Map', '#map')
 PHOTOS = ('Photos', '#photos')
 BETA_ITEM = ('Beta', '#beta')
 STATS = ('Stats', '#stats')
-PROFILE = ('Profile', '#profile')
+PROFILE = ('Elevation', '#profile')        # Phase 10 (copy-09): one label table names #profile Elevation
 SPEED = ('Speed', '#profile')
 
 
@@ -183,16 +183,19 @@ def gpx_links(node):
 
 
 def legacy_bar(t, gpx_href, has_beta, has_report, has_gallery, chart=''):
-    """The phone bottom bar exactly as report.bottom_bar built it before Phase 3 (the compact layout must not change)."""
+    """The compact phone bottom bar written out: the items it has had since Phase 3, in the page's order and with the
+    names of the one label table since Phase 10 (copy-09: Stats, which sits above the map, comes first; the chart is
+    Elevation)."""
     items = [('#map', 'map', 'Map')]
     if has_beta:
         items.append(('#beta', 'beta', 'Beta'))
     elif t['kind'] != 'planned':
-        items.append(('#profile', 'profile', 'Speed' if chart == 'speed' else 'Profile') if chart else ('#stats', 'beta', 'Stats'))
+        items.append(('#profile', 'profile', 'Speed' if chart == 'speed' else 'Elevation') if chart else ('#stats', 'beta', 'Stats'))
     if has_report:
         items.append(('#report', 'report', 'Report'))
     elif has_gallery:
         items.append(('#photos', 'photo', 'Photos'))
+    items.sort(key=lambda it: ('#stats', '#map', '#profile', '#beta', '#report', '#photos').index(it[0]))
     out = ''.join('<a href="%s">%s<span>%s</span></a>' % (h, core.icon(ic, 24), lab) for h, ic, lab in items)
     out += '<a href="%s" download>%s<span>GPX</span></a>' % (gpx_href, core.icon('download', 24))
     return '<nav class="bbar" aria-label="Report sections" style="--n:%d">%s</nav>' % (len(items) + 1, out)
@@ -581,15 +584,16 @@ class LayoutTests(ReportFixture):
                 self.assertNotIn('p-report--story', doc.find('body').classes)
                 self.assertIsNone(doc.find('nav', cls='rep-toc'))
         self.assertIsNone(Doc(pages['syn-goal'].html).find('figure', cls='rep-hero'))   # section 2: a goal has no hero
-        self.assertIsNone(Doc(pages['syn-tour'].html).find('figure', cls='rep-hero'))
+        # Phase 10 (report-11): a multi-day trip leads with its landscape cover, without the story class or a section row
+        self.assertIsNotNone(Doc(pages['syn-tour'].html).find('figure', cls='rep-hero'))
 
     def test_the_writeup_is_verbatim_under_its_heading(self):
-        # hard rule + section 2.5: id="report", h2 'Trip report', the prose exactly as markdown renders the body
+        # hard rule + section 2.5: id="report", h2 'Report' (Phase 10: the row's word), the prose exactly as markdown renders it
         markdown = load_module(self, 'markdown')
         for slug in ('syn-story', 'syn-words'):
             with self.subTest(slug):
                 rep = self.main(slug).by_id('report')
-                self.assertEqual(rep.find('h2').text(), 'Trip report')
+                self.assertEqual(rep.find('h2').text(), 'Report')
                 self.assertEqual(rep.find('h2')['id'], 'report-h')
                 self.assertIn('<div class="prose t-body">%s</div>' % markdown.to_html(self.by[slug]['body_md']), self.page(slug).html)
                 self.assertEqual(self.main(slug).text().count('Second synthetic paragraph'), 1)
@@ -669,91 +673,63 @@ class SectionNavTests(ReportFixture):
         return [(a.text(), a['href']) for a in nav.find_all('a')]
 
     def test_markup(self):
-        # section 2.4: <nav class="rep-toc wrap" aria-label="Sections"><ul><li><a class="rep-toc-a" href="#…">…</a></li>
-        self.assertEqual(self.section_nav(True, True, True),
+        # section 2.4, as Phase 10 (copy-09) left it: <nav class="rep-toc wrap" aria-label="Sections"> in page order,
+        # each section named by report.LABELS
+        self.assertEqual(self.section_nav(True, True, True, 'profile'),
                          '<nav class="rep-toc wrap" aria-label="Sections"><ul>'
                          '<li><a class="rep-toc-a" href="#report">Report</a></li>'
-                         '<li><a class="rep-toc-a" href="#photos">Photos</a></li>'
-                         '<li><a class="rep-toc-a" href="#map">Route</a></li>'
-                         '<li><a class="rep-toc-a" href="#beta">Trip details</a></li></ul></nav>')
+                         '<li><a class="rep-toc-a" href="#map">Map</a></li>'
+                         '<li><a class="rep-toc-a" href="#profile">Elevation</a></li>'
+                         '<li><a class="rep-toc-a" href="#photos">Photos</a></li></ul></nav>')
+        self.assertIn('href="#profile">Speed</a>', self.section_nav(True, True, True, 'speed'))
 
-    def test_all_four_sections_in_the_plans_fixed_order(self):
-        # sections 2.4 and 10.2: Report, Photos, Route, Trip details
-        self.assertEqual(self.items(True, True, True),
-                         [('Report', '#report'), ('Photos', '#photos'), ('Route', '#map'), ('Trip details', '#beta')])
+    def test_every_set_of_sections_in_page_order(self):
+        order = ['#report', '#map', '#profile', '#photos']
+        for has_report, has_gallery, has_map, chart in itertools.product((True, False), (True, False), (True, False), ('', 'profile')):
+            with self.subTest(report=has_report, gallery=has_gallery, map=has_map, chart=chart):
+                hrefs = [h for _lab, h in self.items(has_report, has_gallery, has_map, chart)]
+                self.assertEqual(hrefs, [h for h in order if h in hrefs])
+                self.assertEqual(('#report' in hrefs, '#photos' in hrefs, '#map' in hrefs, '#profile' in hrefs),
+                                 (has_report, has_gallery, has_map, bool(chart)))
 
-    def test_the_fixed_order_holds_for_every_set_of_sections(self):
-        # section 10.2: the plan's fixed order (Report, Photos, Route, Trip details), whichever sections the page has
-        fixed = ['Report', 'Photos', 'Route', 'Trip details']
-        for args in itertools.product((True, False), repeat=3):
-            with self.subTest(has_report=args[0], has_gallery=args[1], has_beta=args[2]):
-                labels = [lab for lab, _href in self.items(*args)]
-                self.assertEqual(labels, [lab for lab in fixed if lab in labels])
-                self.assertEqual(labels[-2:], ['Route', 'Trip details'])   # the two every report has
-                self.assertEqual('Report' in labels, args[0])
-                self.assertEqual('Photos' in labels, args[1])
-
-    def test_the_fixed_order_is_not_the_order_of_the_page(self):
-        # section 10.2: ... not page order: a story runs Beta (or the stats), write-up, map, photos, so the row's last
-        # link points at the first of its targets and Photos comes before the map it follows on the page
-        self.assertEqual([lab for lab, _href in self.toc('syn-story')], ['Report', 'Photos', 'Route', 'Trip details'])
-        seq = marks(self.main('syn-story'))
-        by_page = sorted(self.toc('syn-story'), key=lambda item: seq.index(item[1][1:]))
-        self.assertEqual([lab for lab, _href in by_page], ['Trip details', 'Report', 'Route', 'Photos'])
-        self.assertInOrder(seq, ['beta', 'report', 'map', 'photos'])
-        # without beta rows Trip details is the stats strip, above the row itself
-        seq = marks(self.main('syn-explicit'))
-        self.assertInOrder(seq, ['stats', '.rep-toc', 'report', 'map', 'photos'])
-        self.assertEqual([href for _lab, href in self.toc('syn-explicit')], ['#report', '#photos', '#map', '#stats'])
+    def test_the_row_follows_the_page(self):
+        # the row lists its targets in the order they run on the page; 'Route' and 'Trip details' are retired
+        for slug in STORY:
+            with self.subTest(slug):
+                seq = marks(self.main(slug))
+                hrefs = [h[1:] for _lab, h in self.toc(slug)]
+                self.assertEqual(hrefs, sorted(hrefs, key=seq.index))
+                self.assertFalse({'Route', 'Trip details'} & {lab for lab, _h in self.toc(slug)})
+        self.assertEqual(self.toc('syn-story'), [REPORT, MAP, PHOTOS])
 
     def test_no_link_in_the_section_row_is_marked_current(self):
         # section 10.2: no link in the section row is ever marked current (base.js marks the current section in the phone
         # bottom bar only): the generator writes no aria-current into the row, for any set of sections ...
-        for args in itertools.product((True, False), repeat=3):
+        for args in itertools.product((True, False), (True, False), (True, False), ('', 'profile')):
             self.assertNotIn('aria-current', self.section_nav(*args), args)
         # ... nor on any built story page, where each link is the bare <a class="rep-toc-a" href="#...">
         for slug in STORY:
             with self.subTest(slug):
                 nav = self.main(slug).find('nav', cls='rep-toc')
                 links = nav.find_all('a')
-                self.assertGreaterEqual(len(links), 3)
+                self.assertGreaterEqual(len(links), 2)
                 for a in links:
                     self.assertNotIn('aria-current', a)
                     self.assertEqual(sorted(a.attrs), ['class', 'href'])
                 self.assertEqual([n for n in nav.walk() if 'aria-current' in n], [])
                 self.assertNotIn('aria-current', nav)
 
-    def test_no_photos_item_without_a_gallery(self):
-        # section 2.4: Photos only when the gallery has at least one photo
-        self.assertEqual(self.items(True, False, True), [('Report', '#report'), ('Route', '#map'), ('Trip details', '#beta')])
-
-    def test_trip_details_points_at_the_stats_without_beta_rows(self):
-        # section 2.4: Trip details -> #beta when the trip has beta rows, else #stats
-        self.assertEqual(self.items(True, True, False)[-1], ('Trip details', '#stats'))
-        self.assertEqual(self.items(True, False, False), [('Report', '#report'), ('Route', '#map'), ('Trip details', '#stats')])
-
-    def test_no_report_item_without_a_report(self):
-        # section 2.4: listing only the sections present
-        self.assertEqual(self.items(False, True, True), [('Photos', '#photos'), ('Route', '#map'), ('Trip details', '#beta')])
-
-    def test_story_with_gallery_and_beta_lists_all_four(self):
-        # sections 2.4 and 7: the toc items match the sections present
-        self.assertEqual(self.toc('syn-story'), [('Report', '#report'), ('Photos', '#photos'), ('Route', '#map'), ('Trip details', '#beta')])
-
-    def test_story_without_beta_sends_trip_details_to_the_stats(self):
-        # section 2.4: no beta rows -> Trip details -> #stats
-        self.assertEqual(self.toc('syn-explicit'), [('Report', '#report'), ('Photos', '#photos'), ('Route', '#map'), ('Trip details', '#stats')])
-        self.assertIsNone(self.main('syn-explicit').by_id('beta'))
-
     def test_no_photos_item_when_the_cover_was_the_only_photo(self):
         # section 7: no Photos when the cover is the only photo
-        self.assertEqual(self.toc('syn-one'), [('Report', '#report'), ('Route', '#map'), ('Trip details', '#stats')])
-        self.assertEqual(self.toc('syn-one-beta'), [('Report', '#report'), ('Route', '#map'), ('Trip details', '#beta')])
+        self.assertEqual(self.toc('syn-one'), [REPORT, MAP])
+        self.assertEqual(self.toc('syn-one-beta'), [REPORT, MAP])
 
     def test_the_page_uses_section_nav(self):
-        # section 2.4: the row on the page is report.section_nav(has_report, has_gallery, has_beta)
-        self.assertIn(self.section_nav(True, True, True), self.page('syn-story').html)
-        self.assertIn(self.section_nav(True, False, False), self.page('syn-one').html)
+        # the row on the page is report.section_nav(has_report, has_gallery, has_map, chart)
+        self.assertIn(self.section_nav(True, True, True, ''), self.page('syn-story').html)
+        self.assertIn(self.section_nav(True, False, True, ''), self.page('syn-one').html)
+        self.render('syn-one', chart='profile')
+        self.assertIn(self.section_nav(True, False, True, 'profile'), self.page('syn-one').html)
 
     def test_one_section_row_per_story_and_no_rail_contents_list(self):
         # section 2.4: shown on the narrative layout, where it replaces the rail's Contents list
@@ -765,14 +741,15 @@ class SectionNavTests(ReportFixture):
                 self.assertIsNone(main.find('nav', cls='rail-toc'))
                 self.assertIsNone(main.by_id('toc-h'))
 
-    def test_compact_pages_have_no_section_row_and_no_hero(self):
-        # section 2.4: narrative layout only; the compact layout has no .rep-toc and no .rep-hero
+    def test_compact_pages_have_no_section_row_and_only_a_photo_only_report_has_a_hero(self):
+        # section 2.4: the compact layout has no .rep-toc; since Phase 10 (report-02) a photo-only report whose cover is a
+        # landscape (syn-photos) leads with it, and only that one
         for slug in COMPACT:
             with self.subTest(slug):
                 main = self.main(slug)
                 self.assertIsNone(main.find('nav', cls='rep-toc'))
-                self.assertIsNone(main.find(cls='rep-hero'))
-                self.assertIsNone(main.by_id('hero'))
+                self.assertEqual(main.find(cls='rep-hero') is not None, slug == 'syn-photos')
+                self.assertEqual(main.by_id('hero') is not None, slug == 'syn-photos')
 
     def test_compact_pages_have_a_single_content_section_and_no_contents_list(self):
         # the rail's old Contents list needed a write-up and a gallery on one compact page; a trip with both is always a
@@ -819,7 +796,7 @@ class HeroTests(ReportFixture):
                 self.assertEqual(main.find_all('figure', cls='rep-hero'), [])
                 self.assertEqual(main.find_all(cls='rep-anchor'), [])
                 self.assertEqual(self.gallery_files(slug), [self.photo_href(slug, p['file']) for p in t['photos']])
-                self.assertEqual([a['href'] for a in main.find('nav', cls='rep-toc').find_all('a')], ['#report', '#photos', '#map', '#stats'])
+                self.assertEqual([a['href'] for a in main.find('nav', cls='rep-toc').find_all('a')], ['#report', '#map', '#photos'])
                 self.assertLess(marks(main).index('report'), marks(main).index('map'))
         # a square photo is not wide enough either; 4:3 is
         square = dict(self.by['syn-one'], cover=dict(self.by['syn-one']['cover'], photo=dict(self.by['syn-one']['cover']['photo'], w=1000, h=1000)))
@@ -884,7 +861,7 @@ class HeroTests(ReportFixture):
         self.assertEqual(self.hero(slug).find('a')['href'], self.photo_href(slug, 'photos/02.webp'))
         self.assertEqual(self.gallery_files(slug), [self.photo_href(slug, f) for f in ('photos/01.webp', 'photos/03.webp')])
         self.assertEqual(self.main(slug).by_id('photos').find('div', cls='rep-sh').find('span').text(), '2 PHOTOS')
-        self.assertEqual([lab for lab, _href in self.toc(slug)], ['Report', 'Photos', 'Route', 'Trip details'])
+        self.assertEqual([lab for lab, _href in self.toc(slug)], ['Report', 'Map', 'Photos'])
 
     def test_near_square_photos_alone_give_a_story_without_a_lead_photo(self):
         # section 10.4: no photo reaches 1.2: the cover is the first that is at least as wide as tall, and it does not lead
@@ -1114,13 +1091,14 @@ class GalleryTests(ReportFixture):
                  photos=[photo('photos/01.webp', LANDSCAPE, alt=''), photo('photos/02.webp', PORTRAIT, alt=''), photo('photos/03.webp', LANDSCAPE, alt='')])
         self.assertIn('p-report--story', self.doc('syn-unnamed-tall').find('body').classes)
         self.assertNotIn('p-report--story', self.doc('syn-unnamed-compact').find('body').classes)
-        for slug, n in (('syn-unnamed-tall', 2), ('syn-unnamed-compact', 3)):
-            with self.subTest(slug):
-                self.assertIsNone(self.hero(slug))
-                sec = self.main(slug).by_id('photos')
-                self.assertEqual([a['aria-label'] for a in sec.find_all('a', cls='jph')],
-                                 ['Photo %d of %d, full size' % (k, n) for k in range(1, n + 1)])
-                self.assertEqual(sec.find('div', cls='rep-sh').find('span').text(), '%d PHOTOS' % n)
+        sec = self.main('syn-unnamed-tall').by_id('photos')
+        self.assertIsNone(self.hero('syn-unnamed-tall'))
+        self.assertEqual([a['aria-label'] for a in sec.find_all('a', cls='jph')], ['Photo 1 of 2, full size', 'Photo 2 of 2, full size'])
+        self.assertEqual(sec.find('div', cls='rep-sh').find('span').text(), '2 PHOTOS')
+        # a photo-only report leads with its landscape cover (Phase 10): the grid counts on from it, as a story's does
+        self.assertIsNotNone(self.hero('syn-unnamed-compact'))
+        sec = self.main('syn-unnamed-compact').by_id('photos')
+        self.assertEqual([a['aria-label'] for a in sec.find_all('a', cls='jph')], ['Photo 2 of 3, full size', 'Photo 3 of 3, full size'])
 
     def test_a_named_photo_keeps_its_place_in_the_count(self):
         # section 10.4: only a photo without alt text gets the fallback label; the named ones are counted all the same
@@ -1226,12 +1204,11 @@ class GalleryTests(ReportFixture):
         t = self.by['syn-one']
         self.assertEqual(need(self, self.report, 'gallery')(t, t['url'], []), '')
 
-    def test_the_compact_gallery_keeps_every_photo(self):
-        # section 2, compact layout: unchanged, so a photo-only report shows all its photos in the grid, in order
-        self.assertEqual(self.gallery_files('syn-photos'), ['../../trips/syn-photos/photos/%s.webp' % n for n in ('01', '02', '03')])
-        sec = self.main('syn-photos').by_id('photos')
-        self.assertEqual(sec.find('div', cls='rep-sh').find('span').text(), '3 PHOTOS')
-        self.assertEqual(sec['data-lb-group'], 'photos')   # section 2.2: the gallery section carries the group
+    def test_the_compact_gallery_is_every_photo_but_the_lead(self):
+        # section 2, compact layout: a photo-only report whose cover leads it (Phase 10, report-02) shows the rest of its
+        # photos in the grid, in order, as a story does
+        self.assertEqual(self.gallery_files('syn-photos'), ['../../trips/syn-photos/photos/%s.webp' % n for n in ('02', '03')])
+        self.assertEqual(self.hero('syn-photos').find('a')['href'], '../../trips/syn-photos/photos/01.webp')
 
 
 # ---------------------------------------------------------------- the lone portrait
@@ -1262,7 +1239,7 @@ class LonePortraitTests(ReportFixture):
 
     def test_a_lone_portrait_story_has_no_photos_item_and_no_gallery(self):
         # section 2.7: the toc then has no Photos item
-        self.assertEqual(self.toc('syn-portrait'), [('Report', '#report'), ('Route', '#map'), ('Trip details', '#stats')])
+        self.assertEqual(self.toc('syn-portrait'), [REPORT, MAP])
         self.assertIsNone(self.main('syn-portrait').by_id('photos'))
 
     def test_a_lone_portrait_story_is_still_the_story_layout(self):
@@ -1641,8 +1618,8 @@ class BottomBarTests(ReportFixture):
         self.assertEqual(self.story(False, False, 'speed'), [REPORT, MAP, SPEED, ('GPX', 'syn-story.gpx')])
 
     def test_story_without_a_gallery_beta_or_chart(self):
-        # section 2 (bottom bar), case 5: ... else Stats · GPX
-        self.assertEqual(self.story(False, False), [REPORT, MAP, STATS, ('GPX', 'syn-story.gpx')])
+        # section 2 (bottom bar), case 5: ... else Stats, which comes first in page order (Phase 10)
+        self.assertEqual(self.story(False, False), [STATS, REPORT, MAP, ('GPX', 'syn-story.gpx')])
 
     def test_story_bar_markup(self):
         # section 2 (bottom bar): <nav class="bbar" aria-label="Report sections" style="--n:4"> as today, four items in
@@ -1663,9 +1640,9 @@ class BottomBarTests(ReportFixture):
         for args in ((True, True, False, ''), (False, True, True, 'profile'), (False, False, True, '')):
             self.assertEqual(self.bar(*args), self.bar(*args, story=False))
 
-    def test_compact_bar_is_unchanged(self):
-        # section 2 (bottom bar): the compact layout is unchanged: byte for byte what the bar was before Phase 3, for
-        # every combination of beta, report, gallery and chart
+    def test_compact_bar_is_the_written_out_one(self):
+        # section 2 (bottom bar): the compact layout's bar, byte for byte, for every combination of beta, report,
+        # gallery and chart (legacy_bar: Phase 3's items, Phase 10's order and names)
         t = self.by['syn-story']
         for has_beta in (True, False):
             for has_report in (True, False):
@@ -1682,8 +1659,8 @@ class BottomBarTests(ReportFixture):
                  ((True, False, True, 'profile'), [MAP, BETA_ITEM, PHOTOS, gpx]),
                  ((False, True, False, 'profile'), [MAP, PROFILE, REPORT, gpx]),
                  ((False, False, True, 'speed'), [MAP, SPEED, PHOTOS, gpx]),
-                 ((False, True, False, ''), [MAP, STATS, REPORT, gpx]),
-                 ((False, False, False, ''), [MAP, STATS, gpx])]
+                 ((False, True, False, ''), [STATS, MAP, REPORT, gpx]),       # page order: the strip is above the map
+                 ((False, False, False, ''), [STATS, MAP, gpx])]
         for args, want in cases:
             with self.subTest(args=args):
                 nav = Doc(self.bar(*args)).find('nav')
@@ -1702,7 +1679,7 @@ class BottomBarTests(ReportFixture):
 
     def test_story_page_without_a_gallery_or_beta(self):
         # cases 3, 4 and 5 on the page: the rendered chart decides (report.has_chart)
-        self.assertEqual(bar_items(self.bbar('syn-one')), [REPORT, MAP, STATS, ('GPX', 'syn-one.gpx')])
+        self.assertEqual(bar_items(self.bbar('syn-one')), [STATS, REPORT, MAP, ('GPX', 'syn-one.gpx')])   # page order
         self.render('syn-one', chart='profile')
         self.assertEqual(bar_items(self.bbar('syn-one')), [REPORT, MAP, PROFILE, ('GPX', 'syn-one.gpx')])
         self.assertIsNotNone(self.doc('syn-one').by_id('profile'))
@@ -1712,12 +1689,12 @@ class BottomBarTests(ReportFixture):
 
     def test_lone_portrait_story_page(self):
         # the lone portrait is not a gallery: cases 3-5 apply
-        self.assertEqual(bar_items(self.bbar('syn-portrait')), [REPORT, MAP, STATS, ('GPX', 'syn-portrait.gpx')])
+        self.assertEqual(bar_items(self.bbar('syn-portrait')), [STATS, REPORT, MAP, ('GPX', 'syn-portrait.gpx')])
 
     def test_compact_pages(self):
-        # section 2 (bottom bar): the compact layout is unchanged, on the page itself
-        want = {'syn-words': [MAP, BETA_ITEM, REPORT], 'syn-photos': [MAP, STATS, PHOTOS], 'syn-tall-only': [MAP, STATS],
-                'syn-track': [MAP, STATS]}
+        # section 2 (bottom bar): the compact layout, on the page itself (Phase 10: in page order, the strip first)
+        want = {'syn-words': [MAP, BETA_ITEM, REPORT], 'syn-photos': [STATS, MAP, PHOTOS], 'syn-tall-only': [STATS, MAP],
+                'syn-track': [STATS, MAP]}
         for slug, items in want.items():
             with self.subTest(slug):
                 self.assertEqual(bar_items(self.bbar(slug)), items + [('GPX', slug + '.gpx')])
@@ -1784,8 +1761,9 @@ class HeadTests(ReportFixture):
             self.assertEqual(img['loading'], 'lazy')
 
     def test_a_compact_page_preloads_the_map(self):
-        # section 2 (compact): unchanged: core.map_preloads in the head, the map block eager
-        for slug in ('syn-words', 'syn-photos', 'syn-track'):
+        # section 2 (compact): core.map_preloads in the head, the map block eager; not on a photo-only report, whose cover
+        # leads it since Phase 10 (test_a_photo_only_report_preloads_its_cover)
+        for slug in ('syn-words', 'syn-track'):
             with self.subTest(slug):
                 self.render(slug)
                 t = self.by[slug]
@@ -1930,7 +1908,8 @@ class HeadTests(ReportFixture):
                  photos=[photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo one'), photo('photos/02.webp', LANDSCAPE, alt='Synthetic photo two'),
                          photo('photos/03.webp', PORTRAIT, alt='Synthetic photo three')])
         self.assertEqual((self.by['syn-compact-cover']['cover']['source'], self.by['syn-compact-named']['cover']['source']), ('parent', 'explicit'))
-        self.assertSharesCover('syn-compact-cover', 'photos/02.webp', story=False)
+        # Phase 10 (report-02): the landscape cover leads its photo-only page; a portrait cover does not
+        self.assertSharesCover('syn-compact-cover', 'photos/02.webp', story=False, hero=True)
         self.assertSharesCover('syn-compact-named', 'photos/03.webp', story=False)
 
     def test_og_image_on_compact_pages(self):
@@ -2154,9 +2133,11 @@ class MultiDayPageTests(ReportFixture):
                          [('Copy link', core.SITE_URL + 'trips/syn-tour/'), ('Copy link to this page', core.SITE_URL + 'trips/syn-tour/')])
 
     def test_multi_day_page_keeps_its_own_layout(self):
-        # section 2: multi-day pages are not changed by the layouts: no hero, no section row, body class p-multiday
+        # section 2: multi-day pages keep their own layout: no section row (the day nav is one), body class p-multiday;
+        # since Phase 10 (report-11) the landscape cover leads them, after the title block and before the strip
         self.assertEqual(self.mdoc.find('body').classes, ['p-multiday'])
-        self.assertIsNone(self.mmain.find(cls='rep-hero'))
+        self.assertIsNotNone(self.mmain.find(cls='rep-hero'))
+        self.assertInOrder(marks(self.mmain), ['title', 'hero', 'stats', 'map'])
         self.assertIsNone(self.mmain.find('nav', cls='rep-toc'))
 
     # ------------------------------------------------------------ contract-phase4.md 2.1: downloads only where a track is
@@ -2339,10 +2320,11 @@ class NotRenderedMapTests(ReportFixture):
         super().setUp()
         self.multiday = load_module(self, 'sitegen.pages.multiday')
 
-    def box(self, label, text, note):
-        """The #map section of a track without a rendered map, written out: the box, the sentence, the phone note."""
-        return ('<section class="rep-map rep-map--empty" id="map" aria-label="%s"><div class="wrap"><div class="empty">%s<p>%s</p></div>%s</div></section>'
-                % (label, core.icon('map', 24), text, note))
+    def box(self, label, text):
+        """The #map section of a track without a rendered map, written out: the box and the sentence (Phase 10: the stats
+        note stays under the strip on phones too, so the box holds no copy of it)."""
+        return ('<section class="rep-map rep-map--empty" id="map" aria-label="%s"><div class="wrap"><div class="empty">%s<p>%s</p></div></div></section>'
+                % (label, core.icon('map', 24), text))
 
     def bare_tour(self):
         """A two-day ski tour neither of whose days has a GPX."""
@@ -2362,9 +2344,9 @@ class NotRenderedMapTests(ReportFixture):
         sec = doc.by_id('map')
         self.assertEqual((sec.tag, sec.classes, sec['aria-label']), ('section', ['rep-map', 'rep-map--empty'], 'Route map, all days'))
         self.assertEqual(sec.find('div', cls='empty').find('p').text(), NOT_RENDERED_DAYS)
-        note = sec.find('p', cls='rep-note-ph')
-        self.assertEqual((note.classes, note.text()), (['strip-note', 'rep-note-ph'], '%s %s %s' % (RECORDINGS, GPS_MAX_FILES, HOW_TEXT)))
-        want = self.box('Route map, all days', NOT_RENDERED_DAYS, strip_note([RECORDINGS, GPS_MAX_FILES], 'rep-note-ph'))
+        self.assertIsNone(sec.find('p', cls='strip-note'))                     # the note is under the strip
+        self.assertEqual(doc.by_id('stats').find('p', cls='strip-note').text(), '%s %s %s' % (RECORDINGS, GPS_MAX_FILES, HOW_TEXT))
+        want = self.box('Route map, all days', NOT_RENDERED_DAYS)
         self.assertEqual(page.html.count(want), 1)
         # no map, no key row, no caption, no button to a full-screen page; the day chapters have no map, key or caption of
         # their own either (their maps are not drawn: the box says so for the whole trip)
@@ -2406,7 +2388,7 @@ class NotRenderedMapTests(ReportFixture):
         self.assertEqual((sec.tag, sec.classes, sec['aria-label']), ('section', ['rep-map', 'mul-map'], 'Route map, all days'))
         self.assertIsNotNone(sec.find('div', cls='mapcap'))
         self.assertTrue(sec.find_all('ul', cls='keyrow'))
-        self.assertIsNotNone(sec.find('p', cls='rep-note-ph'))
+        self.assertIsNone(sec.find('p', cls='strip-note'))             # Phase 10: the note stays under the strip
         self.assertIsNone(sec.find('div', cls='empty'))
         self.assertNotIn(NOT_RENDERED_DAYS, page.html)
         self.assertNotIn('rep-map--empty', page.html)
@@ -2445,7 +2427,7 @@ class NotRenderedMapTests(ReportFixture):
         self.assertNotIn('trips/syn-story/map/', pages)
         html_ = pages['trips/syn-story/'].html
         doc = Doc(html_)
-        self.assertEqual(html_.count(self.box('Route map', NOT_RENDERED, strip_note([RECORDING, GPS_MAX], 'rep-note-ph'))), 1)
+        self.assertEqual(html_.count(self.box('Route map', NOT_RENDERED)), 1)
         self.assertEqual(doc.find_all(cls='keyrow') + doc.find_all(cls='mapcap'), [])
         # the story keeps 'View route', and it leads to the box; the GPX download stays
         self.assertEqual(html_.count(view_route_action()), 1)
@@ -2464,9 +2446,9 @@ class NotRenderedMapTests(ReportFixture):
 RECORDING = 'Stats from the GPS recording.'                                    # core.stats_note, sentence by sentence
 GPS_MAX = 'GPS max is the highest point in the GPX file, not a surveyed summit height.'
 AVG_SPEED = 'Average speed is distance divided by moving time.'
+MOVING = 'Moving time leaves out stops.'               # Phase 10 (gap6-05): when the strip shows Moving
 PACE = 'Pace is moving time divided by distance.'
-ROUTE_ROW_ITEM = '<li><a class="rep-toc-a" href="#map">Route</a></li>'                    # the story section row's Route item
-STATS_ROW_ITEM = '<li><a class="rep-toc-a" href="#stats">Trip details</a></li>'           # ... and its Trip details item, without beta
+MAP_ROW_ITEM = '<li><a class="rep-toc-a" href="#map">Map</a></li>'                          # the story section row's Map item
 # the Route map section: the map with its key and caption, or (Phase 6, resilience-12) the box of a track not rendered yet
 MAP_SECTION = re.compile(r'<section class="rep-map(?: rep-map--empty)?" id="map" aria-label="Route map">.*?</section>', re.S)
 NOT_RENDERED = 'Map not rendered yet. The GPX file is published: use the Download GPX button.'
@@ -2477,8 +2459,7 @@ BBAR = re.compile(r'<nav class="bbar" aria-label="Report sections" style="--n:(\
 # what a single-day report without a track neither says nor links (10.2): the two title actions, the map key's route
 # symbol, the map caption's 'full track, not trimmed', and the two sentences of the stats note that speak of a recording
 ROUTE_WORDS = ('View route', 'Download GPX', 'Route (GPX)', 'full track', 'GPS recording', 'GPX file')
-DETAILS_BETA, DETAILS_STATS = ('Trip details', '#beta'), ('Trip details', '#stats')
-ROUTE = ('Route', '#map')
+ROUTE = ('Map', '#map')          # the section row's map item (Phase 10: named Map, as in the bar; 'Route' is retired)
 REPORT_ROW, PHOTOS_ROW = REPORT, PHOTOS      # the section row names these two as the phone bar does
 
 
@@ -2534,19 +2515,18 @@ def render_overview(tmp, t):
 
 def without_track(body, slug, note, note_left, stats=True):
     """A single-day report page from <body> on with everything that needs a track taken out, and nothing else: the 'View
-    route' and 'Download GPX' title actions, the whole Route map section (map, key rows, caption, the phones' copy of
-    the stats note), the sentences of the stats note under the strip that speak of the recording (note -> note_left,
-    lists of sentences), the section row's Route item, and the phone bar's Map and GPX items with its --n two lower;
-    the bar itself when fewer than two items are left. stats=False (10.3): the report has no stats cells either, so
-    the whole Stats strip goes as well, with the section row's 'Trip details' item that led to it and the bar's Stats
-    item. What the page of a report without a track must be, given the page of the same report with one."""
+    route' and 'Download GPX' title actions, the whole Route map section (map, key rows, caption), the sentences of the
+    stats note under the strip that speak of the recording (note -> note_left, lists of sentences), the section row's
+    Map item, and the phone bar's Map and GPX items with its --n two lower; the bar itself when fewer than two items
+    are left. stats=False (10.3): the report has no stats cells either, so the whole Stats strip goes as well, with the
+    bar's Stats item. What the page of a report without a track must be, given the page of the same report with one."""
     out = body.replace(view_route_action(), '').replace(gpx_title_action(slug), '')
     out = MAP_SECTION.sub('', out)
     if stats:
         out = out.replace(strip_note(note), strip_note(note_left))
     else:
-        out = STRIP_SECTION.sub('', out).replace(STATS_ROW_ITEM, '')
-    out = out.replace(ROUTE_ROW_ITEM, '')
+        out = STRIP_SECTION.sub('', out)
+    out = out.replace(MAP_ROW_ITEM, '')
 
     def bar(m):
         k, items = int(m.group(1)), m.group(2)
@@ -2562,7 +2542,7 @@ def expected_bar(t, gpx_href, has_beta, has_report, has_gallery, chart='', story
     the items in page order for the layout, the Map item only with a map, the Stats item (which stands in for a chart)
     only with a stats strip, the GPX item only with a file, --n the number shown, and no bar at all when fewer than
     two items are left."""
-    chart_item = [('#profile', 'profile', 'Speed' if chart == 'speed' else 'Profile')] if chart else \
+    chart_item = [('#profile', 'profile', 'Speed' if chart == 'speed' else 'Elevation')] if chart else \
         ([('#stats', 'beta', 'Stats')] if has_stats else [])
     the_map = [('#map', 'map', 'Map')] if has_map else []
     if story:
@@ -2578,6 +2558,9 @@ def expected_bar(t, gpx_href, has_beta, has_report, has_gallery, chart='', story
             items.append(('#report', 'report', 'Report'))
         elif has_gallery:
             items.append(('#photos', 'photo', 'Photos'))
+    # Phase 10 (copy-09): in the order the sections run on the page, the strip's Stats first
+    order = ('#stats', '#beta', '#report', '#map', '#profile', '#photos') if story else ('#stats', '#map', '#profile', '#beta', '#report', '#photos')
+    items.sort(key=lambda it: order.index(it[0]))
     out = ['<a href="%s">%s<span>%s</span></a>' % (h, core.icon(ic, 24), lab) for h, ic, lab in items]
     if gpx_href:
         out.append('<a href="%s" download>%s<span>GPX</span></a>' % (gpx_href, core.icon('download', 24)))
@@ -2591,8 +2574,7 @@ class NoTrackTests(ReportFixture):
     'Download GPX' and no 'View route' title action, no Route map section at all, no Route item in the story section
     row, no Map and no GPX item in the phone bar (and no bar when a single item would be left), a stats note and a
     description that say nothing of a recording, a GPX file or a map, and no full-screen map page; a section page never
-    features it. 10.3: when it has no stats cells either it has no Stats strip, no 'Trip details' item unless it has
-    beta rows, and no Stats item in the bar; and a rendered folder its track left behind is not shown anywhere (no
+    features it. 10.3: when it has no stats cells either it has no Stats strip and no Stats item in the bar; and a rendered folder its track left behind is not shown anywhere (no
     map, chart, key, preload or route drawing). A report WITH a track is exactly what it was, rendered or not.
 
     both() builds the page of a fixture report, takes its track.gpx away, loads the site again and builds the page once
@@ -2602,22 +2584,24 @@ class NoTrackTests(ReportFixture):
     # the compact layout has none) and the phone bar before its GPX item, and for the page WITHOUT it the title actions
     # before the copy link, the section row and the phone bar (None: no bar, fewer than two items would be left). Only
     # syn-story has stats (STATS_CELLS); the others lose their Stats strip with the track (10.3)
+    # Phase 10 (copy-09): the section row and the bar name the sections from one table, in page order; the row's
+    # Route and Trip details items are retired (the row is Report · Map · Elevation · Photos)
     CASES = (
-        ('syn-story', {}, [REPORT_ROW, PHOTOS_ROW, ROUTE, DETAILS_BETA], [REPORT, MAP, PHOTOS],
-         [], [REPORT_ROW, PHOTOS_ROW, DETAILS_BETA], [REPORT, PHOTOS]),
-        ('syn-one', None, [REPORT_ROW, ROUTE, DETAILS_STATS], [REPORT, MAP, STATS],
-         [], [REPORT_ROW], None),
-        ('syn-one-beta', {}, [REPORT_ROW, ROUTE, DETAILS_BETA], [BETA_ITEM, REPORT, MAP],
-         [], [REPORT_ROW, DETAILS_BETA], [BETA_ITEM, REPORT]),
-        ('syn-two-tall', None, [REPORT_ROW, PHOTOS_ROW, ROUTE, DETAILS_STATS], [REPORT, MAP, PHOTOS],
+        ('syn-story', {}, [REPORT_ROW, ROUTE, PHOTOS_ROW], [REPORT, MAP, PHOTOS],
          [], [REPORT_ROW, PHOTOS_ROW], [REPORT, PHOTOS]),
-        ('syn-portrait', None, [REPORT_ROW, ROUTE, DETAILS_STATS], [REPORT, MAP, STATS],
+        ('syn-one', None, [REPORT_ROW, ROUTE], [STATS, REPORT, MAP],
+         [], [REPORT_ROW], None),
+        ('syn-one-beta', {}, [REPORT_ROW, ROUTE], [BETA_ITEM, REPORT, MAP],
+         [], [REPORT_ROW], [BETA_ITEM, REPORT]),
+        ('syn-two-tall', None, [REPORT_ROW, ROUTE, PHOTOS_ROW], [REPORT, MAP, PHOTOS],
+         [], [REPORT_ROW, PHOTOS_ROW], [REPORT, PHOTOS]),
+        ('syn-portrait', None, [REPORT_ROW, ROUTE], [STATS, REPORT, MAP],
          [], [REPORT_ROW], None),
         ('syn-words', None, None, [MAP, BETA_ITEM, REPORT], [('Read the report', '#report')], None, [BETA_ITEM, REPORT]),
-        ('syn-photos', None, None, [MAP, STATS, PHOTOS], [], None, None),
-        ('syn-tall-only', None, None, [MAP, STATS], [], None, None),
-        ('syn-track', None, None, [MAP, STATS], [], None, None),
-        ('syn-undated', None, None, [MAP, STATS], [], None, None),
+        ('syn-photos', None, None, [STATS, MAP, PHOTOS], [], None, None),
+        ('syn-tall-only', None, None, [STATS, MAP], [], None, None),
+        ('syn-track', None, None, [STATS, MAP], [], None, None),
+        ('syn-undated', None, None, [STATS, MAP], [], None, None),
     )
     STATS_CELLS = ('syn-story',)       # the fixture reports whose index.md states stats: the strip has cells
     # core.summary of each case: its first sentence (without the full stop) and its facts before the closing one. With a
@@ -2797,9 +2781,9 @@ class NoTrackTests(ReportFixture):
                     self.assertTrue((a['href'] or '').startswith('#'))
                     self.assertIn(a['href'][1:], ids)
 
-    def test_no_route_item_in_the_section_row(self):
-        # 10.2: the story section row lists exactly the sections the page has: Report · Photos · Trip details, no Route.
-        # 10.3: 'Trip details' is the Beta block, else the Stats strip; a report with neither has no such item
+    def test_no_map_item_in_the_section_row(self):
+        # 10.2: the story section row lists exactly the sections the page has; without a track there is no map, so no
+        # Map item (Phase 10: the row names no Beta block and no strip any more)
         for slug, render, row_with, _bar, _actions, row, _bar2 in self.CASES:
             with self.subTest(slug):
                 with_, without = self.both(slug, render)
@@ -2811,14 +2795,12 @@ class NoTrackTests(ReportFixture):
                     continue
                 self.assertEqual([(a.text(), a['href']) for a in before[0].find_all('a')], row_with)
                 self.assertEqual(self.toc(slug), row)
-                gone = (ROUTE,) + (() if slug in self.STATS_CELLS else (DETAILS_STATS,))
-                self.assertEqual(self.toc(slug), [x for x in row_with if x not in gone])
-                self.assertEqual(DETAILS_STATS in row, slug in self.STATS_CELLS and DETAILS_BETA not in row)
+                self.assertEqual(self.toc(slug), [x for x in row_with if x != ROUTE])
                 self.assertEqual(len(after), 1)
                 ids = {n['id'] for n in self.doc(slug).root.walk() if n['id']}
                 self.assertEqual([h[1:] for _t, h in self.toc(slug) if h[1:] not in ids], [])
                 section_nav = need(self, self.report, 'section_nav')
-                self.assertEqual(without.count(section_nav(True, PHOTOS_ROW in row, DETAILS_BETA in row, False, slug in self.STATS_CELLS)), 1)
+                self.assertEqual(without.count(section_nav(True, PHOTOS_ROW in row, False, '')), 1)
 
     def test_no_gpx_link_anywhere_on_the_page(self):
         # 2.1 / 10.2: no GPX control anywhere: no .gpx href and no download attribute in the whole document; no map either
@@ -2850,17 +2832,17 @@ class NoTrackTests(ReportFixture):
                 story = need(self, self.report, 'narrative')(self.by[slug])
                 note, left = self.note_of(slug)
                 body_with, body = with_.split('</head>', 1)[1], without.split('</head>', 1)[1]
-                # everything on the list is on the page with a track, once (the note twice: its phone copy sits under the map)
+                # everything on the list is on the page with a track, once (Phase 10: the note too; phones show it under the strip)
                 self.assertEqual(body_with.count(view_route_action()), 1 if story else 0)
                 self.assertEqual(body_with.count(gpx_title_action(slug)), 1)
-                self.assertEqual(body_with.count(ROUTE_ROW_ITEM), 1 if story else 0)
+                self.assertEqual(body_with.count(MAP_ROW_ITEM), 1 if story else 0)
                 self.assertEqual(body_with.count(map_bar_item()), 1)
                 self.assertEqual(body_with.count(gpx_bar_item(slug + '.gpx')), 1)
                 self.assertEqual(body_with.count(strip_note(note)), 1)
                 sections = MAP_SECTION.findall(body_with)
                 self.assertEqual(len(sections), 1)
                 self.assertEqual(sections[0].count('<section'), 1)
-                self.assertEqual(sections[0].count(strip_note(note, 'rep-note-ph')), 1)
+                self.assertNotIn('rep-note-ph', body_with)
                 self.assertEqual(len(BBAR.findall(body_with)), 1)
                 # the Stats strip is on the page with a track whether or not the report states a stat, as it always was:
                 # without cells it is the empty list and the note
@@ -2872,7 +2854,6 @@ class NoTrackTests(ReportFixture):
                 if not stats:
                     self.assertEqual(strips[0], '<section class="wrap rep-strip" id="stats" aria-label="Stats">'
                                                 '<dl class="strip" style="--cells:1" aria-label="Trip stats"></dl>%s</section>' % strip_note(note))
-                self.assertEqual(body_with.count(STATS_ROW_ITEM), 1 if (story and DETAILS_STATS in _row) else 0)
                 self.assertEqual(body_with.count(stats_bar_item()), 1 if STATS in _bar else 0)
                 self.assertEqual(body, without_track(body_with, slug, note, left, stats=stats))
                 self.assertNotEqual(body, without_track(body_with, slug, note, left, stats=not stats))
@@ -2926,11 +2907,12 @@ class NoTrackTests(ReportFixture):
                 if not rendered:
                     self.assertEqual(block, '<div class="map map--report map--nowide"></div>')
                     want = ('<section class="rep-map rep-map--empty" id="map" aria-label="Route map"><div class="wrap"><div class="empty">'
-                            '%s<p>%s</p></div>%s</div></section>' % (core.icon('map', 24), NOT_RENDERED, strip_note(self.note_of(slug)[0], 'rep-note-ph')))
+                            '%s<p>%s</p></div></div></section>' % (core.icon('map', 24), NOT_RENDERED))
                 else:
-                    want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
+                    # Phase 10 (gap6-04): no copy of the stats note under the caption; phones show it under the strip
+                    want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s</div></section>'
                             % (block, core.key_rows(self.report.key_items(t, meta), self.report.key_items(t, meta, phone=True)),
-                               self.report.map_caption(t), strip_note(self.note_of(slug)[0], 'rep-note-ph')))
+                               self.report.map_caption(t)))
                 html_ = self.page(slug).html
                 self.assertEqual(MAP_SECTION.findall(html_), [want])
                 self.assertEqual('fetchpriority="high"' in want, rendered and not hero)
@@ -2962,9 +2944,9 @@ class NoTrackTests(ReportFixture):
         self.assertEqual([need(self, self.report, 'narrative')(self.by[s]) for s in slugs], [True, True, False, False, False])
         self.assertEqual([self.hero(s) is not None for s in slugs], [True, False, False, False, False])
         # slug: title actions before the copy link, the section row, the phone bar, the ids of its sections, its stats
-        # note. 10.3: only the first and the last state stats; the other three have no Stats strip, so no 'Trip
-        # details' item and no Stats bar item led there, and a bar of Report alone is no bar
-        want = {'syn-nt-lead': ([], [REPORT_ROW, PHOTOS_ROW, DETAILS_BETA], [REPORT, PHOTOS], ['title', 'hero', 'stats', 'beta', 'report', 'photos'], ''),
+        # note. 10.3: only the first and the last state stats; the other three have no Stats strip, so no Stats bar item
+        # led there, and a bar of Report alone is no bar (Phase 10: the row names no Beta block or strip)
+        want = {'syn-nt-lead': ([], [REPORT_ROW, PHOTOS_ROW], [REPORT, PHOTOS], ['title', 'hero', 'stats', 'beta', 'report', 'photos'], ''),
                 'syn-nt-tall': ([], [REPORT_ROW], None, ['title', 'report'], ''),
                 'syn-nt-words': ([('Read the report', '#report')], None, None, ['title', 'report'], ''),
                 'syn-nt-bare': ([], None, None, ['title'], ''),
@@ -3006,7 +2988,7 @@ class NoTrackTests(ReportFixture):
         # their neighbours with tracks keep everything (the pager and 'More like this' link reports, never files)
         self.assertEqual(gpx_links(self.doc('syn-track').root), [('Download GPX', 'syn-track.gpx'), ('GPX', 'syn-track.gpx')])
         self.assertIsNotNone(self.doc('syn-track').by_id('map'))
-        self.assertEqual(bar_items(self.bbar('syn-track')), [MAP, STATS, ('GPX', 'syn-track.gpx')])
+        self.assertEqual(bar_items(self.bbar('syn-track')), [STATS, MAP, ('GPX', 'syn-track.gpx')])
 
     def test_the_stats_strip_of_a_report_without_a_track(self):
         # 10.3: a report without a track has the Stats strip exactly when it states a stat. (no stats, a distance, a
@@ -3052,15 +3034,14 @@ class NoTrackTests(ReportFixture):
                     self.assertEqual(doc.by_id('stats').find('dl')['style'], '--cells:%d' % len(labels_of[stats]))
                 self.assertEqual([p.text() for p in doc.find_all('p', cls='strip-note')], [x + ' ' + HOW_TEXT for x in note])
                 self.assertEqual(html_.count('Average speed is'), len(note))
-                # the section row (story): Report, then Trip details at the Beta block, else at the strip, else not at all
+                # the section row (story): Report alone, with no map (Phase 10: the row names no Beta block or strip)
                 if story:
-                    details = [DETAILS_BETA] if beta else ([DETAILS_STATS] if stats != 'none' else [])
-                    self.assertEqual(self.toc(slug), [REPORT_ROW] + details)
+                    self.assertEqual(self.toc(slug), [REPORT_ROW])
                 else:
                     self.assertEqual(self.main(slug).find_all('nav', cls='rep-toc'), [])
                 # the bar: Beta, else Stats when there is a strip, with Report; one item is no bar
                 if story:
-                    bar = [BETA_ITEM, REPORT] if beta else ([REPORT, STATS] if stats != 'none' else [REPORT])
+                    bar = [BETA_ITEM, REPORT] if beta else ([STATS, REPORT] if stats != 'none' else [REPORT])   # page order
                 else:
                     bar = ([BETA_ITEM] if beta else ([STATS] if stats != 'none' else [])) + [REPORT]
                 navs = doc.find_all('nav', cls='bbar')
@@ -3095,7 +3076,7 @@ class NoTrackTests(ReportFixture):
 
     def test_a_tracked_report_without_stats_keeps_its_strip(self):
         # 10.3: a report WITH a track always has the Stats strip, even with no cell: byte for byte the section it was,
-        # with its 'Trip details' item and its Stats bar item. (Every fixture report but syn-story is one: the layout,
+        # with its Stats bar item. (Every fixture report but syn-story is one: the layout,
         # bar and section-row tests above this class pin the rest of those pages.)
         note = strip_note([RECORDING, GPS_MAX])
         self.assertEqual(note, '<p class="strip-note">Stats from the GPS recording. GPS max is the highest point in the GPX '
@@ -3109,16 +3090,16 @@ class NoTrackTests(ReportFixture):
                 self.assertEqual(core.strip_cells(t), [])
                 self.assertEqual(STRIP_SECTION.findall(self.page(slug).html), [empty % note])
                 self.assertEqual(self.page(slug).html.count(note), 1)
-        self.assertEqual(self.toc('syn-one'), [REPORT_ROW, ROUTE, DETAILS_STATS])
-        self.assertEqual(bar_items(self.bbar('syn-one')), [REPORT, MAP, STATS, ('GPX', 'syn-one.gpx')])
-        self.assertEqual(bar_items(self.bbar('syn-track')), [MAP, STATS, ('GPX', 'syn-track.gpx')])
+        self.assertEqual(self.toc('syn-one'), [REPORT_ROW, ROUTE])
+        self.assertEqual(bar_items(self.bbar('syn-one')), [STATS, REPORT, MAP, ('GPX', 'syn-one.gpx')])   # page order
+        self.assertEqual(bar_items(self.bbar('syn-track')), [STATS, MAP, ('GPX', 'syn-track.gpx')])
         # the one change 10.3 makes to a tracked report: the sentence about a derived value is written only when the
         # strip shows that value, so a mountain bike or flat-water report without a distance and a moving time no
         # longer explains an average speed or a pace it does not state
         self.assertEqual(self.by['syn-photos']['activity'], 'mtb')
         self.assertEqual(STRIP_SECTION.findall(self.page('syn-photos').html), [empty % note])
         ride = self.add('syn-ride-stats', activity='mtb', date='2025-09-01', stats={'distance_km': 20.0, 'moving': '2:00'})
-        self.assertEqual(self.doc('syn-ride-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, AVG_SPEED, GPS_MAX, HOW_TEXT]))
+        self.assertEqual(self.doc('syn-ride-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, AVG_SPEED, GPS_MAX, MOVING, HOW_TEXT]))
         self.assertEqual([dt.text() for dt in self.doc('syn-ride-stats').by_id('stats').find_all('dt')], ['Distance', 'Moving', 'Avg speed'])
         self.assertTrue(ride['track'])
         half = self.add('syn-ride-half', activity='mtb', date='2025-09-02', stats={'distance_km': 20.0})
@@ -3128,7 +3109,7 @@ class NoTrackTests(ReportFixture):
         self.assertTrue(paddle['track'])
         self.assertEqual(STRIP_SECTION.findall(self.page('syn-paddle-bare').html), [empty % strip_note([RECORDING])])
         self.add('syn-paddle-stats', activity='other', subtype='SUP', date='2025-09-04', stats={'distance_km': 5.0, 'moving': '1:00'})
-        self.assertEqual(self.doc('syn-paddle-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, PACE, HOW_TEXT]))
+        self.assertEqual(self.doc('syn-paddle-stats').by_id('stats').find('p', cls='strip-note').text(), ' '.join([RECORDING, PACE, MOVING, HOW_TEXT]))
 
     def rendered_files(self, slug):
         """What the render folder of the temp dir holds for a trip, on disk."""
@@ -3376,39 +3357,20 @@ class NoTrackTests(ReportFixture):
         self.assertEqual((bar_items(nav), nav['style']), ([STATS, REPORT], '--n:2'))
 
     def test_section_nav_without_a_map(self):
-        # 10.2: report.section_nav(has_report, has_gallery, has_beta, has_map=True): has_map=False drops the Route item
-        # and nothing else; the default is the row as it was. 10.3: ... has_stats=True: 'Trip details' is listed when the
-        # page has a Beta block (#beta) or a Stats strip (#stats), so has_stats=False drops it only without beta
+        # 10.2: report.section_nav(has_report, has_gallery, has_map=True, chart=''): has_map=False drops the Map item and
+        # nothing else; the default is the row with a map
         section_nav = need(self, self.report, 'section_nav')
-        for has_report, has_gallery, has_beta in itertools.product((True, False), repeat=3):
-            with self.subTest(report=has_report, gallery=has_gallery, beta=has_beta):
-                with_ = section_nav(has_report, has_gallery, has_beta)
-                self.assertEqual(section_nav(has_report, has_gallery, has_beta, True), with_)
-                self.assertEqual(section_nav(has_report, has_gallery, has_beta, has_map=True), with_)
-                self.assertEqual(section_nav(has_report, has_gallery, has_beta, True, True), with_)
-                self.assertEqual(section_nav(has_report, has_gallery, has_beta, has_map=True, has_stats=True), with_)
-                self.assertEqual(with_.count(ROUTE_ROW_ITEM), 1)
-                without = section_nav(has_report, has_gallery, has_beta, False)
-                self.assertEqual(without, section_nav(has_report, has_gallery, has_beta, has_map=False))
-                self.assertEqual(without, with_.replace(ROUTE_ROW_ITEM, ''))
+        for has_report, has_gallery, chart in itertools.product((True, False), (True, False), ('', 'profile')):
+            with self.subTest(report=has_report, gallery=has_gallery, chart=chart):
+                with_ = section_nav(has_report, has_gallery, True, chart)
+                self.assertEqual(section_nav(has_report, has_gallery, chart=chart), with_)
+                self.assertEqual(with_.count(MAP_ROW_ITEM), 1)
+                without = section_nav(has_report, has_gallery, False, chart)
+                self.assertEqual(without, with_.replace(MAP_ROW_ITEM, ''))
                 items = [(a.text(), a['href']) for a in Doc(without).find_all('a')]
-                want = ([REPORT_ROW] if has_report else []) + ([PHOTOS_ROW] if has_gallery else [])
-                self.assertEqual(items, want + [DETAILS_BETA if has_beta else DETAILS_STATS])
-                self.assertNotIn('Route', without)
+                want = ([REPORT_ROW] if has_report else []) + ([PROFILE] if chart else []) + ([PHOTOS_ROW] if has_gallery else [])
+                self.assertEqual(items, want)
                 self.assertNotIn('#map', without)
-                # without a strip
-                for has_map in (True, False):
-                    got = section_nav(has_report, has_gallery, has_beta, has_map, False)
-                    self.assertEqual(got, section_nav(has_report, has_gallery, has_beta, has_map=has_map, has_stats=False))
-                    base = section_nav(has_report, has_gallery, has_beta, has_map)
-                    self.assertEqual(got, base if has_beta else base.replace(STATS_ROW_ITEM, ''))
-                    self.assertEqual(base.count(STATS_ROW_ITEM), 0 if has_beta else 1)
-                    self.assertNotIn('#stats', got)
-                    self.assertEqual([(a.text(), a['href']) for a in Doc(got).find_all('a')],
-                                     want + ([ROUTE] if has_map else []) + ([DETAILS_BETA] if has_beta else []))
-        self.assertEqual([(a.text(), a['href']) for a in Doc(section_nav(True, True, True)).find_all('a')],
-                         [REPORT_ROW, PHOTOS_ROW, ROUTE, DETAILS_BETA])
-        self.assertEqual([(a.text(), a['href']) for a in Doc(section_nav(True, False, False, False, False)).find_all('a')], [REPORT_ROW])
 
     def test_build_makes_a_map_page_exactly_for_the_reports_with_a_track(self):
         # 10.2 as amended by Phase 6 (resilience-12): report.build builds trips/<slug>/map/ for a single-day report with
