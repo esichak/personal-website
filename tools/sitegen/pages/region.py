@@ -94,7 +94,9 @@ def pick_featured(ts):
 def featured(slug, here, pub, feat):
     if not feat:
         return ''
-    cards = ''.join(core.trip_card(t, here, core.RELATED_SIZES, ns='rf', summary=True) for t in feat)
+    # a title the region's list repeats (the page lists every report of the region) names its date in the card's link
+    repeated = core.repeated_titles(pub)
+    cards = ''.join(core.trip_card(t, here, core.RELATED_SIZES, ns='rf', summary=True, repeated=repeated) for t in feat)
     k = sum(1 for t in pub if t['has_writeup'])
     more = ''
     if k > 1:

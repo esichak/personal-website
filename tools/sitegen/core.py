@@ -808,11 +808,15 @@ def _card_source(t, p, here, sizes):
             % (CARD_PHONE_MEDIA, base + p['th'], thumb_width(p), base + p['sm'], small_w, base + p['file'], p['w'], CARD_PHONE_SIZES))
 
 
-def cover_img(t, here, sizes, eager=False, cls=''):
+def cover_img(t, here, sizes, eager=False, cls='', list_sizes=None):
     """The trip's cover (content.resolve_cover) as one <img class="cover-img">, cropped by CSS (object-fit: cover) around
     its focal point. eager=True marks the page's lead image (no lazy loading, fetchpriority high; pair with
     cover_preload()). A card cover that has a .th copy is wrapped in <picture class="cover-pic"> with the phone-only
-    <source> of _card_source (the picture has no box of its own: base.css). '' when the trip has no photo."""
+    <source> of _card_source (the picture has no box of its own: base.css). list_sizes: the slot of the explorer's list
+    view, whose thumbnail is at most 200 px wide; the image then also carries data-srcset-list (the .th copy, the .sm copy
+    and the full file) and data-sizes-list, which trips.js puts in place of srcset and sizes while the list view is on,
+    and takes back for the cards. The card view's own candidates stay as they are (the .th copy is never one of them:
+    a 400 px card slot would take it and look soft). '' when the trip has no photo."""
     c = t.get('cover')
     if not c:
         return ''
@@ -822,9 +826,13 @@ def cover_img(t, here, sizes, eager=False, cls=''):
     x, y = c['focal']
     pos = (' style="object-position:%s%% %s%%"' % (_pct(x), _pct(y))) if (x, y) != (50.0, 50.0) else ''
     wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if (p.get('w') and p.get('h')) else ''
-    img = ('<img class="cover-img%s" src="%s"%s%s alt="%s" decoding="async"%s%s>'
+    listed = ''
+    if list_sizes and srcset and p.get('th'):
+        listed = (' data-srcset-list="%s %dw, %s" data-sizes-list="%s"'
+                  % (link(here, t['url']) + p['th'], thumb_width(p), srcset, list_sizes))
+    img = ('<img class="cover-img%s" src="%s"%s%s alt="%s" decoding="async"%s%s%s>'
            % ((' ' + cls) if cls else '', src, (' srcset="%s" sizes="%s"' % (srcset, sizes)) if srcset else '', wh,
-              esc(p.get('alt') or ''), ' fetchpriority="high"' if eager else ' loading="lazy"', pos))
+              esc(p.get('alt') or ''), ' fetchpriority="high"' if eager else ' loading="lazy"', pos, listed))
     source = '' if eager else _card_source(t, p, here, sizes)
     return ('<picture class="cover-pic">%s%s</picture>' % (source, img)) if source else img
 
@@ -1092,7 +1100,7 @@ def stats_cells(t):
 def excerpt_parts(t, limit=180):
     """(label, text): label is '' when the trip has its own write-up, else 'DAY 5 · TITLE' of the first written day."""
     if t['body_md']:
-        return '', markdown.plain(t['body_md'], limit)
+        return '', markdown.plain_sentences(t['body_md'], limit)
     d = next((d for d in t['days'] if d['body_md']), None)
     if not d:
         return '', ''
@@ -1100,7 +1108,7 @@ def excerpt_parts(t, limit=180):
     if re.fullmatch(r'day\s*%s' % re.escape(str(d['label'])), title, re.I):
         title = ''  # a day titled just 'Day 4' would read 'DAY 4 · DAY 4'
     lab = 'DAY %s' % esc(str(d['label'])) + ((' · ' + esc(title).upper()) if title else '')
-    return lab, markdown.plain(d['body_md'], limit)
+    return lab, markdown.plain_sentences(d['body_md'], limit)
 
 
 def excerpt(t, limit=180):
@@ -1121,7 +1129,7 @@ def card_summary(t, limit=180, series_day=False):
     if t.get('card_summary'):
         return {'text': t['card_summary'], 'source_kind': 'explicit', 'source_label': ''}
     if t['body_md']:
-        return {'text': markdown.plain(t['body_md'], limit), 'source_kind': 'report', 'source_label': ''}
+        return {'text': markdown.plain_sentences(t['body_md'], limit), 'source_kind': 'report', 'source_label': ''}
     if t['days'] and (t['kind'] == 'multi-day' or (t['kind'] == 'series' and series_day)):
         lab, ex = excerpt_parts(t, limit)
         if ex:
@@ -1255,14 +1263,26 @@ def phone_row(t, here):
                meta_items(bits), icon('chevron-right', 20)))
 
 
-def trip_card(t, here, sizes, ns='tc', cls='', summary=False):
+def repeated_titles(ts):
+    """The titles (case-folded) more than one of these trips carries: their cards name the date as well (trip_card)."""
+    seen = {}
+    for x in ts:
+        seen[x['title'].casefold()] = seen.get(x['title'].casefold(), 0) + 1
+    return {k for k, v in seen.items() if v > 1}
+
+
+def trip_card(t, here, sizes, ns='tc', cls='', summary=False, repeated=(), list_sizes=None):
     """One trip as a card (home's recent outings, the trips/ explorer): the cover (core.cover_img), else the route tile,
     else the activity disc; DATE · PLACE; the H3 title link, described by that line (repeated titles such as 'Tallac'
     stay distinct); the inline activity chip, status tags and the Mono-S stats line; and, with summary=True, the card
     summary (core.card_summary) unless it is only facts. The photo link is skipped by keyboards and readers: the title
-    link is the card's name. data-* attributes carry the facets trips.js filters on (region as its map-anchor slug)."""
+    link is the card's name. repeated: the case-folded titles that more than one card of the page carries
+    (repeated_titles); such a card's link also names its date, for readers (a links list does not read the
+    aria-describedby line). list_sizes: cover_img's list-view slot (the explorer). data-* attributes carry the facets
+    trips.js filters and sorts on: region as its map-anchor slug, month 'MM', distance in km to one decimal, gain in
+    metres, the number of photos (the trip's own and its days'); '' where the content has no value."""
     href = link(here, t['url'])
-    img = cover_img(t, here, sizes)
+    img = cover_img(t, here, sizes, list_sizes=list_sizes)
     if img:
         media = '<a class="tcard-img" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, img)
     else:
@@ -1282,13 +1302,23 @@ def trip_card(t, here, sizes, ns='tc', cls='', summary=False):
         if sm['text'] and sm['source_kind'] != 'facts':
             ex = ((('<p class="t-label tcard-exl">%s</p>' % sm['source_label']) if sm['source_label'] else '')
                   + '<p class="t-excerpt tcard-ex">%s</p>' % esc(sm['text']))
-    data = (' data-slug="%s" data-act="%s" data-kind="%s" data-region="%s" data-year="%s" data-writeup="%s" data-date="%s"'
+    st = t.get('stats') or {}
+    km, gain = st.get('distance_km'), st.get('gain_m')
+    photos = len(t['photos']) + sum(len(d['photos']) for d in t['days'])
+    from sitegen import search as _s
+    months = ' '.join('%02d' % m for m in _s.trip_months(t))     # every month the trip spans: the Month filter
+    data = (' data-slug="%s" data-act="%s" data-kind="%s" data-region="%s" data-year="%s" data-month="%s" data-writeup="%s"'
+            ' data-photos="%d" data-km="%s" data-gain="%s" data-date="%s"'
             % (esc(t['slug']), t['activity'], t['kind'], content.slugify(t['region']) if t.get('region') else '',
-               t['date'].year if t['date'] else '', '1' if t['has_writeup'] else '0', t['date'].isoformat() if t['date'] else ''))
+               t['date'].year if t['date'] else '', months, '1' if t['has_writeup'] else '0',
+               photos, ('%.1f' % km) if isinstance(km, (int, float)) else '', str(int(round(gain))) if isinstance(gain, (int, float)) else '',
+               t['date'].isoformat() if t['date'] else ''))
+    when = trip_date(t, caps=False, short=True) if (t['title'].casefold() in repeated and t['date']) else ''
     return ('<li class="tcard%s"%s>%s<div class="tcard-b"><p class="t-mono-s tcard-meta" id="%s">%s</p>'
-            '<h3 class="tcard-t"><a href="%s" aria-describedby="%s">%s</a></h3>'
+            '<h3 class="tcard-t"><a href="%s" aria-describedby="%s">%s%s</a></h3>'
             '<div class="tcard-act">%s%s%s</div>%s</div></li>'
             % ((' ' + cls) if cls else '', data, media, mid, meta, href, mid, title_html(t['title']),
+               ('<span class="sr">, %s</span>' % when) if when else '',
                chip(t, variant='inline'), trip_tags(t, shape=False),
                ('<p class="t-mono-s tcard-ps">%s</p>' % stats) if stats else '', ex))
 
@@ -1296,19 +1326,66 @@ def trip_card(t, here, sizes, ns='tc', cls='', summary=False):
 RELATED_SIZES = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
 
 
+_NAME_WORDS = [None, frozenset()]   # [the published list they were worked out from, the words]: held, so never a reused id
+NAME_MIN = 5   # a title word pairs two trips only when it is this long and the proper part of some place: or peak name
+NAME_MAX = 2   # ... and names no more than this many different places (a word in many names is a kind of place, not one)
+# the generic part of a place name ('Mount Tallac', 'Sawtooth Ridge'): never the word that makes two trips one place
+NAME_GENERIC = frozenset('mount mountain mountains peak peaks ridge ridges lake lakes creek canyon valley basin range pass '
+                         'point falls river shore trail trails grade forest ranch county national state park summit '
+                         'meadow meadows north south east west upper lower little wilderness village'.split())
+
+
+def name_words(site):
+    """The words that can pair two trips by their titles: the words of every place: and map: peaks value of the published
+    reports, normalised (search.normalize), of NAME_MIN letters or more, not a generic part of a name (NAME_GENERIC) and
+    found in no more than NAME_MAX different names. 'tallac' (Mount Tallac) is one; 'mount', 'ridge', 'south' or 'season'
+    never are. Worked out once per site."""
+    from sitegen import search as _s
+    if _NAME_WORDS[0] is not site['published']:
+        names = set()
+        for x in site['published']:
+            for nm in [x.get('place') or ''] + [p for p in ((x.get('map') or {}).get('peaks') or []) if isinstance(p, str)]:
+                if _s.normalize(nm):
+                    names.add(_s.normalize(nm))
+        seen = {}
+        for nm in names:
+            for w in set(nm.split()):
+                seen[w] = seen.get(w, 0) + 1
+        _NAME_WORDS[:] = [site['published'], frozenset(w for w, k in seen.items() if len(w) >= NAME_MIN and not w.isdigit()
+                                                       and w not in NAME_GENERIC and k <= NAME_MAX)]
+    return _NAME_WORDS[1]
+
+
+def same_name(t, x, words):
+    """t and x share a place (case-folded), a named peak, or a title word that is a place or peak word (name_words)."""
+    from sitegen import search as _s
+    if t.get('place') and x.get('place') and t['place'].strip().casefold() == x['place'].strip().casefold():
+        return True
+    peaks = lambda y: {p.strip().casefold() for p in ((y.get('map') or {}).get('peaks') or []) if isinstance(p, str)}  # noqa: E731
+    if peaks(t) & peaks(x):
+        return True
+    return bool(set(_s.normalize(t['title']).split()) & set(_s.normalize(x['title']).split()) & words)
+
+
 def related(t, site, k=3, skip=()):
     """Up to k published reports to read next, by one transparent rule. Candidates share t's region or its activity; they
-    are ordered: same region and same activity, then same region, then same activity; within each, the nearest in date
-    to t first (a trip without a date last), then the newer one, then site['published'] order. Never t itself, never a
-    planned route, never a draft (never loaded), each slug once. skip: reports the page already links to right beside
-    this list (its Newer / Older pager), left out so the page does not offer the same report twice."""
+    are ordered: same activity and the same place or name (same_name: a shared place, peak, or title word that names a
+    place somewhere on the site, so two Tallac tours pair while two trips called 'south' do not), then same region and
+    same activity, then same region, then same activity; within each, the nearest in date to t first (a trip without a
+    date last), then the newer one, then site['published'] order. Never t itself, never a planned route, never a draft
+    (never loaded), each slug once. skip: reports the page already links to right beside this list (its Newer / Older
+    pager), left out so the page does not offer the same report twice."""
     region, act, when = t.get('region'), t['activity'], t.get('date')
+    words = name_words(site)
 
     def key(ix):
         i, x = ix
         same_region = bool(region) and x.get('region') == region
         same_act = x['activity'] == act
-        tier = 0 if (same_region and same_act) else (1 if same_region else 2)
+        if same_act and same_name(t, x, words):
+            tier = 0
+        else:
+            tier = 1 if (same_region and same_act) else (2 if same_region else 3)
         d = x.get('date')
         gap = abs((d - when).days) if (d and when) else None
         return (tier, gap is None, gap or 0, -(d.toordinal()) if d else 0, i)
@@ -1329,7 +1406,10 @@ def related_block(t, here, site, k=3, skip=()):
     rel = related(t, site, k, skip)
     if not rel:
         return ''
-    rule = [nb('SAME REGION, THEN ACTIVITY') if t.get('region') else nb('SAME ACTIVITY'), nb('NEAREST IN DATE')]
+    # the first rule is long: it may wrap after a comma (a phone), never inside a clause
+    tiers = (('SAME PLACE OR NAME AND ACTIVITY', 'THEN REGION AND ACTIVITY', 'THEN REGION', 'THEN ACTIVITY') if t.get('region')
+             else ('SAME PLACE OR NAME AND ACTIVITY', 'THEN ACTIVITY'))
+    rule = [', '.join(nb(c) for c in tiers), nb('NEAREST IN DATE')]
     if any(skip):
         rule.append(nb('NEWER / OLDER NOT REPEATED'))
     return ('<section class="rep-related wrap sec" aria-labelledby="rel-h"><div class="shead"><h2 class="shead-t" id="rel-h">More like this</h2>'
@@ -1624,8 +1704,21 @@ def main_nav():
     return out
 
 
+def search_form(here, fid):
+    """A search box that lands on the explorer: trips/?q=<words>&sort=relevance (the hidden sort is what makes a search
+    started here open in Best match order; clearing the box there goes back to Newest). fid: the input's id, unique on
+    the page (nav-q in the header, menu-q in the menu). The words are never written back into a page."""
+    return ('<form class="nav-search" role="search" aria-label="Search trips" action="%s" method="get">'
+            '<label class="sr" for="%s">Search trips</label>'
+            '<input class="nav-q" id="%s" name="q" type="search" placeholder="Search" maxlength="200" autocomplete="off">'
+            '<input type="hidden" name="sort" value="relevance">'
+            '<button class="nav-go" type="submit" aria-label="Search">%s</button></form>'
+            % (link(here, 'trips/'), fid, fid, icon('search', 18)))
+
+
 def header(here, active=None, trip=None):
-    """Site header + menu. Main nav: Trips · Tick list · Map · PCT · About, then Search (the explorer's search box). active:
+    """Site header + menu. Main nav: Trips · Tick list · Map · PCT · About, then Search: a search box that lands on the
+    explorer (search_form), except on trips/ itself, which has its own box and keeps a link to it. active:
     'trips', 'ticklist', 'goal' (a goal page: Tick list is current as 'true'), 'map', 'about', or an activity key (section,
     report, multi-day and full-screen-map pages: Trips is current as 'true', and the phone menu's activity row as before).
     aria-current="page" only on the page a link points to; the PCT journal page marks PCT alone. The activity pages stay reachable from the phone menu's Reports column, the
@@ -1647,7 +1740,9 @@ def header(here, active=None, trip=None):
         return (' aria-current="%s"' % state) if state else ''
     main = main_nav()
     items = ['<a href="%s"%s>%s</a>' % (link(here, url), cur(key, url), lab) for key, lab, url in main]
-    search = '<a class="nav-search" href="%s">%sSearch</a>' % (link(here, 'trips/#search'), icon('search', 18))
+    on_trips = here == 'trips/'
+    search = ('<a class="nav-search" href="%s">%sSearch</a>' % (link(here, 'trips/#search'), icon('search', 18)) if on_trips
+              else search_form(here, 'nav-q'))
     menu_rows = []
     for act, lab in NAV:
         # the 'Other' row names the sub-types that have reports (other_subtypes, via register_site); .ml draws the separators
@@ -1659,11 +1754,13 @@ def header(here, active=None, trip=None):
                             icon('chevron-right', 20)))
     site_rows = []
     menu_icons = {'trips': 'list', 'ticklist': 'checkbox', 'map': 'map', 'pct': 'HIK', 'about': 'info'}
-    for key, lab, url in main + [('search', 'Search', 'trips/#search')]:
+    for key, lab, url in main + ([('search', 'Search', 'trips/#search')] if on_trips else []):
         word = 'Map &amp; archive' if key == 'map' else lab
         site_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span></span>%s</a></li>'
                          % (link(here, url), cur(key, url) if key != 'search' else '', icon(menu_icons.get(key, 'search'), 24), word,
                             icon('chevron-right', 20)))
+    if not on_trips:
+        site_rows.append('<li class="menu-search">%s</li>' % search_form(here, 'menu-q'))
     ab = ''
     if trip:
         ab = ('<a class="ab-trip" href="#title" aria-label="Back to top: %s"><span class="ab-g" aria-hidden="true">%s</span>'

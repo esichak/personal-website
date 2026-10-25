@@ -6,6 +6,7 @@ write of any kind; authoring happens locally with tools/ticklist.py.
 """
 from sitegen import core
 from sitegen.core import esc, link, icon
+from sitegen.pages.trips import more_button
 
 import content
 import goals
@@ -18,6 +19,15 @@ SORTS = [('priority', 'Priority'), ('added', 'Newest added'), ('name', 'Name')]
 SCOPES = [('active', 'Active'), ('shortlisted', 'Shortlisted'), ('completed', 'Completed'), ('archived', 'Archived'), ('all', 'All')]
 VIEWS = [('cards', 'Cards', 'photo'), ('list', 'List', 'list')]
 PRIORITY_RANK = {'high': 0, 'normal': 1, 'someday': 2}
+# the search box, the filters and the status line appear once there are this many active goals to sort through; with
+# fewer the page is its head and the active goals (completed and archived ones are left off, as the form's default scope
+# leaves them off), and an address with ?status= or ?scope= shows that same page
+FILTERS_FROM = 6
+
+
+def with_form(site):
+    """Whether the page carries the search form: FILTERS_FROM active goals (goals.is_active) or more."""
+    return sum(1 for t in site['goals'] if goals.is_active(t['goal'])) >= FILTERS_FROM
 
 
 def plural(k, word, pl=None):
@@ -96,20 +106,21 @@ def controls(site):
     views = ''.join('<button type="button" role="radio" data-view="%s" aria-checked="%s" tabindex="%s">%s%s</button>'
                     % (v, 'true' if i == 0 else 'false', '0' if i == 0 else '-1', icon(ic, 16), lab) for i, (v, lab, ic) in enumerate(VIEWS))
     # autocomplete="off" on the form, as on the Trips page (trips.controls): the script sets the controls from the address
-    return ('<form class="trx-form tkl-form wrap" role="search" id="search" action="" autocomplete="off" hidden>'
+    return ('<form class="trx-form tkl-form wrap" role="search" aria-label="Search and filter goals" id="search" action="" autocomplete="off" hidden>'
             '<label class="sr" for="tkl-q">Search goals</label>'
             '<input class="trx-q" type="search" id="tkl-q" name="q" placeholder="Search by name, place, region, tag or note" autocomplete="off" maxlength="200">'
             '<div class="trx-filters">'
             '<div class="trx-acts" role="radiogroup" aria-label="Activity">%s</div>'
-            '%s%s%s%s'
+            '%s'
+            '<div class="trx-more" id="tkl-more">%s%s%s%s'
             '<button type="button" class="fchip tkl-gpx" role="switch" aria-checked="false" data-toggle="gpx">Has a route (GPX)</button>'
-            '</div>'
+            '</div></div>'
             '<div class="trx-filters tkl-row2">'
-            '<div class="trx-acts tkl-scope" role="radiogroup" aria-label="Show">%s</div>%s'
+            '<div class="trx-acts tkl-scope" role="radiogroup" aria-label="Show">%s</div><div class="trx-more" id="tkl-more2">%s</div>'
             '<div class="trx-view" role="radiogroup" aria-label="View">%s</div>'
             '</div></form>%s'
             '<noscript><p class="note wrap trx-noscript">Search and filters need JavaScript. Every goal is listed below by region.</p></noscript>'
-            % (''.join(chips),
+            % (''.join(chips), more_button('tkl-more tkl-more2'),
                select('region', 'Region', [(slug, name) for name, slug in regions_of(gs) if slug], 'All regions'),
                select('status', 'Status', statuses, 'Any status'),
                select('priority', 'Priority', prios, 'Any priority'),
@@ -129,7 +140,8 @@ def status_row(site):
 
 
 def results(site):
-    gs = site['goals']
+    # without the form nothing would hide the completed and archived goals: only the active ones are listed then
+    gs = site['goals'] if with_form(site) else [t for t in site['goals'] if goals.is_active(t['goal'])]
     out = []
     for name, slug in regions_of(gs):
         ts = order([t for t in gs if region_slug(t) == slug])
@@ -137,13 +149,18 @@ def results(site):
         out.append('<section class="tkl-region trx-yr" data-region="%s"><div class="trx-yr-h"><h2 class="t-label" id="%s">%s</h2>'
                    '<span class="t-mono-s trx-yr-n">%s</span></div><ul class="tkl-grid trx-grid tgrid">%s</ul></section>'
                    % (slug, rid, esc(name), plural(len(ts), 'GOAL'), ''.join(core.goal_card(t, HERE) for t in ts)))
-    empty = '' if gs else '<div class="empty"><p>No goals yet. Add one with <code>python3 tools/ticklist.py add</code>.</p></div>'
+    if gs:
+        empty = ''
+    elif site['goals']:
+        empty = '<div class="empty"><p>No active goals right now.</p></div>'
+    else:
+        empty = '<div class="empty"><p>No goals yet. Add one with <code>python3 tools/ticklist.py add</code>.</p></div>'
     return ('<div class="trx-results tkl-results wrap" id="tkl-results">%s%s<section class="trx-yr" id="tkl-sorted-sec" hidden>'
             '<div class="trx-yr-h"><h2 class="t-label" id="tkl-sorted-h">Goals</h2></div><ul class="tkl-grid trx-grid tgrid" id="tkl-sorted"></ul></section></div>'
             % (empty, ''.join(out)))
 
 
 def build(site):
-    body = head(site) + controls(site) + status_row(site) + results(site)
+    body = head(site) + ((controls(site) + status_row(site)) if with_form(site) else '') + results(site)
     desc = 'Routes and objectives on my tick list: planned routes with approximate stats, planning notes, status and priority.'
     return [core.Page(HERE, core.document(HERE, 'Tick list', body, desc, active='ticklist', body_cls='p-ticklist', image=core.site_share()), 'Tick list')]

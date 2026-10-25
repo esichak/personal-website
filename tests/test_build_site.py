@@ -1426,7 +1426,8 @@ class RegionSiteTests(BuiltCase):
         self.assertIn('../regions/synthetic-reach/', browse)
         self.assertIn('../regions/synthetic-shore/', browse)
         self.assertIn('../map/#region-synthetic-dunes', browse)                  # no page: its place on the Map page, as before
-        self.assertIn('?region=synthetic-trail', browse)                         # on neither: the explorer's own filter
+        # a region of journals alone is left out (Phase 7, trips.regions_of), as the Map page leaves it out
+        self.assertFalse([h for h in browse if 'synthetic-trail' in h])
         panel = self.doc('map/').by_id('region-synthetic-reach')
         self.assertEqual([(a['href'], a.text()) for a in panel.find_all('a', cls='arc-reg-a')], [('../regions/synthetic-reach/', 'All Synthetic Reach reports')])
         self.assertEqual(self.doc('map/').by_id('region-synthetic-schemes').find_all('a', cls='arc-reg-a'), [])
@@ -1981,15 +1982,21 @@ class AssetConflictCopyTests(BuiltCase):
 PICTURE = re.compile(r'<picture class="cover-pic">(<source [^>]*>)(<img [^>]*>)</picture>')
 
 
+# the explorer's list-view candidates (core.cover_img list_sizes): only on a cover that has a .th copy
+LIST_ATTRS = re.compile(r' data-srcset-list="[^"]*" data-sizes-list="[^"]*"')
+
+
 def unwrap(html_):
-    """A page with every card cover's <picture class="cover-pic"> taken off: the <img> it holds, alone."""
-    return PICTURE.sub(lambda m: m.group(2), html_)
+    """A page with every card cover's <picture class="cover-pic"> taken off (the <img> it holds, alone) and the explorer's
+    list-view candidates, which name the .th copy, taken off its <img>."""
+    return LIST_ATTRS.sub('', PICTURE.sub(lambda m: m.group(2), html_))
 
 
 class CardCopyBuildTests(BuiltCase):
     """contract-phase4.md 10.5 on the built fixture site, whose one photo with a .th copy is synb-story's cover (it is
     also the home page's lead, the hiking page's featured report and the lead photo of its own page): the copy is
-    offered to phones by the cards that show that cover, in a <source>, and by nothing else."""
+    offered to phones by the cards that show that cover, in a <source>, and by nothing else but the Trips explorer's
+    list view (Phase 7: data-srcset-list on the card's <img>, which trips.js swaps in while the list view is on)."""
 
     TH = 'trips/synb-story/photos/01.th.webp'
 
@@ -2054,9 +2061,13 @@ class CardCopyBuildTests(BuiltCase):
                     self.assertNotIn('.th.', (img['srcset'] or '') + ' ' + (img['src'] or ''))
                 for ln in doc.find_all('link'):
                     self.assertNotIn('.th.', (ln['imagesrcset'] or '') + ' ' + (ln['href'] or ''))
-                # whatever names the copy on this page is a <source>
-                self.assertEqual(text.count('.th.'), len(doc.find_all('source')))
-                self.assertNotRegex(text, r'<img\b[^>]*\.th\.')
+                # whatever names the copy on this page is a <source>, or the explorer's list-view candidates
+                listed = [img for img in doc.find_all('img') if img['data-srcset-list']]
+                self.assertEqual(text.count('.th.'), len(doc.find_all('source')) + len(listed))
+                self.assertEqual(bool(listed), rel == 'trips/index.html')
+                for img in listed:
+                    self.assertEqual(img['data-srcset-list'].count('.th.'), 1)
+                self.assertNotRegex(text, r'<img\b[^>]*\s(?:src|srcset)="[^"]*\.th\.')
                 self.assertNotRegex(text, r'imagesrcset="[^"]*\.th\.')
         self.assertGreater(seen, 10)
         for rel in files_of(self.out):
@@ -2117,7 +2128,7 @@ class CardCopyBuildTests(BuiltCase):
                 self.assertEqual(unwrap(here), text)
                 if here != text:
                     changed.append(rel)
-        self.assertEqual(changed, sorted({rel for rel, _node in self.sources()}))
+        self.assertEqual(changed, sorted({rel for rel, _node in self.sources()} | {'trips/index.html'}))
         self.assertTrue(changed)
 
     def test_the_published_stylesheet_gives_the_wrapper_no_box(self):

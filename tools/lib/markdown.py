@@ -117,5 +117,34 @@ def plain(text, limit=None):
     return t
 
 
+# a sentence ends at . ! or ? (and any closing quote or bracket) before a space or the end of the text
+_SENT_END = re.compile(r'[.!?]["\'\u201d\u2019)\]]*(?=\s|$)')
+# a full stop after one of these is no sentence end ('Mt. Dana', 'vs. the clock'); nor is one after a single letter (an
+# initial) or after a word that already holds a full stop ('e.g.', 'a.m.')
+_ABBREVIATIONS = frozenset('mt mtn st dr mr mrs ms vs etc approx ft mi km hr hrs min mins no jr sr ave rd hwy est'.split())
+
+
+def plain_sentences(text, limit, floor=1 / 3.0):
+    """plain(text, limit), cut at the end of a sentence when one ends within the limit at floor x limit characters or
+    later: the longest such prefix, as written, with no ellipsis (it is whole). Otherwise the word cut and '…' of plain().
+    A verbatim prefix of the author's text either way, never a rewrite. floor: a third, so a card's 180 characters take
+    a sentence that ends from the 60th on (a shorter one would leave the card nearly empty)."""
+    t = plain(text)
+    if len(t) <= limit:
+        return t
+    best = 0
+    for m in _SENT_END.finditer(t):
+        if m.end() > limit:
+            break
+        if t[m.start()] == '.':
+            before = t[:m.start()].rsplit(' ', 1)[-1].lstrip('(\"\'\u201c\u2018[').lower()
+            if before in _ABBREVIATIONS or (len(before) == 1 and before.isalpha()) or '.' in before:
+                continue
+        best = m.end()
+    if best and best >= floor * limit:
+        return t[:best]
+    return plain(text, limit)
+
+
 if __name__ == '__main__':
     print(to_html('Hello *there* **bold** & <tag>\nline two https://example.com/x.\n\n# Head\n- a\n- b [link](https://a.b)\n\n> quote'))

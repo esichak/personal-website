@@ -355,6 +355,10 @@ so `export > file.json` stays clean JSON): that is the list to review and `updat
    elevation), the "Route source" section and the map. A goal with a track shows "Map not rendered yet" until its map
    is drawn, and none was drawn while it was a draft: run `python3 tools/render.py <slug>` (needs internet) and stage
    what it drew with the goal (step 4).
+
+   The list's search box, filters, scope buttons and sort appear once there are six active goals (not completed, not
+   archived). With fewer, `/tick-list/` simply lists the active goals, and an address such as `?status=shortlisted` or
+   `?scope=completed` changes nothing; completed and archived goals keep their own pages.
 4. **Stage by explicit path, and read `git status --short` before committing. Never `git add -A` or `git add .`.**
    It is the rule of step 5 in ADDING-TRIPS.md, which gives the reasons. For a goal:
 

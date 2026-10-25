@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import date
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo root, from tests/
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -59,7 +60,7 @@ class NormalizeTests(unittest.TestCase):
 
     def test_contract_examples(self):
         n = self.search.normalize
-        self.assertEqual(n("Lover's Leap: Corrugation Corner"), 'lover s leap corrugation corner')
+        self.assertEqual(n("Lover's Leap: Corrugation Corner"), 'lovers leap corrugation corner')
         self.assertEqual(n('Chamonix – Zermatt'), 'chamonix zermatt')
         self.assertEqual(n(''), '')
 
@@ -68,11 +69,16 @@ class NormalizeTests(unittest.TestCase):
             with self.subTest(s=s):
                 self.assertEqual(self.search.normalize(s), want)
 
-    def test_dash_and_curly_apostrophe_become_spaces_not_nothing(self):
+    def test_a_dash_becomes_a_space_and_an_apostrophe_nothing(self):
         # dropping non-ASCII before splitting would glue the words together ('zurichbern'); the contract replaces every
-        # run of non-alphanumerics by one space, and the page's JS norm() does the same
+        # run of non-alphanumerics by one space, and the page's JS norm() does the same. An apostrophe, straight or curly,
+        # is dropped first (Phase 7), so 'lovers leap' and 'didnt' find "Lover’s Leap" and "didn’t"
         self.assertEqual(self.search.normalize('Zürich—Bern'), 'zurich bern')
-        self.assertEqual(self.search.normalize('Lover’s Leap'), 'lover s leap')
+        self.assertEqual(self.search.normalize('Lover’s Leap'), 'lovers leap')
+        self.assertEqual(self.search.normalize("didn't"), 'didnt')
+        self.assertEqual(self.search.normalize('‘quoted’ words'), 'quoted words')
+        self.assertEqual(self.search.normalize("Refuge d'Argentière"), 'refuge d argentiere')   # a one-letter elision: a break
+        self.assertEqual(self.search.normalize('l’été'), 'l ete')
 
     def test_output_is_lowercase_ascii_words_with_single_spaces(self):
         for s, _ in norm_cases():
@@ -187,37 +193,81 @@ class EntryTests(IndexFixture):
     def test_slug_and_normalized_title(self):
         e = self.entry('lovers-leap')
         self.assertEqual(e['s'], 'lovers-leap')
-        self.assertEqual(e['t'], 'lover s leap corrugation corner')
+        self.assertEqual(e['t'], 'lovers leap corrugation corner')
         self.assertEqual(self.entry('pacific-crest-trail-2024')['t'], 'pacific crest trail 2024')
 
     def test_place_and_region(self):
         self.assertEqual(self.entry('west-couloir')['p'], 'sawtooth ridge eastern sierra')
-        self.assertEqual(self.entry('lovers-leap')['p'], 'lover s leap lake tahoe')
+        self.assertEqual(self.entry('lovers-leap')['p'], 'lovers leap lake tahoe')
         self.assertEqual(self.entry('region-only')['p'], 'eastern sierra')   # no place: the region alone
         self.assertEqual(self.entry('nowhere')['p'], '')                      # neither
 
-    def test_keywords_lead_with_the_activity_label(self):
-        # plan 8.3: the activity label is searchable; it opens the k field, then aliases, then peaks
-        self.assertEqual(self.entry('west-couloir')['k'], 'backcountry ski')
-        self.assertEqual(self.entry('pacific-crest-trail-2024')['k'], 'hiking pct')
+    def test_keywords_lead_with_the_activity_label_then_its_other_forms(self):
+        # plan 8.3, as Phase 7 extends it: the label opens the k field, then the activity's other forms (less any word the
+        # label holds), the aliases, the peaks, the trip's year and months, and its route shape
+        self.assertEqual(self.entry('west-couloir')['k'], 'backcountry ski skiing skied skis skimo skinning touring 2026 january')
+        self.assertEqual(self.entry('pacific-crest-trail-2024')['k'],
+                         'hiking hikes hiked pct 2024 april may june july august september point to point')
 
     def test_other_subtype_word_is_searchable(self):
         helpers.make_trip(self.tmp, 'lake-paddle', title='Lake Paddle', activity='other', subtype='SUP', date='2025-07-01', track=True)
         t = helpers.load(self.tmp, 'lake-paddle')
-        self.assertEqual(self.search.entry(t)['k'], 'other paddleboarding')
+        self.assertEqual(self.search.entry(t)['k'], 'other paddleboarding paddleboards paddling sup standup 2025 july')
 
     def test_peaks_are_searchable_keywords(self):
-        self.assertEqual(self.entry('dana-couloir')['k'], 'backcountry ski mount dana mount gibbs')
+        self.assertEqual(self.entry('dana-couloir')['k'],
+                         'backcountry ski skiing skied skis skimo skinning touring mount dana mount gibbs 2024 may')
 
     def test_peaks_given_as_one_string_or_with_junk_items_still_index_the_names(self):
         helpers.make_trip(self.tmp, 'one-peak', title='One Peak', activity='hike', date='2025-07-02', track=True, map={'peaks': 'Mount Tallac'})
-        self.assertEqual(self.search.entry(helpers.load(self.tmp, 'one-peak'))['k'], 'hiking mount tallac')
+        self.assertEqual(self.search.entry(helpers.load(self.tmp, 'one-peak'))['k'], 'hiking hikes hiked mount tallac 2025 july')
         t = helpers.load(self.tmp, 'one-peak')
         t['map'] = {'peaks': ['Mount Tallac', {'name': 'Dicks Peak'}, 42]}
-        self.assertEqual(self.search.entry(t)['k'], 'hiking mount tallac')
+        self.assertEqual(self.search.entry(t)['k'], 'hiking hikes hiked mount tallac 2025 july')
 
     def test_aliases_come_before_peaks(self):
-        self.assertEqual(self.entry('both-keys')['k'], 'hiking dana mount gibbs')
+        self.assertEqual(self.entry('both-keys')['k'], 'hiking hikes hiked dana mount gibbs 2024 may')
+
+    def test_every_activity_and_sub_type_has_its_other_forms_and_none_repeats_the_label(self):
+        # gap3-01: the lists as the plan wrote them (shown to Eric in the Phase 7 report)
+        self.assertEqual(sorted(self.search.ACTIVITY_WORDS), ['climb', 'hike', 'mtb', 'ski'])
+        self.assertEqual(sorted(self.search.SUBTYPE_WORDS), ['Kayaking', 'Mountaineering', 'Rafting', 'SUP'])
+        self.assertIn('sup', self.search.SUBTYPE_WORDS['SUP'].split())
+        for act, sub, label_words in (('climb', None, 'climbing'), ('mtb', None, 'mountain biking'), ('other', 'Rafting', 'other rafting')):
+            with self.subTest(act=act, sub=sub):
+                t = dict(self.by['nowhere'], activity=act, subtype=sub, date=None, route_shape=None, aliases=[], map={},
+                         activity_label=dict(climb='Climbing', mtb='Mountain Biking', other='Other')[act])
+                k = self.search.entry(t)['k'].split()
+                self.assertEqual(len(k), len(set(k)), k)                     # no word twice
+                self.assertEqual(' '.join(k[:len(label_words.split())]), label_words)
+
+    def test_date_words_are_the_year_and_every_month_of_the_trip(self):
+        dw = self.search.date_words
+        self.assertEqual(dw(self.by['west-couloir']), ['2026', 'january'])
+        self.assertEqual(dw(self.by['haute-route']), ['2025', 'april'])                   # Apr 1 to 3: one month
+        t = dict(self.by['haute-route'], date=date(2024, 11, 28), end_date=date(2025, 2, 2))
+        self.assertEqual(dw(t), ['2024', '2025', 'november', 'december', 'january', 'february'])
+        self.assertEqual(dw(dict(t, end_date=date(2023, 1, 1))), ['2024', 'november'])   # an end before the start counts as none
+        self.assertEqual(dw(dict(t, date=None)), [])
+        self.assertEqual(len(dw(dict(t, end_date=date(2027, 6, 1)))), 2 + 12)             # first and last year; each month once
+
+    def test_trip_months_are_the_months_a_trip_spans_in_order(self):
+        tm = self.search.trip_months
+        self.assertEqual(tm(self.by['west-couloir']), [1])
+        t = dict(self.by['haute-route'], date=date(2024, 11, 28), end_date=date(2025, 2, 2))
+        self.assertEqual(tm(t), [11, 12, 1, 2])
+        self.assertEqual(tm(dict(t, end_date=None)), [11])
+        self.assertEqual(tm(dict(t, date=None)), [])
+        self.assertEqual(sorted(tm(dict(t, end_date=date(2027, 6, 1)))), list(range(1, 13)))       # each month once
+        # the date words are those months by name: a trip across New Year is a bag of both years and all its months
+        self.assertEqual(self.search.date_words(t)[2:], [self.search.MONTH_NAMES[m - 1] for m in tm(t)])
+
+    def test_route_shape_words_close_the_keywords(self):
+        for shape, words in (('loop', 'loop'), ('out-and-back', 'out and back'), ('point-to-point', 'point to point')):
+            with self.subTest(shape=shape):
+                t = dict(self.by['nowhere'], route_shape=shape)
+                self.assertTrue(self.search.entry(t)['k'].endswith(' ' + words), self.search.entry(t)['k'])
+        self.assertEqual(self.entry('nowhere')['k'], 'mountain biking bikes rides riding mtb cycling 2025 february')
 
     def test_trailing_comma_in_aliases_is_a_blank_item(self):
         folder = helpers.make_trip(self.tmp, 'comma', title='Comma', activity='hike', date='2025-07-03', track=True)
@@ -295,10 +345,10 @@ class IndexTests(IndexFixture):
             self.assertNotIn(bad, text)
 
 
-DAY_FIELDS = {'s', 'a', 'n', 'j', 'h', 'w', 't', 'p', 'k', 'x', 'r', 'q'}
+DAY_FIELDS = {'s', 'a', 'n', 'j', 'h', 'w', 't', 'p', 'k', 'x', 'r', 'd', 'f', 'q'}
 # what finds a day; 'j', 'h', 'w', 'n' are for display, 's' and 'a' for the link, and 'q' (the journal's name) may only
-# come along with a hit in one of these
-MATCHED = ('t', 'p', 'k', 'x')
+# come along with a hit in one of these. 'd' (Phase 7) is the day's month and day of the month, never the year
+MATCHED = ('t', 'p', 'k', 'x', 'd')
 
 
 class DayIndexTests(IndexFixture):
@@ -399,7 +449,7 @@ class DayIndexTests(IndexFixture):
         # found by its title; trips.js shows no snippet for it
         self.assertEqual(self.by['long-walk']['days'][1]['body_md'], '')
         self.assertEqual(self.walk('2'), {'s': 'long-walk', 'a': 'day-2', 'n': '2', 'j': 'Long Walk 2023', 'h': 'Ridge', 'w': 'Jun 2, 2023',
-                                          't': 'ridge', 'p': 'day 2', 'k': '', 'x': '', 'r': '', 'q': 'long walk 2023'})
+                                          't': 'ridge', 'p': 'day 2', 'k': '', 'x': '', 'r': '', 'd': 'june 2', 'f': '', 'q': 'long walk 2023'})
         border = self.walk('6')
         self.assertEqual((border['h'], border['t'], border['w'], border['x'], border['r']), ('Border', 'border', '', '', ''))
 
@@ -410,7 +460,7 @@ class DayIndexTests(IndexFixture):
         self.assertIsNotNone(bare[0]['date'])
         # 'day 5' is the one thing a reader can type to find it: no title, no text, no invented words
         self.assertEqual(self.walk('5'), {'s': 'long-walk', 'a': 'day-5', 'n': '5', 'j': 'Long Walk 2023', 'h': '', 'w': 'Jun 5, 2023',
-                                          't': '', 'p': 'day 5', 'k': '', 'x': '', 'r': '', 'q': 'long walk 2023'})
+                                          't': '', 'p': 'day 5', 'k': '', 'x': '', 'r': '', 'd': 'june 5', 'f': '', 'q': 'long walk 2023'})
         # a journal of nothing but such days is indexed too, one entry a day, labelled by position
         index, entries = self.index_with('bare-walk', [{'id': '001', 'date': '2021-06-01'}, {'id': '002', 'date': '2021-06-02'}, {'id': '003'}],
                                          title='Bare Walk', date='2021-06-01')

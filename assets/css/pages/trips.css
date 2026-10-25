@@ -102,3 +102,35 @@
 @media (min-width: 760px) {
   .trx--list .tcard { grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; }
 }
+/* phones: List is the scan view (Cards is the photo view): a 64 px thumbnail or route drawing (4:3, as on the cards),
+   the date line, the title on one line and the stats line; no excerpt, chip or tags; about 72 px a row, the text
+   setting the height. Modelled on the Map page's table rows (base.css .rtab-r: a 64 px glyph, 72 px), not on
+   base.css's unused .rtab--compact */
+@media (max-width: 559.98px) {
+  .trx--list .tcard { grid-template-columns: 64px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 6px 0; }
+  .trx--list .tcard-t { margin-top: 2px; font-size: 16px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trx--list .tcard-act { margin-top: 2px; }
+  .trx--list .tcard-act > :not(.tcard-ps), .trx--list .tcard-ex, .trx--list .tcard-exl { display: none; }
+}
+
+/* the empty state's nearest views (trips.js / ticklist.js relaxOffers): one button each, before Clear filters */
+.trx-relax { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 8px; }
+.trx-relax[hidden] { display: none; }
+.trx-relax-b { white-space: normal; text-align: center; }
+
+/* phones: the secondary filters (selects, checkboxes, Sort) behind one Filters button (trips.py more_button, base.js);
+   from 760 px the button is not shown and the filters stand in the row as before (display: contents gives the wrapper
+   no box). The search box, the activity chips and the tick list's scope stay in view */
+.trx-more-btn { display: none; }
+.trx-more { display: contents; }
+.trx-more-n { font-variant-numeric: tabular-nums; }
+@media (max-width: 759.98px) {
+  .trx-more-btn { display: inline-flex; }
+  .trx-more { display: none; }
+  .trx-form.is-more .trx-more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; flex: 1 1 100%; }
+}
+
+/* with scripting the form's chips and selects do what the browse links do, so the links are not shown twice above the
+   first trip; the nav stays in the page (the year anchors, and the links themselves without scripting: base.css's
+   (scripting: none) rules). A region page's 'Other regions' row is the same markup and is not touched */
+@media (scripting: enabled) { .p-trips nav.trx-browse { display: none; } }

@@ -8,7 +8,10 @@ serves the page, and name pages a build has; and that the page still names no ca
 
 The site is synthetic (tests/helpers.py); the built one is the repository of tests/test_build_site.py in a temp folder.
 """
+import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -156,12 +159,14 @@ class SiteListTests(NotFoundFixture):
                 self.assertEqual(html_.count('SEARCH AND FILTER'), 1)          # the Trips line counts nothing
 
     def test_the_rest_of_the_page_is_the_page_it_was(self):
-        # take the Trips row out and the page is, byte for byte, the one commit dbce17b built for the same site
+        # take the Trips row and the search box (Phase 7) out and the page is, byte for byte, the one commit dbce17b built
+        # for the same site (with today's header, which both are built with)
         trips = TRIPS_ROW % (core.icon('search', 20), core.icon('chevron-right', 20, 'abo-act-c'))
+        box = notfound.search_block(notfound.HERE)
         old = legacy_page(self.site)
-        self.assertEqual(self.html.count(trips), 1)
-        self.assertEqual(self.html.replace(trips, ''), old)
-        self.assertEqual(len(self.html) - len(old), len(trips))
+        self.assertEqual((self.html.count(trips), self.html.count(box)), (1, 1))
+        self.assertEqual(self.html.replace(trips, '').replace(box, ''), old)
+        self.assertEqual(len(self.html) - len(old), len(trips) + len(box))
         self.assertNotIn('SEARCH AND FILTER', old)
         self.assertEqual(self.rows(self.site_list(Doc(old))), [('map/', 'Map & archive', 'ALL 5 REPORTS')])
         # the Reports list above it is untouched: the five activity pages, in the site's order
@@ -287,6 +292,83 @@ class HeadTests(NotFoundFixture):
         self.assertEqual([m['content'] for m in head.find_all('meta', attrs={'name': 'description'})], ['This page is not on the map.'])
         self.assertEqual(self.doc.find('body').classes, ['p-404'])
         self.assertEqual([h.text() for h in self.doc.find_all('h1')], ['Off route'])
+
+
+class SearchBoxTests(NotFoundFixture):
+    """seo-14 (Phase 7): a search box on the 404 page that lands on the explorer (trips/?q=…&sort=relevance), resolved
+    against the page's <base> from wherever it is served; notfound.js prefills it from a /trips/<slug>/ address alone."""
+
+    def test_the_form_lands_on_the_explorer_in_best_match_order(self):
+        (form,) = self.doc.find_all('form', cls='nf-search')
+        self.assertEqual((form['role'], form['method'], form['action']), ('search', 'get', 'trips/'))
+        box = form.find('input', attrs={'name': 'q'})
+        self.assertEqual((box['id'], box['type'], box['maxlength'], box['autocomplete'], box['value']), ('nf-q', 'search', '200', 'off', None))
+        self.assertEqual(form.find('label', attrs={'for': 'nf-q'}).text(), 'Search trips')
+        self.assertEqual([(i['name'], i['value']) for i in form.find_all('input', attrs={'type': 'hidden'})], [('sort', 'relevance')])
+        self.assertEqual(form.find('button')['type'], 'submit')
+        for served_at in ('', 'trips/gone-report/', 'a/b/c.html'):
+            self.assertEqual(urljoin(urljoin(core.SITE_URL + served_at, BASE), form['action']), core.SITE_URL + 'trips/')
+
+    def test_the_question_line_is_empty_and_hidden_in_the_page(self):
+        ask = self.doc.by_id('nf-ask')
+        self.assertIn('hidden', ask)
+        self.assertEqual(ask.text(), '')
+        self.assertNotIn('Looking for', self.html)                      # only the script writes it, from the address
+
+    def test_the_header_and_menu_boxes_have_ids_of_their_own(self):
+        ids = [i['id'] for i in self.doc.find_all('input', attrs={'name': 'q'})]
+        self.assertEqual(sorted(ids), ['menu-q', 'nav-q', 'nf-q'])
+
+    def test_the_script_writes_text_never_html(self):
+        with open(os.path.join(ROOT, 'assets', 'js', 'pages', 'notfound.js'), encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertNotIn('innerHTML', src)
+        self.assertIn('ask.textContent', src)
+        self.assertIn('box.value = words', src)
+
+    def run_script(self, path):
+        """(box value, question text, question hidden) after notfound.js runs at `path`, with a stand-in for the page."""
+        node = shutil.which('node')
+        if not node:
+            self.skipTest('node is not installed')
+        script = os.path.join(ROOT, 'assets', 'js', 'pages', 'notfound.js')
+        prog = (
+            'const els = { "nf-q": { value: "" }, "nf-ask": { textContent: "", hidden: true } };'
+            'global.document = { body: { classList: { contains: (c) => c === "p-404" } }, getElementById: (id) => els[id] || null,'
+            ' addEventListener: () => {} };'
+            'global.location = { pathname: %s };'
+            'require(%s);'
+            'process.stdout.write(JSON.stringify([els["nf-q"].value, els["nf-ask"].textContent, els["nf-ask"].hidden]));'
+            % (json.dumps(path), json.dumps(script)))
+        out = subprocess.run([node, '-e', prog], capture_output=True, text=True, timeout=30)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return tuple(json.loads(out.stdout))
+
+    def test_a_missing_trip_address_prefills_the_slugs_words(self):
+        self.assertEqual(self.run_script('/personal-website/trips/old-tallac-lap/'),
+                         ('old tallac lap', 'Looking for \u201cold tallac lap\u201d?', False))
+        self.assertEqual(self.run_script('/personal-website/trips/old-tallac-lap/map/')[0], 'old tallac lap')
+        self.assertEqual(self.run_script('/personal-website/trips/caf%C3%A9_run')[0], 'caf\u00e9 run')
+
+    def test_a_dated_address_keeps_its_year_and_leaves_out_month_and_day(self):
+        # the index holds a trip's year and month names, never a day of the month: '09' or '25' would find nothing
+        self.assertEqual(self.run_script('/personal-website/trips/old-tallac-lap-2026-09-25/'),
+                         ('old tallac lap 2026', 'Looking for \u201cold tallac lap 2026\u201d?', False))
+        self.assertEqual(self.run_script('/personal-website/trips/day-7-of-24/')[0], 'day of')
+        self.assertEqual(self.run_script('/personal-website/trips/09-25/'), ('', '', True))     # nothing left: no question
+        self.assertEqual(self.run_script('/personal-website/trips/peak-100-2026/')[0], 'peak 100 2026')
+
+    def test_any_other_address_leaves_the_box_and_the_line_alone(self):
+        for path in ('/personal-website/no-such-page', '/personal-website/', '/personal-website/trips/', '/personal-website/a/b.html',
+                     '/personal-website/trips/%E0%A4%A/'):
+            with self.subTest(path=path):
+                self.assertEqual(self.run_script(path), ('', '', True))
+
+    def test_what_the_address_holds_is_text(self):
+        value, line, hidden = self.run_script('/personal-website/trips/%3Cimg%20src%3Dx%3E/')
+        self.assertEqual(value, '<img src=x>')
+        self.assertEqual(line, 'Looking for \u201c<img src=x>\u201d?')       # set as textContent: shown, never parsed
+        self.assertFalse(hidden)
 
 
 if __name__ == '__main__':

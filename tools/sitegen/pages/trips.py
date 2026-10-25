@@ -1,7 +1,8 @@
 """Trips explorer — /trips/ (index.html) and trips/search.json.
 
 Every published report as one card (core.trip_card), grouped by year, with text search over a build-time index and
-combined filters (activity, region, year, format, has a write-up) in assets/js/pages/trips.js. Everything a visitor
+combined filters (activity, region, year, month, format, has a write-up, has photos) and five orders (newest, oldest,
+best match, longest, most gain) in assets/js/pages/trips.js. Everything a visitor
 needs without JavaScript is server-rendered: the full list, the year anchors and a browse block linking the activity
 pages and the map's region panels; the search form is hidden until the script reveals it. Planned routes are not
 reports: they stay on the map and their activity page until the Tick list (Phase 2T) gives them a home.
@@ -13,8 +14,16 @@ import content
 
 HERE = 'trips/'
 TRX_SIZES = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+# the list view's thumbnail (trips.css): 64 px below 560 (where the phone <source> serves the .th copy anyway), 160 px
+# from 560, 200 px from 760; trips.js swaps it in (core.cover_img)
+LIST_SIZES = '(min-width: 760px) 200px, (min-width: 560px) 160px, 64px'
 FORMATS = [('trip', 'Single-day'), ('multi-day', 'Multi-day'), ('series', 'Series')]
-SORTS = [('newest', 'Newest first'), ('oldest', 'Oldest first'), ('relevance', 'Best match')]
+SORTS = [('newest', 'Newest first'), ('oldest', 'Oldest first'), ('relevance', 'Best match'), ('longest', 'Longest first'),
+         ('gain', 'Most gain')]
+MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+# what the box searches, in one sentence: its placeholder and the page's description say it (write-ups last: a narrow
+# box cuts the placeholder short with an ellipsis)
+SEARCH_HINT = 'Search titles, places, peaks, activities, dates or write-ups'
 VIEWS = [('cards', 'Cards', 'photo'), ('list', 'List', 'list')]
 
 
@@ -31,20 +40,31 @@ def count_n(k):
 
 def regions_of(pub):
     """[(name, slug, count)] most reports first, then A–Z. Keyed by the map-anchor slug, so two spellings of one region
-    ('Lake Tahoe', 'Lake tahoe') count as one entry labelled with the first spelling seen."""
-    k, label = {}, {}
+    ('Lake Tahoe', 'Lake tahoe') count as one entry labelled with the first spelling seen. A region whose reports are all
+    journals (kind: series: the PCT's own region) is left out, as map/ leaves it out: the journal has the Format filter's
+    'Series', its card and its place on the home page, so the head, the browse list and the Region select count the
+    regions map/ counts. (trips/?region=pacific-crest-trail then opens the unfiltered explorer: the value is no option.)"""
+    k, label, other = {}, {}, set()
     for t in pub:
         r = (t.get('region') or '').strip()
         if r:
             s = content.slugify(r)
             k[s] = k.get(s, 0) + 1
             label.setdefault(s, r)
-    return [(label[s], s, k[s]) for s in sorted(k, key=lambda s: (-k[s], label[s]))]
+            if t['kind'] != 'series':
+                other.add(s)
+    return [(label[s], s, k[s]) for s in sorted(k, key=lambda s: (-k[s], label[s])) if s in other]
 
 
 def years_of(pub):
     """Years with a report, newest first (a trip's start year)."""
     return sorted({t['date'].year for t in pub if t['date']}, reverse=True)
+
+
+def months_of(pub):
+    """[('MM', 'Month name')] of the months the reports span, January first (the cards' data-month: a multi-day trip
+    or a journal is under every month from its date to its end_date)."""
+    return [('%02d' % m, MONTHS[m - 1]) for m in sorted({m for t in pub for m in search.trip_months(t)})]
 
 
 def groups_of(pub):
@@ -101,6 +121,14 @@ def select(name, label, options, blank):
     return '<label class="trx-sel"><span>%s</span><select name="%s">%s</select></label>' % (esc(label), name, opts)
 
 
+def more_button(controls_ids):
+    """Phones: the button that opens the secondary filters (the selects, the checkboxes and Sort), which trips.css hides
+    below 760 px until it is pressed (base.js). Its count is the number of those filters in use (trips.js, ticklist.js).
+    From 760 px it is not shown and the filters stand in the row as before."""
+    return ('<button type="button" class="btn trx-more-btn" aria-expanded="false" aria-controls="%s">%sFilters'
+            '<span class="trx-more-n"></span></button>' % (controls_ids, icon('list', 18)))
+
+
 def controls(site):
     """The search form. It ships `hidden` (without JavaScript it could not do anything) and the inline script right
     after it (core.reveal) shows it during parsing, so nothing below it jumps later; trips.js then wires it."""
@@ -123,21 +151,24 @@ def controls(site):
     # autocomplete="off" on the form: the address is the state and the script sets the controls from it. A browser that
     # refills a form on Back / Forward does so after the script has run, with the values of the view that was on screen
     # when the visitor left the page, which need not be the entry they come back to
-    return ('<form class="trx-form wrap" role="search" id="search" action="" autocomplete="off" hidden>'
+    return ('<form class="trx-form wrap" role="search" aria-label="Search and filter trips" id="search" action="" autocomplete="off" hidden>'
             '<label class="sr" for="trx-q">Search trips</label>'
-            '<input class="trx-q" type="search" id="trx-q" name="q" placeholder="Search by name, place, region, activity or peak" autocomplete="off" maxlength="200">'
+            '<input class="trx-q" type="search" id="trx-q" name="q" placeholder="%s" autocomplete="off" maxlength="200">'
             '<div class="trx-filters">'
             '<div class="trx-acts" role="radiogroup" aria-label="Activity">%s</div>'
-            '%s%s%s'
-            '<label class="trx-check"><input type="checkbox" name="writeup" value="1"> Has a write-up</label>'
             '%s'
+            '<div class="trx-more" id="trx-more">%s%s%s%s'
+            '<label class="trx-check"><input type="checkbox" name="writeup" value="1"> Has a write-up</label>'
+            '<label class="trx-check"><input type="checkbox" name="photos" value="1"> Has photos</label>'
+            '%s</div>'
             '<div class="trx-view" role="radiogroup" aria-label="View">%s</div>'
             '</div></form>%s'
             '<noscript><p class="note wrap trx-noscript">Search and filters need JavaScript. Every report is listed below by year, '
             'and the links above group them by activity and region.</p></noscript>'
-            % (''.join(chips),
+            % (esc(SEARCH_HINT), ''.join(chips), more_button('trx-more'),
                select('region', 'Region', [(slug, name) for name, slug, _k in regions_of(pub)], 'All regions'),
                select('year', 'Year', [(str(y), str(y)) for y in years_of(pub)], 'All years'),
+               select('month', 'Month', months_of(pub), 'Any month'),
                select('format', 'Format', formats, 'Any format'),
                sort, views, core.reveal('search')))
 
@@ -170,22 +201,25 @@ def journal_block(site):
 
 def results(site):
     out = []
+    repeated = core.repeated_titles(site['published'])
     for y, ts in groups_of(site['published']):
         yid = 'y-%d' % y if y is not None else 'y-undated'
         label = str(y) if y is not None else 'Undated'
-        cards = ''.join(core.trip_card(t, HERE, TRX_SIZES, ns='tc', summary=True) for t in ts)
+        cards = ''.join(core.trip_card(t, HERE, TRX_SIZES, ns='tc', summary=True, repeated=repeated, list_sizes=LIST_SIZES) for t in ts)
         out.append('<section class="trx-yr" data-year="%s"><div class="trx-yr-h"><h2 class="t-label" id="%s">%s</h2>'
                    '<span class="t-mono-s trx-yr-n">%s</span></div><ul class="trx-grid tgrid">%s</ul></section>'
                    % (y if y is not None else '', yid, label, plural(len(ts), 'REPORT'), cards))
     # oldest / best-match order: trips.js moves the visible cards into this section (its heading names the order) and hides the years
+    # longest / most gain: the line beside the heading says how multi-day trips are counted and how many have no value
     return ('<div class="trx-results wrap" id="trx-results">%s<section class="trx-yr" id="trx-sorted-sec" hidden>'
-            '<div class="trx-yr-h"><h2 class="t-label" id="trx-sorted-h">Results</h2></div><ul class="trx-grid tgrid" id="trx-sorted"></ul></section></div>'
+            '<div class="trx-yr-h"><h2 class="t-label" id="trx-sorted-h">Results</h2><span class="t-mono-s trx-yr-n" id="trx-sorted-m"></span></div>'
+            '<ul class="trx-grid tgrid" id="trx-sorted"></ul></section></div>'
             % ''.join(out))
 
 
 def build(site):
     body = head(site) + browse(site) + controls(site) + status(site) + results(site) + journal_block(site)
-    desc = 'Every trip report, searchable by name, place, region, activity, named peak and write-up, with filters by activity, year and format.'
+    desc = 'Every trip report on one page. %s; filter by activity, region, year, month and format.' % SEARCH_HINT
     page = core.Page(HERE, core.document(HERE, 'Trips', body, desc, active='trips', body_cls='p-trips', image=core.site_share()), 'Trips')
     index = core.Page('trips/search.json', search.dumps(search.build_index(site)), 'Search index', index=False)
     out = [page, index]

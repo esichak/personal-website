@@ -74,7 +74,9 @@ for (const [input, want] of cases) {
   check('norm ' + JSON.stringify(input), () => eq(TRX.norm(input), want));
 }
 check('norm contract examples', () => {
-  eq(TRX.norm("Lover's Leap: Corrugation Corner"), 'lover s leap corrugation corner');
+  eq(TRX.norm("Lover's Leap: Corrugation Corner"), 'lovers leap corrugation corner');   // apostrophes dropped (Phase 7)
+  eq(TRX.norm('Lover’s Leap'), 'lovers leap');
+  eq(TRX.norm('didn‘t'), 'didnt');
   eq(TRX.norm('Chamonix – Zermatt'), 'chamonix zermatt');
   eq(TRX.norm(''), '');
 });
@@ -89,7 +91,7 @@ check('norm is idempotent and yields single-spaced lower-case ASCII words', () =
 // ---------------------------------------------------------------- tokens
 
 check('tokens', () => {
-  deq(TRX.tokens("Lover's  Leap: Corrugation"), ['lover', 's', 'leap', 'corrugation']);
+  deq(TRX.tokens("Lover's  Leap: Corrugation"), ['lovers', 'leap', 'corrugation']);
   deq(TRX.tokens('Matterhorn'), ['matterhorn']);
   deq(TRX.tokens('  Vallée   Blanche '), ['vallee', 'blanche']);
   deq(TRX.tokens(''), []);
@@ -102,11 +104,12 @@ const ALLOWED = {
   activity: ['all', 'ski', 'climb', 'hike'],
   region: ['', 'eastern-sierra', 'alps', 'pacific-crest-trail'],
   year: ['', '2026', '2025', '2024'],
+  month: ['', '01', '03', '06'],
   format: ['', 'trip', 'multi-day', 'series'],
-  sort: ['newest', 'oldest', 'relevance'],
+  sort: ['newest', 'oldest', 'relevance', 'longest', 'gain'],
   view: ['cards', 'list'],
 };
-const DEFAULTS = { q: '', activity: 'all', region: '', year: '', format: '', writeup: false, sort: 'newest', view: 'cards' };
+const DEFAULTS = { q: '', activity: 'all', region: '', year: '', month: '', format: '', writeup: false, photos: false, sort: 'newest', view: 'cards' };
 const st = (s) => TRX.parseState(s, ALLOWED);
 const withDefaults = (o) => Object.assign({}, DEFAULTS, o);
 
@@ -115,15 +118,17 @@ check('parseState defaults', () => {
   deq(st('?'), DEFAULTS);
 });
 check('parseState reads every key, with or without the leading ?', () => {
-  const want = { q: 'matterhorn', activity: 'ski', region: 'eastern-sierra', year: '2025', format: 'trip', writeup: true, sort: 'oldest', view: 'list' };
-  const qs = 'q=matterhorn&activity=ski&region=eastern-sierra&year=2025&format=trip&writeup=1&sort=oldest&view=list';
+  const want = { q: 'matterhorn', activity: 'ski', region: 'eastern-sierra', year: '2025', month: '03', format: 'trip', writeup: true, photos: true,
+    sort: 'oldest', view: 'list' };
+  const qs = 'q=matterhorn&activity=ski&region=eastern-sierra&year=2025&month=03&format=trip&writeup=1&photos=1&sort=oldest&view=list';
   deq(st('?' + qs), want);
   deq(st(qs), want);
 });
 check('parseState contract example', () => deq(st('?q=matterhorn&activity=ski'), withDefaults({ q: 'matterhorn', activity: 'ski' })));
 check('parseState ignores unknown keys', () => deq(st('?foo=bar&utm_source=x&page=2&q=dana'), withDefaults({ q: 'dana' })));
 check('parseState resets values outside allowed', () => {
-  deq(st('?activity=swim&region=mars&year=1999&format=weird&sort=random&view=table'), DEFAULTS);
+  deq(st('?activity=swim&region=mars&year=1999&month=13&format=weird&sort=random&view=table'), DEFAULTS);
+  deq(st('?month=3'), DEFAULTS);   // two digits, as the select's values
   deq(st('?activity=SKI'), DEFAULTS);   // exact values only
 });
 check('parseState keeps valid values beside invalid ones', () => deq(st('?activity=ski&region=mars&year=2024'), withDefaults({ activity: 'ski', year: '2024' })));
@@ -138,7 +143,7 @@ check('parseState decodes the query text as a form-encoded value', () => {
   eq(st('?q=vall%C3%A9e').q, 'vallée');
   eq(st('?q=').q, '');
 });
-check('parseState returns exactly the eight state keys', () => {
+check('parseState returns exactly the ten state keys', () => {
   deq(Object.keys(st('?q=a&zzz=1')).sort(), Object.keys(DEFAULTS).sort());
   deq(Object.keys(st('')).sort(), Object.keys(DEFAULTS).sort());
 });
@@ -157,7 +162,9 @@ const OTHER = { s: 'slugonly', t: 'basin loop', p: 'eastern sierra', k: '', x: '
 
 check('match', () => {
   eq(TRX.match(ENTRY, ['matterhorn']), true);
-  eq(TRX.match(ENTRY, ['matter']), true);                  // substring, not whole word
+  eq(TRX.match(ENTRY, ['matter']), true);                  // the start of a word, not the whole word
+  eq(TRX.match(ENTRY, ['horn']), false);                   // inside a word: no match (Phase 7, word starts)
+  eq(TRX.match(ENTRY, ['ouloir']), false);
   eq(TRX.match(ENTRY, ['matterhorn', 'sierra']), true);    // tokens may hit different fields
   eq(TRX.match(ENTRY, ['dawn']), true);                    // body text
   eq(TRX.match(ENTRY, ['sawtooth']), true);                // place / keywords
@@ -179,6 +186,28 @@ check('score', () => {
   eq(TRX.score(ENTRY, []), 0);
   assert.ok(TRX.score(ENTRY, ['matterhorn']) > TRX.score(OTHER, ['matterhorn']));
 });
+check('Phase 7: an apostrophe is no word break, in the index and in the query alike', () => {
+  const lovers = { s: 'lovers-leap', t: TRX.norm("Lover's Leap: Corrugation Corner"), p: TRX.norm('Lake Tahoe'), k: 'climbing', x: '' };
+  eq(lovers.t, 'lovers leap corrugation corner');
+  for (const q of ['lovers', "lover's", 'lover’s', 'lovers leap', "lover's leap", 'LOVER’S LEAP', 'lov']) {
+    eq(TRX.match(lovers, TRX.tokens(q)), true, q);
+  }
+  eq(TRX.match(lovers, TRX.tokens('s leap')), false);   // the old split left a lone 's' word; it is gone
+});
+check('Phase 7: a typed word matches the start of a word, never its inside', () => {
+  const tallac = { s: 't', t: 'tallac cathedral bowl', p: 'mount tallac lake tahoe', k: 'backcountry ski skiing',
+    x: 'a total of three laps and good practice on ice before the creek ford' };
+  eq(TRX.has('tallac cathedral', 'tal'), true);
+  eq(TRX.has('a total of', 'tal'), false);
+  eq(TRX.has('', 'x'), false);
+  eq(TRX.match(tallac, ['tal']), true);
+  eq(TRX.match(tallac, ['ice']), true);                    // the word ice
+  eq(TRX.match({ s: 'n', t: 'nice day', p: '', k: '', x: 'good practice and a price' }, ['ice']), false);
+  eq(TRX.match(tallac, ['for']), true);                    // 'ford'
+  eq(TRX.match(tallac, ['ski']), true);                    // 'ski' and 'skiing'
+  eq(TRX.match(tallac, ['athedral']), false);
+  eq(TRX.score(tallac, ['tal']), 3 + 2);                   // title and place; 'total' in the write-up does not count
+});
 check('match and score agree for single tokens', () => {
   for (const tok of ['matterhorn', 'sierra', 'dawn', 'zermatt', 'loop', 'summits', 'slugonly', 'zzzsnippet']) {
     for (const e of [ENTRY, OTHER]) {
@@ -195,6 +224,8 @@ check('snippet shows the words around the first hit, with ellipses only where te
   eq(TRX.snippet(raw, ['walked'], 2), 'Walked the synthetic …');
   eq(TRX.snippet(raw, ['zermatt'], 3), '');
   eq(TRX.snippet('Lover’s Leap again', ['lover'], 2), 'Lover’s Leap again');
+  eq(TRX.snippet('Lover’s Leap again', ['lovers'], 2), 'Lover’s Leap again');
+  eq(TRX.snippet('Good practice for later. Then ice on the lake.', ['ice'], 1), '… Then ice on …');   // not in 'practice'
   eq(TRX.snippet('', ['x']), '');
 });
 check('chipLabel names each filter for the chips', () => {
@@ -386,9 +417,27 @@ check('dayHits: a named day must still hold every other token in its own words',
   deq(found(walk, 'day 20 snow pass'), ['day-20']);
   deq(found(walk, 'day 20 ridge'), []);
 });
+check('Phase 7: a journal day is found by its month and day (d), never by the year alone', () => {
+  const dated = [
+    day('31', 'Synthetic Camp', 'Synthetic words.', { w: 'May 22, 2024', d: 'may 22', q: 'long walk 2024 lw' }),
+    day('40', '', '', { w: 'Jun 1, 2024', d: 'june 1', q: 'long walk 2024 lw' }),
+    day('41', 'Synthetic Pass', 'Synthetic pass in the snow.', { w: 'Jun 2, 2024', d: 'june 2', q: 'long walk 2024 lw' }),
+    day('60', '', 'Synthetic heat.', { w: 'Jul 1, 2024', d: 'july 1', q: 'long walk 2024 lw' }),
+  ];
+  deq(found(dated, 'june 2024'), ['day-40', 'day-41']);    // the June days; the year rides along with the journal's name
+  deq(found(dated, 'june'), ['day-40', 'day-41']);
+  deq(found(dated, 'jun'), ['day-40', 'day-41']);          // a month typed short
+  deq(found(dated, '2024'), []);                           // the year alone is the journal's: no day by it
+  deq(found(dated, 'lw june'), ['day-40', 'day-41']);
+  deq(found(dated, 'may 22'), ['day-31']);
+  deq(found(dated, 'synthetic june'), ['day-41']);         // every token must be the day's own or ride along
+  deq(found(dated, 'july 1 2024'), ['day-60']);
+  // a title hit (3) ranks above a date hit (1)
+  deq(found([...dated, day('70', 'June Lake', '', { d: 'august 3', q: 'long walk 2024 lw' })], 'june'), ['day-70', 'day-40', 'day-41']);
+});
 check('dayHits: "day 5.2" ranks Day 5.2 above Day 5', () => {
   const fives = [
-    day('5', 'Lake', 'Walked 12 miles to the synthetic lake.'),    // named by 'day 5'; the '2' left over is in '12'
+    day('5', 'Lake', 'Walked 20 miles to the synthetic lake.'),    // named by 'day 5'; the '2' left over starts '20'
     day('5.2', '', 'Synthetic afternoon stroll.'),                 // named whole by 'day 5 2'
     day('2', '', 'Synthetic day 2 of 5.'),                         // not named ('5' sits between), but holds all three tokens
     day('52', 'Pass', 'Synthetic pass.'),                          // 'day 52' is one number, not 5 and 2
@@ -1132,6 +1181,106 @@ check('clearedSort returns a new [sort, still the visitor\'s] pair each time', (
   }
 });
 
+// ---------------------------------------------------------------- Phase 7: month and photos, Longest / Most gain, the way out of no result
+
+check('Phase 7: facetOk reads a card\'s month and photos', () => {
+  const june = { act: 'hike', kind: 'trip', month: '06', photos: '1' };
+  const bare = { act: 'hike', kind: 'trip', month: '06', photos: '0' };
+  const old = { act: 'hike', kind: 'trip' };                     // a card without the two attributes passes only their defaults
+  eq(TRX.facetOk(june, withDefaults({ month: '06' })), true);
+  eq(TRX.facetOk(june, withDefaults({ month: '07' })), false);
+  eq(TRX.facetOk(old, withDefaults({ month: '06' })), false);
+  eq(TRX.facetOk(june, withDefaults({ photos: true })), true);
+  eq(TRX.facetOk(bare, withDefaults({ photos: true })), false);
+  eq(TRX.facetOk(old, withDefaults({ photos: true })), false);
+  [june, bare, old].forEach((c) => eq(TRX.facetOk(c, DEFAULTS), true));
+  eq(TRX.facetOk(june, withDefaults({ month: '06', photos: true, activity: 'ski' })), false);
+});
+check('Phase 7: a card is under every month it spans, compared whole', () => {
+  const journal = { act: 'hike', kind: 'series', month: '04 05 06 07 08 09' };
+  for (const m of ['04', '06', '09']) eq(TRX.facetOk(journal, withDefaults({ month: m })), true, m);
+  for (const m of ['03', '10', '0', '4']) eq(TRX.facetOk(journal, withDefaults({ month: m })), false, m);
+  eq(TRX.facetOk({ act: 'ski', kind: 'trip', month: '12 01' }, withDefaults({ month: '01' })), true);    // across New Year
+});
+check('Phase 7: a found journal day answers Month and Has photos itself, not through its journal', () => {
+  const day = (d, f) => ({ s: 'syn-journal', d: d, f: f });
+  eq(TRX.dayMonth(day('june 5')), '06');
+  eq(TRX.dayMonth(day('january 31')), '01');
+  eq(TRX.dayMonth(day('december 1')), '12');
+  eq(TRX.dayMonth(day('')), '');
+  eq(TRX.dayMonth({}), '');
+  eq(TRX.dayFacets(day('june 5', ''), DEFAULTS), true);
+  eq(TRX.dayFacets(day('june 5', ''), withDefaults({ month: '06' })), true);
+  eq(TRX.dayFacets(day('june 5', ''), withDefaults({ month: '04' })), false);     // the journal began in April: not this day
+  eq(TRX.dayFacets(day('', '1'), withDefaults({ month: '06' })), false);         // a day without a date is in no month
+  eq(TRX.dayFacets(day('june 5', '1'), withDefaults({ photos: true })), true);
+  eq(TRX.dayFacets(day('june 5', ''), withDefaults({ photos: true })), false);   // the journal has photos; this day none
+  eq(TRX.dayFacets(day('june 5', '1'), withDefaults({ photos: true, month: '06', activity: 'ski' })), true);   // the card decides the rest
+});
+check('Phase 7: the search without the filters counts the journal days it finds too', () => {
+  const offers = (o, a, b, days) => TRX.relaxOffers(withDefaults(o), a, b, { activity: { climb: 'Climbing' } }, days).map((x) => x.text);
+  deq(offers({ q: 'whitney', activity: 'climb' }, 0, 13, 1),
+    ['1 journal day matches \u2018whitney\u2019 in all activities', '13 climbing reports without the search']);
+  deq(offers({ q: 'whitney', activity: 'climb' }, 0, 13, 4)[0], '4 journal days match \u2018whitney\u2019 in all activities');
+  deq(offers({ q: 'tent', year: '2025' }, 2, 0, 1), ['2 reports and 1 journal day match \u2018tent\u2019 without Year: 2025']);
+  deq(offers({ q: 'tent', year: '2025' }, 1, 0, 0), ['1 report matches \u2018tent\u2019 without Year: 2025']);
+  deq(offers({ q: 'tent', year: '2025' }, 0, 0, 0), []);
+  deq(offers({ q: 'tent', year: '2025' }, 0, 0, undefined), []);
+});
+check('Phase 7: photos is true only for photos=1, and month and photos are filters', () => {
+  eq(st('?photos=1').photos, true);
+  for (const v of ['0', 'true', '']) eq(st('?photos=' + v).photos, false, 'photos=' + v);
+  deq(TRX.FACETS, ['activity', 'region', 'year', 'month', 'format', 'writeup', 'photos']);
+  deq(TRX.MORE, ['region', 'year', 'month', 'format', 'writeup', 'photos']);    // behind the phone's Filters button
+  eq(TRX.MORE.indexOf('activity'), -1);
+});
+check('Phase 7: byValue puts the largest first and the cards without a value last, each in the order they had', () => {
+  const items = [{ value: '', i: 0 }, { value: '12.5', i: 1 }, { value: '3.0', i: 2 }, { value: '12.5', i: 3 }, { value: '', i: 4 },
+    { value: '40', i: 5 }, { value: '0', i: 6 }];
+  deq(items.slice().sort(TRX.byValue).map((x) => x.i), [5, 1, 3, 2, 6, 0, 4]);
+  deq(items.map((x) => x.i), [0, 1, 2, 3, 4, 5, 6]);           // sort() got a copy
+});
+check('Phase 7: sortedMeta says how multi-day trips count and how many cards have no value, for those two orders only', () => {
+  eq(TRX.sortedMeta('longest', 0, false), '');
+  eq(TRX.sortedMeta('longest', 3, false), '3 WITHOUT A DISTANCE, LISTED LAST');
+  eq(TRX.sortedMeta('gain', 1, true), 'MULTI-DAY AND SERIES BY THEIR TOTALS · 1 WITHOUT A GAIN, LISTED LAST');
+  eq(TRX.sortedMeta('gain', 0, true), 'MULTI-DAY AND SERIES BY THEIR TOTALS');
+  for (const sort of ['newest', 'oldest', 'relevance']) eq(TRX.sortedMeta(sort, 4, true), '', sort);
+  deq(TRX.SORTED_HEAD, { oldest: 'Oldest first', relevance: 'Best match first', longest: 'Longest first', gain: 'Most gain first' });
+});
+check('Phase 7: relaxOffers names the nearest views with their live counts, and nothing it cannot count', () => {
+  const NAMES = { activity: { ski: 'Skiing', climb: 'Climbing' }, region: { alps: 'Alps' } };
+  const offers = (o, a, b) => TRX.relaxOffers(withDefaults(o), a, b, NAMES);   // the page's labels, defaults and filters
+  // the activity alone
+  deq(offers({ q: 'tallac', activity: 'climb' }, 16, 13), [
+    { kind: 'facets', text: '16 reports match ‘tallac’ in all activities' },
+    { kind: 'query', text: '13 climbing reports without the search' }]);
+  deq(offers({ q: 'tallac', activity: 'climb' }, 1, 1), [
+    { kind: 'facets', text: '1 report matches ‘tallac’ in all activities' },
+    { kind: 'query', text: '1 climbing report without the search' }]);
+  // one other filter: named as its chip names it
+  deq(offers({ q: ' dome ', region: 'alps' }, 2, 5).map((o) => o.text),
+    ['2 reports match ‘dome’ without Region: Alps', '5 reports with these filters, without the search']);
+  deq(offers({ q: 'dome', photos: true }, 2, 0).map((o) => o.text), ['2 reports match ‘dome’ without Has photos']);
+  // two filters
+  deq(offers({ q: 'dome', activity: 'ski', year: '2025' }, 3, 4).map((o) => o.text),
+    ['3 reports match ‘dome’ without the filters', '4 reports with these filters, without the search']);
+  // a count of 0 is no offer; no search or no filter, no offer at all
+  deq(offers({ q: 'dome', activity: 'ski' }, 0, 0), []);
+  deq(offers({ q: 'dome', activity: 'ski' }, 0, 2).map((o) => o.kind), ['query']);
+  deq(offers({ activity: 'ski' }, 9, 9), []);
+  deq(offers({ q: '   ', activity: 'ski' }, 9, 9), []);
+  deq(offers({ q: 'dome' }, 9, 9), []);
+  deq(offers({ q: 'dome', sort: 'oldest', view: 'list' }, 9, 9), []);     // the order and the view are no filters
+});
+check('Phase 7: moreCount counts the filters behind the Filters button that are on', () => {
+  const count = (o) => require(EXPLORE_JS).moreCount(withDefaults(o), DEFAULTS, TRX.MORE);     // as render() asks it
+  eq(count({}), 0);
+  eq(count({ activity: 'ski', q: 'x', sort: 'oldest', view: 'list' }), 0);
+  eq(count({ region: 'alps', month: '06', photos: true }), 3);
+  eq(count({ writeup: true, year: '2024', format: 'trip' }), 3);
+});
+
 // ---------------------------------------------------------------- the page part, on a stand-in for the browser
 
 /* What the pure helpers cannot show: that the page's own lines hand them the right things at the right moments.
@@ -1154,7 +1303,9 @@ const SOURCE = MODEL ? fs.readFileSync(MODULE, 'utf8') : '';
 const EXPLORE = MODEL ? fs.readFileSync(EXPLORE_JS, 'utf8') : '';
 
 function load(opts) {
-  const tab = standin.open(MODEL, [['explore.js', EXPLORE], [MODULE, SOURCE]], opts);
+  // opts.noIndex: the search index does not load (the model's indexes left out)
+  const model = opts && opts.noIndex ? Object.assign({}, MODEL, { indexes: {} }) : MODEL;
+  const tab = standin.open(model, [['explore.js', EXPLORE], [MODULE, SOURCE]], opts);
   const body = tab.body, byId = tab.byId, one = tab.one, press = tab.press, fire = tab.fire;
   const form = byId('search'), q = byId('trx-q');
   const page = Object.assign(tab.visitor, {
@@ -1170,6 +1321,15 @@ function load(opts) {
       fire(sel, 'change');
     },
     writeup: (on) => { const box = one(form, 'input[name="writeup"]', 'the write-up box'); box.checked = on; fire(box, 'change'); },
+    photos: (on) => { const box = one(form, 'input[name="photos"]', 'the photos box'); box.checked = on; fire(box, 'change'); },
+    focus: () => { fire(q, 'focus'); },                     // the search box takes the focus (a tap, a click, Tab)
+    pressForm: () => { fire(form, 'pointerdown'); },        // a press anywhere on the form
+    // an empty state's nearest view, by its place in the row (relaxOffers)
+    takeOffer: (i) => {
+      const row = one(byId('trx-none'), '.trx-relax', 'the row of nearest views');
+      eq(row.hidden, false, 'the nearest views are not on screen');
+      press(row.querySelectorAll('button')[i]);
+    },
     clearAll: () => { const b = byId('trx-clear'); eq(b.hidden, false, 'Clear all is not on screen'); press(b); },
     clearFilters: () => {                                 // the button of the 'No trips match' message
       eq(byId('trx-none').hidden, false, 'the empty state is not on screen');
@@ -1190,6 +1350,13 @@ function load(opts) {
     sort: () => one(form, 'select[name="sort"]', 'the sort menu').value,
     chosen: () => one(form, '.trx-acts [aria-checked="true"]', 'the checked activity').dataset.filter,
     chips: () => byId('trx-chips').querySelectorAll('button').map((b) => b.textContent),
+    note: () => { const m = byId('trx-msg'); return m.hidden ? '' : m.textContent; },
+    offers: () => {
+      const none = byId('trx-none'), row = none.querySelectorAll('.trx-relax')[0];
+      return none.hidden || !row || row.hidden ? [] : row.querySelectorAll('button').map((b) => b.textContent);
+    },
+    moreN: () => one(form, '.trx-more-n', 'the count on the Filters button').textContent,
+    covers: () => byId('trx-results').querySelectorAll('img[data-srcset-list]'),
     shown: () => byId('trx-results').querySelectorAll('.tcard').filter((c) => !c.hidden).map((c) => c.dataset.slug).sort(),
     // the reports on screen in the order they are listed, top to bottom: a card counts when neither it nor a list or a
     // section around it is hidden (the year groups, or the one list of 'Oldest first' and 'Best match first')
@@ -2432,7 +2599,99 @@ if (MODEL) {
   const GAPS = {};
   const gap = ONLY.replace(/^gap:/, '');
   assert.ok(!ONLY || (ONLY.indexOf('gap:') === 0 && Object.prototype.hasOwnProperty.call(GAPS, gap)), 'unknown argument: ' + ONLY);
+  // Phase 7: what the page does beyond its history, on the same stand-in: the index fetched ahead of the first search,
+  // the list view's thumbnails, the way out of no result, the month and photos filters (PHASE_7 in tests/test_trips_js.py)
+  const phase7Checks = {
+    'Phase 7: the index is fetched once as the visitor turns to the search, and nothing is said': () => {
+      const page = load();
+      deq(page.fetched(), []);
+      page.focus();
+      deq([page.fetched(), page.note()], [['search.json'], '']);
+      page.focus();
+      page.pressForm();
+      deq(page.fetched(), ['search.json']);
+      page.type('ridge');
+      page.pause();
+      deq([page.fetched(), page.shown(), page.note()], [['search.json'], RIDGE, '']);
+      // a press on the form comes first: the same one request
+      const other = load();
+      other.pressForm();
+      other.focus();
+      deq(other.fetched(), ['search.json']);
+      // an index that does not load: still nothing said until a search is typed, and that search asks again
+      const failed = load({ noIndex: true });
+      failed.focus();
+      deq([failed.fetched(), failed.note()], [['search.json'], '']);
+      failed.type('ridge');
+      failed.pause();
+      deq(failed.fetched(), ['search.json', 'search.json']);
+      eq(failed.note(), TRX.FAIL);
+    },
+    'Phase 7: the list view puts the thumbnail candidates in place, and the cards take theirs back': () => {
+      const page = load();
+      const covers = page.covers();
+      deq(covers.length, MODEL.photographed.length);
+      assert.ok(covers.length > 0, 'no cover with a .th copy on the page');
+      const img = covers[0], card = [img.getAttribute('srcset'), img.getAttribute('sizes')];
+      assert.ok(/\.th\.webp \d+w, /.test(img.getAttribute('data-srcset-list')), img.getAttribute('data-srcset-list'));
+      eq(card[0].indexOf('.th.'), -1, 'the card view offers the .th copy');
+      const list = [img.getAttribute('data-srcset-list'), img.getAttribute('data-sizes-list')];
+      page.view('list');
+      deq([img.getAttribute('srcset'), img.getAttribute('sizes')], list);
+      page.view('cards');
+      deq([img.getAttribute('srcset'), img.getAttribute('sizes')], card);
+      page.view('list');
+      deq([img.getAttribute('srcset'), img.getAttribute('sizes')], list);
+      // opened in the list view: the thumbnail candidates from the first render on
+      const listed = load({ search: '?view=list' }).covers()[0];
+      deq([listed.getAttribute('srcset'), listed.getAttribute('sizes')], list);
+    },
+    'Phase 7: no result offers the search without the filters and the filters without the search, as counted': () => {
+      const LOOP = finds('loop'), CLIMB = CARDS.filter((c) => c['data-act'] === 'climb').map((c) => c['data-slug']);
+      deq([LOOP.length, CLIMB.length], [1, 1]);
+      const page = load();
+      page.activity('climb');
+      page.type('loop');
+      page.pause();
+      deq([page.shown(), page.offers()], [[], ['1 report matches ‘loop’ in all activities', '1 climbing report without the search']]);
+      const before = page.pushes();
+      page.takeOffer(0);                                     // the search, in all activities: a pick
+      deq([page.chosen(), page.box(), page.shown(), page.offers(), page.pushes()], ['all', 'loop', LOOP, [], before + 1]);
+      const other = load();
+      other.activity('climb');
+      other.type('loop');
+      other.pause();
+      other.takeOffer(1);                                    // the filters, without the search
+      deq([other.chosen(), other.box(), other.shown(), other.sort(), other.offers()], ['climb', '', CLIMB, 'newest', []]);
+      // a search that finds nothing anywhere: Clear filters alone
+      const none = load();
+      none.activity('climb');
+      none.type('zzzz');
+      none.pause();
+      deq(none.offers(), ['1 climbing report without the search']);
+      none.activity('all');
+      deq(none.offers(), []);
+    },
+    'Phase 7: the month menu and the photos box filter the cards, count on the Filters button and are in the address': () => {
+      const page = load();
+      const JUNE = CARDS.filter((c) => c['data-month'] === '06').map((c) => c['data-slug']).sort();
+      assert.ok(JUNE.length > 0 && JUNE.length < MODEL.slugs.length);
+      eq(page.moreN(), '');
+      page.choose('month', '06');
+      deq([page.shown(), page.address(), page.moreN()], [JUNE, '?month=06', ' · 1']);
+      page.photos(true);
+      deq([page.shown(), page.address(), page.moreN()], [MODEL.photographed.filter((s) => JUNE.indexOf(s) !== -1).sort(), '?month=06&photos=1', ' · 2']);
+      page.activity('hike');                                 // the activity chips stay in view: no count on the button
+      eq(page.moreN(), ' · 2');
+      page.clearAll();
+      deq([page.shown(), page.address(), page.moreN()], [ALL, '', '']);
+      // opened at such an address
+      const opened = load({ search: '?photos=1' });
+      deq(opened.shown(), MODEL.photographed.slice().sort());
+    },
+  };
   Object.keys(pageChecks).forEach((label) => check('page: ' + label, pageChecks[label]));
+  Object.keys(phase7Checks).forEach((label) => check('page: ' + label, phase7Checks[label]));
   if (ONLY) check('gap: ' + gap, GAPS[gap]);
 }
 

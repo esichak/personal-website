@@ -36,15 +36,21 @@ tearDownModule = helpers.no_region_pages_left      # this module registers a sit
 
 WRITEUP = 'Skinned up from the lake before dawn and skied the couloir on firm, edgeable snow.'
 DAY_PROSE = 'Crossed the Col du Chardonnet in a cold wind and reached the hut by four.'
-REGIONS = ['Eastern Sierra', 'Alps', 'Pacific Crest Trail']   # most reports first: 4, 2, 1
+# the regions the page counts and lists, most reports first: 4, 2. The journal's own region (Pacific Crest Trail, its one
+# report a kind: series) is left out since Phase 7, as map/ leaves it out (trips.regions_of)
+REGIONS = ['Eastern Sierra', 'Alps']
 HERE = 'trips/'
 SIZES = '(min-width: 1200px) 400px, 100vw'
 PICTURE = re.compile(r'<picture class="cover-pic">(<source [^>]*>)(<img [^>]*>)</picture>')   # a card cover with a .th copy
 
 
+LIST_ATTRS = re.compile(r' data-srcset-list="[^"]*" data-sizes-list="[^"]*"')
+
+
 def unwrap(html_):
-    """A page or fragment with every card cover's <picture class="cover-pic"> taken off: the <img> it holds, alone."""
-    return PICTURE.sub(lambda m: m.group(2), html_)
+    """A page or fragment with every card cover's <picture class="cover-pic"> taken off (the <img> it holds, alone), and
+    the list view's two data attributes (core.cover_img list_sizes, written only beside a .th copy) taken off as well."""
+    return LIST_ATTRS.sub('', PICTURE.sub(lambda m: m.group(2), html_))
 BY_YEAR = {'2026': ['west-couloir'],
            '2025': ['basin-loop', 'lovers-leap', 'haute-route'],
            '2024': ['dana-couloir', 'pacific-crest-trail-2024', 'vallee-blanche']}
@@ -98,7 +104,7 @@ class ExplorerFixture(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.tmp = tmp.name
-        meta = {'hash': '', 'maps': {}, 'regions': [], 'all_regions': list(REGIONS) + ['Lake Tahoe', 'Utah']}
+        meta = {'hash': '', 'maps': {}, 'regions': [], 'all_regions': list(REGIONS) + ['Pacific Crest Trail', 'Lake Tahoe', 'Utah']}
         patcher = mock.patch.object(core, '_SITE_META', [meta])
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -181,7 +187,8 @@ class ExplorerPageTests(ExplorerFixture):
         data = json.loads(page.html)
         self.assertTrue(data)
         self.assertEqual({e['s'] for e in data}, {'pacific-crest-trail-2024'})
-        self.assertEqual(set(data[0]), {'s', 'a', 'n', 'j', 'h', 'w', 't', 'p', 'k', 'x', 'r', 'q'})
+        self.assertEqual(set(data[0]), {'s', 'a', 'n', 'j', 'h', 'w', 't', 'p', 'k', 'x', 'r', 'd', 'f', 'q'})
+        self.assertEqual([e['f'] for e in data], ['1' if d['photos'] else '' for d in self.by['pacific-crest-trail-2024']['days']])
         # the written day and the two that have only a title (make_series titles every day and writes the first)
         self.assertEqual([(e['n'], e['h'], bool(e['x'])) for e in data],
                          [('1', 'Campo', True), ('2', 'Hauser Creek', False), ('3', 'Lake Morena', False)])
@@ -315,7 +322,7 @@ class ExplorerPageTests(ExplorerFixture):
         text = self.main.text()
         self.assertEqual(len(self.published), 7)
         # the head mirrors map/'s head block, which drops count_items' 'INCL. ...' item (the stats line is counts only)
-        for want in ('7 REPORTS', '3 REGIONS', '2024–2026'):
+        for want in ('7 REPORTS', '2 REGIONS', '2024–2026'):
             self.assertIn(want, text)
         self.assertNotIn('8 REPORTS', text)        # the planned route is not a report
         self.assertNotIn('PLANNED ROUTE', text)
@@ -457,8 +464,11 @@ class ExplorerPageTests(ExplorerFixture):
         self.assertEqual((source['sizes'], img['sizes'].rsplit(', ', 1)[1]), (core.CARD_PHONE_SIZES, core.CARD_PHONE_SLOT))
         self.assertEqual(source['srcset'], '%s02.th.webp 427w, %s' % (base, two))
         self.assertEqual(sorted(source.attrs), ['media', 'sizes', 'srcset'])
-        # it is the page's only wrapper (no other report has the copy), and nothing else on the page names the file
-        self.assertEqual((html_.count('<picture'), html_.count('<source'), html_.count('.th.')), (1, 1, 1))
+        # it is the page's only wrapper (no other report has the copy), and nothing else on the page names the file but the
+        # list view's candidates (data-srcset-list, Phase 7), which no image takes until the list view is on
+        self.assertEqual((html_.count('<picture'), html_.count('<source'), html_.count('.th.')), (1, 1, 2))
+        self.assertEqual(img['data-srcset-list'], '%s02.th.webp 427w, %s' % (base, two))
+        self.assertEqual(img['data-sizes-list'], self.trips_mod.LIST_SIZES)
         for i in Doc(html_).find_all('img'):
             self.assertNotIn('.th.', (i['srcset'] or '') + (i['src'] or ''))
         self.assertTrue(os.path.isfile(os.path.join(self.tmp, 'west-couloir', 'photos', '02.th.webp')))
@@ -500,11 +510,11 @@ class ExplorerPageTests(ExplorerFixture):
                 self.assertEqual(first, '../%s%s %dw' % (t['url'], cover['photo']['th'], core.thumb_width(cover['photo'])))
                 self.assertTrue(os.path.isfile(os.path.join(self.tmp, t['slug'], cover['photo']['th'])))
                 self.assertEqual(pics[0].find('img')['srcset'].count('.th.'), 0)
-                self.assertEqual(html_.count(core.cover_img(t, HERE, self.trips_mod.TRX_SIZES)), 1)
+                self.assertEqual(html_.count(core.cover_img(t, HERE, self.trips_mod.TRX_SIZES, list_sizes=self.trips_mod.LIST_SIZES)), 1)
         self.assertIn('west-couloir', wrapped)
         self.assertIn('tall-cover', wrapped)
         self.assertEqual(len(doc.find_all('picture')), len(wrapped))
-        self.assertEqual(html_.count('.th.'), len(wrapped))
+        self.assertEqual(html_.count('.th.'), 2 * len(wrapped))     # the phone source, and the list view's candidates
         self.assertEqual(doc.find('li', attrs={'data-slug': 'tall-cover'}).find('source')['srcset'],
                          ', '.join('../trips/tall-cover/photos/' + c for c in ('01.th.webp 320w', '01.sm.webp 600w', '01.webp 1200w')))
         for i in doc.find_all('img'):
@@ -526,7 +536,7 @@ class ExplorerPageTests(ExplorerFixture):
 
     def test_selects_checkbox_and_view_controls(self):
         sel = self.selects()
-        self.assertEqual(option_values(sel['region']), ['', 'eastern-sierra', 'alps', 'pacific-crest-trail'])
+        self.assertEqual(option_values(sel['region']), ['', 'eastern-sierra', 'alps'])     # the journal's own region is no option
         for name, opt in zip(REGIONS, sel['region'].find_all('option')[1:]):
             self.assertIn(name, opt.text())
         self.assertEqual(option_values(sel['year']), ['', '2026', '2025', '2024'])
@@ -534,11 +544,20 @@ class ExplorerPageTests(ExplorerFixture):
         labels = [o.text() for o in sel['format'].find_all('option')]
         self.assertTrue(labels[0].startswith('Any'), labels[0])   # 'Any' or 'Any format'
         self.assertEqual(labels[1:], ['Single-day', 'Multi-day', 'Series'])
-        self.assertEqual(option_values(sel['sort']), ['newest', 'oldest', 'relevance'])
+        self.assertEqual(option_values(sel['sort']), ['newest', 'oldest', 'relevance', 'longest', 'gain'])
+        self.assertEqual([o.text() for o in sel['sort'].find_all('option')][3:], ['Longest first', 'Most gain'])
+        # ia-06: the months a report starts in, January first, after Year
+        # every month a report spans (the journal runs from April into September)
+        self.assertEqual(option_values(sel['month']), ['', '01', '03', '04', '05', '06', '07', '08', '09'])
+        self.assertEqual([o.text() for o in sel['month'].find_all('option')][:2], ['Any month', 'January'])
+        self.assertEqual(list(sel), ['region', 'year', 'month', 'format', 'sort'])
         cb = self.form.find('input', attrs={'type': 'checkbox', 'name': 'writeup'})
         self.assertIsNotNone(cb)
         self.assertEqual(cb['value'], '1')
         self.assertIn('Has a write-up', self.form.text())
+        pb = self.form.find('input', attrs={'type': 'checkbox', 'name': 'photos'})     # benchmark-02
+        self.assertEqual(pb['value'], '1')
+        self.assertIn('Has photos', self.form.text())
         views = [b for b in self.form.find_all('button', attrs={'role': 'radio'}) if b['data-view'] is not None]
         self.assertEqual([b['data-view'] for b in views], ['cards', 'list'])
 
@@ -548,10 +567,22 @@ class ExplorerPageTests(ExplorerFixture):
         sel = self.selects()
         filters = {b['data-filter'] for b in self.form.find_all('button', attrs={'role': 'radio'}) if b['data-filter']}
         self.assertEqual({c['data-act'] for c in cards}, filters - {'all'})
-        self.assertEqual({c['data-region'] for c in cards}, set(option_values(sel['region'])) - {''})
+        # every region a card filters by is an option, but the journal's own region (ia-04: map/ does not list it either)
+        self.assertEqual({c['data-region'] for c in cards if c['data-kind'] != 'series'}, set(option_values(sel['region'])) - {''})
+        self.assertEqual([c['data-region'] for c in cards if c['data-kind'] == 'series'], ['pacific-crest-trail'])
         self.assertEqual({c['data-year'] for c in cards}, set(option_values(sel['year'])) - {''})
         self.assertEqual({c['data-kind'] for c in cards}, set(option_values(sel['format'])) - {''})
         self.assertEqual({c['data-writeup'] for c in cards}, {'0', '1'})
+        self.assertEqual({m for c in cards for m in c['data-month'].split()}, set(option_values(sel['month'])) - {''})
+        search = importlib.import_module('sitegen.search')
+        for c in cards:
+            t = self.by[c['data-slug']]
+            self.assertEqual(c['data-month'], ' '.join('%02d' % m for m in search.trip_months(t)))
+            self.assertEqual(c['data-month'].split()[0], '%02d' % t['date'].month)
+            self.assertEqual(c['data-photos'], str(len(t['photos']) + sum(len(d['photos']) for d in t['days'])))
+            st = t['stats']
+            self.assertEqual(c['data-km'], ('%.1f' % st['distance_km']) if st.get('distance_km') is not None else '')
+            self.assertEqual(c['data-gain'], str(st['gain_m']) if st.get('gain_m') is not None else '')
         for c in cards:
             t = self.by[c['data-slug']]
             self.assertEqual(c['data-writeup'], '1' if t['has_writeup'] else '0', c['data-slug'])
@@ -991,8 +1022,7 @@ class RegionLinkTests(ExplorerFixture):
         self.assertEqual(core._REGION_PAGES, {'Eastern Sierra': 'eastern-sierra'})
         self.assertEqual(self.region_links(self.trips_mod.browse(self.site)),
                          [('../regions/eastern-sierra/', 'Eastern Sierra, 4 reports'),           # its own page
-                          ('../map/#region-alps', 'Alps, 2 reports'),                             # on map/, no region map: no page
-                          ('?region=pacific-crest-trail', 'Pacific Crest Trail, 1 report')])      # on neither: this page's filter
+                          ('../map/#region-alps', 'Alps, 2 reports')])                            # on map/, no region map: no page
         page = pages_by_url(self.trips_mod.build(self.site))['trips/'].html
         self.assertEqual(self.region_links(page), self.region_links(self.trips_mod.browse(self.site)))
         self.assertEqual(page.count(self.trips_mod.browse(self.site)), 1)
@@ -1010,8 +1040,7 @@ class RegionLinkTests(ExplorerFixture):
         core._REGION_PAGES.clear()
         self.assertEqual(self.trips_mod.browse(self.site), legacy_browse(self.trips_mod, self.site))
         self.assertEqual(self.region_links(self.trips_mod.browse(self.site)),
-                         [('../map/#region-eastern-sierra', 'Eastern Sierra, 4 reports'), ('../map/#region-alps', 'Alps, 2 reports'),
-                          ('?region=pacific-crest-trail', 'Pacific Crest Trail, 1 report')])
+                         [('../map/#region-eastern-sierra', 'Eastern Sierra, 4 reports'), ('../map/#region-alps', 'Alps, 2 reports')])
         self.assertNotIn('regions/', pages_by_url(self.trips_mod.build(self.site))['trips/'].html)
 
     def test_registered_without_a_site_meta_the_block_is_the_old_one_too(self):
@@ -1070,6 +1099,73 @@ class RegionLinkTests(ExplorerFixture):
             html_ = self.trips_mod.browse(self.site)
         self.assertEqual(asked, [('trips/', r) for r in REGIONS])
         self.assertEqual(html_, legacy_browse(self.trips_mod, self.site))
+
+
+class Phase7PageTests(ExplorerFixture):
+    """Phase 7 on the explorer's markup: the placeholder and the description say what is searched (gap3-05), the phones'
+    Filters button and the panel it opens (phone-02), the sorted section's line (ia-07), the list view's image candidates
+    (qa-05) and the date in the link of a repeated title (a11y-13)."""
+
+    def setUp(self):
+        super().setUp()
+        self.trips_mod = load_trips_module(self)
+        self.page = pages_by_url(self.trips_mod.build(self.site))['trips/']
+        self.doc = Doc(self.page.html)
+        self.main = self.doc.by_id('main')
+        self.form = self.doc.by_id('search')
+
+    def card(self, slug):
+        return self.main.find('li', attrs={'data-slug': slug})
+
+    def test_the_placeholder_and_the_description_say_what_the_box_searches(self):
+        hint = 'Search titles, places, peaks, activities, dates or write-ups'
+        self.assertEqual(self.trips_mod.SEARCH_HINT, hint)
+        self.assertEqual(self.form.find('input', attrs={'name': 'q'})['placeholder'], hint)
+        self.assertEqual(self.form.find('label', attrs={'for': 'trx-q'}).text(), 'Search trips')
+        desc = self.doc.find('head').find('meta', attrs={'name': 'description'})['content']
+        self.assertEqual(desc, 'Every trip report on one page. %s; filter by activity, region, year, month and format.' % hint)
+        self.assertTrue(hint.endswith('write-ups'))      # write-ups last: a narrow box cuts the placeholder short
+
+    def test_the_filters_button_opens_the_selects_checkboxes_and_sort(self):
+        btn = self.form.find('button', cls='trx-more-btn')
+        self.assertEqual((btn['type'], btn['aria-expanded'], btn['aria-controls']), ('button', 'false', 'trx-more'))
+        self.assertIn('Filters', btn.text())
+        self.assertIsNotNone(btn.find('span', cls='trx-more-n'))
+        panel = self.form.by_id('trx-more') if hasattr(self.form, 'by_id') else self.doc.by_id('trx-more')
+        self.assertEqual(sorted(s['name'] for s in panel.find_all('select')), ['format', 'month', 'region', 'sort', 'year'])
+        self.assertEqual(sorted(i['name'] for i in panel.find_all('input')), ['photos', 'writeup'])
+        # the search box, the activity chips and the view switch stay out of it, in view
+        self.assertEqual(panel.find_all('input', attrs={'name': 'q'}) + panel.find_all('button', attrs={'role': 'radio'}), [])
+        order = [n['id'] or n.classes[-1] for n in self.form.find('div', cls='trx-filters').elements()]
+        self.assertEqual(order, ['trx-acts', 'trx-more-btn', 'trx-more', 'trx-view'])     # keyboard order: the DOM order
+
+    def test_the_sorted_section_has_a_line_for_longest_and_most_gain(self):
+        line = self.doc.by_id('trx-sorted-m')
+        self.assertEqual((line.tag, line.classes, line.text()), ('span', ['t-mono-s', 'trx-yr-n'], ''))
+        self.assertIs(line.parent, self.doc.by_id('trx-sorted-h').parent)
+
+    def test_a_covered_card_with_a_th_copy_carries_the_list_views_candidates(self):
+        helpers.touch(os.path.join(self.tmp, 'west-couloir', 'photos', '02.th.webp'))
+        site = helpers.make_site(helpers.load_dir(self.tmp))
+        img = Doc(self.build(site)['trips/'].html).find('li', attrs={'data-slug': 'west-couloir'}).find('img')
+        base = '../trips/west-couloir/photos/'
+        self.assertEqual(img['data-srcset-list'], '%s02.th.webp 427w, %s02.sm.webp 800w, %s02.webp 1600w' % (base, base, base))
+        self.assertEqual(img['data-sizes-list'], '(min-width: 760px) 200px, (min-width: 560px) 160px, 64px')     # trips.css's slots
+        self.assertNotIn('.th.', img['srcset'])                                 # the card view's own candidates as before
+        # without a .th copy there is nothing to swap in
+        self.assertIsNone(self.card('west-couloir').find('img')['data-srcset-list'])
+
+    def test_a_repeated_title_names_its_date_in_the_link(self):
+        helpers.make_trip(self.tmp, 'basin-loop-2', title='Basin Loop', activity='hike', date='2023-09-09', region='Eastern Sierra',
+                          track=True)
+        site = helpers.make_site(helpers.load_dir(self.tmp))
+        doc = Doc(self.build(site)['trips/'].html)
+        for slug, when in (('basin-loop', 'Aug 10, 2025'), ('basin-loop-2', 'Sep 9, 2023')):
+            a = doc.find('li', attrs={'data-slug': slug}).find('h3').find('a')
+            self.assertEqual(a.find('span', cls='sr').text().replace('\u00a0', ' '), ', ' + when)
+            self.assertEqual(a['aria-describedby'], 'tc-%s-m' % slug)          # the meta line still describes it
+        # a title on one card alone has no such span
+        self.assertIsNone(doc.find('li', attrs={'data-slug': 'west-couloir'}).find('h3').find('span', cls='sr'))
 
 
 if __name__ == '__main__':

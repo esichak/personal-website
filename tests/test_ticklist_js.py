@@ -393,7 +393,7 @@ class TickListPageSourceTests(unittest.TestCase):
         calls = re.findall(r'(?<![\w.])apply\(([^()]*)\)', code)
         self.assertEqual(calls.count('kind, keepHash, settle'), 1)                     # the definition
         calls.remove('kind, keepHash, settle')
-        self.assertEqual(sorted(calls), sorted(["'pick'"] * 7 + ["'submit'", "'type'", "'type', true, true"]))
+        self.assertEqual(sorted(calls), sorted(["'pick'"] * 8 + ["'submit'", "'type'", "'type', true, true"]))
         # no call says true or false any more (the old apply(push, keepHash)), and Enter no longer asks whether the
         # words changed: the rule decides
         self.assertNotRegex(code, r'(?<![\w.])(?:apply|write)\(\s*(?:true|false|changed|push)\b')
@@ -415,7 +415,9 @@ class TickListPageSourceTests(unittest.TestCase):
                      "function clearAll() { state.q = ''; FACETS.forEach(function (k) { state[k] = DEFAULTS[k]; }); apply('pick'); q.focus(); }",
                      "clearBtn.addEventListener('click', clearAll);",
                      "Array.prototype.forEach.call(noneEl.querySelectorAll('[data-clear]'), function (b) { b.addEventListener('click', clearAll); });",
-                     "b.addEventListener('click', function () { state[key] = DEFAULTS[key]; apply('pick'); q.focus(); });"):
+                     "b.addEventListener('click', function () { state[key] = DEFAULTS[key]; apply('pick'); q.focus(); });",
+                     # an empty state's nearest view (relaxOffers): the filters or the search let go of
+                     "function takeOffer(kind) { if (kind === 'facets') FACETS.forEach(function (k) { state[k] = DEFAULTS[k]; }); else state.q = ''; apply('pick'); q.focus(); }"):
             with self.subTest(handler=line[:44]):
                 self.assertEqual(code.count('  ' + line + '\n'), 1)
         # the load: 'type', the fragment kept, the entry settled; the page's last write-making statement, after every
@@ -551,6 +553,9 @@ SCENARIOS = (
     ('m', ('a browser that refuses every write to the history (a page opened from a file): each view is put on screen all the same',)),
 )
 LABELS = [label for _letter, labels in SCENARIOS for label in labels]
+# the harness's own table after them (phase7Checks), run after the history checks
+PHASE_7 = ('Phase 7: no result offers the search in all activities and the filters without the search, counted in the scope',
+           'Phase 7: the Filters button counts the filters behind it, and only those')
 
 # The page part of ticklist.js with its history handling changed in one way: (what the change does, the text as it is,
 # the text instead), or (what the change does, (text, instead), (text, instead), ...) for lines changed together. Each
@@ -758,7 +763,10 @@ class TickListPageScenarioTests(unittest.TestCase):
         r = self.run_page()
         self.assertEqual(r.returncode, 0, 'the "page:" checks failed:\n%s\n%s' % (r.stdout, r.stderr))
         pure = self.run_node(HARNESS)
-        self.assertEqual(self.passed(r) - self.passed(pure), 1 + len(LABELS), 'the "page:" checks did not all run')
+        self.assertEqual(self.passed(r) - self.passed(pure), 1 + len(LABELS) + len(PHASE_7), 'the "page:" checks did not all run')
+        harness = source(HARNESS)
+        table = harness[harness.index('  const phase7Checks = {'):harness.index("  Object.keys(pageChecks).forEach(")]
+        self.assertEqual([m.group(1) for m in re.finditer(r"(?m)^    '((?:[^'\\\n]|\\.)*)': \(\) => ", table)], list(PHASE_7))
         # '' stands for the site's own module, so the model can be given without naming the two scripts
         self.assertEqual(self.passed(self.run_node(HARNESS, '', '', self.model_path)), self.passed(r))
 

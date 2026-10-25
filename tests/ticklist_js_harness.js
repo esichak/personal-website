@@ -82,8 +82,8 @@ for (const [input, want] of cases) {
   check('norm ' + JSON.stringify(input), () => eq(X.norm(input), want));
 }
 check('norm contract examples', () => {
-  eq(X.norm("Lover's Leap: Corrugation Corner"), 'lover s leap corrugation corner');
-  eq(X.norm("Aiguille d'Example – Vallée"), 'aiguille d example vallee');
+  eq(X.norm("Lover's Leap: Corrugation Corner"), 'lovers leap corrugation corner');   // apostrophes dropped (Phase 7)
+  eq(X.norm("Aiguille d'Example – Vallée"), 'aiguille d example vallee');   // a one-letter elision stays a word break
   eq(X.norm(''), '');
 });
 check('tokens', () => {
@@ -271,9 +271,12 @@ check('chipLabel names each filter for the chips', () => {
   eq(TKL.chipLabel('month', '6', NAMES), 'Month: June');
   assert.ok(String(TKL.chipLabel('gpx', true, NAMES)).indexOf('Has a route') === 0, 'gpx chip');
 });
-check('matches: every token has to appear somewhere in the text', () => {
+check('matches: every token has to start a word of the text', () => {
   const m = TKL.matches;
   eq(m('short couloir synthetic bowl eastern sierra', ['coul']), true);
+  eq(m('short couloir synthetic bowl eastern sierra', ['oulo']), false);   // inside a word: no match (Phase 7)
+  eq(m('a nice practice ridge', ['ice']), false);
+  eq(m('ice on the ridge', ['ice']), true);
   eq(m('short couloir synthetic bowl', ['couloir', 'bowl']), true);
   eq(m('short couloir synthetic bowl', ['couloir', 'ridge']), false);   // all of them, not any of them
   eq(m('anything', []), true);
@@ -673,6 +676,27 @@ check('historyStep returns a new answer each time and keeps nothing between call
   deq(X.historyStep('submit', HOME, HOME, HOME, false), { push: false, restore: false });
 });
 
+// ---------------------------------------------------------------- Phase 7: the Filters button and the way out of no result
+
+check('Phase 7: MORE is the filters behind the phones\' Filters button: never the activity or the scope', () => {
+  deq(TKL.MORE, ['region', 'status', 'priority', 'month', 'gpx']);
+  for (const k of TKL.MORE) assert.ok(TKL.FACETS.indexOf(k) !== -1, k);
+  eq(TKL.MORE.indexOf('activity'), -1);
+  eq(TKL.MORE.indexOf('scope'), -1);
+});
+check('Phase 7: relaxOffers counts goals, and names a filter as its chip does', () => {
+  const NAMES = { activity: { climb: 'Climbing' }, region: { 'synthetic-range': 'Synthetic Range' } };
+  const offers = (o, a, b) => TKL.relaxOffers(withDefaults(o), a, b, NAMES).map((x) => x.kind + ': ' + x.text);
+  deq(offers({ q: 'loop', activity: 'climb' }, 1, 2),
+    ['facets: 1 goal matches ‘loop’ in all activities', 'query: 2 climbing goals without the search']);
+  deq(offers({ q: 'loop', region: 'synthetic-range' }, 3, 1),
+    ['facets: 3 goals match ‘loop’ without Region: Synthetic Range', 'query: 1 goal with these filters, without the search']);
+  deq(offers({ q: 'loop', gpx: true, month: '07' }, 2, 0), ['facets: 2 goals match ‘loop’ without the filters']);
+  // the scope is not a filter here: it stays as it is, and alone it offers nothing
+  deq(offers({ q: 'loop', scope: 'archived' }, 4, 4), []);
+  deq(offers({ activity: 'climb' }, 4, 4), []);
+});
+
 // ---------------------------------------------------------------- the page part, on a stand-in for the browser
 
 /* What the pure helpers cannot show: that the page's own lines hand them the right things at the right moments.
@@ -747,6 +771,16 @@ function load(opts) {
     chips: () => byId('tkl-chips').querySelectorAll('button').map((b) => b.textContent),
     shown: () => byId('tkl-results').querySelectorAll('.gcard').filter((c) => !c.hidden).map((c) => c.dataset.slug).sort(),
     count: () => byId('tkl-count').textContent,
+    offers: () => {
+      const none = byId('tkl-none'), row = none.querySelectorAll('.trx-relax')[0];
+      return none.hidden || !row || row.hidden ? [] : row.querySelectorAll('button').map((b) => b.textContent);
+    },
+    takeOffer: (i) => {
+      const row = one(byId('tkl-none'), '.trx-relax', 'the row of nearest views');
+      eq(row.hidden, false, 'the nearest views are not on screen');
+      press(row.querySelectorAll('button')[i]);
+    },
+    moreN: () => one(form, '.trx-more-n', 'the count on the Filters button').textContent,
   });
   return page;
 }
@@ -1567,7 +1601,43 @@ if (MODEL) {
   const GAPS = {};
   const gap = ONLY.replace(/^gap:/, '');
   assert.ok(!ONLY || (ONLY.indexOf('gap:') === 0 && Object.prototype.hasOwnProperty.call(GAPS, gap)), 'unknown argument: ' + ONLY);
+  // Phase 7: the way out of no result and the count on the Filters button, on the same stand-in (PHASE_7 in
+  // tests/test_ticklist_js.py)
+  const phase7Checks = {
+    'Phase 7: no result offers the search in all activities and the filters without the search, counted in the scope': () => {
+      const CLIMB = CARDS.filter((c) => c['data-act'] === 'climb' && scoped(c, 'active')).map((c) => c['data-slug']).sort();
+      const LOOP = CARDS.filter((c) => scoped(c, 'active') && (' ' + c['data-text']).indexOf(' loop') !== -1).map((c) => c['data-slug']);
+      deq([LOOP.length, CLIMB.length], [1, 2]);
+      const page = load();
+      page.activity('climb');
+      page.type('loop');
+      page.pause();
+      deq([page.shown(), page.offers()], [[], ['1 goal matches ‘loop’ in all activities', '2 climbing goals without the search']]);
+      page.takeOffer(0);
+      deq([page.controls().activity, page.box(), page.shown(), page.offers()], ['all', 'loop', LOOP, []]);
+      const other = load();
+      other.activity('climb');
+      other.type('loop');
+      other.pause();
+      other.takeOffer(1);
+      deq([other.controls().activity, other.box(), other.shown()], ['climb', '', CLIMB]);
+    },
+    'Phase 7: the Filters button counts the filters behind it, and only those': () => {
+      const page = load();
+      eq(page.moreN(), '');
+      page.activity('climb');
+      page.scope('all');
+      eq(page.moreN(), '');
+      page.choose('region', MODEL.menus.region.filter((v) => v)[0]);
+      eq(page.moreN(), ' · 1');
+      page.route();
+      eq(page.moreN(), ' · 2');
+      page.clearAll();
+      eq(page.moreN(), '');
+    },
+  };
   Object.keys(pageChecks).forEach((label) => check('page: ' + label, pageChecks[label]));
+  Object.keys(phase7Checks).forEach((label) => check('page: ' + label, phase7Checks[label]));
   if (ONLY) check('gap: ' + gap, GAPS[gap]);
 }
 

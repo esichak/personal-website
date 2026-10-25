@@ -8,6 +8,7 @@
   var DEFAULTS = { q: '', activity: 'all', region: '', status: '', priority: '', month: '', gpx: false, scope: 'active', sort: 'priority', view: 'cards' };
   var KEYS = ['q', 'activity', 'region', 'status', 'priority', 'month', 'gpx', 'scope', 'sort', 'view'];
   var FACETS = ['activity', 'region', 'status', 'priority', 'month', 'gpx'];
+  var MORE = ['region', 'status', 'priority', 'month', 'gpx'];   // the filters behind the phones' Filters button
   var LABELS = { region: 'Region: ', status: 'Status: ', priority: 'Priority: ', month: 'Month: ', gpx: 'Has a route' };
   var RANK = { high: 0, normal: 1, someday: 2 };
   function parseState(search, allowed) { return X.parseState(search, allowed, DEFAULTS, KEYS); }
@@ -34,7 +35,8 @@
     if (sort === 'added') return byAdded;
     return function (a, b) { return (RANK[a.priority] - RANK[b.priority]) || byAdded(a, b); };   // priority
   }
-  function matches(text, toks) { return toks.every(function (t) { return text.indexOf(t) !== -1; }); }
+  // every token starts a word of the card's normalised text (explore.js has)
+  function matches(text, toks) { return toks.every(function (t) { return X.has(text, t); }); }
   // whether a goal card shows: d is its data attributes (act, region, status, priority, months, gpx, archived, text),
   // st the state, toks the search tokens. The scope first, then every filter, then every search token in the card's text.
   function goalShown(d, st, toks) {
@@ -62,8 +64,10 @@
     if (!out.q && form.q) out.q = String(form.q);
     return out;
   }
+  // the nearest views when a search and filters find no goal in the scope (explore.js relaxOffers), in goals
+  function relaxOffers(st, noFacets, noQuery, names) { return X.relaxOffers(st, noFacets, noQuery, names, LABELS, DEFAULTS, FACETS, 'goal'); }
   var TKL = { parseState: parseState, serialize: serialize, chipLabel: chipLabel, inScope: inScope, compare: compare, matches: matches, goalShown: goalShown,
-    adoptForm: adoptForm, DEFAULTS: DEFAULTS, KEYS: KEYS, FACETS: FACETS };
+    adoptForm: adoptForm, relaxOffers: relaxOffers, DEFAULTS: DEFAULTS, KEYS: KEYS, FACETS: FACETS, MORE: MORE };
   if (typeof module === 'object' && module && module.exports) { module.exports = TKL; return; }
   if (typeof document === 'undefined' || !document.body.classList.contains('p-ticklist')) return;
 
@@ -80,6 +84,7 @@
   var sel = { region: form.querySelector('select[name="region"]'), status: form.querySelector('select[name="status"]'),
     priority: form.querySelector('select[name="priority"]'), month: form.querySelector('select[name="month"]'), sort: form.querySelector('select[name="sort"]') };
   var gpxBtn = form.querySelector('[data-toggle="gpx"]');   // a switch button, not a checkbox: nothing on the page persists
+  var moreN = form.querySelector('.trx-more-n');
   var groups = Array.prototype.slice.call(results.querySelectorAll('.tkl-region'));
   var cards = Array.prototype.slice.call(results.querySelectorAll('.gcard'));
   var origin = cards.map(function (c) { return c.parentNode; });
@@ -177,10 +182,43 @@
     });
     var filtered = anyFilter();
     clearBtn.hidden = !filtered;
+    if (moreN) { var nMore = X.moreCount(state, DEFAULTS, MORE), tMore = nMore ? ' \u00b7 ' + nMore : ''; if (moreN.textContent !== tMore) moreN.textContent = tMore; }
     if (noneP) noneP.textContent = filtered ? 'No goals match these filters.' : (NONE[state.scope] || 'No goals match these filters.');
     if (noneBtn) noneBtn.hidden = !filtered;
     noneEl.hidden = k > 0;
+    // nothing in the scope: the search without the filters and the filters without the search, in the same scope
+    var offers = [];
+    if (k === 0 && filtered) {
+      var bare = Object.assign({}, state);
+      FACETS.forEach(function (key) { bare[key] = DEFAULTS[key]; });
+      var noFacets = cards.filter(function (c) { return goalShown(c.dataset, bare, toks); }).length;
+      var noQuery = cards.filter(function (c) { return goalShown(c.dataset, state, []); }).length;
+      offers = relaxOffers(state, noFacets, noQuery, names);
+    }
+    showOffers(offers);
   }
+  // the buttons of the empty state that apply a nearest view (relaxOffers); built as text, never HTML
+  var offersEl = null;
+  function showOffers(offers) {
+    if (!offers.length && !offersEl) return;
+    if (!offersEl) {
+      offersEl = document.createElement('div');
+      offersEl.className = 'trx-relax';
+      noneEl.insertBefore(offersEl, noneBtn || null);
+    }
+    while (offersEl.firstChild) offersEl.removeChild(offersEl.firstChild);
+    offers.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn trx-relax-b';
+      b.textContent = o.text;
+      b.addEventListener('click', takeOffer.bind(null, o.kind));
+      offersEl.appendChild(b);
+    });
+    offersEl.hidden = !offers.length;
+  }
+  // 'facets': every filter back to its default, the search kept; 'query': the search emptied, the filters kept
+  function takeOffer(kind) { if (kind === 'facets') FACETS.forEach(function (k) { state[k] = DEFAULTS[k]; }); else state.q = ''; apply('pick'); q.focus(); }
   // the canonical URL for the state, without a fragment
   function address() {
     var qs = serialize(state);

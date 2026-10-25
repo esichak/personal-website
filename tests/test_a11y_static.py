@@ -1630,6 +1630,7 @@ def site_pages():
         return _SITE[0]
     build = importlib.import_module('build')
     home = importlib.import_module('sitegen.pages.home')
+    ticklist = importlib.import_module('sitegen.pages.ticklist')
     tmp = tempfile.mkdtemp()
     state = _snapshot(core)
     try:
@@ -1644,7 +1645,8 @@ def site_pages():
         pins = [(SLUGS[k], 'Synthetic ' + k.title()) for k in ('story', 'lap', 'spring', 'crag')]
         meta = _site_maps(rendered, pins, (SLUGS['lap'], SLUGS['spring']))
         with mock.patch.object(core, 'ROOT', tmp), mock.patch.object(core, '_SITE_META', [meta]), \
-                mock.patch.object(content, 'RENDERED', rendered), mock.patch.object(home, 'HOME_REGIONS', (REGION,)):
+                mock.patch.object(content, 'RENDERED', rendered), mock.patch.object(home, 'HOME_REGIONS', (REGION,)), \
+                mock.patch.object(ticklist, 'FILTERS_FROM', 1):     # the fixture has fewer goals than the form needs: it is checked here
             trips = helpers.load_dir(trips_dir)
             for t in trips:
                 if not (t['slug'].startswith(PREFIX) and t['rendered'].startswith(rendered)):
@@ -1728,6 +1730,25 @@ class SiteFixture(unittest.TestCase):
 # ---------------------------------------------------------------- every page type: headings, skip link, images, nesting
 
 class PageTests(SiteFixture):
+
+    def test_every_search_landmark_has_a_name_of_its_own(self):
+        # Phase 7: the header's box, the menu's, the 404 page's and the explorers' forms are role="search" landmarks; a
+        # landmark list names each, as it names the navs. The menu's box repeats the header's name: the two are never
+        # shown at once (the header's row from 1140 px, the menu below it)
+        seen = 0
+        for url in self.pages:
+            if url.endswith('.json'):
+                continue
+            doc = page_doc(url)
+            forms = [f for f in doc.root.walk() if f['role'] == 'search']
+            seen += len(forms)
+            for f in forms:
+                self.assertTrue((f['aria-label'] or '').strip(), '%r on %s has no name' % (f, url or 'the home page'))
+            outside_menu = [f['aria-label'] for f in forms if not inside(f, 'menu')]
+            self.assertEqual(len(outside_menu), len(set(outside_menu)), url)
+        self.assertGreater(seen, 20)
+        self.assertEqual([f['aria-label'] for f in page_doc('404.html').root.walk() if f['role'] == 'search' and not inside(f, 'menu')],
+                         ['Search trips', 'Find a trip report'])
 
     def test_the_fixture_builds_every_page_type(self):
         urls = set(self.pages)
@@ -2405,9 +2426,11 @@ class NoScriptTests(SiteFixture):
         btn = head.find('button', cls='menu-btn')
         self.assertIsNotNone(nav)
         self.assertIsNotNone(btn)
-        units, search = nav.find(cls='units'), nav.find('a', cls='nav-search')
+        # Search: a box that lands on trips/ (core.search_form), and on trips/ itself a link to the page's own box
+        units, search = nav.find(cls='units'), nav.find(cls='nav-search')
         self.assertIsNotNone(units, 'no units switch in the header nav')
-        self.assertIsNotNone(search, 'no Search link in the header nav')
+        self.assertIsNotNone(search, 'no Search box or link in the header nav')
+        self.assertEqual(search.tag, 'a' if url == 'trips/' else 'form', url)
         return nav, btn, units, search
 
     def assertNotDisplayed(self, pick, what):
@@ -2433,7 +2456,8 @@ class NoScriptTests(SiteFixture):
         self.assertNotDisplayed(lambda parts: parts[2], 'the units switch')
 
     def test_without_scripting_the_search_link_is_not_displayed(self):
-        self.assertNotDisplayed(lambda parts: parts[3], 'the header Search link')
+        # the box too: without scripting trips/ lists every trip and does not read ?q=
+        self.assertNotDisplayed(lambda parts: parts[3], 'the header Search box or link')
 
     def test_without_scripting_the_primary_links_are_displayed_at_every_width(self):
         for url in ('', 'trips/', trip_url('story'), 'about/'):
@@ -2501,7 +2525,7 @@ class NoScriptTests(SiteFixture):
         nav, _btn, _units, search = self.header_parts(url)
         rows = [n for n in nav.elements() if 'nav-l' in n.classes]
         self.assertEqual(len(rows), 2, 'the header nav no longer has its two .nav-l rows')
-        self.assertEqual(rows[1].find_all('a'), [search])                    # the second row holds the Search link, alone
+        self.assertEqual(rows[1].elements(), [search])                       # the second row holds the Search box or link, alone
         self.assertEqual([n for n in nav.elements() if 'nav-sep' in n.classes], [nav.elements()[1]])     # between the two
         self.assertIs(nav.elements()[2], rows[1])
         self.assertGreaterEqual(len(rows[0].find_all('a')), 4)
@@ -2560,8 +2584,12 @@ class NoScriptTests(SiteFixture):
         self.assertIsNotNone(width_)
         need = float(width_.group(1)) + px(ring[0].decls['outline-offset'][0])
         self.assertEqual(need, 4.0)                      # 2 px, 2 px away from the link
-        # no rule draws the header links' ring anywhere else, or removes it
+        # no rule draws the header links' ring anywhere else, or removes it. The search box is not a link: it draws its
+        # ring on its own border, as every text box does (.trx-q, .nf-q), and is not shown without scripting
         for r in self.rules:
+            if r.selector == '.nav-q:focus-visible':
+                self.assertEqual(r.decls['outline-offset'][0], '0')
+                continue
             if ':focus' in r.selector and re.search(r'\.(nav|site-h|brand)\b', r.selector):
                 self.fail('a focus rule of the header: %s' % r.selector)
         for url in self.NS_PAGES:
@@ -2782,6 +2810,18 @@ class TargetSizeTests(SiteFixture):
             self.assertGreaterEqual(len(chips), least, url)
             self.assertEqual(len([c for c in chips if c['data-filter'] == 'all']), 1, url)
             self.assertTargets(url, chips, inline=True)
+
+    def test_the_search_buttons_and_the_filters_button(self):
+        # Phase 7: the search button of the header's and the menu's box (core.search_form), the 404 page's, and the
+        # phones' Filters button of the Trips page and the tick list (trips.more_button)
+        go = self.nodes('', cls='nav-go', tag='button')
+        self.assertEqual(len(go), 2)                                  # the header's and the menu's
+        self.assertTargets('', go, inline=True, widths=(320,) + WIDTHS)
+        self.assertEqual(page_doc('trips/').find_all('button', cls='nav-go'), [])     # trips/ has its own box
+        self.assertTargets('404.html', self.nodes('404.html', cls='nf-go', tag='button'), widths=(320,) + WIDTHS)
+        self.assertTargets('404.html', self.nodes('404.html', cls='nf-q', tag='input'), widths=(320,) + WIDTHS)
+        for url in ('trips/', 'tick-list/'):
+            self.assertTargets(url, self.nodes(url, cls='trx-more-btn', tag='button'), widths=(320, 390, 759))
 
     # Targets that reach 44 x 44 px without a box of the page changing: the control keeps the size it had before the
     # phase, and a pseudo-element of it, transparent and out of the layout, answers the presses around it. What the

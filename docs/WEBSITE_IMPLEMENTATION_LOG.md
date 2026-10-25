@@ -1306,3 +1306,146 @@ published page has it, and the prompt asks for no screenshot).
 - **Plan 2** counts 467 validator notes in Phase 9; there are 468 now (the UTC note).
 - **Interface copy for Eric to read:** "Map not rendered yet. The GPX file is published: use the Download GPX button."
   and the multi-day variant "... The GPX files of the days are published: use the Download all GPX button."
+
+## Phase 7 - Search and the explorer (2026-10-24)
+
+The second phase of the second plan (`docs/personal-website-improvement-plan-2.md`, section 7, and the Phase 7 prompt
+of `docs/claude-code-website-prompt-2.md`), built on branch `phase-7-search-explorer` from `phase-6-author-tools` at
+`da8c7cd`, with the default answer to each of its three decisions: the activity word lists as written, `sup` included
+(gap3-01); the Trips page's browse block hidden with scripting on, not moved (visual-02, not ia-05); the tick list's form
+from six goals, counting active goals only (visual-05). The disk had about 21 GB free throughout, under the plan's
+30 GB line: builds were linked into the session's scratch folder, and no worktree or copy of the checkout was made.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/search.py` | `normalize`: an apostrophe (straight or curly) after one letter and before a letter becomes a space (`d'Argentière` → `d argentiere`), every other one is dropped (`Lover's` → `lovers`). `ACTIVITY_WORDS`, `SUBTYPE_WORDS`, `MONTH_NAMES`, `trip_months(t)`, `date_words(t)`; `entry()`'s `k` adds the other forms of the activity and sub-type (less the label's own words), the date words and `route_shape`. `day_entry()` adds `d`, the day's `<month> <day>`, and `f` (`'1'` when the day has photos). |
+| `assets/js/pages/explore.js` | `norm` as `normalize`; `has(field, tok)` (a word start); `match`, `score` and `snippet` use it; `relaxOffers` and `moreCount`, exported. |
+| `assets/js/pages/trips.js` | State keys `month` (a card is under every month it spans) and `photos`; `dayMonth` and `dayFacets` (a found journal day answers Month and Has photos itself); sorts `longest` and `gain` (`byValue`, `sortedMeta`, `SORTED_HEAD`, `#trx-sorted-m`); `FACETS` / `MORE`; `dayHits` by word start and on the day's date; `warm()` fetches the indexes on the box's focus or a press on the form, quietly; `listImages(on)`; the empty state's buttons (`showOffers`, `takeOffer`; the first also counts the journal days found); the Filters count. |
+| `assets/js/pages/ticklist.js` | Word-start search, `MORE`, the Filters count, the empty state's buttons (noun `goal`). |
+| `assets/js/pages/notfound.js` | An address `/trips/<words>/` fills the search box, less its one- and two-digit numbers, and the line `Looking for “<words>”?` (text only). |
+| `assets/js/base.js` | The Filters button: `.is-more` on the form, `aria-expanded`, remembered per page in `sessionStorage`. |
+| `tools/sitegen/core.py` | `search_form` (the header's and the menu's box, a named search landmark; trips/ keeps its Search link); `cover_img(list_sizes=)`; `repeated_titles`; `trip_card` gains `data-month` (every month spanned), `data-photos`, `data-km`, `data-gain`, `repeated` (a screen-reader date on a title more than one card carries) and `list_sizes`; `NAME_GENERIC`, `NAME_MIN`, `NAME_MAX`, `name_words`, `same_name`, the first tier of `related` and its rule line; `card_summary` and `excerpt_parts` cut at a sentence end. |
+| `tools/lib/markdown.py` | `plain_sentences(text, limit, floor=1/3)`, `_SENT_END`, `_ABBREVIATIONS`. |
+| `tools/sitegen/pages/trips.py` | `LIST_SIZES`, the form's name `Search and filter trips`, the Longest first and Most gain sorts, the Month menu and the Has photos box, `SEARCH_HINT` (placeholder and description), `months_of` (every month spanned), `more_button`, the secondary controls in `div.trx-more`; `regions_of` leaves out a region of journals alone. |
+| `tools/sitegen/pages/ticklist.py` | `FILTERS_FROM = 6`, `with_form`; the form's name `Search and filter goals`; below it no form and only the active goals; the Filters button; `No active goals right now.` |
+| `tools/sitegen/pages/notfound.py` | `search_block`: the hidden line and a search form to trips/, named `Find a trip report`. |
+| `tools/sitegen/pages/home.py`, `region.py` | The recent cards show the write-up's opening (`summary=True`); both pass `repeated`. |
+| `tools/sitegen/pages/report.py` | The description's "little writing" rule measures the whole write-up, not the sentence-cut excerpt. |
+| `assets/css/base.css`, `pages/trips.css`, `pages/ticklist.css`, `pages/notfound.css` | The header and menu search box; the Filters button and panel below 760 px; the empty state's buttons; the phone list rows (64 px thumbnail, about 70 px a row); `@media (scripting: enabled)` hides `.p-trips nav.trx-browse`; the 404 box. |
+| `tests/` | New cases in `test_search.py`, `norm_cases.json`, `trips_js_harness.js` (pure checks and a `phase7Checks` table on the generated page), `ticklist_js_harness.js` (the same), `test_trips_page.py`, `test_ticklist_page.py`, `test_nav.py`, `test_notfound_page.py`, `test_related.py` (`SameNameTests`), `test_summary.py` (`PlainSentencesTests`), `test_home.py`, `test_a11y_static.py` (the new controls' targets, a name for every search landmark); `page_standin.js` gains `insertBefore`; `test_build_site.py`, `test_region_page.py`, `test_trips_js.py` and `test_ticklist_js.py` follow the new markup and counts. |
+| `docs/CONTENT_GUIDE.md`, `docs/DEVELOPING.md`, `docs/TICK_LIST_GUIDE.md` | Section 4's excerpt rule; section 6's search contract (word starts, apostrophes, dates, route shapes, journal dates, the header and 404 boxes, the empty state, the Filters button), the alias advice; 7.5's rule; the developer contracts and the test list; the tick list's six-goal threshold. |
+
+### Behaviour
+
+- **Search.** `lovers leap`, `lover's leap`, `lovers` and `lover’s` find the three Lover's Leap reports; `skiing` finds
+  all 51 ski reports and scores them as a keyword; `bike` the 61 rides; `loop` the 71 loops; `june 2024` 30 journal
+  days and `2024` alone none; `ice` one report (16 before, through every word holding "ice"). A word no longer matches
+  inside another, so `horn` stops finding the Matterhorn.
+- **Everywhere.** Every page but trips/ has a search box in its header (in the menu on a phone) that lands on
+  `trips/?q=…&sort=relevance`; checked in a browser from a report: `lover's leap` gave `4 OF 167 REPORTS`, best match
+  first. The 404 page has the same box, filled from a mistyped report address (`/trips/tallac-2026-09-25/` asks for
+  `tallac 2026`).
+- **Explorer.** Month and Has photos filters (a multi-day trip or the PCT is under every month it spans; a found
+  journal day is listed under Month for its own month and under Has photos only with photos of its own); Longest first and Most gain; a search that finds nothing with the
+  filters on offers the search without them and the filters without the search, with live counts (`whitney` with
+  Climbing on offers `1 journal day matches ‘whitney’ in all activities`); the indexes start
+  loading when the box takes the focus. With scripting the browse block is hidden. Below 760 px the menus, boxes and
+  sort sit behind a Filters button that shows how many are on; the first card starts at 496 px on a 390 x 844 phone.
+  List view below 560 px is a scan list of about 70 px rows, and at every width it takes the .th copy: at 1280 px the
+  list view's photos went from 7,283,770 bytes (106 requests) to 3,035,814 (116: the rows on screen when the page
+  opens in list view first fetch the card copy).
+- **Cards.** 37 of the 39 explorer excerpts that ended mid-sentence end at a sentence now (the other two have no
+  sentence end within 180 characters); the Matterhorn's ends at a full stop. Two of the six home recent cards show
+  their write-up's opening, and 32 Trips cards whose title another card carries name their date to screen readers.
+- **More like this.** On `mount-tallac-2026-02-15` it lists back-at-tallac-with-connor,
+  bee-positive-5k-warm-up-tallac-tour and tallac-cathedral-bowl-solo (it listed the two 'Powderhouse lap before work'
+  reports and 'Return to Emerald Chute').
+- **Regions.** The Trips page counts 14 regions; the PCT's, which holds only the journal, is in neither the browse
+  block nor the Region menu, and `?region=pacific-crest-trail` opens the unfiltered explorer.
+- **Tick list.** With today's one goal the page is its head and the card, no form; a site with six active goals or
+  more gets the form, the status line and the Filters button as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **Elision.** Dropping every apostrophe joined `d'Example` into `dexample`; an apostrophe after a single letter and
+  before a letter is read as a space instead, in both normalisers (`tests/norm_cases.json` holds the cases).
+- **The sentence floor** is a third of the limit, not the prompt's half: at half (90 of 180 characters) 31 of the 39
+  excerpts end at a sentence, because six end their first sentence at 64 to 84 characters; the plan's own count of 37
+  (sentence ends from 60 characters) is a third.
+- **The report description** keeps its rule (the summary leads when the writing is short), but measures the whole
+  write-up: with sentence cuts a long write-up's first sentence could be under 100 characters and lose its place.
+- **`LIST_SIZES`** declares 200 px from 760 px, 160 from 560 and 112 below, as trips.css lays the list out; the prompt
+  had 1200 px for the first step.
+- **The name tier** leaves out a word in three or more place names and a generic part of a name (`NAME_GENERIC`:
+  mount, peak, ridge, lake, north, …) as well as words under five letters: the prompt's five-letter rule alone paired
+  every 'Mount …' trip. The rule line no-breaks inside each clause and may wrap after a comma, so it fits a phone.
+- **Phone list rows** have a 64 px thumbnail at 4:3, not square: a square one with any padding makes rows of 80 px or
+  more, and the prompt asks for about 72 (the Map page's rows fit 72 with a flat glyph).
+- **`regions_of`** leaves out a region whose every report is a journal, so the browse link the PCT's region had
+  (`?region=pacific-crest-trail`) is gone: the journal is found by Format: Series.
+- **Rules changed.** `docs/CONTENT_GUIDE.md` 6: an apostrophe is no word break, and the advice to add `Lovers Leap` as
+  an alias is gone; the search matches word starts. `docs/DEVELOPING.md`: `match` needs a word start, not a substring;
+  the recent cards show a summary; the header's Search is a box.
+
+### Review
+
+An agent reviewed the whole diff read-only (it ran the suites and the harnesses, compared the two normalisers on
+20,000 random strings with no disagreement, and used the built site in a browser). Its findings, all fixed with tests:
+Month and Has photos let a found journal day through by its journal's card, so `?q=june&month=04` listed all 30 June
+days and `?q=june&month=06` none (the card is now under every month it spans, and the day answers both filters
+itself: 0, then 30, and 4 with Has photos); the empty state's "without the filters" counted reports only, so a search
+that finds only journal days had no way out; the 404 box kept a dated address's month and day (`09 25`), which the
+index never holds, so none of the 20 dated slugs found anything; the search landmarks had no names (the 404 page shows
+two); `date_words` pairs every year with every month, which only shows for a trip across New Year (none is published:
+written into the guide); four sentences of DEVELOPING.md that no longer matched the code; three published titles
+copied into `tests/norm_cases.json` (now synthetic; one real title was there before this phase). `LIST_SIZES` below
+560 px now says 64 px, as trips.css lays it out.
+
+### Checks actually run
+
+All on the working tree of 2026-10-24 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 2,794 tests, OK, none skipped, 76 s (2,754 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 2,794 tests, OK, none skipped, 67 s |
+| `python3 tests/run_orders.py --reverse` | OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 14, series 49, ticklist 103, trips 167 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` on 3.9.6 and on 3.12.11 | 357 pages, 168 trips, link check OK, about 2 s |
+| The index gate (a script over the build's `search.json` and `journal.json` with explore.js's rules) | every row OK: the counts under Behaviour; `search.json` 76,047 B raw and 17,801 B gzip -9 (limits 80,000 and 20,000) |
+| Excerpts counted with the loader | 82 reports with a write-up; 39 cut mid-sentence at 180 characters before, 37 of them end at a sentence now |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without `goal.json`), 468 notes |
+| A copy of trips.js broken in one way each (no list swap, no warm, no offers, no photos filter), through the harness with a page model | each one fails its Phase 7 check |
+| Chrome (DevTools), the build served under `/personal-website/` with its 404 page | screenshots in `.cache/plan2/phase7/` (trips at 1280 and 390, the list at 390, the tick list at 1280 and 390, the 404 page at 390, a report's header box at 1280, the home recent cards at 1280) beside the `before-` ones; first card at 496 px on 390 x 844; phone list rows 69 px; Filters opens, counts and keeps `?month=06`; the header box from a report lands on the search; list view at 1280 px 3,035,814 photo bytes (7,283,770 before); the four review scenarios above |
+
+One run of `test_trips_js.py` failed a history scenario once while the machine was busy (the module took 76 s, not
+16): it passed alone, in the module again and in both full runs above.
+
+Not run: the suite with the deploy runner's `html.parser` (the review gate before a publication runs it); Safari and
+Firefox (Chrome only); a screen reader (the landmark names and the screen-reader dates are checked in the markup).
+
+### Remaining issues and author inputs
+
+- **Interface copy for Eric to read:** the placeholder `Search titles, places, peaks, activities, dates or write-ups`;
+  the header box (`Search`, its label `Search trips`); the 404 line `Looking for “<words>”?` and its `Search` button;
+  `Filters` and its count (` · 2`); `Month`, `Any month`, the month names, `Has photos`; the sorts `Longest first`
+  and `Most gain`, the headings `Longest first` and `Most gain first` and the line `MULTI-DAY AND SERIES BY THEIR
+  TOTALS · N WITHOUT A DISTANCE, LISTED LAST` (or `GAIN`); the empty state's buttons `N reports match ‘<words>’ in all
+  activities` (`… without Region: <name>`, `… without the filters`; `N journal days match …`, `N reports and N journal
+  days match …`), `N climbing reports without the search`, `N reports with these filters, without the search`, and the
+  tick list's `goal` forms; the search landmarks' names, heard with a screen reader: `Search trips`, `Find a trip
+  report` (404), `Search and filter trips`, `Search and filter goals`; the chips `Month: June` and `Has photos`;
+  More like this `SAME PLACE OR NAME AND ACTIVITY, THEN REGION AND ACTIVITY, THEN REGION, THEN ACTIVITY · NEAREST IN
+  DATE`; the tick list's `No active goals right now.`; the Trips description `Every trip report on one page. Search
+  titles, places, peaks, activities, dates or write-ups; filter by activity, region, year, month and format.`
+- **Word lists.** `search.ACTIVITY_WORDS` and `SUBTYPE_WORDS` are the plan's lists as written (`sup` in); a word Eric
+  would expect and is missing is one line there.
+- **`horn`.** A short form typed for a longer name no longer finds it (`horn` for the Matterhorn); an alias is the way
+  when people really type it.
+- **The name tier's generic words** (`NAME_GENERIC`) are a hand list; a new trip whose place starts with another
+  generic word (say `Col`, `Aiguille`) may pair trips that share only that word until the word is added.
+- **The month menu** on a phone sits behind Filters with the others; on desktop the controls now take two rows at
+  1280 px (search, chips and Region and Year, then Month, Format, the boxes, Sort and the view).
+- **Not built here:** `strava_id` writing stays Eric's decision (`docs/PRIVACY_NOTES.md`, decision 4).

@@ -660,9 +660,10 @@ def page(t, site):
     # verbatim) and a description that leads with the factual summary, as does a report with little or no write-up
     dup = t['date'] and title_counts(site).get(t['title'].casefold(), 0) > 1
     full_title = ('%s, %s · %s' % (t['title'], core.fdate(t['date'], 'short'), core.SITE_NAME)) if dup else None
-    desc = core.excerpt(t, 155)
-    if dup or len(desc) < 100:
-        ex = core.excerpt(t, 400)
+    # 'little': under 100 characters of writing in all (excerpt() cuts at a sentence end, so its 155-character excerpt
+    # can be shorter than that while the write-up is not; its 400-character one is whole below 400)
+    desc, ex = core.excerpt(t, 155), core.excerpt(t, 400)
+    if dup or len(ex) < 100:
         desc = core.clip_words(core.summary(t) + ((' ' + ex) if ex else ''), 155)
     # the share image is the cover the trip's cards show, whether or not it leads the page (a portrait cover does not)
     img = core.share_photo(t)

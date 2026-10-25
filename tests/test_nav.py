@@ -20,7 +20,7 @@ from helpers import Doc  # noqa: E402
 tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
 
 PCT = 'trips/pacific-crest-trail-2024/'
-SITE_LINKS = ['trips/', 'tick-list/', 'map/', PCT, 'about/', 'trips/#search']
+SITE_LINKS = ['trips/', 'tick-list/', 'map/', PCT, 'about/']   # then Search: a form (core.search_form), a link on trips/ alone
 
 
 class HeaderFixture(unittest.TestCase):
@@ -69,8 +69,8 @@ class HeaderTests(HeaderFixture):
     def test_home_nav_links_in_order_and_nothing_current(self):
         nav = self.main_nav(self.header('', None))
         self.assertEqual([h for h, _, _ in nav], SITE_LINKS)
-        self.assertEqual([t for _, _, t in nav], ['Trips', 'Tick list', 'Map', 'PCT', 'About', 'Search'])
-        self.assertEqual([c for _, c, _ in nav], [None] * 6)
+        self.assertEqual([t for _, _, t in nav], ['Trips', 'Tick list', 'Map', 'PCT', 'About'])
+        self.assertEqual([c for _, c, _ in nav], [None] * 5)
 
     def test_main_nav_has_no_activity_links(self):
         hrefs = [h for h, _, _ in self.main_nav(self.header('', None))]
@@ -104,20 +104,45 @@ class HeaderTests(HeaderFixture):
     def test_about_page_marks_about(self):
         self.assertEqual(self.current('about/', 'about'), [('../about/', 'page')])
 
-    def test_search_link_has_text_icon_and_anchor(self):
-        nav = self.header('ski/', 'ski').find('nav', attrs={'aria-label': 'Main'})
+    def test_search_is_a_form_that_lands_on_the_explorer_in_best_match_order(self):
+        # ia-02 (Phase 7): every page but trips/ has a search box in the header and one in the menu, with their own ids
+        for here, active in (('ski/', 'ski'), ('', None), ('trips/west-couloir/', 'ski'), ('map/', 'map')):
+            with self.subTest(here=here):
+                doc = self.header(here, active)
+                nav = doc.find('nav', attrs={'aria-label': 'Main'})
+                self.assertEqual([a for a in nav.find_all('a') if a['href'].endswith('#search')], [])
+                forms = doc.find_all('form', cls='nav-search')
+                self.assertEqual(len(forms), 2)
+                header_form, menu_form = forms
+                self.assertIs(nav.find('form', cls='nav-search') is not None, True)
+                self.assertIsNotNone(doc.by_id('menu').find('form', cls='nav-search'))
+                for f, fid in ((header_form, 'nav-q'), (menu_form, 'menu-q')):
+                    self.assertEqual((f['role'], f['method'], f['action']), ('search', 'get', core.link(here, 'trips/')))
+                    box = f.find('input', attrs={'name': 'q'})
+                    self.assertEqual((box['id'], box['type'], box['maxlength'], box['autocomplete']), (fid, 'search', '200', 'off'))
+                    self.assertEqual(f.find('label', attrs={'for': fid}).text(), 'Search trips')
+                    self.assertEqual([(i['name'], i['value']) for i in f.find_all('input', attrs={'type': 'hidden'})], [('sort', 'relevance')])
+                    btn = f.find('button')
+                    self.assertEqual((btn['type'], btn['aria-label']), ('submit', 'Search'))
+                    self.assertIsNotNone(btn.find('svg'))
+
+    def test_on_trips_itself_search_stays_a_link_to_the_pages_own_box(self):
+        doc = self.header('trips/', 'trips')
+        nav = doc.find('nav', attrs={'aria-label': 'Main'})
         links = [a for a in nav.find_all('a') if a['href'] == '../trips/#search']
         self.assertEqual(len(links), 1)
         self.assertEqual(links[0].text(), 'Search')
         self.assertIsNotNone(links[0].find('svg'))
         self.assertIsNone(links[0]['aria-current'])
+        self.assertEqual(doc.find_all('form', cls='nav-search'), [])
+        self.assertEqual([a['href'] for a in self.site_column(doc)][-1], '../trips/#search')
 
     def test_pct_link_only_when_the_series_exists(self):
         helpers.make_site([self.by[s] for s in ('west-couloir', 'basin-loop', 'someday-ridge')])
         doc = self.header('', None)
         self.assertNotIn(PCT, [a['href'] for a in doc.find_all('a')])
-        self.assertEqual([h for h, _, _ in self.main_nav(doc)], ['trips/', 'tick-list/', 'map/', 'about/', 'trips/#search'])
-        self.assertEqual([a['href'] for a in self.site_column(doc)], ['trips/', 'tick-list/', 'map/', 'about/', 'trips/#search'])
+        self.assertEqual([h for h, _, _ in self.main_nav(doc)], ['trips/', 'tick-list/', 'map/', 'about/'])
+        self.assertEqual([a['href'] for a in self.site_column(doc)], ['trips/', 'tick-list/', 'map/', 'about/'])
         helpers.make_site(self.trips)
         self.assertIn(PCT, [h for h, _, _ in self.main_nav(self.header('', None))])
 
@@ -129,7 +154,7 @@ class HeaderTests(HeaderFixture):
         self.assertEqual(reports, [core.section_url(a) for a, _ in core.NAV])
         site = self.site_column(doc)
         self.assertEqual([a['href'] for a in site], SITE_LINKS)
-        self.assertEqual([a.text() for a in site], ['Trips', 'Tick list', 'Map & archive', 'PCT', 'About', 'Search'])
+        self.assertEqual([a.text() for a in site], ['Trips', 'Tick list', 'Map & archive', 'PCT', 'About'])
         units = menu.find(cls='menu-units')
         self.assertIsNotNone(units)
         self.assertIsNotNone(units.find(attrs={'role': 'radiogroup'}))

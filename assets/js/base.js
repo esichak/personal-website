@@ -425,6 +425,24 @@
     else byHand();
   });
 
+  // ------------------------------------------------------------ phones: the explorer's and the tick list's secondary
+  // filters behind one Filters button (trips.py more_button; trips.css hides them below 760 px until it is pressed). The
+  // form's is-more class opens them; open or closed is remembered for the session, per page. The count in the button is
+  // the page script's (trips.js, ticklist.js)
+  var moreBtn = document.querySelector('.trx-more-btn');
+  if (moreBtn) {
+    var moreForm = moreBtn.closest('form'), moreKey = 'trx-more:' + location.pathname;
+    var setMore = function (on) { moreBtn.setAttribute('aria-expanded', String(on)); if (moreForm) moreForm.classList.toggle('is-more', on); };
+    var moreWas = null;
+    try { moreWas = sessionStorage.getItem(moreKey); } catch (err) { /* storage refused: closed */ }
+    setMore(moreWas === '1');
+    moreBtn.addEventListener('click', function () {
+      var on = moreBtn.getAttribute('aria-expanded') !== 'true';
+      setMore(on);
+      try { sessionStorage.setItem(moreKey, on ? '1' : '0'); } catch (err) { /* storage refused */ }
+    });
+  }
+
   // ------------------------------------------------------------ full-screen map page: open on the route, not the image
   // centre. A route that fits the screen is centred; a wider one opens on its start (kept in view, as much of the route as
   // fits beside it). A map wider than the screen shows 'Drag to pan'.

@@ -70,15 +70,17 @@ class CardSummaryTests(unittest.TestCase):
         self.assertEqual(set(r), KEYS)
         self.assertEqual(r['source_kind'], 'report')
         self.assertEqual(r['source_label'], '')
-        self.assertEqual(r['text'], markdown.plain(t['body_md'], 180))
-        self.assertLessEqual(len(r['text']), 181)        # <= limit characters plus the ellipsis
-        self.assertTrue(r['text'].endswith('…'))
+        # Phase 7: cut at the end of a sentence when one ends after the first third of the limit (plain_sentences)
+        self.assertEqual(r['text'], markdown.plain_sentences(t['body_md'], 180))
+        self.assertEqual(r['text'], 'We skinned up the west couloir before dawn and found firm, edgeable snow all the way to the notch.')
+        self.assertLessEqual(len(r['text']), 180)
         self.assertNotIn('**', r['text'])
         self.assertNotIn('](', r['text'])
-        self.assertTrue(r['text'].startswith('We skinned up the west couloir'))
+        # no sentence ends inside 40 characters: the word cut and the ellipsis, as before
         short = core.card_summary(t, limit=40)
         self.assertEqual(short['text'], markdown.plain(t['body_md'], 40))
-        self.assertLessEqual(len(short['text']), 41)
+        self.assertLessEqual(len(short['text']), 41)        # <= limit characters plus the ellipsis
+        self.assertTrue(short['text'].endswith('…'))
 
     def test_short_writeup_is_returned_whole(self):
         t = self.trip(body='Quick lap before work.')
@@ -205,6 +207,44 @@ class CardSummaryTests(unittest.TestCase):
                 t = self.trip(slug, activity='ski', date='2025-12-01', **kw)
                 self.assertFalse(t['has_writeup'])
                 self.assertEqual(core.card_summary(t), {'text': '', 'source_kind': None, 'source_label': ''})
+
+
+
+class PlainSentencesTests(unittest.TestCase):
+    """markdown.plain_sentences: an excerpt that ends where a sentence ends, when one ends late enough; made-up text."""
+
+    def test_short_text_is_whole(self):
+        self.assertEqual(markdown.plain_sentences('One short line. Two.', 180), 'One short line. Two.')
+
+    def test_the_longest_whole_sentences_that_fit(self):
+        text = 'A' * 50 + ' one. ' + 'B' * 40 + ' two! ' + 'C' * 100 + ' three.'
+        self.assertEqual(markdown.plain_sentences(text, 120), 'A' * 50 + ' one. ' + 'B' * 40 + ' two!')
+
+    def test_a_sentence_end_before_the_floor_gives_the_word_cut(self):
+        text = 'Short one. ' + 'word ' * 60
+        self.assertEqual(markdown.plain_sentences(text, 100), markdown.plain(text, 100))
+        self.assertTrue(markdown.plain_sentences(text, 100).endswith('…'))
+        # a lower floor takes it
+        self.assertEqual(markdown.plain_sentences(text, 100, floor=0.1), 'Short one.')
+
+    def test_abbreviations_and_initials_are_not_sentence_ends(self):
+        pad = 'x' * 30
+        for stop in ('Mt.', 'vs.', 'approx.', 'e.g.', 'J.', 'No.'):
+            with self.subTest(stop=stop):
+                text = '%s up %s Dana and on to the top of the ridge. %s' % (pad, stop, 'word ' * 40)
+                got = markdown.plain_sentences(text, 100)
+                self.assertTrue(got.endswith('ridge.'), got)
+
+    def test_a_closing_quote_or_bracket_stays_with_its_sentence(self):
+        text = 'x' * 40 + ' he said "go on." ' + 'y' * 60 + ' (and back).' + ' word' * 40
+        self.assertEqual(markdown.plain_sentences(text, 70), 'x' * 40 + ' he said "go on."')
+
+    def test_markup_is_gone_and_the_text_is_a_prefix_of_plain(self):
+        text = 'We **went** up [the gully](https://example.com/g) at dawn and it was all firm. ' + 'More words here. ' * 20
+        got = markdown.plain_sentences(text, 100)
+        self.assertTrue(markdown.plain(text).startswith(got))
+        self.assertNotIn('**', got)
+        self.assertNotIn('](', got)
 
 
 if __name__ == '__main__':

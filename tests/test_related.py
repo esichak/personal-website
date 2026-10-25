@@ -56,6 +56,10 @@ NEVER = ['rel-elsewhere', 'rel-noregion-ski', 'rel-planned', 'rel-draft', SUBJEC
 HIKES = ['rel-later', 'rel-near-after', SUBJECT, 'rel-act-near', 'rel-near-before', 'rel-far', 'rel-journal', 'rel-twin-a',
          'rel-twin-b', 'rel-act-far', 'rel-act-nowhere', 'rel-undated']
 SKIS = ['rel-elsewhere', 'rel-region-ski', 'rel-noregion-ski', 'rel-region-tour']
+# 'More like this' states its rule (Phase 7 added the first tier); a report without a region has two tiers
+TIERS = ('SAME PLACE OR NAME AND ACTIVITY', 'THEN REGION AND ACTIVITY', 'THEN REGION', 'THEN ACTIVITY')
+TIERS_NO_REGION = ('SAME PLACE OR NAME AND ACTIVITY', 'THEN ACTIVITY')
+RULE, RULE_NO_REGION = ', '.join(TIERS), ', '.join(TIERS_NO_REGION)
 
 
 def load_module(tc, name):
@@ -383,6 +387,66 @@ class RelatedTests(RelatedFixture):
         self.assertEqual(slugs(self.site['published']), pub)
 
 
+# ---------------------------------------------------------------- core.related: the same place or name first (Phase 7)
+
+class SameNameTests(RelatedFixture):
+    """Tier 0: a report of the same activity that shares the page's place, a named peak, or a title word that is the proper
+    part of some place: on the site (core.name_words). The places and words are made up: Quarrow, Velmor."""
+
+    def setUp(self):
+        super().setUp()
+        mk = helpers.make_trip
+        # the page: a hike at Quarrow Knob, in the subject's region; the region's hikes are all nearer in date
+        mk(self.tmp, 'rel-quarrow', title='Quarrow Knob Synthetic Walk', activity='hike', date='2026-06-12', region=REGION,
+           place='Quarrow Knob', track=True)
+        # the same place, written another way, in another region and seven years away
+        mk(self.tmp, 'rel-quarrow-again', title='Synthetic Return', activity='hike', date='2019-06-12', region=OTHER,
+           place='quarrow knob ', track=True)
+        # no place, but a title word that names a place on the site (Quarrow): pairs through the title, farther in date
+        mk(self.tmp, 'rel-quarrow-title', title='Back on Quarrow', activity='hike', date='2018-06-12', region=OTHER, track=True)
+        # the same place, another activity: in the region, so a candidate, but not of the first tier
+        mk(self.tmp, 'rel-quarrow-ski', title='Quarrow Knob Synthetic Ski', activity='ski', date='2026-06-12', region=REGION,
+           place='Quarrow Knob', track=True)
+        # three places share 'velmor', so it names a kind of place here and pairs nothing; 'sunrise' names no place at all
+        for i, place in enumerate(('Velmor Dome', 'Velmor Flats', 'Velmor Spire')):
+            mk(self.tmp, 'rel-velmor-%d' % i, title='Synthetic Velmor Place %d' % i, activity='ski', date='2017-01-0%d' % (i + 1),
+               region=OTHER, place=place, track=True)
+        mk(self.tmp, 'rel-word-a', title='Velmor Sunrise Synthetic Walk', activity='hike', date='2026-06-11', region=REGION, track=True)
+        mk(self.tmp, 'rel-word-b', title='Velmor Sunrise Synthetic Stroll', activity='hike', date='2016-06-11', region=OTHER, track=True)
+        self.reload()
+
+    def test_the_words_that_can_pair_two_titles(self):
+        words = need(self, core, 'name_words')(self.site)
+        # in: a word of one or two place names, NAME_MIN letters or more. Out: shorter ('knob', 'dome'), in three names
+        # ('velmor'), or in no place: or peak at all ('synthetic', 'sunrise')
+        for w, want in (('quarrow', True), ('flats', True), ('spire', True), ('knob', False), ('dome', False),
+                        ('velmor', False), ('synthetic', False), ('sunrise', False)):
+            self.assertEqual(w in words, want, w)
+        self.assertEqual((core.NAME_MIN, core.NAME_MAX), (5, 2))
+        self.assertIn('ridge', core.NAME_GENERIC)
+
+    def test_the_same_place_wins_over_region_and_date(self):
+        got = self.rel('rel-quarrow', k=99)
+        self.assertEqual(got[:2], ['rel-quarrow-again', 'rel-quarrow-title'])   # nearest in date first, inside the tier
+        # every hike of the region, nearer in date, comes after them
+        for s in SAME_BOTH + [SUBJECT]:
+            self.assertLess(got.index('rel-quarrow-title'), got.index(s), s)
+
+    def test_a_common_title_word_does_not_pair(self):
+        # 'velmor' names three places and 'sunrise' none: rel-word-b, another region and ten years away, is last of the hikes
+        # it stays in the last tier (same activity only), after every report of the region
+        got = self.rel('rel-word-a', k=99)
+        in_region = [s for s in got if self.by[s].get('region') == REGION]
+        self.assertGreater(got.index('rel-word-b'), max(got.index(s) for s in in_region))
+
+    def test_a_different_activity_does_not_enter_the_first_tier(self):
+        got = self.rel('rel-quarrow', k=99)
+        # the ski day at the same place is in the region: after every hike of the region, as before Phase 7
+        region_hikes = [s for s in got if self.by[s]['activity'] == 'hike' and self.by[s].get('region') == REGION]
+        self.assertGreater(got.index('rel-quarrow-ski'), max(got.index(s) for s in region_hikes))
+        self.assertNotEqual(got[0], 'rel-quarrow-ski')
+
+
 # ---------------------------------------------------------------- core.related_block
 
 class RelatedBlockTests(RelatedFixture):
@@ -415,16 +479,22 @@ class RelatedBlockTests(RelatedFixture):
         self.assertEqual([h.text() for h in doc.find_all('h2')], ['More like this'])
 
     def test_rule_line_says_how_the_reports_were_chosen(self):
-        # section 3: core.meta_items of ['SAME REGION, THEN ACTIVITY', 'NEAREST IN DATE']
+        # section 3, with Phase 7's first tier: core.meta_items of [RULE, 'NEAREST IN DATE']
         line = Doc(self.block()).find('span', cls='shead-m')
         self.assertEqual(line.classes, ['shead-m', 't-mono-s'])
-        self.assertEqual(ml_items(line), ['SAME REGION, THEN ACTIVITY', 'NEAREST IN DATE'])
+        self.assertEqual(ml_items(line), [RULE, 'NEAREST IN DATE'])
         self.assertIsNotNone(line.find('span', cls='ml'))
 
     def test_rule_line_without_a_region(self):
-        # section 3: first item 'SAME ACTIVITY' when t has no region
+        # section 3: no region tiers when t has no region
         line = Doc(self.block('rel-act-far')).find('span', cls='shead-m')
-        self.assertEqual(ml_items(line), ['SAME ACTIVITY', 'NEAREST IN DATE'])
+        self.assertEqual(ml_items(line), [RULE_NO_REGION, 'NEAREST IN DATE'])
+
+    def test_the_long_rule_wraps_only_after_a_comma(self):
+        # a phone is narrower than the first rule: it may break after each comma, never inside a clause
+        html_ = self.block()
+        self.assertIn(', '.join(core.nb(c) for c in TIERS), html_)
+        self.assertNotIn(RULE, html_)                 # its plain spaces are no-break spaces but for the one after each comma
 
     def test_list_of_cards_in_related_order(self):
         # section 3: <ul class="rep-rel tgrid"> of li.tcard, one per related report, in core.related's order
@@ -446,7 +516,7 @@ class RelatedBlockTests(RelatedFixture):
         rel = self.related(self.t, self.site)
         want = ('<section class="rep-related wrap sec" aria-labelledby="rel-h"><div class="shead"><h2 class="shead-t" id="rel-h">More like this</h2>'
                 '<span class="shead-m t-mono-s">%s</span></div><ul class="rep-rel tgrid">%s</ul></section>'
-                % (core.meta_items([core.nb('SAME REGION, THEN ACTIVITY'), core.nb('NEAREST IN DATE')]),
+                % (core.meta_items([', '.join(core.nb(c) for c in TIERS), core.nb('NEAREST IN DATE')]),
                    ''.join(core.trip_card(x, HERE, self.sizes, ns='rel') for x in rel)))
         self.assertEqual(self.block(), want)
 
@@ -537,7 +607,7 @@ class RelatedBlockTests(RelatedFixture):
         html_ = self.block(skip=skip)
         self.assertEqual(html_.split('<span class="shead-m', 1)[0], self.block().split('<span class="shead-m', 1)[0])
         self.assertEqual(ml_items(Doc(html_).find('span', cls='shead-m')),
-                         ['SAME REGION, THEN ACTIVITY', 'NEAREST IN DATE', 'NEWER / OLDER NOT REPEATED'])
+                         [RULE, 'NEAREST IN DATE', 'NEWER / OLDER NOT REPEATED'])
         self.assertIn('<ul class="rep-rel tgrid">%s</ul>' % ''.join(core.trip_card(x, HERE, self.sizes, ns='rel')
                                                                    for x in self.related(self.t, self.site, skip=skip)), html_)
 
@@ -545,14 +615,14 @@ class RelatedBlockTests(RelatedFixture):
         # nothing skipped (no pager on the page, or both ends missing): the two-item rule, exactly as without skip
         self.assertEqual(self.block(skip=()), self.block())
         self.assertEqual(self.block(skip=(None, None)), self.block())
-        self.assertEqual(ml_items(Doc(self.block(skip=(None, None))).find('span', cls='shead-m')), ['SAME REGION, THEN ACTIVITY', 'NEAREST IN DATE'])
+        self.assertEqual(ml_items(Doc(self.block(skip=(None, None))).find('span', cls='shead-m')), [RULE, 'NEAREST IN DATE'])
         # one neighbour is enough (the newest or the oldest report of an activity has only one)
         one = self.block(skip=(None, self.by['rel-near-before']))
         self.assertEqual(ml_items(Doc(one).find('span', cls='shead-m'))[-1], 'NEWER / OLDER NOT REPEATED')
         # a subject without a region keeps its own first item
         t = dict(self.t, region=None)
         line = Doc(self.related_block(t, HERE, self.site, skip=(self.by['rel-near-after'],))).find('span', cls='shead-m')
-        self.assertEqual(ml_items(line), ['SAME ACTIVITY', 'NEAREST IN DATE', 'NEWER / OLDER NOT REPEATED'])
+        self.assertEqual(ml_items(line), [RULE_NO_REGION, 'NEAREST IN DATE', 'NEWER / OLDER NOT REPEATED'])
 
     def test_empty_string_when_every_related_report_is_skipped(self):
         # sections 3 and 10.3: '' when empty: never a heading above no cards

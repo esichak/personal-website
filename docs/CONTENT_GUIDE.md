@@ -150,11 +150,15 @@ card_summary: "One or two sentences that say what the trip was, taken from the r
 That line is a placeholder for the syntax, not copy to publish. Plain text needs no quotes (colons and apostrophes
 inside it are fine). Wrap it in double quotes when it starts with a quote mark or `[`, or is nothing but digits,
 `true`, `false`, `null` or `~`; escape an inner double quote as `\"`. The text is shown exactly as written and never shortened, so keep it to a sentence or two (the automatic
-excerpt on a homepage card gets about 230 characters).
+excerpt on a homepage feature card gets about 230 characters, on the Recent outings and Trips page cards about 180).
 
 Without `card_summary` the card shows:
 
-- **a trip with a write-up:** the opening of the report, as plain text, cut at about 230 characters;
+- **a trip with a write-up:** the opening of the report, as plain text. It ends at the end of a sentence when one ends
+  after the first third of the room the card has (about 230 characters on a homepage feature card, 180 on the Recent
+  outings and the Trips page), with no ellipsis; otherwise it is cut at a word and ends in `…`. A full stop after `Mt`,
+  `St`, `vs`, `approx` and the like, after a single letter (an initial) or inside `e.g.` is not a sentence end. The
+  words are always the report's own, from its start;
 - **the PCT (a series):** no sentence. The card's data lines carry the facts instead (`APR 22 – SEP 21, 2024 ·
   MEXICO TO CANADA` and `150 RECORDED DAYS · 3,167 MI RECORDED`, counted from the days that have a track). Never a
   day's prose: the first day's story is not the story of the trail;
@@ -394,25 +398,54 @@ since the build; build again.
 
 ## 6. Search and the Trips page
 
-`/trips/` lists every published report by year, with a search box and filters (activity, region, year, format,
-has a write-up, sort, cards or list). The filters work on what is already on the page. The search box looks in:
+`/trips/` lists every published report by year, with a search box and filters (activity, region, year, month, format,
+has a write-up, has photos, sort, cards or list). The Month filter keeps a trip under every month it spans (the PCT
+is under April to September); a journal day found by a search is listed under Month only for its own date's month,
+and under Has photos only when that day has photos. The sorts are Newest first, Oldest first, Best match, Longest first
+and Most gain; the last two list multi-day trips and the PCT by their totals, and a report without a distance (or a
+gain) after the rest, as the line beside the heading says. The filters work on what is already on the page. On a phone
+the region, year, month and format menus, the two boxes and the sort sit behind a **Filters** button, which shows how
+many of them are on; the search box and the activity chips stay in view.
+
+Every page's header has a search box too (in the menu on a phone) that opens the Trips page with the words, best match
+first; on the Trips page itself the header keeps a Search link to the page's own box. The 404 page has one as well:
+an old or mistyped report address (`/trips/half-dome-cables/`) fills it with the address's words and asks
+`Looking for "half dome cables"?`. One- and two-digit numbers are left out (`/trips/tallac-2026-09-25/` asks for
+`tallac 2026`), because the search knows a trip's year and month names but never the day of the month.
+
+The search box looks in:
 
 - the title;
 - the place and the region;
-- the activity ("backcountry ski", "hiking", "paddleboarding");
+- the activity, with its other forms: "backcountry ski", "skiing", "skied", "skimo", "touring"; "hiking", "hikes";
+  "climbing", "climbed"; "mountain biking", "bikes", "rides", "cycling"; for Other, its type ("paddleboarding",
+  "paddling", "SUP", "rafting", "kayaking", "mountaineering");
 - the summits in `map: peaks:`;
+- the dates: the year (both years when a trip ends in the next one) and the name of every month it spans, so
+  `june 2024` finds the trips of June 2024. Never the day of the month: search by month and year. The words are not
+  paired, so a trip from December 2023 to January 2024 is also found by `december 2024`;
+- the route shape (`loop`, `out-and-back`, `point-to-point`) where the trip has one;
 - the write-up: the report body, and every day's write-up on a multi-day trip or the PCT (the first 4,000 characters
   or so);
 - `search_aliases` (below).
 
-Every word typed has to appear somewhere in those. Case, accents and punctuation do not matter: `chamonix zermatt`
-finds `Chamonix – Zermatt`. An apostrophe counts as a word break, so `lover's leap` and `lover leap` find Lover's
-Leap but `lovers` does not; if people type it that way, add `Lovers Leap` as an alias. Not searched: party, beta rows,
-conditions, stats, photo captions. The search data is a public file, `trips/search.json`, built from exactly those
-fields: no coordinates, no GPX, never a draft.
+Every word typed has to be the start of a word somewhere in those: `tall` finds Tallac, and `skiing` finds every ski
+report. A word is not found inside another one, so `horn` no longer finds the Matterhorn (type `matterhorn`, or add an
+alias when people really type the short form). Case, accents and punctuation do not matter: `chamonix zermatt` finds
+`Chamonix – Zermatt`. An apostrophe is not a word break: `lovers leap`, `lover's leap` and `lovers` all find Lover's
+Leap, typed with a straight or a curly apostrophe. After a single letter it is one (`d'Argentière` reads as
+`d argentiere`), so `argentiere` finds it. Not searched: party, beta rows, conditions, stats, photo captions. The
+search data is a public file, `trips/search.json`, built from exactly those fields: no coordinates, no GPX, never a
+draft.
+
+When a search and the filters together find nothing, the empty state offers the nearest views that do, each with its
+count: the search without the filters (`N reports match ‘<words>’ in all activities`, or `… without Region: <name>`,
+or `… without the filters`, with the journal days it finds counted too: `1 journal day matches ‘whitney’ …`) and the filters without the search (`N climbing reports without the search`), beside Clear
+filters. Each count is of the cards on the page, so a button never leads to an empty list; a count of nothing is not
+offered.
 
 **Aliases.** When people would type a name that is not in the title or place (an abbreviation, an older name, a
-trail's nickname), add one line to the trip's `index.md`, among the front-matter lines above the closing `---`:
+trail's nickname, a short form that is not the start of the name), add one line to the trip's `index.md`, among the front-matter lines above the closing `---`:
 
 ```yaml
 search_aliases: [PCT, Pacific Crest]
@@ -431,8 +464,9 @@ search_aliases: [PCT, Pacific Crest]
 
 When a search matches only in the write-up, the card shows the words around the first hit instead of its opening
 (and a day excerpt's DAY label is hidden); clearing the search restores the card. A region appears as a link in the
-browse block: to its own page when it has one (section 11), else to its list on the Map page, and when the Map page
-does not list it either (the PCT) to the Trips page's own filter.
+browse block (shown without JavaScript; with it the form's menus do the same): to its own page when it has one
+(section 11), else to its list on the Map page. A region whose only reports are journals (the PCT's) is in neither the
+browse block nor the Region menu, as the Map page leaves it out: the journal is found with Format: Series.
 
 **Journal days.** A search also reads the days of the PCT journal on their own, every one of them. The days it finds
 are listed under "Journal days", after the reports, and the count line above the results
@@ -448,7 +482,9 @@ name), shown whole. The link opens that day on the journal's page; a day never b
 - The journal's name and aliases never find a day by themselves: `pacific crest trail` finds the journal among the
   reports and no day, and `pct` only the days whose own write-up says "PCT". They may be typed along with something
   of the day's own, as whole words: `pct whitney` and `pacific crest trail 2024 day 48` both find Day 48. The place
-  and the date are not searched.
+  is not searched.
+- A day's date is searched as its month and day of the month: `may 22` finds the day of May 22, and `june 2024` every
+  day of that June (the year is the journal's own word, so `2024` alone finds no day).
 - Order: a day the query names comes first (`day 5.2` lists Day 5.2 above Day 5); after that a word found in the title
   counts for more than one found in the write-up, and equal days keep the journal's order.
 - The first five days are shown, with "Show all N journal days" for the rest and "Show fewer journal days" to fold
@@ -606,17 +642,25 @@ current conditions. A goal page keeps "Planned route, not a recorded track".
 ### 7.5 More like this
 
 Single-day reports (both layouts) and multi-day trips end with "More like this": up to three cards above Newer /
-Older. The rule, in one sentence: other published reports that share this trip's region and its activity come first,
-then those that share only its region, then those that share only its activity, and within each of those groups the
-report closest in date to this one comes first, the newer one on a tie.
+Older. The rule, in one sentence: other published reports of the same activity at the same place or of the same name
+come first, then those that share this trip's region and its activity, then those that share only its region, then
+those that share only its activity, and within each of those groups the report closest in date to this one comes
+first, the newer one on a tie.
+
+"The same place or name" is the same `place:` (spelled alike but for capitals), a summit both have in `map: peaks:`,
+or a word both titles share that is the proper part of some place or summit name on the site: `tallac` (from
+`place: Mount Tallac`) pairs two Tallac tours whatever else their titles say. The generic part of a name (`mount`,
+`peak`, `ridge`, `lake`, `north` and the like), a word under five letters, and a word found in three or more different
+place names never pair two titles.
 
 There is nothing to configure.
 
 - Never the report itself, a planned route or a draft, and no report twice. The two reports the page already links as
   Newer / Older are left out as well, so the block never repeats the links right under it. A multi-day trip or the PCT
   can be one of the cards.
-- The line beside the heading states the rule: `SAME REGION, THEN ACTIVITY · NEAREST IN DATE`, or `SAME ACTIVITY ·
-  NEAREST IN DATE` on a trip with no `region:`. When the page has a Newer or an Older report it ends `· NEWER / OLDER
+- The line beside the heading states the rule: `SAME PLACE OR NAME AND ACTIVITY, THEN REGION AND ACTIVITY, THEN
+  REGION, THEN ACTIVITY · NEAREST IN DATE`, or `SAME PLACE OR NAME AND ACTIVITY, THEN ACTIVITY · NEAREST IN DATE` on a
+  trip with no `region:`. When the page has a Newer or an Older report it ends `· NEWER / OLDER
   NOT REPEATED`, because the nearest reports in date are usually those two.
 - The region match is on the exact text of `region:`, so spell a region the same way on every trip that belongs to it.
 - A report without a date comes last in its group. When the trip itself has no date, each group is newest first.

@@ -154,10 +154,12 @@ def recent_trips(site):
     return [t for t in site['published'] if t['slug'] not in skip][:RECENT_N]
 
 
-def rcard(t):
+def rcard(t, repeated=()):
     """A recent-outing card: the shared core.trip_card (cover photo, else route tile, else activity disc; DATE · PLACE;
-    the H3 title link; activity + stats). No summary: a track-only outing has nothing to read."""
-    return core.trip_card(t, HERE, RECENT_SIZES, ns='rc')
+    the H3 title link; activity + stats), with the opening of Eric's write-up where the trip has one (trip_card leaves out
+    a facts-only summary, so a track-only outing stays bare). repeated: the titles more than one trip on the page carries
+    (core.repeated_titles), whose links also name the date."""
+    return core.trip_card(t, HERE, RECENT_SIZES, ns='rc', summary=True, repeated=repeated)
 
 
 def recent(site):
@@ -165,11 +167,12 @@ def recent(site):
     if not rows:
         return ''
     total = sum(1 for t in site['published'] if is_report(t))
+    repeated = core.repeated_titles(rows + list(site.get('featured') or []))
     # id="latest-h": the address of the old home page's 'Latest reports' list (and of its hero button), kept so that a
     # saved link to it still lands on the newest reports
     return ('<section class="wrap sec hom-recent" id="latest-h" aria-labelledby="recent-h">%s<ul class="hom-rcards tgrid">%s</ul>'
             '<a class="btn hom-all" href="%s">All %d reports%s</a></section>'
-            % (core.section_head('Recent outings', 'NEWEST FIRST', id_='recent-h'), ''.join(rcard(t) for t in rows),
+            % (core.section_head('Recent outings', 'NEWEST FIRST', id_='recent-h'), ''.join(rcard(t, repeated) for t in rows),
                link(HERE, 'trips/'), total, icon('arrow-right', 18)))
 
 

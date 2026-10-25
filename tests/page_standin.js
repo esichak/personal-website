@@ -126,6 +126,14 @@ class El {
     this.childNodes.push(child);
     return child;
   }
+  insertBefore(child, ref) {
+    if (ref == null) return this.appendChild(child);
+    if (this.childNodes.indexOf(ref) < 0) throw new Error('insertBefore: the reference is not a child of this element');
+    if (child.parentNode) child.parentNode.removeChild(child);
+    child.parentNode = this;
+    this.childNodes.splice(this.childNodes.indexOf(ref), 0, child);
+    return child;
+  }
   removeChild(child) {
     const i = this.childNodes.indexOf(child);
     if (i < 0) throw new Error('removeChild: not a child of this element');

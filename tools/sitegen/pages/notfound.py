@@ -18,6 +18,20 @@ def base_tag():
     return "<base href='%s'>" % esc(path if path.endswith('/') else path + '/')
 
 
+def search_block(here):
+    """A search box that lands on the explorer (trips/?q=…&sort=relevance, resolved against <base>), with an empty line
+    above it that notfound.js fills from the address alone: at /trips/<slug>/ the slug's words go into the box and the line
+    asks 'Looking for "<words>"?'. Nothing is guessed about which trip was meant. Without JavaScript the form still
+    submits."""
+    return ('<p class="nf-ask" id="nf-ask" hidden></p>'
+            '<form class="nf-search" role="search" aria-label="Find a trip report" action="%s" method="get">'
+            '<label class="sr" for="nf-q">Search trips</label>'
+            '<input class="nf-q" id="nf-q" name="q" type="search" placeholder="Search trips" maxlength="200" autocomplete="off">'
+            '<input type="hidden" name="sort" value="relevance">'
+            '<button class="btn nf-go" type="submit">%sSearch</button></form>'
+            % (link(here, 'trips/'), icon('search', 18)))
+
+
 def page(site):
     here = HERE
     body = ('<div class="nf wrap"><div class="nf-grid">'
@@ -25,6 +39,7 @@ def page(site):
             '<p class="t-mono-s nf-code">404 · PAGE NOT FOUND</p>'
             '<h1 class="t-d1 nf-h">Off route</h1>'
             '<p class="nf-line">There is no page at this address. The link may be old or mistyped.</p>'
+            '%s'
             '<a class="btn btn--ink nf-home" href="%s">Go to the home page%s</a>'
             '</div>'
             '<nav class="nf-nav" aria-label="Ways back"><h2 class="t-label nf-l">Reports</h2>%s'
@@ -36,7 +51,7 @@ def page(site):
             '<span class="abo-act-w"><span class="abo-act-n">Map &amp; archive</span>'
             '<span class="t-mono-s abo-act-m">ALL %d REPORTS</span></span>%s</a></li></ul></nav>'
             '</div></div>'
-            % (link(here, ''), icon('arrow-right', 18), act_rows(site, here, dist=False),
+            % (search_block(here), link(here, ''), icon('arrow-right', 18), act_rows(site, here, dist=False),
                link(here, 'trips/'), icon('search', 20), icon('chevron-right', 20, 'abo-act-c'),
                link(here, 'map/'), icon('map', 20), len(site['published']), icon('chevron-right', 20, 'abo-act-c')))
     extra = base_tag() + '<meta name="robots" content="noindex">'

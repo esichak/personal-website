@@ -128,8 +128,8 @@ menu button below 1140px.
     page widens its short `Map` crumb to 44 px (Region pages, Styles, below). A card's title link keeps its text
     height: the photo or tile link beside it opens the same page.
   - Without JavaScript the header shows only what works: `@media (scripting: none)` in base.css hides the menu button,
-    the units switches (the header's, the menu's and the About page's) and the Search link with the block that holds it
-    (`.menu-btn`, `.site-h .units`, `.units.abo-units`, `.nav .nav-search`, `.nav-sep`, `.nav-sep + .nav-l`) and shows
+    the units switches (the header's, the menu's and the About page's) and the Search box (on trips/ the Search link) with
+    the block that holds it (`.menu-btn`, `.site-h .units`, `.units.abo-units`, `.nav .nav-search`, `.nav-sep`, `.nav-sep + .nav-l`) and shows
     the primary links (`.nav`) at every width. Where the links do not all fit beside the name they wrap onto a second
     row (`.nav-l` gets `flex-wrap: wrap`, `.site-h-in` gets `height: auto` with `min-height: var(--header-h)`, and
     `.site-h .brand` gets `flex: none`, so the name stays on one line and the links give way), so nothing scrolls
@@ -185,7 +185,15 @@ menu button below 1140px.
   `core.cover_preload` draw it with its focal point) and its text from `core.card_summary` (explicit `card_summary` →
   the write-up's opening → a labelled day excerpt for multi-day trips → a neutral facts line for a series). A series
   never shows one day's excerpt as if it were the whole journal. The home card leaves a 'facts' result off (its DATE ·
-  PLACE and data lines already say it) and the recent cards (`core.trip_card`, `ns='rc'`, no `summary`) show none.
+  PLACE and data lines already say it), and so do the recent cards (`core.trip_card`, `ns='rc'`, `summary=True`): a
+  written outing shows its write-up's opening, a track-only one stays bare. Every automatic excerpt
+  (`core.card_summary` rule 2, `core.excerpt_parts`, the report's meta description, the feed) comes from
+  `markdown.plain_sentences(text, limit, floor=1/3)`: the longest prefix that ends a sentence (`.`, `!` or `?`, closing
+  quotes and brackets kept, then a space or the end) when it is at least `floor × limit` long (60 of a card's 180), with no ellipsis; else
+  `markdown.plain(text, limit)`'s word cut and `…`. A full stop after a word of `markdown._ABBREVIATIONS` (`mt`, `st`,
+  `vs`, `approx`, …), after a single letter or inside a word that already holds one (`e.g.`) ends no sentence. A
+  verbatim prefix either way. The report's description still leads with `core.summary` when the whole write-up is
+  under 100 characters (measured on `core.excerpt(t, 400)`, which is whole below 400).
 - Home features come only from `site['featured']` (content/home.json), never from dates or the `featured` flag, once
   the file exists; a missing file falls back to the legacy flag/date pick with a warning.
 - Lists: `core.trip_row` is the one index row and `core.trip_card` the one card (explorer and Recent outings); a single-day
@@ -284,25 +292,41 @@ menu button below 1140px.
   year, with a static browse block, a search box and filters; `trips/search.json` and `trips/journal.json` beside it are
   the search indexes. Planned routes are on neither the page nor the indexes: they are tick-list goals, on `tick-list/`,
   `map/` and their activity page; drafts are never loaded.
-  - One card: `core.trip_card(t, here, sizes, ns='tc', cls='', summary=False)` returns one `<li class="tcard">` carrying the
-    filter facets as attributes: `data-slug`, `data-act`, `data-kind` (`trip` | `multi-day` | `series`), `data-region`
-    (`content.slugify(region)`, `''` when none), `data-year` (`YYYY` or `''`), `data-writeup` (`1` | `0`), `data-date` (ISO
-    or `''`). Media falls back cover → route tile (`.tcard-img--tile`) → activity disc (`.tcard-img--none`); the media link is
+  - One card: `core.trip_card(t, here, sizes, ns='tc', cls='', summary=False, repeated=(), list_sizes=None)` returns one
+    `<li class="tcard">` carrying the filter facets as attributes: `data-slug`, `data-act`, `data-kind` (`trip` |
+    `multi-day` | `series`), `data-region` (`content.slugify(region)`, `''` when none), `data-year` (`YYYY` or `''`),
+    `data-month` (every month the trip spans, `MM` space-separated, from `search.trip_months`; `''` undated),
+    `data-writeup` (`1` | `0`), `data-photos` (the number of the trip's and its days' photos), `data-km`
+    (`%.1f` of the distance, `''` without one), `data-gain` (whole metres, `''` without), `data-date` (ISO or `''`).
+    `repeated` is `core.repeated_titles(trips)`, the case-folded titles more than one card of the page carries: such a
+    card's title link ends in `<span class="sr">, <short date></span>` (the explorer, the home page's recent cards with
+    its features, a region page's Featured row). `list_sizes` (the explorer's `trips.LIST_SIZES`) gives a cover that
+    has a .th copy `data-srcset-list` (the .th copy at its width, then the card's own candidates) and
+    `data-sizes-list`; trips.js `listImages(on)` swaps them in for `srcset` / `sizes` while the list view is on and
+    puts the card's back (kept in `data-srcset-card` / `data-sizes-card`) when it is off, so a list row's thumbnail of
+    160 or 200 px is not served the 800 px copy. `LIST_SIZES` follows trips.css: 200 px from 760, 160 px from 560,
+    64 px below (where the phone `<source>` already serves the .th copy). Media falls back cover → route tile (`.tcard-img--tile`) → activity disc (`.tcard-img--none`); the media link is
     `tabindex="-1" aria-hidden="true"`, so the title link is the card's tab stop, described by the meta line
     `id="<ns>-<slug>-m"` (`ns` must be unique per list on a page). A 'facts' summary is never shown. `.tcard` and the
     `.fchip` filter chip live in base.css (shared with the home page and map/); everything prefixed `.trx-` (head, browse
     block, form, status row and active-filter chips, year groups, `.trx-grid`, `.trx--list`) is in trips.css.
   - The index: `search.build_index(site)` returns one `search.entry(t)` per trip in `site['published']`, newest first:
-    `s` slug, `t` title, `p` place + region, `k` the activity label (and the Other sub-type word) + `search_aliases` +
-    `map: peaks`, `x` the write-ups (parent plus every day, capped at 4000 normalised characters), `r` the plain write-up
-    text (capped at 4000) that the snippet around a hit is cut from. `t`, `p`, `k`, `x` go through `search.normalize`
-    (NFKD, the U+0300–036F combining marks dropped, lower-case, each run of non-alphanumerics → one space); trips.js
-    `norm()` strips the same block, so the two agree on every input (tests/norm_cases.json checks both). Never in it:
+    `s` slug, `t` title, `p` place + region, `k` the activity label, the Other sub-type word, the other forms of each
+    (`search.ACTIVITY_WORDS` by activity, `search.SUBTYPE_WORDS` by sub-type, less the words the label already holds),
+    `search_aliases`, `map: peaks`, `search.date_words(t)` (the start year, the end year when it differs, and the full
+    English name of every month from `date` to `end_date`, at most twelve; no day of the month) and `route_shape`; `x`
+    the write-ups (parent plus every day, capped at 4000 normalised characters), `r` the plain write-up text (capped at
+    4000) that the snippet around a hit is cut from. `t`, `p`, `k`, `x` go through `search.normalize` (NFKD, the
+    U+0300–036F combining marks dropped, lower-case; an apostrophe after a single letter and before a letter becomes a
+    space (`d'Argentière` → `d argentiere`), every other apostrophe, straight or curly, is dropped (`Lover's` →
+    `lovers`); then each run of non-alphanumerics → one space); trips.js `norm()` does the same, so the two agree on every
+    input (tests/norm_cases.json checks both). Never in it:
     coordinates, GPX, HTML, photos, party, beta, stats, planned routes, drafts. `search.dumps` writes compact ASCII JSON
     with `<` as `\u003c`; the Page is `index=False` (not in the sitemap).
   - URL state: the query string, in this order with defaults omitted: `q`, `activity` (`all` | `ski` | `climb` | `hike` |
-    `mtb` | `other`), `region` (slug), `year`, `format` (`trip` | `multi-day` | `series`), `writeup` (`1`), `sort`
-    (`newest` | `oldest` | `relevance`), `view` (`cards` | `list`). Unknown keys are dropped and values the page does not
+    `mtb` | `other`), `region` (slug), `year`, `month` (`01` … `12`, the months a report starts in), `format` (`trip` |
+    `multi-day` | `series`), `writeup` (`1`), `photos` (`1`), `sort` (`newest` | `oldest` | `relevance` | `longest` |
+    `gain`), `view` (`cards` | `list`). Unknown keys are dropped and values the page does not
     offer fall back to the default (`parseState` in trips.js); the `<select>` option values, the chips' `data-filter` and
     the cards' data attributes are the same strings. The load-time write keeps the fragment (`trips/#search` focuses
     the box after the first render and on a same-page click; `trips/#y-2024` still scrolls); later writes drop it,
@@ -331,21 +355,32 @@ menu button below 1140px.
     with a query). Each such entry is rewritten when Back or Forward lands on it from an entry with another query
     string (after a jump to a year heading and back, the handler does not read the address); typing words and removing
     them, or Clear all, also puts the sort back to newest. Oldest and relevance move the visible cards into the
-    `#trx-sorted-sec` section (its h2 names the order), newest moves them back into their year groups.
-  - `search.json` is fetched the first time a non-empty query is applied; while it loads or after it failed the query
+    `#trx-sorted-sec` section (its h2 names the order), newest moves them back into their year groups. Longest first and
+    Most gain do too, ordered by `TRX.byValue` over the cards' `data-km` / `data-gain` (largest first; a card without
+    the value after the rest, in the order it had); `#trx-sorted-m` beside the h2 then reads `TRX.sortedMeta(sort,
+    missing, totals)`: `MULTI-DAY AND SERIES BY THEIR TOTALS` when such a card is listed, and `N WITHOUT A DISTANCE`
+    (or `GAIN`) `, LISTED LAST`.
+  - `search.json` (and `journal.json`) are fetched ahead of the first search, as the visitor turns to it: `warm()`, on
+    the box's `focus` and the form's `pointerdown` / `touchstart`, asks each index once (`indexState` / `daysState`
+    `idle`) and says nothing (`loadIndex(done, quiet)`); a failure is remembered as for a search (`failedFor`), so
+    the first search words ask again. Otherwise `search.json` is fetched the first time a non-empty query is applied;
+    while it loads or after it failed the query
     hides nothing and does not count as a filter (the count stays `N REPORTS`) and `#trx-msg` (`role="status"`) says so.
     A failed index is asked for again once the search box has been cleared or changed, also when the same words are
     then typed again, and never on a later render with the query it failed on (a filter, the view switch):
-    `stillFailed` and `mayLoad`, among the other pure exports below. `match` needs every token as a substring of `t p k
-    x`; `score` adds 3 per token in the title, 2 in place/region or activity/aliases/peaks, 1 in the body. A card
+    `stillFailed` and `mayLoad`, among the other pure exports below. `match` needs every token at the start of a word of
+    `t p k x` (`Explore.has(field, tok)`: `(' ' + field).indexOf(' ' + tok) !== -1`, so `tall` finds `tallac` and `horn`
+    no longer finds `matterhorn`); `score` adds 3 per token in the title, 2 in place/region or
+    activity/aliases/peaks/dates, 1 in the body, by the same rule; `snippet` finds its hit by it too. A card
     matched only in the body shows a snippet around the first hit in place of its excerpt (textContent; a day excerpt's
     DAY label is hidden meanwhile). Nothing from the query or the index reaches innerHTML.
   - Journal days: `search.build_day_index(site)` has one `search.day_entry(t, d)` per day of a published `kind:
     series` trip (a track-only day is in, with `x` and `r` empty, and `t` empty too when it has no title): `s` slug,
     `a` the day's anchor from `series.day_anchor`, `n` label, `j` journal title (shown), `h` day title, `w` date, `t`
     the normalised day title, `p` the day's name, `day <label>` normalised (`day 31`, `day 5 2`), `k` `''`, `x` / `r`
-    the write-up, normalised and plain, each capped at `search.DAY_CAP` (6000), and `q` the journal's title and
-    aliases, normalised. The journal's title is in no field that finds a day by itself. The list is written to
+    the write-up, normalised and plain, each capped at `search.DAY_CAP` (6000), `d` the day's date as `<month> <day>`,
+    normalised (`june 5`; `''` without a date), `f` (`'1'` when the day has photos, else `''`), and `q` the journal's
+    title and aliases, normalised. The journal's title is in no field that finds a day by itself. The list is written to
     `trips/journal.json` only when it is not empty (a site with a journal), and the page then ends with
     `trips.journal_block(site)`, after the results: an empty hidden `<section class="trx-days wrap" id="trx-days"
     data-index="journal.json">` holding the h2 `Journal days` (`#trx-days-h`, `tabindex="-1"` so the status line's
@@ -355,8 +390,9 @@ menu button below 1140px.
     `<slug>/#<anchor>`, the day title or `Day <n>`, `dayText`; textContent only), each filtered as its journal's card
     is (`facetOk`); with "Has a write-up" on, a day is kept only when its own entry has text (`x`).
   - `TRX.dayHits(days, toks)`: `[]` without tokens. The day's name is the tokens of `p`; when the query holds it as a
-    consecutive run the day is named and those tokens are done. Every other token must be a substring of the day's `t`
-    or `x`, or a whole word of `q` (it then "rides along"). A day is dropped when a token rode along and nothing of
+    consecutive run the day is named and those tokens are done. Every other token must start a word of the day's `t`,
+    `x` or `d` (`has`), or be a whole word of `q` (it then "rides along"; a hit in `d` counts as the day's own and scores
+    1, so `june 2024` lists the June days and `2024` alone none). A day is dropped when a token rode along and nothing of
     the day's own was hit: its name, or a `t` / `x` token that is not also a word of `q`. Score: 100 per token of a
     matched name, plus 3 for each other token found in `t` and 1 for each found in `x`; a riding token scores
     nothing. Order: score descending, then index order. So `day 5.2` lists Day 5.2 above Day 5; `pct whitney` and
@@ -367,8 +403,12 @@ menu button below 1140px.
     holds it, `null` once the box has been cleared or changed, so the same words typed again ask again),
     `mayLoad(indexState, failedFor, q)` (whether a search for `q` fetches an index now: `q` has a token and the index is
     `idle`, or it `failed` on another query; never while a request is out and never once the index is here), `facetOk(d,
-    st)` (a card's data attributes `act`, `region`, `year`, `kind` and `writeup` against the filters of the state `st`;
-    the search text is matched separately), `dayMeta(e)` (`<journal> · Day <n> · <date>`, absent parts left out),
+    st)` (a card's data attributes `act`, `region`, `year`, `month`, `kind`, `writeup` and `photos` against the filters
+    of the state `st`; `month` is found in the card's space-separated months; the search text is matched separately),
+    `dayMonth(e)` (`MM` from the day's `d`) and `dayFacets(e, st)` (a found day under Month is of that month itself, and
+    under Has photos has photos itself: render lists a day when `dayShown` and `dayFacets` both say so), `FACETS` (the filter keys: `activity, region, year,
+    month, format, writeup, photos`), `MORE` (the ones behind the phones' Filters button: all but `activity`),
+    `byValue`, `sortedMeta` and `SORTED_HEAD` (Sort, above), `relaxOffers(st, noFacets, noQuery, names)` (below), `dayMeta(e)` (`<journal> · Day <n> · <date>`, absent parts left out),
     `dayHref(e)`, `dayText(e, toks)` (the words around the hit, else the day's first 24 words; `''` without a write-up),
     `countText(k, total, narrowed)` (`167 REPORTS` / `3 OF 167 REPORTS`), `daysCount(n)` (`''` for 0, `1 JOURNAL DAY`,
     `N JOURNAL DAYS`), `daysHead(n)` (`1 DAY`, `N DAYS`: the text of `#trx-days-n`), `DAYS_SHOWN` (5), `daysListed(list,
@@ -395,7 +435,8 @@ menu button below 1140px.
     stay whole in `search.json`.
   - The form ships `hidden` and `core.reveal('search')`, right after `</form>`, shows it (rule above), so a visitor may
     have used it before trips.js arrives. The script therefore starts from `TRX.adoptForm(st, form, traversal)`: `st` is
-    the URL's state (`parseState`) and `form` what the controls hold, `{q, region, year, format, sort, writeup}`. A key
+    the URL's state (`parseState`) and `form` what the controls hold, `{q, region, year, month, format, sort, writeup,
+    photos}`. A key
     the URL sets keeps the URL's value, so a shared address opens as it was shared. A key the URL leaves at its default
     takes its control's value when that is off the default: a select, the ticked write-up box, the text typed. Text
     taken this way is sorted by relevance unless `TRX.ownSort(st, form, traversal)` says the visitor chose a sort, in
@@ -410,20 +451,52 @@ menu button below 1140px.
     `hidden` (a `<noscript>` note says so) and the browse block and the year groups still hold every report: the block's
     activities lead to the section pages, its regions to `regions/<slug>/` when the region has a page
     (`core.region_page_href`, under Region pages below), else to `map/#region-<slug>` (`core.region_map_href`), else to
-    `?region=<slug>` (a region with no map anchor, such as the PCT), and its years to `#y-YYYY`. `build.py --check`
-    verifies those links and anchors from every page.
+    `?region=<slug>`, and its years to `#y-YYYY`. `trips.regions_of(pub)` leaves out a region whose every report is a
+    journal (the PCT's), as map/ does: the head, the browse block and the Region menu count the same regions, and
+    `?region=pacific-crest-trail` opens the unfiltered explorer. With scripting on, trips.css hides the Trips page's
+    `nav.trx-browse` (`@media (scripting: enabled)`): the form's chips and menus do the same, so the links are not
+    shown twice above the first trip; a region page's 'Other regions' row (the same markup) keeps its links.
+    `build.py --check` verifies those links and anchors from every page.
+  - The empty state's way out: when a search and filters find nothing, `TRX.relaxOffers(st, noFacets, noQuery, names)`
+    (explore.js `relaxOffers` with the page's labels, defaults, `FACETS` and the noun `report`) returns up to two
+    `{kind, text}`: `facets`, the search without the filters (`N reports match ‘<q>’ in all activities` when the
+    activity is the only filter, `… without <chip label>` for one other filter, `… without the filters`), and `query`,
+    the filters without the search (`N climbing reports without the search`, or `N reports with these filters,
+    without the search`). The counts are of the page's own cards, worked out in `render()` (never an estimate); the
+    first also counts the journal days the search finds without the filters (`noFacetDays`, the fifth argument:
+    `1 journal day matches …`, `2 reports and 1 journal day match …`); a count of 0 is no offer, and without both a search and a filter there is none. `showOffers` builds `div.trx-relax` of
+    `button.btn.trx-relax-b` (textContent) before Clear filters; `takeOffer(kind)` resets `FACETS`, or empties the
+    search and hands the sort to `clearedSort` as the search chip does, then `apply('pick')`. The tick list does the
+    same over its goals (noun `goal`; the scope is not a filter there and stays).
+  - Phones (below 760 px): the region, year, month and format menus, the two boxes and the sort are in `div.trx-more`
+    (`#trx-more`), behind `trips.more_button(ids)` (`button.btn.trx-more-btn`, `aria-expanded`, `aria-controls`, the
+    count `span.trx-more-n`). base.js toggles `.is-more` on the form and remembers it per page in `sessionStorage`
+    (`trx-more:<path>`); trips.js / ticklist.js write the count (`Explore.moreCount(st, defaults, MORE)`, ` · N`). From
+    760 px the button is not shown and `.trx-more` is `display: contents`, so the row is as before. Below 560 px the
+    list view is a scan view: a 64 px thumbnail at 4:3, the date line, the title on one line and the stats line, no
+    excerpt or tags (about 70 px a row).
   - Nav keys: `core.document(..., active=KEY)`. Main nav (`core.main_nav()`): Trips (`trips/`), Tick list (`tick-list/`),
-    Map (`map/`), PCT (`core.PCT_SLUG`, only when that trip exists), About, then Search (`trips/#search`). `'trips'` gives
+    Map (`map/`), PCT (`core.PCT_SLUG`, only when that trip exists), About, then Search: on every page but trips/ a
+    search box, `core.search_form(here, fid)` (`form.nav-search role="search"` to `trips/` by GET, the label `Search
+    trips` for `input.nav-q name="q"`, a hidden `sort=relevance` so the explorer opens best match first, `button.nav-go`
+    44 px); on trips/ itself the link `trips/#search` to the page's own box. The box is not shown without scripting
+    (trips/ does not read `q` then). The 404 page has one in its text (`notfound.search_block`), which notfound.js
+    fills from an address of the form `/trips/<words>/` (`-`, `_` and `+` read as spaces, one- and two-digit numbers
+    left out because the index holds no day of the month, at most 200 characters, as text) with the line `Looking for
+    “<words>”?`. Each `role="search"` form is named: `Search trips` (the header's and the menu's, never shown at
+    once), `Find a trip report` (404), `Search and filter trips`, `Search and filter goals`. `'trips'` gives
     `page` on Trips; an activity key (section, report, multi-day, full-screen-map pages) gives `true` on Trips;
     `'ticklist'` gives `page` on Tick list and `'goal'` (a goal page) gives `true` there; `'map'` / `'about'` give `page`
     on their link, and `'map'` on a page that is not `map/` itself (a region page) gives `true` on Map; the PCT page
     gives `page` on PCT and nothing on Trips. The phone menu keeps the five activity rows under Reports and lists
-    Trips, Tick list, Map & archive, PCT, About, Search under Site; the footer's Site list is Trips, Tick list, Map &
+    Trips, Tick list, Map & archive, PCT, About under Site, then a search box (`li.menu-search`, `menu-q`), or on trips/
+    the Search row; the footer's Site list is Trips, Tick list, Map &
     archive, About, RSS.
   - Adding a facet: emit it as a `data-*` attribute in `core.trip_card`; add the control in trips.py (option values = the
     attribute values present, and only those); in trips.js add the key to `DEFAULTS`, `KEYS`, `FACETS`, `allowed`,
     `names`, `sel` and its change listener, `setControls`, the test in `facetOk` (cards and journal days both go
-    through it) and `chipLabel`; extend the Python test (option values match the data) and the Node tests (`parseState`
+    through it), `chipLabel` and `LABELS`, and to `MORE` when its control goes behind the phones' Filters button (in
+    trips.py, inside `div.trx-more`); extend the Python test (option values match the data) and the Node tests (`parseState`
     rejects values outside `allowed`; the harness's `facetOk` cases; the list of filters tests/test_trips_js.py switches
     off one at a time). Adding an alias is content only (`search_aliases: [PCT]`); it needs a build, not a render.
 
@@ -458,6 +531,9 @@ menu button below 1140px.
     starts from `TKL.adoptForm(st, form, traversal)` by the rules of trips.js: `form` is `{q, region, status, priority,
     month, sort}`, a key the URL leaves at its default takes its control's value, and after Back or Forward only the
     text is taken. Text taken this way changes no sort: the tick list has no relevance order.
+  - The form, the status row and the scope appear only from `ticklist.FILTERS_FROM` (6) active goals
+    (`ticklist.with_form(site)`); below that the page lists the active goals alone, with no controls, and an address
+    with `?status=` or `?scope=` changes nothing (ticklist.js finds no form and returns).
   - A goal page (`report.goal_page`) says Planned route and Planning notes, never Trip report: an approximate stats strip
     (≈, gain only with full elevation, never a moving time, a note naming the source kind and scope), the rendered map or
     an honest fallback, Why · Planning notes · Season and commitment (only approved field_evidence is published) · Route
@@ -551,12 +627,18 @@ menu button below 1140px.
     `report.hero` nor `report.section_nav`.
 - Related reports: `core.related(t, site, k=3, skip=())` → up to k trips from `site['published']`: never `t`, never
   planned, never a report in `skip` (None entries are ignored), each slug once (drafts are never loaded). Candidates
-  share `t['region']` (when set; exact string) or `t['activity']`. Order: same region and same activity, then same
+  share `t['region']` (when set; exact string) or `t['activity']`. Order: same activity and `core.same_name(t, x,
+  core.name_words(site))` (the same `place` case-folded, a shared `map: peaks` name, or a title word in
+  `name_words`: a normalised word of some place or peak name on the site, at least `NAME_MIN` (5) letters, not in
+  `NAME_GENERIC` (mount, peak, ridge, lake, north, …) and in at most `NAME_MAX` (2) different names, so `tallac`
+  pairs two Tallac tours and `south` or `season` never pair anything), then same region and same activity, then same
   region, then same activity; within a tier the smallest gap in days to `t['date']` first (an undated candidate after
   the dated ones; every candidate counts as undated when `t` has no date), then the newer one, then
   `site['published']` order. `core.related_block(t, here, site, k=3, skip=())` → `''` when empty, else `<section
   class="rep-related wrap sec" aria-labelledby="rel-h">` with the h2 `More like this` (`id="rel-h"`), the rule as
-  `core.meta_items` (`SAME REGION, THEN ACTIVITY`, or `SAME ACTIVITY` when `t` has no region; then `NEAREST IN DATE`;
+  `core.meta_items` (`SAME PLACE OR NAME AND ACTIVITY, THEN REGION AND ACTIVITY, THEN REGION, THEN ACTIVITY`, or `SAME
+  PLACE OR NAME AND ACTIVITY, THEN ACTIVITY` when `t` has no region, its clauses no-break inside and joined by ', ' so a
+  phone wraps it after a comma; then `NEAREST IN DATE`;
   then `NEWER / OLDER NOT REPEATED` when `skip` holds a report) and `<ul class="rep-rel tgrid">` of `core.trip_card(x,
   here, core.RELATED_SIZES, ns='rel')`. Called by `report.page` (both layouts) and `multiday.page`, before the pager,
   with `skip=report.neighbours(t, site)`: the block leaves out the two reports the pager right under it links as Newer /
@@ -1428,6 +1510,16 @@ What the test files cover:
   stand-in for the browser, which starts several dozen short Node processes: 58 since the review before
   publication), the automatic cover pick in `tests/test_cover.py`, and the journal-day cases in `tests/test_search.py`, `tests/test_trips_page.py` and
   `tests/trips_js_harness.js`.
+- Phase 7 (search and the explorer), on synthetic fixtures only: the index's activity, date and route words, the
+  apostrophe and elision cases and the journal day's `d` in `tests/test_search.py` and `tests/norm_cases.json`; word
+  starts, month and photos, `byValue` / `sortedMeta`, `relaxOffers`, the fetch ahead of a search, the list view's
+  thumbnails and the nearest views of an empty state in `tests/trips_js_harness.js` (its `phase7Checks` table, run
+  after the history checks) and `tests/ticklist_js_harness.js`; the month and photos controls, the sorts, the card
+  attributes, the Filters button and the hidden browse block in `tests/test_trips_page.py`; `FILTERS_FROM` in
+  `tests/test_ticklist_page.py`; the header and menu search box in `tests/test_nav.py` and `tests/test_a11y_static.py`;
+  the 404 page's box and notfound.js in `tests/test_notfound_page.py`; the first tier of More like this in
+  `tests/test_related.py` (`SameNameTests`); `markdown.plain_sentences` in `tests/test_summary.py`; the recent cards'
+  excerpt and repeated titles in `tests/test_home.py`.
 - Phase 4:
   - `tests/test_checks.py`: `checks.run` on a small valid synthetic site that each test breaks in one way, asserting
     the exact errors and warnings; a table of malformed inputs (`CASES`), none of which may raise; and the loading

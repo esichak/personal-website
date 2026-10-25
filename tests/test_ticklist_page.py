@@ -44,7 +44,7 @@ GOALS = ['ridge-idea', 'couloir-short', 'alps-someday', 'done-traverse', 'old-ar
 ACTIVE = ['ridge-idea', 'couloir-short', 'alps-someday', 'legacy-ridge', 'tile-goal']
 REPORTS = ['real-report', 'other-report']
 PCT = 'trips/pacific-crest-trail-2024/'
-SITE_LINKS = ['trips/', 'tick-list/', 'map/', 'about/', 'trips/#search']   # the fixture has no PCT series
+SITE_LINKS = ['trips/', 'tick-list/', 'map/', 'about/']   # the fixture has no PCT series; Search is a form (core.search_form)
 
 
 def load_module(tc, name):
@@ -202,10 +202,15 @@ class TickListFixture(unittest.TestCase):
 # ---------------------------------------------------------------- the tick-list/ page
 
 class TickListPageTests(TickListFixture):
+    """The page with its search form. The fixture has five active goals, under ticklist.FILTERS_FROM (six), so the form
+    is asked for here by lowering the threshold to one; FormThresholdTests pins the threshold itself."""
 
     def setUp(self):
         super().setUp()
         self.mod = load_module(self, 'sitegen.pages.ticklist')
+        p = mock.patch.object(self.mod, 'FILTERS_FROM', 1)
+        p.start()
+        self.addCleanup(p.stop)
         pages = self.mod.build(self.site)
         by_url = {p.url: p for p in pages}
         self.assertIn(HERE, by_url)
@@ -395,6 +400,10 @@ class TickListPageTests(TickListFixture):
     def test_no_checkbox_input_anywhere_on_the_page(self):
         self.assertEqual(self.doc.find_all('input', attrs={'type': 'checkbox'}), [])
         for inp in self.doc.find_all('input'):
+            if inp['type'] == 'hidden':
+                # the header's and the menu's search forms (core.search_form) carry the explorer's sort, nothing else
+                self.assertEqual((inp['name'], inp['value']), ('sort', 'relevance'), repr(inp))
+                continue
             self.assertIn(inp['type'], ('text', 'search', 'radio', None), repr(inp))
 
     def test_noscript_note(self):
@@ -457,7 +466,55 @@ class TickListPageTests(TickListFixture):
         self.assertEqual(doc.find_all('li', cls='gcard'), [])
         text = doc.by_id('main').text()
         self.assertIn('0 ACTIVE', text)
-        self.assertIn('0 GOALS', doc.by_id('tkl-count').text())
+        self.assertIsNone(doc.by_id('tkl-count'))     # no goal to filter: no form and no status line, whatever the threshold
+        self.assertIn('No goals yet', text)
+
+
+class FormThresholdTests(TickListFixture):
+    """visual-05 (Phase 7): the search form and the status line appear once there are FILTERS_FROM (6) active goals;
+    with fewer the page is its head and the active goals, completed and archived ones left off."""
+
+    def build(self, site=None):
+        mod = load_module(self, 'sitegen.pages.ticklist')
+        return mod, Doc({p.url: p for p in mod.build(site or self.site)}[HERE].html)
+
+    def test_the_threshold_is_six_active_goals(self):
+        mod, _doc = self.build()
+        self.assertEqual(mod.FILTERS_FROM, 6)
+        active = [t for t in self.site['goals'] if self.goals_mod.is_active(t['goal'])]
+        self.assertEqual(len(active), 5)
+        self.assertFalse(mod.with_form(self.site))
+
+    def test_below_it_the_page_is_the_head_and_the_active_goals(self):
+        _mod, doc = self.build()
+        main = doc.by_id('main')
+        self.assertIsNone(doc.by_id('search'))
+        self.assertIsNone(doc.by_id('tkl-count'))
+        self.assertIsNone(doc.by_id('tkl-none'))
+        self.assertEqual(doc.find_all('noscript'), [])
+        self.assertIn('5 ACTIVE GOALS', main.find('p', cls='tkl-stats').text())     # the head counts every kind still
+        shown = sorted(c['data-slug'] for c in main.find_all('li', cls='gcard'))
+        self.assertEqual(shown, sorted(t['slug'] for t in self.site['goals'] if self.goals_mod.is_active(t['goal'])))
+        self.assertNotIn('done-traverse', shown)
+        self.assertNotIn('old-archived', shown)
+
+    def test_at_it_the_form_and_the_status_line_are_there_and_every_goal_is_listed(self):
+        mod = load_module(self, 'sitegen.pages.ticklist')
+        with mock.patch.object(mod, 'FILTERS_FROM', 5):
+            self.assertTrue(mod.with_form(self.site))
+            doc = Doc({p.url: p for p in mod.build(self.site)}[HERE].html)
+        self.assertIsNotNone(doc.by_id('search'))
+        self.assertIsNotNone(doc.by_id('tkl-count'))
+        shown = {c['data-slug'] for c in doc.by_id('main').find_all('li', cls='gcard')}
+        self.assertIn('done-traverse', shown)                        # the script's Active scope hides it on load
+        self.assertIn('old-archived', shown)
+
+    def test_with_goals_but_none_active_the_page_says_so(self):
+        site = dict(self.site)
+        site['goals'] = [t for t in self.site['goals'] if not self.goals_mod.is_active(t['goal'])]
+        _mod, doc = self.build(site)
+        self.assertEqual(doc.find_all('li', cls='gcard'), [])
+        self.assertIn('No active goals right now.', doc.by_id('main').text())
 
 
 # ---------------------------------------------------------------- core.goal_card and core.goal_tags
@@ -1261,8 +1318,10 @@ class HeaderTests(TickListFixture):
     def test_home_nav_has_tick_list_after_trips(self):
         nav = self.main_nav(self.header('', None))
         self.assertEqual([h for h, _, _ in nav], SITE_LINKS)
-        self.assertEqual([t for _, _, t in nav], ['Trips', 'Tick list', 'Map', 'About', 'Search'])
-        self.assertEqual([c for _, c, _ in nav], [None] * 5)
+        self.assertEqual([t for _, _, t in nav], ['Trips', 'Tick list', 'Map', 'About'])
+        self.assertEqual([c for _, c, _ in nav], [None] * 4)
+        form = self.header('', None).find('nav', attrs={'aria-label': 'Main'}).find('form', cls='nav-search')
+        self.assertEqual(form['action'], 'trips/')                 # Phase 7: the header's search lands on the explorer
 
     def test_tick_list_page_marks_tick_list_as_page(self):
         self.assertEqual(self.current('tick-list/', 'ticklist'), [('../tick-list/', 'page')])
@@ -1282,6 +1341,7 @@ class HeaderTests(TickListFixture):
         links = ul.find_all('a')
         self.assertEqual([a['href'] for a in links], SITE_LINKS)
         self.assertEqual([a.text() for a in links][:2], ['Trips', 'Tick list'])
+        self.assertEqual(ul.find('form', cls='nav-search').find('input', attrs={'name': 'q'})['id'], 'menu-q')
         cur = [(a['href'], a['aria-current']) for a in self.header('tick-list/', 'ticklist').by_id('menu').find('ul', cls='menu-list--site').find_all('a')
                if a['aria-current']]
         self.assertEqual(cur, [('../tick-list/', 'page')])

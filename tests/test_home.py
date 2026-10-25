@@ -218,6 +218,44 @@ class HomeTests(HomeFixture):
         site2['featured'] = list(site2['published'])
         self.assertEqual(home.recent(site2), '')
 
+    # ------------------------------------------------------------ recent cards: the write-up's opening, a repeated title (Phase 7)
+
+    def recent_cards(self):
+        return {li['data-slug']: li for li in Doc(home.recent(self.site)).find_all('li', cls='tcard')}
+
+    def test_a_written_recent_card_opens_its_write_up_and_a_track_only_one_stays_bare(self):
+        self.site['featured'] = []
+        cards = self.recent_cards()
+        ex = cards['loop-hike'].find('p', cls='tcard-ex')
+        self.assertIsNotNone(ex)
+        self.assertEqual(ex.text(), core.card_summary(self.site['by_slug']['loop-hike'])['text'])
+        self.assertEqual(ex.text(), 'A loop over three summits with a long scree descent.')        # the write-up, verbatim
+        for slug in ('track-only', 'brief-a'):
+            self.assertEqual(cards[slug].find_all('p', cls='tcard-ex') + cards[slug].find_all('p', cls='tcard-exl'), [], slug)
+
+    def test_a_title_two_cards_carry_names_the_date_in_its_link(self):
+        helpers.make_trip(self.tmp, 'quick-lap-again', title='Quick Lap', activity='ski', date='2025-12-02', track=True)
+        self.site = helpers.make_site(helpers.load_dir(self.tmp))
+        self.site['featured'] = []
+        cards = self.recent_cards()
+        for slug in ('track-only', 'quick-lap-again'):
+            t = self.site['by_slug'][slug]
+            link_ = cards[slug].find('h3').find('a')
+            self.assertEqual([sp.text() for sp in link_.find_all('span', cls='sr')], [', ' + helpers.plain_text(core.trip_date(t, caps=False, short=True))])
+            self.assertTrue(link_.text().startswith('Quick Lap, '))
+        # a title of its own does not
+        own = [slug for slug in cards if slug not in ('track-only', 'quick-lap-again')]
+        self.assertTrue(own)
+        for slug in own:
+            self.assertEqual(cards[slug].find('h3').find('a').find_all('span', cls='sr'), [], slug)
+
+    def test_a_recent_card_that_repeats_a_featured_title_names_its_date_too(self):
+        helpers.make_trip(self.tmp, 'couloir-again', title='West Couloir', activity='ski', date='2025-11-15', track=True)
+        self.site = helpers.make_site(helpers.load_dir(self.tmp))
+        self.site['featured'] = [self.site['by_slug']['ski-report']]
+        link_ = self.recent_cards()['couloir-again'].find('h3').find('a')
+        self.assertEqual(len(link_.find_all('span', cls='sr')), 1)
+
 
 def share_meta(doc):
     """{property or name: content} of a page's share-image tags (og:image and its properties, the twitter card)."""

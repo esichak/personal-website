@@ -66,7 +66,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from sitegen import core  # noqa: E402
 
 import helpers  # noqa: E402
-from helpers import Doc  # noqa: E402
+from helpers import Doc, LANDSCAPE, photo  # noqa: E402
 import js_fixtures  # noqa: E402
 from js_fixtures import tree  # noqa: E402
 
@@ -369,8 +369,9 @@ class TripsPageSourceTests(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertRegex(found.group(1), r'\bq:\s*q\.value\b')
         self.assertRegex(found.group(1), r'\bwriteup:[^,]*\bchk\.checked\b')
+        self.assertRegex(found.group(1), r'\bphotos:[^,]*\bpchk\.checked\b')
         self.assertRegex(page, r'SELECTS\.forEach\(function \((\w+)\) \{ if \(sel\[\1\]\) found\[\1\] = sel\[\1\]\.value; \}\)')
-        self.assertRegex(self.pure, r"SELECTS\s*=\s*\['region', 'year', 'format', 'sort'\]")
+        self.assertRegex(self.pure, r"SELECTS\s*=\s*\['region', 'year', 'month', 'format', 'sort'\]")
         self.assertLess(found.start(), start.start())
         self.assertLess(found.start(), page.index('function setControls'))
         self.assertEqual(len(re.findall(r'\bsetControls\(\)', page[:found.start()])), 0)
@@ -393,7 +394,15 @@ class TripsPageSourceTests(unittest.TestCase):
         # the two places a view is put on screen call it, and nothing fetches past it
         self.assertEqual(len(re.findall(r'\bask\(\);', page)), 2)
         self.assertEqual(len(re.findall(r'\bloadIndex\(render\)', page)), 1)
-        self.assertEqual(len(re.findall(r'\bloadDays\(render\)', page)), 1)
+        self.assertEqual(len(re.findall(r'\bloadDays\(render\)', page)), 2)          # ask() and warm()
+        # warm(): each index fetched once, ahead of the first search, and the trip index without the loading message
+        self.assertEqual(self.lines_of('function warm() {'),
+                         ["if (indexState === 'idle') loadIndex(render, true);",
+                          "if (daysState === 'idle') loadDays(render);"])
+        for listener in ("q.addEventListener('focus', warm);", "form.addEventListener('pointerdown', warm, { passive: true });",
+                         "form.addEventListener('touchstart', warm, { passive: true });"):
+            self.assertEqual(page.count(listener), 1)
+        self.assertEqual(len(re.findall(r'\bwarm\(', page)), 1)                       # the definition: no other caller
         self.assertNotRegex(page, r'state\.q\s*!==\s*(failedFor|daysFailedFor)')
         # a box emptied and filled again inside the typing pause still counts as changed: noted on the input event itself
         handler = re.search(r"q\.addEventListener\('input', function \(\) \{(.*?)timer = setTimeout", page, re.S)
@@ -621,12 +630,22 @@ class TripsPageSourceTests(unittest.TestCase):
         # the rule the two handlers had inline is gone
         self.assertNotIn("searching() ? 'relevance' : 'newest'", code)
 
+    def test_found_days_are_filtered_by_their_journal_and_by_themselves(self):
+        # Month and Has photos ask the day too (dayFacets: its own month and photos), after its journal's card
+        render = self.body_of('function render() {')
+        self.assertIn("dayList = dayHits(days, toks).filter(function (e) { var c = bySlug[e.s]; "
+                      "return dayShown(e, !!c && facetOk(c.dataset, state), state.writeup) && dayFacets(e, state); });", render)
+        # the empty state's 'without the filters' counts the days the search finds as well, from the same index
+        self.assertIn("var noFacetDays = toks.length && daysState === 'ready' ? dayHits(days, toks).filter(function (e) "
+                      "{ return !!bySlug[e.s]; }).length : 0;", render)
+        self.assertIn('offers = relaxOffers(state, noFacets, noQuery, names, noFacetDays);', render)
+
     def test_every_change_of_view_says_what_kind_it_is(self):
         code = self.code()
         calls = re.findall(r'(?<![\w.])apply\(([^()]*)\)', code)
         self.assertEqual(calls.count('kind, keepHash, settle'), 1)                     # the definition
         calls.remove('kind, keepHash, settle')
-        self.assertEqual(sorted(calls), sorted(["'pick'"] * 7 + ["'submit'", "'type'", "'type', true, true"]))
+        self.assertEqual(sorted(calls), sorted(["'pick'"] * 9 + ["'submit'", "'type'", "'type', true, true"]))
         # no call says true or false any more (the old apply(push, keepHash))
         self.assertNotRegex(code, r'(?<![\w.])(?:apply|write)\(\s*(?:true|false|changed|push)\b')
         # Enter in the search box: the form's submit handler, which also stops the form and the typing timer
@@ -647,10 +666,11 @@ class TripsPageSourceTests(unittest.TestCase):
                         "state.activity = b.dataset.filter; apply('pick'); }); });",
                         "viewBtns.forEach(function (b) { b.addEventListener('click', function () { if (state.view === b.dataset.view) return; "
                         "state.view = b.dataset.view; apply('pick'); }); });",
-                        "['region', 'year', 'format'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { "
+                        "['region', 'year', 'month', 'format'].forEach(function (k) { if (sel[k]) sel[k].addEventListener('change', function () { "
                         "state[k] = sel[k].value; apply('pick'); }); });",
                         "if (sel.sort) sel.sort.addEventListener('change', function () { state.sort = sel.sort.value; userSort = true; apply('pick'); });",
-                        "if (chk) chk.addEventListener('change', function () { state.writeup = chk.checked; apply('pick'); });"):
+                        "if (chk) chk.addEventListener('change', function () { state.writeup = chk.checked; apply('pick'); });",
+                        "if (pchk) pchk.addEventListener('change', function () { state.photos = pchk.checked; apply('pick'); });"):
             with self.subTest(control=control[:40]):
                 self.assertEqual(code.count(control), 1)
         clear = self.body_of('function clearAll() {')
@@ -660,6 +680,12 @@ class TripsPageSourceTests(unittest.TestCase):
         chip = self.body_of("    b.addEventListener('click', function () {")
         self.assertEqual(re.findall(r'apply\(([^()]*)\)', chip), ["'pick'"])
         self.assertIn('state[key] = DEFAULTS[key];', chip)
+        # an empty state's nearest view: the filters or the search let go of, the sort handed over as by the search chip
+        self.assertEqual(self.lines_of('function takeOffer(kind) {'),
+                         ["if (kind === 'facets') FACETS.forEach(function (key) { state[key] = DEFAULTS[key]; });",
+                          'else { state.q = DEFAULTS.q; var kept = clearedSort(state.sort, userSort); state.sort = kept[0]; userSort = kept[1]; }',
+                          "apply('pick');", 'q.focus();'])
+        self.assertEqual(code.count("b.addEventListener('click', takeOffer.bind(null, o.kind));"), 1)
 
     def test_clear_all_and_the_search_chip_hand_the_sort_to_cleared_sort(self):
         code = self.code()
@@ -670,9 +696,10 @@ class TripsPageSourceTests(unittest.TestCase):
                                  "apply('pick');", 'q.focus();'])
         chip = self.body_of("    b.addEventListener('click', function () {")
         self.assertIn("if (key === 'q') { var kept = clearedSort(state.sort, userSort); state.sort = kept[0]; userSort = kept[1]; }", chip)
-        # clearedSort decides in three places: Clear all, the search chip, and sortForSearch (round 3)
-        self.assertEqual(len(re.findall(r'\bclearedSort\(', code)), 3)
-        self.assertEqual(len(re.findall(r'\bvar kept = clearedSort\(state\.sort, userSort\);', code)), 3)
+        # clearedSort decides in four places: Clear all, the search chip, an empty state's 'without the search' button
+        # (takeOffer) and sortForSearch (round 3)
+        self.assertEqual(len(re.findall(r'\bclearedSort\(', code)), 4)
+        self.assertEqual(len(re.findall(r'\bvar kept = clearedSort\(state\.sort, userSort\);', code)), 4)
         self.assertIn('var kept = clearedSort(state.sort, userSort);', self.body_of('function sortForSearch() {'))
         # the rule these two lines had before is gone: a chosen Best match stayed as the sort of no search
         self.assertNotIn('if (!userSort) state.sort = DEFAULTS.sort', code)
@@ -688,7 +715,8 @@ SITE = (
     ('synx-ridge-tour', dict(title='Synthetic Ridge Tour', activity='ski', date='2026-01-17', region='Synthetic Range',
                              body='Synthetic words about a tour.', track=True)),
     ('synx-ridge-walk', dict(title='Synthetic Ridge Walk', activity='hike', date='2025-08-10', region='Synthetic Range')),
-    ('synx-loop', dict(title='Synthetic Loop', activity='hike', date='2025-06-01', region='Synthetic Coast', body='A synthetic loop.')),
+    ('synx-loop', dict(title='Synthetic Loop', activity='hike', date='2025-06-01', region='Synthetic Coast', body='A synthetic loop.',
+                       photos=[photo('photos/01.webp', LANDSCAPE, alt='Synthetic photo', sm=True)])),
     ('synx-slab', dict(title='Synthetic Slab', activity='climb', date='2025-05-03', region='Synthetic Range')),
     ('synx-bowl', dict(title='Synthetic Bowl', activity='ski', date='2024-03-02', region='Synthetic Coast', track=True)),
     ('synx-hut-days', dict(title='Synthetic Hut Days', activity='ski', kind='multi-day', date='2024-02-01', end_date='2024-02-02',
@@ -712,7 +740,9 @@ def page_model():
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(core, '_SITE_META', [meta]):
             for slug, front in SITE:
                 assert slug.startswith(PREFIX), slug
-                helpers.make_trip(tmp, slug, **front)
+                folder = helpers.make_trip(tmp, slug, **front)
+                for p in front.get('photos') or []:          # each photo's .th copy too: the list view's thumbnail
+                    helpers.touch(os.path.join(folder, re.sub(r'\.webp$', '.th.webp', p['file'])))
             site = helpers.make_site(helpers.load_dir(tmp))
             pages = {p.url: p.html for p in trips.build(site)}
     finally:
@@ -732,6 +762,7 @@ def page_model():
         'region': [o['value'] for o in form.find('select', attrs={'name': 'region'}).find_all('option') if o['value']][0],
         'activities': [b['data-filter'] for b in form.find('div', cls='trx-acts').find_all('button', attrs={'role': 'radio'})],
         'skiLabel': ski[0].find('span', cls='fchip-l').text() if ski else '',
+        'photographed': [li['data-slug'] for li in doc.by_id('trx-results').find_all('li', cls='tcard') if li['data-photos'] == '1'],
     }
 
 
@@ -912,6 +943,12 @@ ROUND_3 = (
     'two different searches submitted in a row are two entries, and Back, Back walks them',
 )
 # the "page:" checks of round 4, after those: Back and Forward onto an entry that carried Best match without a search
+PHASE_7 = (
+    'Phase 7: the index is fetched once as the visitor turns to the search, and nothing is said',
+    'Phase 7: the list view puts the thumbnail candidates in place, and the cards take theirs back',
+    'Phase 7: no result offers the search without the filters and the filters without the search, as counted',
+    'Phase 7: the month menu and the photos box filter the cards, count on the Filters button and are in the address',
+)
 ROUND_4 = (
     'Best match picked with an empty box: Back and Forward onto its entry rewrite the address, and the menu agrees',
     'the rewrite keeps the fragment of the entry it lands on, and takes no other',
@@ -984,7 +1021,8 @@ class TripsPageScenarioTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, 'the "page:" checks failed:\n%s\n%s' % (r.stdout, r.stderr))
         pure = subprocess.run([self.node, HARNESS], cwd=TESTS, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               universal_newlines=True, timeout=60)
-        self.assertEqual(self.passed(r) - self.passed(pure), 16 + len(ROUND_3) + len(ROUND_4), 'the "page:" checks did not all run')
+        self.assertEqual(self.passed(r) - self.passed(pure), 16 + len(ROUND_3) + len(ROUND_4) + len(PHASE_7),
+                         'the "page:" checks did not all run')
 
     def page_checks(self):
         """(the harness's text, [(label, body), ...] of its "page:" checks, in the order of the table)."""
@@ -1005,6 +1043,19 @@ class TripsPageScenarioTests(unittest.TestCase):
         self.assertEqual(len(labels), 16 + len(ROUND_3) + len(ROUND_4))
         # and all of them are run: none is behind an argument
         self.assertIn("Object.keys(pageChecks).forEach((label) => check('page: ' + label, pageChecks[label]));", harness)
+
+    def test_the_phase_7_checks_are_run_after_the_history_table(self):
+        # their own table, after the history checks and before a gap: the index fetched ahead of the first search, the
+        # list view's thumbnail candidates, the nearest views of an empty state, the month and photos filters
+        with open(HARNESS, encoding='utf-8') as fh:
+            harness = fh.read()
+        table = harness[harness.index('  const phase7Checks = {'):harness.index("  Object.keys(pageChecks).forEach(")]
+        self.assertEqual([m.group(1) for m in re.finditer(r"(?m)^    '((?:[^'\\\n]|\\.)*)': \(\) => ", table)], list(PHASE_7))
+        runs = ["Object.keys(pageChecks).forEach((label) => check('page: ' + label, pageChecks[label]));",
+                "Object.keys(phase7Checks).forEach((label) => check('page: ' + label, phase7Checks[label]));",
+                "if (ONLY) check('gap: ' + gap, GAPS[gap]);"]
+        self.assertEqual(sorted(runs, key=harness.index), runs)
+        self.assertLess(harness.index('  const GAPS = {'), harness.index('  const phase7Checks = {'))
 
     def test_the_round_4_sequences_are_checks_of_the_harness(self):
         # the sequences of round 4 are the last checks of the table, each named for what it shows
@@ -1078,7 +1129,8 @@ class TripsPageScenarioTests(unittest.TestCase):
             standin = fh.read()
         self.assertEqual(harness.count("const standin = require('./page_standin.js');"), 1)
         self.assertEqual(len(re.findall(r'\bstandin\.open\(', harness)), 1)
-        self.assertIn("const tab = standin.open(MODEL, [['explore.js', EXPLORE], [MODULE, SOURCE]], opts);", harness)
+        self.assertIn("const tab = standin.open(model, [['explore.js', EXPLORE], [MODULE, SOURCE]], opts);", harness)
+        self.assertIn("const model = opts && opts.noIndex ? Object.assign({}, MODEL, { indexes: {} }) : MODEL;", harness)
         for own in (r'\bclass\s+\w+', r"require\('vm'\)", r'\bvm\.', r'\bpushState:', r'\breplaceState:', r'\bnew URL\(', r'\bsetTimeout:'):
             with self.subTest(own=own):
                 self.assertNotRegex(harness, own)
