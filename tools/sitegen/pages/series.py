@@ -14,7 +14,7 @@ import markdown
 
 from sitegen import core
 from sitegen.core import esc, U, U_sub, n, link, icon, FT
-from sitegen.pages import report
+from sitegen.pages import archive, report
 
 DL_ICON = '<svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><use href="#ser-i-dl"/></svg>'
 DL_SPRITE = ('<svg class="ser-sprite" width="0" height="0" aria-hidden="true" focusable="false"><symbol id="ser-i-dl" viewBox="0 0 24 24">%s'
@@ -310,6 +310,31 @@ def ov_preloads(t, here):
     return ''.join(out)
 
 
+def region_parts(t, here):
+    """Under the overview map: the region maps that draw the journal's days (gap4-04), one link per part of
+    t['region_days'], 'Days 67–76 · Lake Tahoe map (Pacific Crest Trail)', landing on the part's row in that region's
+    list (archive.journal_part_id): the region's page when it has one, else its panel on map/. A region without a map,
+    or whose map names none of the site's trips until the next render (no panel on map/), has no list to land on and
+    gets no item; '' when no part has one."""
+    items = []
+    maps = core.site_meta().get('maps', {})
+    panels = core._PANELS[0]   # None until a site is registered with its meta: then a map is taken to have its panel
+    for part in t.get('region_days') or []:
+        days = part.get('days') or []
+        region = part.get('region')
+        if not days or not region:
+            continue
+        rs = content.slugify(region)
+        on_map = ('region-%s-desktop' % rs) in maps and (panels is None or rs in panels)
+        base = core.region_page_href(here, region) or (link(here, 'map/') if on_map else None)
+        if not base:
+            continue
+        text = '%s %s · %s map (%s)' % ('Day' if len(days) == 1 else 'Days', label_range(days), region, part.get('title') or t['title'])
+        items.append('<li><a class="alink" href="%s#%s">%s%s</a></li>'
+                     % (base, archive.journal_part_id(rs, part), esc(text), icon('arrow-right', 16)))
+    return ('<ul class="ser-parts" aria-label="The journal on the region maps">%s</ul>' % ''.join(items)) if items else ''
+
+
 def intro(t, here, months):
     # map_block shows wide >= 1200 and col 560-1199; series.css swaps the 560x860 render back in for 560-759 (OV_MEDIA)
     fs = core.fullscreen_link(t, here)   # bare: the journal's overview draws no route path to start on
@@ -323,9 +348,9 @@ def intro(t, here, months):
         keys = ((core.key_row(tall, 'ser-mkey ser-mkey--tall') if tall else '')
                 + (core.key_row(small, 'ser-mkey ser-mkey--390') if small else ''))
     return ('<section class="ser-intro wrap" id="map" aria-labelledby="ov-h">'
-            '<div class="ser-intro-map">%s%s%s%s</div>'
+            '<div class="ser-intro-map">%s%s%s%s%s</div>'
             '<div class="ser-intro-t"><div class="shead"><h2 class="shead-t" id="ov-h">Overview</h2></div>%s%s</div></section>'
-            % (mp, keys, core.map_full_link(fs) if core.render_meta(t)['maps'] else '', map_caption(t), lede(t),
+            % (mp, keys, core.map_full_link(fs) if core.render_meta(t)['maps'] else '', map_caption(t), region_parts(t, here), lede(t),
                month_index(months, map_month_keys(t), so_far(t))))
 
 

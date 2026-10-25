@@ -139,7 +139,7 @@ def title_block(t, here, actions, strip_follows=False):
     long_ = len(t['title']) > 28
     date_ = '' if (strip_follows and t['kind'] == 'planned') else date_slot(t)
     # one meta line: the date item leads it on phones only (>= 760 the date sits in the chip row)
-    place = core.meta_items(([(date_, 'rep-pdate')] if date_ else []) + core.place_line(t, items=True))
+    place = core.meta_items(([(date_, 'rep-pdate')] if date_ else []) + core.place_line(t, items=True, here=here))
     return ('<section class="rep-title wrap" aria-labelledby="title">'
             '<nav class="crumbs" aria-label="Breadcrumb">%s</nav>'
             '<div class="chips rep-chips">%s%s%s</div>'
@@ -455,6 +455,8 @@ def region_cell(t, here):
     reg = own or core.region_map_href(here, t.get('region'))
     if not reg:
         return []
+    # lands on the goal's own row (its planned line's key is its slug) when the region's list rows it (gap4-03)
+    reg = core.region_row_href(here, t) or reg
     text = ('All %s reports' % esc(t['region'])) if own else 'Open the map'
     return ['<a class="next" href="%s"><span class="pager-t"><span class="t-label pager-l"><span>%s</span>%s</span>'
             '<span class="pager-n">%s</span></span></a>' % (reg, esc(t['region']), icon('arrow-right', 14), text)]
@@ -649,7 +651,8 @@ def page(t, site):
         map_ = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
                 % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=not show_hero, cls='map--report' + (' map--nowide' if nowide else ''),
                                   fullscreen_href=fs),
-                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), core.map_full_link(fs), map_caption(t)))
+                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), core.map_full_link(fs),
+                   map_caption(t) + core.see_on_map(here, t)))
     elif has_map:
         map_ = not_rendered_section('Route map', 'Map not rendered yet. The GPX file is published: use the Download GPX button.')
     profile = profile_section(t, here, meta)

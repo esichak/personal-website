@@ -164,7 +164,9 @@ class MapPageFixture(unittest.TestCase):
 class AnchorTests(MapPageFixture):
 
     def test_build_returns_the_map_page(self):
-        self.assertEqual([p.url for p in self.pages], ['map/'])
+        # the Map page first, then one full-screen page per region map, in the panels' order (Phase 12, qa-06)
+        self.assertEqual([p.url for p in self.pages], ['map/'] + ['map/%s/' % SLUG[name] for name in MAPPED])
+        self.assertEqual([p.index for p in self.pages[1:]], [False] * len(MAPPED))
         self.assertEqual(self.page.title, 'Map & archive')
         self.assertTrue(self.page.index)
         self.assertEqual(self.doc.find('link', attrs={'rel': 'canonical'})['href'], core.SITE_URL + 'map/')
@@ -411,7 +413,7 @@ class RegionLinkTests(MapPageFixture):
                 # after the rows, the last thing in the list's box (.arc-inreg), which closes the panel
                 box = self.panel(name).find('div', cls='arc-inreg')
                 self.assertEqual([(n.tag, n.classes) for n in box.elements()],
-                                 [('div', ['arc-inreg-h']), ('ol', ['arc-rows']), ('a', ['alink', 'arc-reg-a'])])
+                                 [('div', ['arc-inreg-h']), ('p', ['sr', 'arc-plive']), ('ol', ['arc-rows']), ('a', ['alink', 'arc-reg-a'])])
                 self.assertIn('</li></ol>' + self.link_html(name) + '</div></div></div></div>', self.page.html)
         self.assertEqual(len(self.doc.find_all('a', cls='arc-reg-a')), 2)
 
@@ -420,7 +422,7 @@ class RegionLinkTests(MapPageFixture):
         panel = self.panel(PLANS)
         self.assertEqual(panel.classes, ['arc-panel'])
         self.assertEqual(panel.find_all('a', cls='arc-reg-a'), [])
-        self.assertEqual([n.tag for n in panel.find('div', cls='arc-inreg').elements()], ['div', 'ol'])
+        self.assertEqual([n.tag for n in panel.find('div', cls='arc-inreg').elements()], ['div', 'p', 'ol'])
         self.assertNotIn('regions/%s/' % SLUG[PLANS], self.page.html)
 
     def test_the_not_on_a_region_map_block_is_untouched(self):
@@ -438,7 +440,8 @@ class RegionLinkTests(MapPageFixture):
         self.use(MAPPED + [PLANS], MAPPED + [PLANS] + LISTED)
         box = self.panel('Synthetic Range').find('div', cls='arc-inreg')
         self.assertEqual([(n.tag, n.classes) for n in box.elements()],
-                         [('div', ['arc-inreg-h']), ('ol', ['arc-rows']), ('button', ['alink', 'arc-all-btn']), ('a', ['alink', 'arc-reg-a'])])
+                         [('div', ['arc-inreg-h']), ('p', ['sr', 'arc-plive']), ('ol', ['arc-rows']), ('button', ['alink', 'arc-all-btn']),
+                          ('a', ['alink', 'arc-reg-a'])])
         button = box.find('button')
         self.assertEqual((button.text(), 'hidden' in button, button['aria-controls']), ('Show all 11', True, 'arc-rows-synthetic-range'))
         self.assertIn('</button>' + self.link_html('Synthetic Range') + '</div>', self.page.html)

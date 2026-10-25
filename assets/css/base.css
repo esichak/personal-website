@@ -96,7 +96,9 @@ html.km .u-mi { display: none; }
 /* ---------------------------------------------------------------- meta lines (core.meta_items)
    Each item carries its '·' in a left gutter; the line is pulled left by one gutter and clipped there, so the first item
    on every line (wrapped ones too) has its dot cut off: no line starts or ends with '·', and items never split. */
-.ml { --ml-sep: 3ch; display: flex; flex-wrap: wrap; margin-left: calc(-1 * var(--ml-sep)); clip-path: inset(0 0 0 var(--ml-sep)); }
+/* the clip hides the dot before the first item of each line (left); above, below and to the right it reaches past the
+   box, so a link's 44 px ::before hit area in the line (.mi-a, .arc-sel-clear) is not cut to the line's height */
+.ml { --ml-sep: 3ch; display: flex; flex-wrap: wrap; margin-left: calc(-1 * var(--ml-sep)); clip-path: inset(-16px -8px -16px var(--ml-sep)); }
 .ml > .mi { position: relative; padding-left: var(--ml-sep); white-space: nowrap; }
 .ml > .mi::before { content: "·"; position: absolute; left: calc(var(--ml-sep) / 3); }
 .ml > .mi-w { white-space: normal; }  /* free text (a place name) may wrap at its comma when it alone is wider than the line */
@@ -144,6 +146,11 @@ html.km .u-mi { display: none; }
    more of padding (.rep-title, .sec-head). 4 px each side is half the 8 px gap, so two crumbs' areas only touch */
 .crumbs a::before { content: ""; position: absolute; inset: -21px -4px -7px; }
 .crumbs a:hover { color: var(--route-ink); }
+/* a link inside a Mono-S meta line (the place line's region, a section head's region names; ia-09, ia-12): underlined,
+   with a 44 px hit area drawn by ::before so the item's box and the line do not change */
+.mi-a { position: relative; color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.mi-a::before { content: ""; position: absolute; inset: -14px -4px; }
+.mi-a:hover { color: var(--route-ink); }
 @media (min-width: 760px) { .crumbs { font-size: 13px; line-height: 18px; } }
 
 /* ---------------------------------------------------------------- header */
@@ -375,6 +382,7 @@ picture.cover-pic { display: contents; }
 .mk-line { cursor: pointer; }
 .mk-line:focus-visible { outline: none; }   /* base.js picks its lines out while it has the focus, as for a pin */
 .mk-pin:focus-visible > circle:nth-of-type(2) { stroke: var(--ink); stroke-width: 3px; }  /* circle 1 is the transparent hit circle */
+.mk-pin.is-sel > circle:nth-of-type(2) { stroke: var(--ink); stroke-width: 3px; }   /* a touch screen's picked pin (gap1-03) */
 .map.is-hl .mk-cat { opacity: .3 !important; transition: opacity .15s; }
 .map.is-hl .mk-cat.hl { opacity: 1 !important; }
 .map.is-hl .mk-cat.hl .gl-trk { stroke: var(--route) !important; stroke-width: 4px !important; }
@@ -383,6 +391,18 @@ picture.cover-pic { display: contents; }
 .map.is-hl .mk-cluster.hl { opacity: .2; }  /* lets the highlighted track under a cluster show through */
 .mk-cluster.is-linked:hover { opacity: 1; }
 .mk-cluster.is-linked:hover circle:nth-of-type(2) { stroke: var(--route); stroke-width: 3px; }
+/* a linked cluster is a button (base.js, qa-02): its ring when it has the keyboard focus or holds the selection */
+.mk-cluster.is-linked:focus { outline: none; }
+.mk-cluster.is-linked:focus-visible circle:nth-of-type(2), .mk-cluster.is-linked[aria-pressed="true"] circle:nth-of-type(2) {
+  stroke: var(--ink) !important; stroke-width: 3px !important; }
+.map.is-hl .mk-cluster.is-linked[aria-pressed="true"], .map.is-hl .mk-cluster.is-linked:focus-visible { opacity: 1; }
+/* the legend's activity filter (archive.js, maps-07): markers of the other activities fall back */
+.map .is-out { opacity: .15 !important; }
+/* a journal line's focus without a script (a11y-06): its 14 px hit stroke (inline transparent in the render, hence
+   !important) drawn as a faint halo along the whole part; base.js's highlight layers on top */
+.mk-line:focus-visible .mk-hit { stroke: var(--ink) !important; stroke-opacity: .35; }
+/* touch screens (gap1-03): a journal line is tapped through a wider hit stroke; pins lie above lines and still answer first */
+@media (pointer: coarse) { .mk-line .mk-hit { stroke-width: 28px !important; } }
 .trow.is-map-hl .trow-a, .rtab-r.is-map-hl { background: var(--surface); }
 .trow.is-map-hl .trow-t, .rtab-r.is-map-hl .rtab-tt { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 
@@ -405,6 +425,14 @@ picture.cover-pic { display: contents; }
    goes under the header: on this page alone the root's scroll padding is taller than any distance the start can sit
    below the page's top, so the viewport's part of the fragment scroll stays at 0; base.js refines */
 .mv-start { position: absolute; width: 0; height: 0; scroll-margin-right: 50vw; scroll-margin-top: calc((100svh - 168px) / 2); }
+/* a landscape phone (gap2-04): the header scrolls away (not sticky on this page) and the bar is one line, the scale and the
+   disclaimer beside Back, so the box can take all but 68 px of the screen */
+@media (max-height: 480px) {
+  .p-fsmap .site-h { position: static; }
+  .p-fsmap .fs-line2 { flex-basis: auto; margin-left: auto; }
+  .p-fsmap .fs-map { max-height: calc(100svh - 68px); }
+  .mv-start { scroll-margin-top: calc((100svh - 68px) / 2); }
+}
 html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 .p-fsmap .fs-map:focus-visible { outline-offset: -2px; }
 .p-fsmap .fs-map .map { width: 1440px; }
@@ -793,4 +821,6 @@ html:has(dialog.lb[open]) { overflow: hidden; }   /* the page behind the open vi
   .site-h .units button:not([aria-checked="true"]) { border-block-color: Canvas; }
   .menu-list a[aria-current] { border-left: 3px solid Highlight; box-shadow: none; }
   .mk-pin:focus-visible > circle:nth-of-type(2) { stroke: Highlight; }
+  .mk-line:focus-visible .mk-hit { stroke: Highlight !important; stroke-opacity: 1; }
+  .mk-cluster.is-linked:focus-visible circle:nth-of-type(2) { stroke: Highlight !important; }
 }

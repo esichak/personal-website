@@ -126,27 +126,37 @@ def ml_items(node):
 
 # ---------------------------------------------------------------- the two functions as they were at commit fb425ab
 
-def legacy_region_panel(archive, name, slug, ts, here, meta, first):
+def legacy_region_panel(archive, name, slug, ts, here, meta, first, site=None):
     """archive.region_panel as it was at commit fb425ab (Phase 4), copied line for line: what the Map page's panel was
     before the phase. It calls the module's own helpers (region_row, legend, count_line, share_casings), which the
-    phase did not touch."""
+    phase did not touch. Phase 12 changed the Map page's panel for both modes alike, and the copy follows: the phone
+    map's credit tag and full-screen button (attrib, fullscreen_href), the rows' ids in their own region's list, the
+    legend under the caption in the map column, the count line's id and the panel's live region; and, when the site is
+    handed over (as the Map page does), each pin's activity on the map (inject_acts) and the phone's compact key row."""
     SHOW = archive.SHOW
     md = meta['maps'].get('region-%s-desktop' % slug) or {}
     map_id = 'arc-map-' + slug
     anchor = ts[0]
     mp = core.map_block(anchor, here, [('region-%s-desktop' % slug, 'desktop'), ('region-%s-phone' % slug, 'phone')],
-                        'assets/maps/', 'rg-' + slug, eager=first, cls='arc-mapv', site_maps=True, attrib=False)
+                        'assets/maps/', 'rg-' + slug, eager=first, cls='arc-mapv', site_maps=True, attrib=True,
+                        fullscreen_href=core.link(here, 'map/%s/' % slug))
     mp = archive.share_casings(mp.replace('<div class="map', '<div id="%s" class="map' % map_id, 1), 'arc-' + slug)
+    if site:
+        mp = archive.inject_acts(mp, site.get('by_slug') or {t['slug']: t for t in site['trips']})
     cap = '<div class="arc-cap">%s</div>' % core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])
-    rows = ''.join(archive.region_row(t, here, i >= SHOW and len(ts) > SHOW + 1) for i, t in enumerate(ts))
+    cap += archive.legend(ts, md)
+    if site:
+        cap += archive.region_key(site, meta['maps'], ['region-%s-desktop' % slug, 'region-%s-phone' % slug], 'keyrow--p arc-pkey')
+    rows = ''.join(archive.region_row(t, here, i >= SHOW and len(ts) > SHOW + 1, region=name) for i, t in enumerate(ts))
     n_pub = sum(1 for t in ts if t['kind'] != 'planned')
     return ('<div class="arc-panel" id="region-%s">'
             '<h3 class="arc-panel-h t-h3" id="arc-ph-%s">%s</h3>'
             '<div class="arc-grid"><div class="arc-mapcol">%s%s</div>'
-            '<div class="arc-side">%s<div class="arc-inreg"><div class="arc-inreg-h"><h4 class="t-label" id="arc-in-%s">In this region</h4>'
-            '<span class="t-mono-s">%s</span></div><ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s arc-ph-%s" data-map-target="%s">%s</ol>%s</div>'
+            '<div class="arc-side"><div class="arc-inreg"><div class="arc-inreg-h"><h4 class="t-label" id="arc-in-%s">In this region</h4>'
+            '<span class="t-mono-s arc-count" id="arc-count-%s">%s</span></div><p class="sr arc-plive" aria-live="polite"></p>'
+            '<ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s arc-ph-%s" data-map-target="%s">%s</ol>%s</div>'
             '</div></div></div>'
-            % (slug, slug, esc(name), mp, cap, archive.legend(ts, md), slug, archive.count_line(ts, 'ml--end'), slug, slug, slug, map_id, rows,
+            % (slug, slug, esc(name), mp, cap, slug, slug, archive.count_line(ts, 'ml--end'), slug, slug, slug, map_id, rows,
                ('<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-%s" hidden>Show all %d%s</button>'
                 % (slug, n_pub, icon('chevron-down', 16))) if len(ts) > SHOW + 1 else ''))
 
@@ -183,8 +193,8 @@ def legacy_archive_section(archive, site, here):
         gid = 'yr-%s' % str(y if y is not None else 'undated').lower()
         label = str(y) if y is not None else 'Undated'
         body.append('<div class="arc-yr" data-group="%s"><div class="arc-yr-h"><h3 class="t-label" id="%s">%s</h3>'
-                    '<span class="t-mono-s arc-yr-n">%s</span></div><ol class="arc-rows2" aria-labelledby="%s">%s</ol></div>'
-                    % (gid, gid, label, count_line(ts, 'ml--end'), gid, ''.join(row(t) for t in ts)))
+                    '<span class="t-mono-s arc-yr-n">%s</span></div><ol class="arc-rows2" id="%s-rows" aria-labelledby="%s">%s</ol></div>'
+                    % (gid, gid, label, count_line(ts, 'ml--end'), gid, gid, ''.join(row(t) for t in ts)))   # the id: Phase 12
         k = sum(1 for t in ts if t['kind'] != 'planned')
         years.append('<li data-group="%s"><a href="#%s">%s%s</a></li>'
                      % (gid, gid, label, '' if y == 'Planned' else '<span class="arc-years-n">%s</span>' % count_n(k)))
@@ -898,15 +908,19 @@ class RuleTests(RegionFixture):
         self.assertIsNone(core.site_share())
         self.use(featured=('syn-r-cove-a',))
         self.assertEqual(core.site_share(), core.share_photo(self.by['syn-r-cove-a']))
-        # ... and they are the same with a meta and without one: the meta decides the region pages and nothing else
+        # ... and they are the same with a meta and without one: the meta decides the region pages and, since Phase 12,
+        # which regions have a panel on map/ (_PANELS), and nothing else
+        meta_only = ('_REGION_PAGES', '_PANELS')
+        panels = list(core._PANELS)
         with_meta = [(k, v.copy()) for k, v in sorted(vars(core).items())
-                     if k.startswith('_') and not k.startswith('__') and isinstance(v, (list, dict)) and k != '_REGION_PAGES']
+                     if k.startswith('_') and not k.startswith('__') and isinstance(v, (list, dict)) and k not in meta_only]
         core.register_site(self.site)
         without = [(k, v.copy()) for k, v in sorted(vars(core).items())
-                   if k.startswith('_') and not k.startswith('__') and isinstance(v, (list, dict)) and k != '_REGION_PAGES']
+                   if k.startswith('_') and not k.startswith('__') and isinstance(v, (list, dict)) and k not in meta_only]
         self.assertEqual(without, with_meta)
         self.assertIn('_TRIPS_BY_URL', [k for k, _v in with_meta])
         self.assertEqual(core._REGION_PAGES, {})
+        self.assertEqual((panels, core._PANELS), ([{SLUG[RANGE], SLUG[COAST], SLUG[PEAKS], SLUG[PLANS]}], [None]))
 
     # ------------------------------------------------------------ core.read_site_meta, core.site_meta, archive.site_meta
 
@@ -1081,15 +1095,17 @@ class HeadTests(RegionFixture):
             with self.subTest(region=name):
                 sec = self.head(name)
                 self.assertEqual((sec.tag, sec.classes, sec['aria-labelledby']), ('section', ['reg-head', 'wrap'], 'reg-title'))
+                # Phase 12 (ia-10): the activities line under the counts, hidden without scripting like the explorer links
                 self.assertEqual([(n.tag, n.classes) for n in sec.elements()],
-                                 [('nav', ['crumbs', 't-mono-s']), ('h1', ['t-d1']), ('p', ['reg-stats'])])
+                                 [('nav', ['crumbs', 't-mono-s']), ('h1', ['t-d1']), ('p', ['reg-stats']),
+                                  ('p', ['t-mono-s', 'reg-acts', 'reg-x'])])
                 self.assertIs(self.one(name, 'reg-title'), sec.find('h1'))
 
     def test_it_is_region_head_of_the_published_reports_and_the_active_goals(self):
         head = need(self, self.region, 'head')
         for name in PAGES:
             with self.subTest(region=name):
-                html_ = head(name, self.here(name), self.pub(name), self.planned(name))
+                html_ = head(name, self.here(name), self.pub(name), self.planned(name), None, SLUG[name])
                 self.assertTrue(html_.startswith('<section class="reg-head wrap" aria-labelledby="reg-title">'))
                 self.assertTrue(html_.endswith('</p></section>'))
                 self.assertEqual(self.html(name).count(html_), 1)
@@ -1432,7 +1448,10 @@ class PanelTests(RegionFixture):
                                                            ('desktop.webp', 'desktop.base.svg', 'phone.webp', 'phone.base.svg')])
                 self.assertEqual([i['fetchpriority'] for i in imgs], ['high'] * 4)        # the first-screen map, as map/'s first panel
                 self.assertEqual([i['alt'] for i in imgs], [''] * 4)
-                self.assertEqual(len(block.find_all('svg')), 2)                          # both fragments were found in the temp dir
+                # both fragments were found in the temp dir; the third svg is the icon of the phone map's full-screen button
+                self.assertEqual([s.parent.tag for s in block.find_all('svg')], ['div', 'div', 'a'])
+                fs = block.find('a', cls='mv-fs')
+                self.assertEqual((fs['href'], fs['aria-label']), ('../../map/%s/' % slug, 'Open the full map'))
                 self.assertNotIn('<!-- missing', self.html(name))
 
     def test_the_map_caption_and_legend_are_those_of_the_map_page(self):
@@ -1443,7 +1462,7 @@ class PanelTests(RegionFixture):
                 # the map column (map and caption) and the legend, to the byte, for the same page address
                 self.assertEqual(inner(mine, MAPCOL, INREG), inner(theirs, MAPCOL, INREG))
                 self.assertIn('<div class="arc-cap">', inner(mine, MAPCOL, SIDE))
-                self.assertIn('<div class="arc-legend">', inner(mine, SIDE, INREG))
+                self.assertIn('<div class="arc-legend keyrow--d">', inner(mine, MAPCOL, SIDE))     # under the caption since Phase 12
                 cap = self.panel(name).find('div', cls='arc-cap')
                 self.assertEqual(ml_items(cap)[:3], ['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])
         # ... and on the Map page itself, one folder up, the first panel's column is the same column
@@ -1470,11 +1489,16 @@ class PanelTests(RegionFixture):
                 h3, count = head.elements()                                  # the heading and the count line, as on the Map page
                 # an h3, since the panel has no heading of its own between it and the section's h2
                 self.assertEqual((h3.tag, h3.classes, h3['id'], h3.children), ('h3', ['t-label'], 'arc-in-' + slug, ['In this region']))
-                self.assertEqual((count.tag, count.classes), ('span', ['t-mono-s']))
+                # the count line has a class and an id since Phase 12: a cluster's selection rewrites it ('N reports start here')
+                self.assertEqual((count.tag, count.classes, count['id']), ('span', ['t-mono-s', 'arc-count'], 'arc-count-' + slug))
                 self.assertEqual(ml_items(count), want[name])
-                self.assertEqual(box.elements()[1].tag, 'ol')
+                # between the heading and the list, the polite live line the legend's activity filter writes ('N of M reports')
+                live = box.elements()[1]
+                self.assertEqual((live.tag, live.classes, live['aria-live'], live.children), ('p', ['sr', 'arc-plive'], 'polite', []))
+                self.assertEqual(box.elements()[2].tag, 'ol')
                 self.assertIn('<div class="arc-inreg"><div class="arc-inreg-h"><h3 class="t-label" id="arc-in-%s">In this region</h3>'
-                              '<span class="t-mono-s">%s</span></div><ol ' % (slug, self.archive.count_line(self.group(name), 'ml--end')),
+                              '<span class="t-mono-s arc-count" id="arc-count-%s">%s</span></div><p class="sr arc-plive" aria-live="polite"></p><ol '
+                              % (slug, slug, self.archive.count_line(self.group(name), 'ml--end')),
                               self.html(name))
                 self.assertNotIn('Latest', self.html(name))                  # the first round's heading
         self.assertIn('<span class="ml ml--end">', self.archive.count_line(self.group(RANGE), 'ml--end'))
@@ -1537,7 +1561,7 @@ class PanelTests(RegionFixture):
         self.assertEqual([li['data-key'] for li in rows if 'arc-more' in li.classes], ['syn-r-lap', 'syn-r-old', 'syn-r-undated', 'syn-r-goal'])
         box = self.panel(RANGE).find('div', cls='arc-inreg')
         self.assertEqual([(n.tag, n.classes) for n in box.elements()],
-                         [('div', ['arc-inreg-h']), ('ol', ['arc-rows']), ('button', ['alink', 'arc-all-btn'])])
+                         [('div', ['arc-inreg-h']), ('p', ['sr', 'arc-plive']), ('ol', ['arc-rows']), ('button', ['alink', 'arc-all-btn'])])
         button = box.find('button')
         self.assertEqual((button['type'], button['aria-expanded'], button['aria-controls'], 'hidden' in button, button.text()),
                          ('button', 'false', 'arc-rows-synthetic-range', True, 'Show all 11'))
@@ -1562,7 +1586,7 @@ class PanelTests(RegionFixture):
             self.assertNotIn('arc-more', self.html(name))
             self.assertNotIn('Show all', self.html(name))
             box = self.panel(name).find('div', cls='arc-inreg')
-            self.assertEqual([n.tag for n in box.elements()], ['div', 'ol'])
+            self.assertEqual([n.tag for n in box.elements()], ['div', 'p', 'ol'])
             self.assertTrue(self.panel_html(name).endswith('</li></ol>' + PANEL_TAIL))
         # exactly SHOW + 1 trips (eight reports and a goal): one more row is shown rather than a button for one row
         self.use(mapped=[RANGE], only=RANGE_PUB[:8] + ['syn-r-goal'])
@@ -1605,7 +1629,9 @@ class PanelTests(RegionFixture):
                 self.assertEqual([n.tag for n in box.elements() if n.tag == 'a'], [])
                 hrefs = [a['href'] for a in self.panel(name).find_all('a')]
                 self.assertEqual([h for h in hrefs if 'regions/' in h or h.startswith('#')], [])
-                self.assertEqual(len(hrefs), len(self.group(name)))                           # the rows' links and no other (the map is empty)
+                # the rows' links and the phone map's full-screen button (map/<slug>/), and no other (the map is empty)
+                self.assertEqual(len(hrefs), len(self.group(name)) + 1)
+                self.assertEqual([a['href'] for a in self.panel(name).find_all('a', cls='mv-fs')], ['../../map/%s/' % SLUG[name]])
                 self.assertNotIn('reports<svg', inner(self.html(name), INREG, '</section>'))
         # the Map page's panel for the same region does have it (the site is registered with its region pages)
         self.assertEqual([a.text() for a in Doc(self.panel_html(RANGE, page=False, here='map/')).find_all('a', cls='arc-reg-a')],
@@ -1655,7 +1681,7 @@ class PanelTests(RegionFixture):
         old = legacy_region_panel(self.archive, name, slug, ts, self.here(name), meta, True)
         new = self.archive.region_panel(name, slug, ts, self.here(name), meta, True, page=True)
         self.assertEqual(new, self.as_page(old, name, slug))
-        self.assertNotEqual(inner(new, SIDE, INREG), inner(self.panel_html(RANGE), SIDE, INREG))       # the legend is the one with the symbol
+        self.assertNotEqual(inner(new, MAPCOL, SIDE), inner(self.panel_html(RANGE), MAPCOL, SIDE))     # the legend is the one with the symbol
 
     def test_both_modes_write_the_same_rows_marks_and_button_for_the_same_trips(self):
         def parts(html_):
@@ -1813,8 +1839,8 @@ class PanelTests(RegionFixture):
         self.assertEqual(([h.text() for h in old.find_all(cls='arc-panel-h')], new.find_all(cls='arc-panel-h')), ([RANGE], []))
         self.assertEqual((len(old.find_all('a', cls='arc-reg-a')), len(new.find_all('a', cls='arc-reg-a'))), (1, 0))
         # in both the list's box ends the panel: the rows, the button, and on the Map page the link after them
-        self.assertEqual([n.tag for n in old.find('div', cls='arc-inreg').elements()], ['div', 'ol', 'button', 'a'])
-        self.assertEqual([n.tag for n in new.find('div', cls='arc-inreg').elements()], ['div', 'ol', 'button'])
+        self.assertEqual([n.tag for n in old.find('div', cls='arc-inreg').elements()], ['div', 'p', 'ol', 'button', 'a'])
+        self.assertEqual([n.tag for n in new.find('div', cls='arc-inreg').elements()], ['div', 'p', 'ol', 'button'])
 
 
 # ---------------------------------------------------------------- round 3: the legend is the key to the map
@@ -1860,9 +1886,12 @@ class LegendTests(RegionFixture):
         return self.meta['maps']['region-%s-desktop' % SLUG[name]]
 
     def legend_html(self, html_):
-        """The legend of a panel or of a page that holds one panel: what stands between the side column's start and the
-        list's box, which is archive.legend's whole output."""
-        return inner(html_, SIDE, INREG)
+        """The legend of a panel or of a page that holds one panel, archive.legend's whole output: since Phase 12 it is in
+        the map column, after the caption and before the compact key row (when there is one) and the column's end."""
+        start = html_.index('<div class="arc-legend')
+        seg = html_[start:html_.index(SIDE, start) - len('</div>')]
+        k = seg.find('<ul class="keyrow keyrow--compact')
+        return seg[:k] if k != -1 else seg
 
     def legend(self, name=RANGE):
         """(the activities, the map symbols) the legend of the region's page names, as a reader sees them."""
@@ -1909,7 +1938,7 @@ class LegendTests(RegionFixture):
         html_ = self.legend_html(self.html(RANGE))
         for word in ('Paddleboarding', 'Other', 'Hiking', 'Planned route', 'Map symbols'):
             self.assertNotIn(word, html_)
-        self.assertEqual(html_.count('<li>'), 3)
+        self.assertEqual(html_.count('<li'), 3)                    # each activity's <li data-act="...">
         # all three are on the page all the same: in the list beside the map and in the table
         rows = [li['data-key'] for li in self.one(RANGE, 'arc-rows-' + SLUG[RANGE]).elements()]
         table = [a['data-key'] for a in self.one(RANGE, 'all-reports').find_all('a', cls='rtab-r')]
@@ -2107,7 +2136,11 @@ class LegendTests(RegionFixture):
         self.assertEqual(helpers.slugs(calls[COAST][1]['drawn']), self.COVES)
         args = (RANGE, SLUG[RANGE], self.group(RANGE), self.here(RANGE), self.meta, True)
         self.assertEqual(self.archive.region_panel(*args, page=True, drawn=None), self.archive.region_panel(*args, page=True))
-        self.assertEqual(self.html(RANGE).count(self.archive.region_panel(*args, page=True)), 1)
+        # as the page builds it, with the site: no full-screen button either, as map/ has no panel and so no map/<slug>/
+        built = self.archive.region_panel(*args, page=True, site=self.site)
+        self.assertEqual(self.html(RANGE).count(built), 1)
+        self.assertNotIn('mv-fs', built)
+        self.assertIn('<a class="mv-fs" href="../../map/synthetic-range/"', self.archive.region_panel(*args, page=True))
 
     # ------------------------------------------------------------ archive.region_panel(..., drawn=...)
 
@@ -2125,11 +2158,14 @@ class LegendTests(RegionFixture):
                         self.assertEqual(got, plain.replace(self.archive.legend(ts, entry), self.archive.legend(self.trips(*drawn), entry)))
                         # the rows, the count line and the 'Show all' button are the list's whatever the map draws
                         self.assertEqual(inner(got, INREG, PANEL_TAIL), inner(plain, INREG, PANEL_TAIL))
-                        self.assertEqual(inner(got, MAPCOL, SIDE), inner(plain, MAPCOL, SIDE))
+                        # the map column holds the legend since Phase 12 (under the caption): the rest of it is the same
+                        self.assertEqual(inner(got, MAPCOL, SIDE).replace(self.archive.legend(self.trips(*drawn), entry), ''),
+                                         inner(plain, MAPCOL, SIDE).replace(self.archive.legend(ts, entry), ''))
                 # the list handed over as what the map draws: the same panel
                 self.assertEqual(self.archive.region_panel(*args, page=True, drawn=list(ts)), plain)
         # the page as built is that panel, in its one map section
-        page_panel = self.archive.region_panel(RANGE, SLUG[RANGE], ts, self.here(RANGE), self.meta, True, page=True, drawn=self.trips(*self.DRAWN))
+        page_panel = self.archive.region_panel(RANGE, SLUG[RANGE], ts, self.here(RANGE), self.meta, True, page=True, drawn=self.trips(*self.DRAWN),
+                                               site=self.site)
         self.assertEqual(self.html(RANGE).count('<h2 class="sr" id="reg-map-h">Map</h2>%s</section>' % page_panel), 1)
 
     def test_the_whole_page_differs_from_the_list_made_one_in_its_legend_alone(self):
@@ -2175,7 +2211,7 @@ class LegendTests(RegionFixture):
         html_ = self.archive.build(self.site)[0].html
         for name, slug, ts in self.archive.regions(self.site, self.meta):
             with self.subTest(region=name):
-                old = legacy_region_panel(self.archive, name, slug, ts, 'map/', self.meta, name == RANGE)
+                old = legacy_region_panel(self.archive, name, slug, ts, 'map/', self.meta, name == RANGE, site=self.site)
                 link = '<a class="alink arc-reg-a" href="../regions/%s/">All %s reports%s</a>' % (slug, esc(name), icon('arrow-right', 16))
                 self.assertEqual(html_.count(old[:-len(PANEL_TAIL)] + link + PANEL_TAIL), 1)
         self.assertEqual(names(self.archive.regions(self.site, self.meta)), [RANGE, COAST])
@@ -3022,7 +3058,7 @@ class PageTests(RegionFixture):
             with self.subTest(region=name):
                 here, slug, ts = self.here(name), SLUG[name], self.group(name)
                 pub, planned = self.pub(name), self.planned(name)
-                body = (r.head(name, here, pub, planned)
+                body = (r.head(name, here, pub, planned, None, slug)
                         + '<section class="arc-map reg-map wrap" aria-labelledby="reg-map-h"><h2 class="sr" id="reg-map-h">Map</h2>%s</section>'
                         % self.archive.region_panel(name, slug, ts, here, self.meta, True, page=True)
                         + r.featured(slug, here, pub, r.pick_featured(ts))
@@ -3110,12 +3146,16 @@ class PageTests(RegionFixture):
         # .reg-x marks them (region.css hides the class when scripting is off): both carry a query for trips.js
         for name in PAGES:
             marked = self.doc(name).find_all(cls='reg-x')
-            hrefs = [n.find('a')['href'] for n in marked]
+            hrefs = [a['href'] for n in marked for a in n.find_all('a')]
             self.assertEqual([h for h in hrefs if '?' not in h], [])
             queried = [a['href'] for a in self.main(name).find_all('a') if '?' in (a['href'] or '')]
             self.assertEqual(sorted(queried), sorted(hrefs))
-        self.assertEqual([n['class'] for n in self.doc(RANGE).find_all(cls='reg-x')], ['reg-more reg-x', 'reg-find reg-x wrap'])
-        self.assertEqual([n['class'] for n in self.doc(COAST).find_all(cls='reg-x')], ['reg-find reg-x wrap'])
+        # Phase 12: and the activities line (one link per activity, trips/?region=<slug>&activity=<key>)
+        self.assertEqual([n['class'] for n in self.doc(RANGE).find_all(cls='reg-x')],
+                         ['t-mono-s reg-acts reg-x', 'reg-more reg-x', 'reg-find reg-x wrap'])
+        self.assertEqual([n['class'] for n in self.doc(COAST).find_all(cls='reg-x')], ['t-mono-s reg-acts reg-x', 'reg-find reg-x wrap'])
+        acts = [a['href'] for a in self.doc(RANGE).find('p', cls='reg-acts').find_all('a')]
+        self.assertTrue(acts and all(h.startswith('../../trips/?region=synthetic-range&activity=') for h in acts), acts)
 
 
 # ---------------------------------------------------------------- the pages among the rest of the site
@@ -3218,11 +3258,15 @@ class SiteLinkTests(RegionFixture):
         want |= {core.section_url(a) for a in core.ACT}
         want |= {'trips/%s/' % s for s in PEAKS_PUB}
         url = 'regions/synthetic-obrien-peaks/'
+        want.add('map/synthetic-obrien-peaks/')                                # the phone map's full-screen button (Phase 12)
         got = {resolve(url, a['href'])[0] for a in self.page_doc(url).find('body').find_all('a') if not a['href'].startswith('#')}
         self.assertEqual(got, want)
         # its links into the explorer keep their query
+        acts = ['../../trips/?region=synthetic-obrien-peaks&activity=%s' % a['href'].split('activity=')[1]
+                for a in self.page_doc(url).find('p', cls='reg-acts').find_all('a')]
+        self.assertTrue(acts)
         self.assertEqual(sorted(a['href'] for a in self.page_doc(url).by_id('main').find_all('a') if 'trips/?' in a['href']),
-                         ['../../trips/?region=synthetic-obrien-peaks', '../../trips/?region=synthetic-obrien-peaks&writeup=1'])
+                         sorted(['../../trips/?region=synthetic-obrien-peaks', '../../trips/?region=synthetic-obrien-peaks&writeup=1'] + acts))
 
     def test_every_file_a_region_page_loads_is_addressed_relatively(self):
         for url in self.region_urls():

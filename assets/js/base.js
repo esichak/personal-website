@@ -163,44 +163,177 @@
     var map = document.getElementById(list.dataset.mapTarget);
     list.querySelectorAll('[data-key]').forEach(function (row) {
       var on = function () { highlight(map, [row.dataset.key]); };
-      var off = function () { highlight(map, null); };
+      var off = function () { highlight(map, (map && map._sel) || null); };   // back to a cluster's selection, if any
       row.addEventListener('mouseenter', on);
       row.addEventListener('mouseleave', off);
       row.addEventListener('focusin', on);
       row.addEventListener('focusout', off);
     });
   });
+  // the row a key resolves to, brought into view: a folded list ("Show all N") is opened first, as its button would
+  // folded: behind a list's 'Show all N' (archive.js .arc-collapsed), not set aside by a selection or the legend
+  function folded(row) {
+    var ol = row.closest('ol[id]');
+    return !!ol && row.classList.contains('arc-more') && ol.classList.contains('arc-collapsed');
+  }
+  var opening = false;     // a press of a list's 'Show all' made here, not by the reader (it keeps a selection)
+  function openRow(row, focus) {
+    if (folded(row)) {
+      var ol = row.closest('ol[id]');
+      var more = document.querySelector('[aria-controls="' + ol.id + '"][aria-expanded="false"]');
+      opening = true;
+      try { if (more) more.click(); } finally { opening = false; }
+    }
+    if (row.offsetParent === null) return;      // set aside (.is-off, .is-actoff): nothing to show
+    row.scrollIntoView({ block: 'center' });
+    var a = row.matches('a') ? row : row.querySelector('a');
+    if (a && focus) a.focus({ preventScroll: true });
+  }
+  // a cluster's selection (qa-02): its rows stay marked, the panel's other rows are set aside (.is-off, archive.css),
+  // and the count line says 'N reports start here · Show all' (N counts report rows, never a planned route among the
+  // keys). map._sel holds the keys, so a hover elsewhere returns to them instead of clearing. Only a region list
+  // (map/, the region pages: ol.arc-rows) has a selection; the Ski panel's list keeps the plain cluster click.
+  function panelList(map) {
+    return map && map.id ? document.querySelector('ol.arc-rows[data-map-target="' + map.id + '"]') : null;
+  }
+  var countOf = function (map) {
+    var list = document.querySelector('[data-map-target="' + map.id + '"]');
+    var box = list && list.closest('.arc-inreg');
+    return box ? box.querySelector('.arc-count') : null;
+  };
+  function unselect(map) {
+    if (!map._sel) return;
+    map._sel = null;
+    if (map._selEl) { map._selEl.setAttribute('aria-pressed', 'false'); map._selEl = null; }
+    rowsFor(map).forEach(function (r) { r.classList.remove('is-off'); });
+    var c = countOf(map);
+    if (c && map._count !== undefined) c.innerHTML = map._count;
+    highlight(map, null);
+    markRows(map, null);
+  }
+  function select(map, el, keys) {
+    var rows = Array.prototype.filter.call(rowsFor(map), function (r) { return keys.indexOf(r.dataset.key) !== -1; });
+    if (!rows.length) return;
+    if (map._sel) unselect(map);
+    map._sel = keys;
+    map._selEl = el;
+    el.setAttribute('aria-pressed', 'true');
+    rowsFor(map).forEach(function (r) { r.classList.toggle('is-off', rows.indexOf(r) === -1); });
+    highlight(map, keys);
+    markRows(map, keys);
+    var n = rows.filter(function (r) { return r.dataset.kind !== 'planned'; }).length;
+    // a cluster of planned routes alone names them, not '0 reports'
+    var what = n ? (n === 1 ? 'REPORT\u00a0STARTS' : 'REPORTS\u00a0START')
+      : (rows.length === 1 ? 'PLANNED\u00a0ROUTE\u00a0STARTS' : 'PLANNED\u00a0ROUTES\u00a0START');
+    var c = countOf(map);
+    if (c) {
+      if (map._count === undefined) map._count = c.innerHTML;
+      c.innerHTML = '<span class="ml ml--end"><span class="mi">' + (n || rows.length) + '\u00a0' + what + '\u00a0HERE</span>'
+        + '<span class="mi"><span class="sr">, </span><button type="button" class="arc-sel-clear">Show all</button></span></span>';
+      c.querySelector('.arc-sel-clear').addEventListener('click', function () { unselect(map); el.focus(); });
+    }
+    // every selected row on view: a list folded behind 'Show all N' is opened when any of them is behind it; its button
+    // focuses the first row it reveals, so the focus is put back on the cluster, where Enter clears the selection
+    var behind = rows.filter(folded)[0];
+    var had = document.activeElement;
+    if (behind) openRow(behind, false);
+    if (document.activeElement !== had && el.focus) el.focus({ preventScroll: true });
+    openRow(rows[0], false);
+  }
+  var touch = false;
+  try { touch = !!(window.matchMedia && window.matchMedia('(hover: none)').matches); } catch (err) { touch = false; }
   // a line that is a link (a.mk-line: a journal's days on a region map, which have no pin) is treated as a pin is
   document.querySelectorAll('.mk-pin[data-key], .mk-cluster, .mk-line[data-key]').forEach(function (el) {
     var map = el.closest('.map[id]') || el.closest('.map');
     if (!map) return;
     var keys = el.classList.contains('mk-cluster') ? (el.dataset.keys || '').split(' ').filter(Boolean) : [el.dataset.key];
     var on = function () { highlight(map, keys); markRows(map, keys); };
-    var off = function () { highlight(map, null); markRows(map, null); };
+    var off = function () { highlight(map, map._sel || null); markRows(map, map._sel || null); };
     el.addEventListener('mouseenter', on);
     el.addEventListener('mouseleave', off);
-    // focus listeners on the pins only (they are links). A cluster marker is an aria-hidden pointer target with no name:
-    // Chrome makes an SVG <g> that has a focus listener a Tab stop, which put 14 dead stops on the home page.
-    if (!el.classList.contains('mk-cluster')) {
+    // focus listeners on the pins, and on the clusters that are linked to a list (below: those get a role and a name).
+    // An unnamed cluster stays an aria-hidden pointer target: Chrome makes an SVG <g> that has a focus listener a Tab
+    // stop, which put 14 dead stops on the home page (rule D4, tests/test_a11y_static.py).
+    var matched = el.classList.contains('mk-cluster') ? Array.prototype.filter.call(rowsFor(map), function (r) {
+      return keys.indexOf(r.dataset.key) !== -1;
+    }) : [];
+    // a cluster is linked only when a region list rows at least one of its keys (a map drawn with a trip no list shows)
+    var linked = el.classList.contains('mk-cluster') && panelList(map) && matched.length;
+    if (!el.classList.contains('mk-cluster') || linked) {
       el.addEventListener('focusin', on);
       el.addEventListener('focusout', off);
     }
-    if (el.classList.contains('mk-cluster') && rowsFor(map).length) {
+    if (linked) {
       el.classList.add('is-linked');
-      el.addEventListener('click', function () {
+      var n = matched.filter(function (r) { return r.dataset.kind !== 'planned'; }).length;
+      el.removeAttribute('aria-hidden');
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('aria-pressed', 'false');
+      el.setAttribute('aria-label', n ? n + (n === 1 ? ' report starts here' : ' reports start here')
+        : (matched.length === 1 ? 'A planned route starts here' : matched.length + ' planned routes start here'));
+      var press = function () { if (map._sel && map._selEl === el) unselect(map); else select(map, el, keys); };
+      el.addEventListener('click', press);
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); press(); }
+      });
+    } else if (el.classList.contains('mk-cluster') && matched.length) {
+      // a list that is no region list (the Ski panel): a click brings the first row the cluster names into view and
+      // focuses its link, as before Phase 12; the cluster stays an unnamed pointer target (rule D4)
+      el.classList.add('is-linked');
+      el.addEventListener('click', function () { openRow(matched[0], true); });
+    } else if (touch && !el.classList.contains('mk-cluster') && rowsFor(map).length) {
+      // a touch screen has no hover (gap1-03): the first tap on a pin or a line picks it out and opens its row, which
+      // names the trip; a second tap on the same one follows the link; a tap on the map's paper clears the pick
+      el.addEventListener('click', function (e) {
+        if (map._tap === el) return;
+        e.preventDefault();
+        if (map._tap) map._tap.classList.remove('is-sel');
+        map._tap = el;
+        el.classList.add('is-sel');
+        highlight(map, keys);
+        markRows(map, keys);
         var row = Array.prototype.find.call(rowsFor(map), function (r) { return keys.indexOf(r.dataset.key) !== -1; });
-        if (!row) return;
-        if (row.offsetParent === null) {
-          // the row sits in a collapsed list ("Show all N"): open it first
-          var ol = row.closest('ol[id]');
-          var more = ol && document.querySelector('[aria-controls="' + ol.id + '"][aria-expanded="false"]');
-          if (more) more.click();
-        }
-        row.scrollIntoView({ block: 'center' });
-        var a = row.matches('a') ? row : row.querySelector('a');
-        if (a) a.focus({ preventScroll: true });
+        if (row && row.classList.contains('is-off')) { unselect(map); highlight(map, keys); markRows(map, keys); }
+        if (row) openRow(row, true);
       });
     }
+  });
+  // a pick ends with a tap on the map's paper, or on anything outside the map (the next tap on its pin is a first tap)
+  function untap(map) {
+    if (!map._tap) return;
+    map._tap.classList.remove('is-sel');
+    map._tap = null;
+    highlight(map, map._sel || null);
+    markRows(map, map._sel || null);
+  }
+  if (touch) {
+    document.addEventListener('click', function (e) {
+      document.querySelectorAll('.map[id]').forEach(function (map) {
+        if (!map._tap) return;
+        if (map.contains(e.target) && e.target.closest && e.target.closest('.mk-pin, .mk-line, .mk-cluster')) return;
+        untap(map);
+      });
+    });
+  }
+  // a list's own 'Show all N' / 'Show fewer', pressed by the reader, ends a selection first (the rows come back, then
+  // the list folds or opens as asked)
+  document.querySelectorAll('ol.arc-rows[data-map-target][id]').forEach(function (ol) {
+    var map = document.getElementById(ol.dataset.mapTarget);
+    var btn = document.querySelector('.arc-all-btn[aria-controls="' + ol.id + '"]');
+    if (map && btn) btn.addEventListener('click', function () { if (map._sel && !opening) unselect(map); });
+  });
+  // Escape ends a selection and a pick; the focus, when it was on the count line's 'Show all' (which the restored count
+  // line removes), goes back to the cluster
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.map[id]').forEach(function (map) {
+      untap(map);
+      if (!map._sel) return;
+      var c = countOf(map), back = c && c.contains(document.activeElement) ? map._selEl : null;
+      unselect(map);
+      if (back) back.focus({ preventScroll: true });
+    });
   });
 
   // ------------------------------------------------------------ current section in the phone bottom bar
@@ -519,7 +652,13 @@
   // with as much of the route as fits beside it. The start is the one core.route_start marks: the first route path that
   // is not a faded one, the dashed ascent on a ski map. 'Drag to pan' shows until the map turns out to fit the screen.
   var fm = document.querySelector('.fs-map');
-  if (fm) {
+  if (fm && fm.getAttribute('data-fs') === 'region') {
+    // a region's map (archive.region_fullscreen): many routes, a planned one among them, so the whole map is centred
+    fm.scrollLeft = (fm.scrollWidth - fm.clientWidth) / 2;
+    fm.scrollTop = (fm.scrollHeight - fm.clientHeight) / 2;
+    if (fm.scrollWidth > fm.clientWidth + 1) document.body.classList.add('is-pannable');
+    else document.body.classList.add('is-fit');
+  } else if (fm) {
     var svg = fm.querySelector('.mv svg'), mapEl = fm.querySelector('.map');
     var vb = svg && svg.viewBox && svg.viewBox.baseVal;
     var bb = null, start = null;

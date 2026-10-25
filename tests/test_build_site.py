@@ -1338,9 +1338,11 @@ class RegionSiteTests(BuiltCase):
             self.assertIn('region-' + RG_SLUG[name], ids)
 
     def test_the_pages_of_the_site_are_exactly_these(self):
-        # no report of this site is rendered: of the full-screen map pages only the journal's is built (series.py)
+        # no report of this site is rendered: of the full-screen map pages of trips only the journal's is built (series.py);
+        # each region map has its own, map/<slug>/ (Phase 12, qa-06)
         want = (SITE_PAGES + SECTIONS + RG_URLS + ['trips/%s/' % s for s in RG_REPORTS + RG_GOALS]
-                + ['trips/synb-rg-journal/map/', '404.html', 'trips/search.json', 'trips/journal.json'])
+                + ['trips/synb-rg-journal/map/', '404.html', 'trips/search.json', 'trips/journal.json']
+                + ['map/%s/' % RG_SLUG[name] for name in (RG_RANGE, RG_COAST, RG_PLANS)])
         self.assertEqual(sorted(p.url for p in self.fx.pages), sorted(want))
 
     def test_the_sitemap_lists_the_region_pages(self):
@@ -1425,7 +1427,9 @@ class RegionSiteTests(BuiltCase):
         goal = self.doc('trips/synb-rg-goal/')
         self.assertEqual([a['href'] for a in goal.find('nav', cls='crumbs').find_all('a')][-1], '../../regions/synthetic-reach/')
         cell = goal.find('nav', cls='pager').find('a', cls='next')
-        self.assertEqual((cell['href'], cell.find('span', cls='pager-n').text()), ('../../regions/synthetic-reach/', 'All Synthetic Reach reports'))
+        # Phase 12 (gap4-03): the pager cell lands on the goal's own row of the region's list
+        self.assertEqual((cell['href'], cell.find('span', cls='pager-n').text()),
+                         ('../../regions/synthetic-reach/#arc-row-synb-rg-goal', 'All Synthetic Reach reports'))
         browse = [a['href'] for a in self.doc('trips/').find('nav', cls='trx-browse').find_all('a')]
         self.assertIn('../regions/synthetic-reach/', browse)
         self.assertIn('../regions/synthetic-shore/', browse)
@@ -1439,7 +1443,8 @@ class RegionSiteTests(BuiltCase):
         dunes = self.doc('trips/synb-rg-dunes/').find('nav', cls='crumbs')
         self.assertEqual([a['href'] for a in dunes.find_all('a')][-1], '../../map/#region-synthetic-dunes')
         scheme = self.doc('trips/synb-rg-scheme/').find('nav', cls='pager').find('a', cls='next')
-        self.assertEqual((scheme['href'], scheme.find('span', cls='pager-n').text()), ('../../map/#region-synthetic-schemes', 'Open the map'))
+        # ... landing on the goal's own row of that region's panel there (Phase 12)
+        self.assertEqual((scheme['href'], scheme.find('span', cls='pager-n').text()), ('../../map/#arc-row-synb-rg-scheme', 'Open the map'))
 
     def test_the_region_pages_carry_what_the_content_says(self):
         html_ = self.html(RG_URLS[0])
@@ -1518,17 +1523,18 @@ class RegionSiteTests(BuiltCase):
         # page's panel for the same map makes it, and not from the page's list. The Shore map still draws the hike that
         # is filed under the Dunes; both reports on the Shore's list are rides, one of them without a track
         def legend(html_):
-            start = html_.index('<div class="arc-side">') + len('<div class="arc-side">')
-            return html_[start:html_.index('<div class="arc-inreg">', start)]
+            # since Phase 12 the legend is in the map column, under the caption, with the phone's compact key row after it
+            start = html_.index('<div class="arc-legend')
+            return html_[start:html_.index('<div class="arc-side">', start)]
 
         def words(html_):
-            return [li.elements()[-1].text() for li in Doc(legend(html_)).find_all('li')]
+            return [li.elements()[-1].text() for li in Doc(legend(html_)).find('div', cls='arc-legend').find_all('li')]
 
         archive_page = self.html('map/')
         for name, url in zip(RG_PAGES, RG_URLS):
             with self.subTest(region=name):
                 panel = archive_page[archive_page.index('<div class="arc-panel" id="region-%s">' % RG_SLUG[name]):]
-                self.assertTrue(legend(self.html(url)).startswith('<div class="arc-legend"><p class="t-label">Legend</p>'))
+                self.assertTrue(legend(self.html(url)).startswith('<div class="arc-legend keyrow--d"><p class="t-label">Legend</p>'))
                 self.assertEqual(legend(self.html(url)), legend(panel))
         self.assertEqual(words(self.html(RG_URLS[0])), ['Backcountry Ski', 'Climbing', 'Hiking', 'Planned route'])
         self.assertEqual(words(self.html(RG_URLS[1])), ['Hiking', 'Mountain Biking'])
@@ -1549,7 +1555,7 @@ class RegionSiteTests(BuiltCase):
             self.assertEqual(re.findall(r'<loc>([^<]+)</loc>', read(os.path.join(out, 'sitemap.xml'))), [U + u for u in RG_URLS])
             # and a partial build that leaves the module out writes none
             out, pages = run_build(tmp, only={'archive', 'home'})
-            self.assertEqual(sorted(p.url for p in pages), ['', 'map/'])
+            self.assertEqual(sorted(p.url for p in pages), sorted(['', 'map/'] + ['map/%s/' % RG_SLUG[n] for n in (RG_RANGE, RG_COAST, RG_PLANS)]))
             self.assertFalse(os.path.exists(os.path.join(out, 'regions')))
             # the Map page of that build still links to the pages a full build writes (region_page_href asks the site, not the build)
             self.assertIn('href="../regions/synthetic-reach/"', read(os.path.join(out, 'map', 'index.html')))
@@ -1583,8 +1589,9 @@ class RetitleLabelTests(BuiltCase):
 
     def test_pins_and_clusters_carry_the_titles_of_the_trips(self):
         html_ = self.html(RG_URLS[0])
-        self.assertIn('data-key="synb-rg-lap" aria-label="Synthetic Reach Lap"><title>Synthetic Reach Lap</title>', html_)
-        self.assertIn('data-keys="synb-rg-words synb-rg-lap"><title>Synthetic Reach Words; Synthetic Reach Lap</title>', html_)
+        # (data-act and data-acts: each pin's and cluster's activities, which the build adds since Phase 12)
+        self.assertIn('data-key="synb-rg-lap" data-act="ski" aria-label="Synthetic Reach Lap"><title>Synthetic Reach Lap</title>', html_)
+        self.assertIn('data-keys="synb-rg-words synb-rg-lap" data-acts="climb ski"><title>Synthetic Reach Words; Synthetic Reach Lap</title>', html_)
         self.assertNotIn('Synthetic pin', html_)
         self.assertNotIn('Synthetic cluster', html_)
         self.assertNotIn('Synthetic pin', self.html('map/'))

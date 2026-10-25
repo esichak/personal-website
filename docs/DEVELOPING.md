@@ -202,13 +202,36 @@ menu button below 1140px.
     8px)`, and under the multi-day day bar `.mul-body :is(a, button, input, summary)` has `calc(var(--dnav-h) + 8px)`,
     so a control reached with the keyboard is not left under the bar; the bars' own links are set back to 0. On a
     viewport under 480 px high the day bar is not sticky (`@media (max-height: 480px) { .mul-dnav { position: static;
-    } }`); the journal's month bar is unchanged there.
-  - Map cluster markers (`.mk-cluster`) are `aria-hidden` pointer targets without a name and must never become Tab
-    stops: base.js gives them hover and click listeners but no `focusin` / `focusout` listener (its comment records that
-    Chrome makes an SVG `<g>` with a focus listener a Tab stop), and nothing gives them a `tabindex`. Pins are links and
-    keep their focus listeners, and so does a line that is a link (`a.mk-line`, a journal part on a region map): it is
-    a Tab stop with a name (`aria-label`), and while it has the focus base.js picks its lines out and marks its row,
-    which is its focus indicator (`.mk-line:focus-visible` has no outline of its own, as `.mk-pin` has none).
+    } }`), and since Phase 12 neither is the journal's month bar, whose scroll margins go with it (gap2-05).
+  - Sticky parts (gap2-07). The one rule: a stuck element fits the header + 24 px + its content inside `100svh` on a
+    683 px tall viewport (a 1366 x 768 laptop), or it scales to fit, or it releases (`position: static`); bars release
+    under 480 px of height, columns under 600. tests/test_a11y_static.py `ShortViewportTests` holds the table at 1366 x
+    683, 1280 x 620, 1152 x 630, 1440 x 790 and 667 x 375 (the static evaluator does not compute `calc()`, so it asserts
+    the declarations: position, and `100svh` in a fitted width); a browser check at 1366 x 768 and 1280 x 720 is the
+    final word (the Phase 12 log has one).
+
+    | Element | Sticks from | Top | Holds | Fit or release | Test |
+    | --- | --- | --- | --- | --- | --- |
+    | `.site-h` (header) | every width | 0 | the bar, 52 / 64 px | static without JS under 480 px wide; static on `.p-fsmap` under 480 px high | NoScriptTests, ShortViewportTests |
+    | `.arc-mapcol` (map/, region pages) | 1000 px | header + 24 | the 718 x 620 map, caption (52), one-row legend (56) | the map's width scales to `100svh`; static under 600 px high | ShortViewportTests |
+    | `.sec-panel-in` (Ski) | 960 px | header + 24 | tabs, map, caption | the map scales to `100svh`; the phone render under 760 px high from 1200; static under 600 | ShortViewportTests |
+    | `.abo-nums` (About) | 1000 px, 1600 px high | header + 24 | the numbers column | sticks only from 1600 px of height | ShortViewportTests |
+    | `.mul-dnav` (day bar) | 760 px | header | the day chips | static under 480 px high | ShortViewportTests |
+    | `.mul-rail` (chapter rail) | 1000 px | header + bar + 24 | number, title, stats, GPX | compact under 720 px high; static under 600 | ShortViewportTests |
+    | `.rep-rail` (Beta) | 1000 px | header + 24 | at most a few rows | none needed (the tallest Beta rail has 3 rows) | — |
+    | `.ser-mnav` (month bar) | every width | header | the month tabs | static under 480 px high | ShortViewportTests |
+    | `.p-fsmap .fs-map` (box, not sticky) | — | — | the map | `max-height: calc(100svh - 168px)`; `100svh - 68px` under 480 px high | ShortViewportTests |
+  - Map cluster markers (`.mk-cluster`) on a map without a list (home) are `aria-hidden` pointer targets without a
+    name and must never become Tab stops: base.js gives them hover listeners but no `focusin` / `focusout` listener
+    (its comment records that Chrome makes an SVG `<g>` with a focus listener a Tab stop), and nothing gives them a
+    `tabindex`. Since Phase 12 (qa-02, rule D4 revised) a cluster on a map with a list (map/, region pages, `.is-linked`)
+    is a named button instead: base.js takes `aria-hidden` off and gives it `role="button"`, `tabindex="0"`,
+    `aria-pressed` and `aria-label="N reports start here"` (N counts its report rows, never a planned route), and focus
+    listeners. Pins are links and keep their focus listeners, and so does a line that is a link (`a.mk-line`, a journal
+    part on a region map): it is a Tab stop with a name (`aria-label`); while it has the focus base.js picks its lines
+    out and marks its row, and without a script base.css draws its 14 px hit stroke as a faint ink halo
+    (`.mk-line:focus-visible .mk-hit`, `!important` over the render's inline stroke; Highlight in forced colours,
+    a11y-06).
   - The copy-link fallback field (`.copy-pop`) does not stay open behind the reader: it closes on Escape from anywhere
     on the page, when focus moves from its `.copy` control to something else, on a second press of the button and on a
     press elsewhere. Escape pressed in the field puts the focus back on the button (base.js additions below).
@@ -1219,6 +1242,50 @@ menu button below 1140px.
 
 ### Region pages
 
+- Phase 12 on map/ and the region pages (archive.py, region.py, base.js, archive.js):
+  - Row ids (gap4-01): `archive.region_row(t, here, more, region)` writes `id="arc-row-<slug>"` on the row in the list of
+    the trip's own region (a map drawn before a trip was filed elsewhere still lists it in the old region's panel,
+    without the id) and `data-kind`; a journal part's row is `archive.journal_part_id(region_slug, part)`,
+    `arc-row-<region>-<slugify(part key)>` (one key can be in two regions' lists on map/). archive.js lands on a row the
+    address names: it opens a folded list with its 'Show all' button, centres the row and focuses its link, so base.js's
+    focusin marks the trip on the map (gap4-02; a trip whose start is in a cluster shows by its track, the cluster
+    falling to `.2` opacity under `.map.is-hl`).
+  - Links to a row (gap4-03, gap4-04): `core.region_row_href(here, t)` (the region page's row, else map/'s, else the
+    plain region link for a trip no list rows, `core._LISTED`, else None); `core.see_on_map(here, t)`, 'See on the
+    <Region> map', after a report's map caption and a multi-day overview's (with a track only); the goal pagers' region
+    cell; `series.region_parts`, the journal's parts under its overview map. `core.region_link(here, region)` is the
+    region page or map/, which the place line's region (ia-09, `core.place_line(..., here)`, an `.mi-a` with a 44 px
+    `::before` hit area) and a section head's region names (ia-12, `section.areas(ts, here)`; one region's places stay
+    text) link to; so do the ski panel's region labels, which show without JavaScript only. `region.activity_items` is the region head's activities line
+    (ia-10), each to `trips/?region=<slug>&activity=<key>`, inside `.reg-x` (hidden without scripting).
+  - Map interactions: `archive.inject_acts` puts `data-act` on every track, pin and journal line of a panel's inlined map
+    and `data-acts` on clusters (maps-07); the legend's items carry `data-act`, and archive.js turns each into a toggle
+    (`button.arc-lg-b`, `aria-pressed`) that sets `data-filter` on the map, `.is-out` on other activities' markers,
+    `.is-actoff` on their rows, unfolds the list while an activity is chosen (hiding 'Show all N'; the fold comes back
+    as it was), and says 'N of M reports' in the panel's `.arc-plive`. A linked cluster (one whose map has a region
+    list, `ol.arc-rows`) selects its rows on a press, Enter or Space (qa-02): base.js keeps them marked, sets `.is-off`
+    on the panel's others, opens a folded list, and writes 'N REPORTS START HERE · Show all' into the panel's
+    `.arc-count` (`#arc-count-<slug>`; planned routes alone are named as such); a second press, Escape, that Show all or
+    the list's own 'Show all N' / 'Show fewer' clears (Escape puts the focus back on the cluster when it was in the
+    count line), and a hover elsewhere returns to the selection (`map._sel`). The Ski panel's clusters keep their
+    earlier click (the first row they name, brought into view and focused) and stay unnamed. On a touch screen
+    (`(hover: none)`) with a list, a first tap on a pin or a line picks it (`.is-sel`) and opens its row, a second
+    follows it, a tap on the paper or anywhere outside the map, or Escape, ends the pick (gap1-03); `@media (pointer:
+    coarse)` widens a line's hit stroke to 28 px. Home's maps are left as they were. A link's 44 px `::before` inside a
+    meta line (`.mi-a`, `.arc-sel-clear`) works because `.ml`'s clip reaches 16 px past the line above and below.
+  - Phones (phone-03, phone-04): archive.js folds every year of 'All reports' after the first under 760 px (a 'Show N
+    reports' button with `aria-controls` on the year's `ol#yr-<year>-rows`); a year link, an address inside it or the
+    activity filter opens it. A region panel's phone map carries the credit tag (`attrib=True`), so its caption is two
+    lines, and `archive.region_key(..., 'keyrow--p arc-pkey')` (moved from home.py, which still uses it) stands for the
+    legend (`.arc-legend.keyrow--d`, from 560 px). The legend sits in the map column under the caption, as one wrapping
+    row from 1000 px (gap2-06), and the stuck column fits the viewport (gap2-01; the Sticky parts table).
+  - Full-screen region maps (qa-06): `archive.region_fullscreen` builds `map/<slug>/` for each region panel of map/,
+    the 718 x 620 render at 1077 px (`map--fscol`), noindex and `index=False`, with the report pages' bar (Back to
+    `map/#region-<slug>`, `core.fs_scale(..., site_maps=True)`, the disclaimer), the legend (the compact key row under
+    560 px) and the caption;
+    `data-fs="region"` makes base.js centre the whole map. The region panels' phone maps and home's link to it from
+    their 44 px corner button, only for a region with a panel on map/ (a region page whose map names none of the site's
+    trips until the next render has none).
 - Region pages (`regions/<slug>/`, `tools/sitegen/pages/region.py`, `body_cls='p-region'`; Phase 5): one page for each
   region that has a region map and at least one published report filed under it. It is map/'s panel and table for
   that region under a head of counts, years and places, with a Featured row between them, and it lists what the

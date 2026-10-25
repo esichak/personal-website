@@ -2073,3 +2073,196 @@ Not run: a real phone (item 13, below); `render.py`; Lighthouse (the pre-push se
   write-ups" (read out on an empty month); "Share", "Share this page", "Share this entry"; "This photo could not be
   loaded" and "Open the file"; "Open the full map"; "NOT FOR NAVIGATION" on the fs bar; "Day 15, photo 2 of 4, full
   size" (read out for a journal photo without alt text).
+
+## Phase 12 - Maps on pages (2026-10-25)
+
+The seventh phase of the second plan (`docs/personal-website-improvement-plan-2.md`, section 12, and the Phase 12 prompt
+of `docs/claude-code-website-prompt-2.md`), built on branch `phase-12-maps-on-pages` from `phase-11-journal-viewer-map`
+at `67aa468`. Eric asked for the phases to run on without waiting for him, so the prompt's recommended answers stand
+for the two decisions it asks at the start: (d) no fourth title action, (e) yes to full-screen region maps; and (c),
+recommended yes, the journal's month bar releases under 480 px of height. The two layout choices the prompt leaves to
+Eric after he has seen pictures, (a) gap1-01's 1005 px column and hung stats strip and (b) qa-04's season dimming, were
+not taken: side-by-side sheets were built for each and neither is applied. gap1-05 (the Ski list's stat cells two by
+two) has no decision attached and is built, with a before-and-after sheet. Nothing under `content/` or `rendered/`
+changed, and `render.py` was not run (every new attribute on a pin, line or cluster is added at build or run time). The
+disk had 18 to 20 GB free, under the plan's 30 GB line: builds were linked into the session's scratch folder, and no
+worktree or copy of the checkout was made. The harness work for the map scripts went to a subagent in the same
+checkout, confined to the test files.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/core.py` | `_LISTED` and `_PANELS` (set in `register_site`); `region_link(here, region)` (the region page, else map/); `region_row_href(here, t)` (the trip's own row, `#arc-row-<slug>`, on its region page or map/; the plain region link for a trip no list rows; None); `see_on_map(here, t)` ('See on the <Region> map', with a track only); `place_line(t, items, here)` links the region (`a.mi-a`); `fs_scale(..., site_maps=)` for a site map. |
+| `tools/sitegen/pages/archive.py` | `region_row(..., region=)` writes `id="arc-row-<slug>"` in the trip's own region list and `data-kind`; `journal_part_id()` and the journal rows' ids; `inject_acts()` (`data-act` on tracks, pins and journal lines, `data-acts` on clusters); `_site_draws`, `CLUSTER_SYM` and `region_key()` moved here from home.py; `region_panel`: the phone map's credit tag and full-screen button (only for a region with a panel on map/), the legend under the caption with `data-act` items and the compact key row, `#arc-count-<slug>`, `p.arc-plive`; the year lists' ids; `region_fullscreen()`; `build()` returns map/ and one `map/<slug>/` per panel. |
+| `tools/sitegen/pages/home.py` | Uses archive's `region_key`; the phone maps' full-screen button for a region with a panel on map/. |
+| `tools/sitegen/pages/report.py`, `multiday.py` | The place line's region link; the region cell of the goal pager to the planned route's row; 'See on the <Region> map' after the route map's caption and the multi-day overview's. |
+| `tools/sitegen/pages/section.py` | `areas(ts, here)` and `totals_line(..., here)`: region names in the head link (one region's places stay text); the ski panel's region labels link. |
+| `tools/sitegen/pages/region.py` | `activity_items()` and the head's activities line (`.reg-acts.reg-x`). |
+| `tools/sitegen/pages/series.py` | `region_parts()`: the journal's parts on region maps under its overview map. |
+| `assets/js/base.js` | `folded`, `openRow`, `countOf`, `panelList`, `select`, `unselect`, `untap`: a cluster of a map with a region list selects its rows (button, `aria-pressed`, the count line's 'N reports start here · Show all'); a second press, Escape, that Show all or the list's own Show all / Show fewer clears; a hover elsewhere returns to the selection; rule D4 revised (such a cluster is a named button; the Ski panel's keep their plain click); touch taps (`(hover: none)`), a tap off the pin or Escape ends a pick; `data-fs="region"` centres the whole map. |
+| `assets/js/pages/archive.js` | Landing on `#arc-row-<slug>`; the legend's activity toggles, which unfold the list while on; the phone year folds on map/, which the activity filter, a year link, an address and a turn past 760 px open. |
+| CSS | base.css: `.ml`'s clip reaching past the line, `.mi-a`, the linked cluster's ring (not dimmed when focused), `.is-sel`, `.is-out`, the journal line's focus halo and its forced-colours form, the coarse-pointer hit stroke, the landscape fs page. archive.css: the phone caption and compact key, the stuck column's fit and release, the legend toggles (24 px apart when stacked) and one-row legend, `.is-off` / `.is-actoff`, `.arc-sel-clear`, the year folds. multiday.css: the day maps to `--col-max`, the compact rail and its release. section.css: `100svh`, the phone render on short windows, the 2 x 2 stat cells at 960-1099. region.css, series.css: the activities line, `.ser-parts`, the month bar's release. |
+| Docs | DEVELOPING.md: the Sticky parts rule and table, rule D4 revised and the halo, the Phase 12 map and region section, the harness paragraph. CONTENT_GUIDE.md: 11.2 (the activities line, the map's interactions, the phone folds), 11.5, 7.2 (the full-size map in landscape), 7.7 (the month bar); one example's real place names replaced with PLACE A/B/C. |
+| Tests | New: test_phase12 (18). Changed: maplist_js_harness.js (45 checks, from 15; the stand-in's `>` and `^=` selectors, bubbling, `preventDefault`, focus events, `innerHTML`, a `matchMedia` stub that keeps change listeners, a Ski panel) and test_maplist_js (47 one-line broken copies, all rejected); test_region_days (journal row ids); test_a11y_static (D4 named and unnamed clusters, the halo, the Sticky parts table at six sizes with the Ski panel and the fs box, the Ski panel's phone render, the month bar, the explorer links, map/<slug>/ pages, target sizes, the review's CSS fixes); test_region_page, test_archive_page, test_build_site, test_home and test_report_page for the ids, the legend's place, the live line, the full-screen pages and the new links. |
+
+### Behaviour
+
+- **Which pages changed.** A `--link` build against one of `67aa468` made before any edit differs in the 168 trip pages
+  (the place line's region link on all; 'See on the <Region> map' and the region cell's target where they apply), the
+  eight region pages, map/, home, the five section pages and the two bundles, and has eight new pages, `map/<slug>/`
+  for the eight region maps. The 168 trips' own full-screen pages are unchanged.
+- **Row ids and landing (gap4-01 to gap4-04).** Every row of a region list carries its id once per page (on map/, a
+  trip a stale render still draws in another region's panel is listed there without the id); journal rows are
+  `arc-row-<region>-<part>`. `build.py --check` passes with every 'See on the … map' link, every region cell and every
+  PCT part link resolving. The PCT page lists its three parts on region maps (two on Lake Tahoe's, one on the Eastern Sierra's) under its
+  overview map.
+- **Explorer links (ia-09, ia-10, ia-12).** The place line links the region at every width (the crumb is hidden under
+  760 px); the region pages head with their activities and counts, each to `trips/?region=…&activity=…`; the section
+  heads link their region names (Mountain Biking: three regions and '2 MORE').
+- **Map interactions (qa-02, maps-07, gap1-03).** A cluster on a map with a list is a button named 'N reports start
+  here' (N counts reports; a cluster of planned routes says so); pressing it narrows the list to its rows and the count
+  line to 'N REPORTS START HERE · Show all'; a second press, Escape, that Show all or the list's own Show all / Show
+  fewer brings the list back, and the focus stays on the cluster even when its rows were folded. The legend's
+  activities are toggles: the other activities' markers fade to 15 %, their rows go, the list unfolds while the filter
+  is on, and the live line says 'N of M reports'. On a touch screen a first tap on a pin or line shows its row and a
+  second opens the report. Home's maps behave as before, and so do the Ski panel's clusters (a click brings the first
+  of their reports into view).
+- **Phones (phone-03, phone-04).** map/ at 390 x 844 is 9,141 px tall instead of 17,498 (every year of 'All reports'
+  after the first folds behind 'Show N reports', the Planned group behind 'Show 1 planned route'); a region page is
+  7,997 px instead of 11,019. The region maps carry the credit tag in the corner, a two-line caption and the compact
+  key row; the 44 px corner button opens `map/<slug>/`.
+- **Phone load** (DEVELOPING.md "Measuring page loads", median of 3; before → after, the final build): map/ LCP 1,744
+  → 1,756 ms, CLS 0.041 → 0.041, document 125,070 → 128,063 B, total 268,258 → 277,329 B; regions/lake-tahoe/ LCP
+  1,648 → 1,640 ms, CLS 0 → 0, total 261,651 → 269,554 B; the new map/lake-tahoe/ LCP 1,580 ms, CLS 0, 186,129 B.
+- **Sticky parts at laptop sizes** (headless Chrome, CSS viewport heights): at 1366 x 683 the stuck Lake Tahoe column
+  runs from 96 to 671 px (map 541 px wide, caption to 615, the one-row legend to 671); at 1280 x 620 from 96 to 608
+  (map 468 px). The Ski panel shows the phone-shaped render at both (362 and 311 px wide, panel bottom 671 and 608) and
+  the wide render at 1366 x 900. The Haute Route rail's 'Day N GPX' button ends at 592 px of 683 and 616 of 620. On a
+  667 x 375 landscape phone the full-screen map box is 307 px, 82 % of the screen. The PCT month bar is static at
+  667 x 375 and sticky at 390 x 844.
+- **Layout fixes that need no decision.** The day maps and day profiles share the overview's right edge at 760-999 px;
+  the Ski list's stat cells go two by two at 960-1099 px (sheet below); a focused journal line shows a faint halo
+  without a script.
+- **validate.py**: 0 errors, 1 warning, 346 notes, as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **Rule D4 revised (DEVELOPING.md).** A cluster marker was an unnamed, unfocusable pointer target. On a map with a
+  list (map/, the region pages) it is now a named button: base.js takes `aria-hidden` off and gives it `role="button"`,
+  `tabindex="0"`, `aria-pressed` and an `aria-label`, and focus listeners. On home's maps, which have no list, a cluster
+  is as it was. A cluster whose keys are none of the list's rows (a stale render) stays unnamed.
+- **The legend filter unfolds the list.** The prompt asks the filter to hide the other rows; with the list folded
+  that could leave none on view (the review's first finding), so the filter also opens the fold while it is on.
+- **The cluster count rule.** 'N reports start here' counts report rows only, as the prompt asks; a cluster of planned
+  routes alone is named 'A planned route starts here' / 'N planned routes start here' rather than '0 reports'.
+- **The legend's place (gap2-06).** The legend moved under the caption in the map column at every width (one element,
+  no JavaScript condition), as one wrapping row from 1000 px; under 560 px the compact key row stands in for it.
+- **The full-screen button only where the page exists.** map/ writes `map/<slug>/` for each of its panels; a region
+  page or a home block whose map names none of the site's trips until the next render (so map/ has no panel for it)
+  has no corner button, and the journal's part links skip such a region, rather than link to a page or row that is not
+  built. The prompt did not cover the case.
+- **The sticky table's sizes.** The prompt's five sizes plus 1300 x 599, the column release; the evaluator does not
+  compute `calc()`, so a fitted part is asserted by its declaration.
+- **gap1-01** is split: the day maps' alignment to the overview at 760-999 px has no decision attached and is built;
+  the 1005 px column and the hung stats strip wait on Eric.
+- **CONTENT_GUIDE.md** had an example naming real places (the 'same place' one in section 11); it reads PLACE A, B
+  and C now.
+
+### Review
+
+Two rounds of finding, before the commit. First, the subagent that wrote the map scripts' harness cases found five
+script bugs, each left with a failing case and then fixed: a press on a cluster of folded rows moved the focus to the
+first revealed row (so a second Enter followed that link); `openRow` took rows set aside by a selection or the legend
+for folded ones; a cluster none of whose keys the list rows became a button saying '0 reports'; the Planned year's
+fold called a planned route a report; the selection's count line had an ordinary space where the others are no-break.
+
+Then one independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It built the site, ran the 3.9 suite and the harness, and checked six of its findings in headless Chrome. It
+confirmed: every row id and anchor resolves, including a trip filed in two regions, a stale render, journal parts on
+two maps and completed goals; all 463 tracks, pins and lines carry `data-act` and all 42 clusters `data-acts`; the
+stuck column fits at 1366 x 683 and 1024 x 640; the year folds and hash unfolding work at 375 px; no rule is lost to a
+later one; no privacy problem (the fixtures are synthetic; the diff removed two real place names from a comment).
+Its findings, all fixed:
+
+1. The legend filter left the list folded: on Lake Tahoe's page 'Backcountry Ski' left 0 rows on view under '37 of 86
+   reports'. The filter now unfolds the list (hiding 'Show all N') and gives the fold back when it ends.
+2. The Ski page's clusters became selection buttons (its list names the map too), hiding all but 4 of 51 rows with
+   nothing saying why. Only a map with a region list (`ol.arc-rows`) has selection buttons; the Ski panel's clusters
+   keep their earlier click and stay unnamed.
+3. Two new 44 px hit areas were cut to 16 px by the meta line's `clip-path` (the place line's region link, a section
+   head's region names, the count line's 'Show all'). The clip now reaches 16 px past the line above and below and
+   8 px to the right; the left inset that hides the dots is unchanged. Checked: the region link answers 12 px above
+   and below its 16 px box.
+4. A focused cluster was dimmed to 20 % with the tracks it picks out, its ring with it. `:focus-visible` is excepted
+   as the pressed state was.
+5. 'Show fewer' during a selection emptied the list. The list's own 'Show all N' / 'Show fewer' now ends the
+   selection first; the press base.js makes itself to show a selection's folded rows does not.
+6. Escape on the count line's 'Show all' dropped the focus to the page. It goes back to the cluster.
+7. The full-screen region page had no key on phones (the legend is hidden under 560 px). It has the compact key row.
+
+Its smaller points: a cluster of planned routes alone wrote '0 REPORTS START HERE' (now 'N PLANNED ROUTE(S) START
+HERE'); a phone turned past 760 px kept its folded years (they open now); a touch pick survived a tap elsewhere and
+Escape, and `.is-sel` had no style (both fixed); stacked legend buttons overlapped by 14-20 px (24 px apart now, so
+each keeps its 44 px; in the one-row legend from 1000 px two wrapped rows still overlap, and each button keeps at
+least 24 px of its own); the Ski panel's region labels show without a script only and had no hit area (`.mi-a` now;
+the docs said they were visible links, corrected); a region row link could name a row map/ does not build for a
+mapped region with neither a page nor a panel (plain region link now); an activity link read 'BACKCOUNTRY SKI37
+reports' (now 'BACKCOUNTRY SKI: 37 reports'); CONTENT_GUIDE quoted a real cluster count (now 'N'); the sticky table
+left the Ski panel and the fs box to string checks (both in the per-size table now); two docs passages and a test
+comment misdescribed the live line and the full-screen page. Each fix has a harness check or a static test, and the
+harness rejects 10 more broken copies (47 in all).
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 3,062 tests, OK, 106 s (3,036 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 3,062 tests, OK, 130 s. An earlier 3.12 run, made at the same time as a 3.9 run, timed one trips harness subprocess out at 60 s; it passed alone and on every later run |
+| `python3 tests/run_orders.py --reverse` | OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 45, profile 35, series 58, ticklist 103, trips 167, viewer 50 checks passed; the maplist harness rejects all 47 broken copies |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `diff -rq` against a `--link` build of `67aa468` | the pages under Behaviour (185 changed files, 8 new pages) |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| Phone measurements and page heights (scratch `measure.mjs`, CDP at 390 x 844) | under Behaviour |
+| Sticky parts in headless Chrome (scratch `sticky.mjs`) at 1366 x 683, 1280 x 620, 1366 x 900, 667 x 375, 390 x 844 | under Behaviour |
+| The review's fixes in headless Chrome | the legend filter on Lake Tahoe's page (10 rows on view → 37 under 'Backcountry Ski' → 10 and 'Show all 86' after), a keyboard-focused cluster at opacity 1, Show fewer ending a selection, the Ski page's 17 clusters unnamed with a click to the first row (51 rows still on view), the place line's region link answering 12 px above and below its box at 375 px, the fs page's compact key at 375 px and its legend at 1280 |
+| Screenshots (headless Chrome) | `.cache/plan2/phase12/`: map/ at 390 before and after (top, caption; All reports before); regions/lake-tahoe/ at 390 before and after; the stuck map at 1366 x 683 and 1280 x 620 before and after; the ski panel at 1280 x 620 before and 1366 x 683 after; the Haute Route rail at 1280 x 620 before and after; a report's and a region's full-screen map at 667 x 375; a report's Route section with 'See on the Lake Tahoe map' at 1280 and 390; the journal at 900 x 460; the sheets for gap1-01, qa-04 and gap1-05 |
+
+Not run: a real phone; `render.py`; Lighthouse (the pre-push session).
+
+### Remaining issues and author inputs
+
+- **(a) gap1-01, the report's map column at 1000-1199 px: waits on Eric.** Two changes, each to be taken or left: the
+  stats strip hung from the map column, and the column raised from 860 to 1005 px. Side by side at 1024 and 1180 px
+  (today, A, B, A + B, each with a close-up of the map): `.cache/plan2/phase12/sheets/gap1-01-sheet.png`. Nothing is
+  applied.
+- **(b) qa-04, the ski season band dimming the region map: waits on Eric.** 'All' beside a chosen season:
+  `.cache/plan2/phase12/sheets/qa-04-sheet.png`. Not applied.
+- **gap1-05, built:** the Ski list's stat cells two by two at 960-1099 px, before and after at 960, 1024 and 1100 px:
+  `.cache/plan2/phase12/sheets/gap1-05-sheet.png`. One rule in section.css if he would rather not.
+- **(c), (d), (e)** were taken as recommended (month bar released under 480 px of height; no fourth title action;
+  full-screen region maps).
+- **The cluster count rule:** 'N reports start here' counts the report rows a cluster stands for, never a planned
+  route; a cluster of planned routes alone says 'A planned route starts here'.
+- **Rule D4 revised:** a cluster beside a region list (map/, the region pages) is a named, focusable button; on home
+  and on the Ski panel a cluster stays an unnamed pointer target, out of the Tab order (DEVELOPING.md).
+- **The one-row legend from 1000 px:** when it wraps to two rows its 44 px buttons overlap by up to 20 px (each keeps at
+  least 24 px of its own). Spacing the rows out would overflow the stuck column's budget at 683 px; left as it is.
+- **The real-phone look** (Phase 11's five minutes) can now also cover Phase 12: on Lake Tahoe's region page on an
+  iPhone, tap a pin once (its row should open and name the trip) and again (the report should open); tap a numbered
+  circle (the list should narrow to its reports, 'Show all' bringing the rest back); turn the phone sideways on a
+  full-size map (`map/lake-tahoe/`: the map should take most of the screen).
+- **Interface copy, new on the site:** "See on the <Region> map"; the region head's activities line ("BACKCOUNTRY SKI
+  37 · CLIMBING 13 · …", read "BACKCOUNTRY SKI: 37 reports"); "N reports start here" / "1 report starts here" / "A
+  planned route starts here" (a cluster's name, read out); "N REPORTS START HERE · Show all" (the count line during a
+  selection); "N of M reports" and "All M reports" (read out by the legend filter); "Show N reports" / "Show 1 planned
+  route" / "Show fewer" (the phone year folds); "Days 67–76 · Lake Tahoe map (Pacific Crest Trail)" (the journal's
+  parts); "Open the full map" (the corner button, read out); on the full-size region map, "Back to the map", "Drag to
+  pan", "NOT FOR NAVIGATION", the title "<Region> map" and the description "Full-size map of <Region>."; "Several
+  reports start here" in the phones' compact key.
+- **Carried from earlier phases:** the hero frame (Phase 10, `.cache/plan2/phase10/sheet/hero-frame-sheet.png`); the
+  mile table's last row (Phase 10); the real-phone look (Phase 11); the checkout and cache moves, `strava_id`, the
+  rehearsal push (Phase 8); the place names, the retitles and the merges (Phase 9).

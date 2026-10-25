@@ -9,6 +9,7 @@ import re
 
 from sitegen import core
 from sitegen.core import esc, U, n, link, icon
+from sitegen.pages import archive
 
 HERE = ''
 LABEL = 'Trip reports · GPX'
@@ -232,46 +233,8 @@ def region_counts(site, slugs):
     return [core.nb(plural(len(planned), 'PLANNED ROUTE'))] if planned else []
 
 
-def _site_draws(name, pattern):
-    """True when the site map fragment rendered/site/<name>.svg.html contains `pattern` (a regex)."""
-    try:
-        return re.search(pattern, core._read(os.path.join(core.ROOT, 'rendered', 'site', name + '.svg.html'))) is not None
-    except OSError:
-        return False
-
-
-# the pin cluster as the region maps draw it (paper disc, ink ring, Mono count), at key-row size
-CLUSTER_SYM = ('<svg class="hom-key-cl" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">'
-               '<circle cx="10" cy="10" r="9" style="fill:#F2F1EC;stroke:#16171A;stroke-width:1.5"/>'
-               '<text x="10" y="10.5" style="font:600 11px/1 var(--mono);fill:#16171A;text-anchor:middle;dominant-baseline:central">2</text></svg>')
-
-
-def region_key(site, meta, names):
-    """One compact key row under the region maps (archive.legend's item logic): an activity disc + word for every activity
-    whose pins the drawn maps carry ('other' reads as its sub-type when only one occurs), the planned-route line when a
-    planned track is drawn, and the cluster symbol when pins merge. Symbols only, never counts."""
-    by = site['by_slug']
-    keys = set()
-    for nm in names:
-        m = meta.get(nm) or {}
-        cl = m.get('clusters')  # every pin, merged or not (a lone pin is a cluster of 1)
-        keys.update([k for c in cl for k in c.get('keys', [])] if cl else m.get('trips', []))
-    ts = [by[k] for k in keys if k in by]
-    items = []
-    for a, _lab in core.NAV:
-        if not any(t['activity'] == a and t['kind'] != 'planned' for t in ts):
-            continue
-        subs = sorted({t.get('subtype') for t in ts if t['activity'] == a and t.get('subtype')})
-        sub = subs[0] if (a == 'other' and len(subs) == 1) else None
-        items.append('<li>%s%s</li>' % (core.disc(a, 16, sub), esc(core.act_word(a, sub) if sub else core.ACT[a][0])))
-    if any(_site_draws(nm, r'class="mk-cat mk-planned"') for nm in names):
-        word, sym = core.KEY_SYMBOLS['planned_site']
-        items.append('<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>%s</li>' % (sym, esc(word)))
-    if any(c.get('n', 0) > 1 for nm in names for c in ((meta.get(nm) or {}).get('clusters') or [])):
-        items.append('<li>%sSeveral reports start here</li>' % CLUSTER_SYM)
-    if not items:
-        return ''
-    return '<ul class="keyrow keyrow--compact hom-rkey" aria-label="Map key">%s</ul>' % ''.join(items)
+# the compact key row of the region maps lives in archive.py (the region panels show it on phones too)
+_site_draws, CLUSTER_SYM, region_key = archive._site_draws, archive.CLUSTER_SYM, archive.region_key
 
 
 def also_items(site):
@@ -317,6 +280,7 @@ def where(site):
     meta = core.site_meta().get('maps', {})
     blocks = []
     drawn = []
+    panels = {s for _n, s, _ts in core.region_groups(site)}   # the regions with a full-screen page, map/<slug>/
     for region in home_regions(site):
         rs = slug(region)
         dk, ph = 'region-%s-desktop' % rs, 'region-%s-phone' % rs
@@ -330,7 +294,10 @@ def where(site):
         line = meta_line(bits[:1])
         spoken = ', '.join(b.replace('\u00a0', ' ').replace('+ ', '') for b in bits).lower()
         aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
-        mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False)
+        # the phone map's corner button opens the region's full-screen page, map/<slug>/ (qa-06), which the Map page writes
+        # for each of its panels; no in-map credit tag here, since .hom-attr credits the maps at every width
+        mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False,
+                            fullscreen_href=link(HERE, 'map/%s/' % rs) if rs in panels else None)
         # the name opens the region's own page when it has one; 'Open the map' still goes to its panel on map/
         own = core.region_page_href(HERE, region)
         name = ('<a href="%s">%s</a>' % (own, esc(region))) if own else esc(region)

@@ -6,6 +6,14 @@
 .reg-stats .ml-br { display: block; }  /* counts and years on line 1, places (biggest first) on line 2 */
 /* a place wraps at its spaces (.mi-w); one word too long for a line of its own breaks rather than widen the page */
 .reg-stats .mi-w { overflow-wrap: anywhere; }
+/* the activities with their counts, each to the explorer narrowed to it (region.activity_items) */
+.reg-acts { margin-top: 8px; color: var(--ink-2); }
+.reg-act { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: inherit; }
+.reg-act .disc { flex-shrink: 0; }
+.reg-act-n { color: var(--ink-3); }
+/* each item is a 44 px link: the separator dot sits on its middle, not on the top of the item */
+.reg-acts .mi::before { top: 50%; transform: translateY(-50%); }
+.reg-act:hover span:not(.disc):not(.reg-act-n) { text-decoration: underline; text-underline-offset: 3px; }
 /* content/regions/<slug>.md: Eric's introduction to the region, under the counts */
 .reg-intro { margin-top: 20px; }
 .reg-intro h2, .reg-intro h3 { font: 600 22px/28px var(--sans); font-stretch: 104%; margin-top: 40px; }

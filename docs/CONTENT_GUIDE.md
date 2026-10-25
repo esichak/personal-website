@@ -627,7 +627,8 @@ What the stats, the map and the profile show, on every layout:
   page's script runs, and the page itself stays at its top. Its top bar keeps a scale and "NOT FOR NAVIGATION" in view while the map is dragged. Phones
   reach it with the button in the map's corner, and screens from 560 to 1199 px wide with "Open the full map" under
   the map's key. The PCT's full-size map, which draws its days another way, opens in its middle as before (at its
-  corner without the script).
+  corner without the script). On a phone turned sideways the header scrolls away and the bar is one line, so the map
+  takes about four fifths of the screen.
 - The profile's line reads `VERTICAL SCALE ×4.0`, and its GPS max adds the time of day it was reached (`AT 11:40 AM`)
   on a single-day report with a `timezone:`.
 - "View as table" lists the elevation at each mile (or kilometre), with the time of day on a single-day report that
@@ -825,7 +826,8 @@ pressing one switches the filter off, screen readers hear "Showing all 150 days"
 or "Browse all recordings", shows every day. Once a reader has used the toggle or that button, the page keeps their
 choice for the rest of the browser session in that tab, so a reload or Back returns to the list as they left it. The
 button counts as a choice even when a link had already switched the filter off. A fresh tab starts on write-ups again.
-Without JavaScript there is no toggle and every day shows.
+Without JavaScript there is no toggle and every day shows. On a phone turned sideways (a screen under 480 px tall)
+the month bar scrolls with the page instead of staying under the header.
 
 **A direct link still lands.** A link to something the filter would hide is not left hidden.
 
@@ -1261,16 +1263,17 @@ days that lie in the region are another matter: 11.7.)
 
 In this order:
 
-1. **The head.** `Reports / Map / <Region>`, the region's name, and one line of counts and years:
-   `86 REPORTS · INCL. 8 MULTI-DAY · + 1 PLANNED ROUTE · 2022–2026` on Lake Tahoe's page today. The years run from the
-   earliest to the latest `date:` or `end_date:` of the reports, and one year is written once. A second line names
-   the places in capitals: each `place:` the reports state, the one on the most reports first and equal ones A to Z.
-   Two spellings that read the same in capitals (`Mount Rose` and `Mount rose`) are one place, and their reports are
-   counted together. Up to four are all named; with more, the first three and `N MORE`:
-   `TAHOMA · EMERALD BAY · KINGSBURY · 7 MORE` on Lake Tahoe's page today. A place too long for the line wraps at
-   its spaces, and a single word too long for a line is broken across lines. A region whose reports state no place
-   has no second line. Nothing else is written for the page; words of your own go under these lines from
-   `content/regions/<slug>.md` (11.8).
+1. **The head.** `Reports / Map / <Region>`, the region's name, and one line of counts and years: `86 REPORTS · INCL. 8
+   MULTI-DAY · + 1 PLANNED ROUTE · 2022–2026` on Lake Tahoe's page today. The years run from the earliest to the latest
+   `date:` or `end_date:` of the reports, and one year is written once. A second line names the places in capitals: each
+   `place:` the reports state, the one on the most reports first and equal ones A to Z. Two spellings that read the same
+   in capitals (`Mount Rose` and `Mount rose`) are one place, and their reports are counted together. Up to four are all
+   named; with more, the first three and `N MORE`: `PLACE A · PLACE B · PLACE C · 7 MORE`. A place too long for the line
+   wraps at its spaces, and a single word too long for a line is broken across lines. A region whose reports state no
+   place has no second line. Since Phase 12 a third line names the region's activities with their counts, `BACKCOUNTRY
+   SKI 37 · CLIMBING 13 · …`, each opening the Trips page narrowed to the region and that activity (not shown with
+   JavaScript off, like the page's other links into Trips). Nothing else is written for the page; words of your own go
+   under these lines from `content/regions/<slug>.md` (11.8).
 2. **The map**, with its caption and legend as on the Map page, and beside it the list the Map page has for a region:
    "In this region", the counts again, and one row for every report and planned route of the page, newest first, the
    planned routes last. The legend is the key to the map, not to the list: it names the activities of the reports the
@@ -1280,6 +1283,24 @@ In this order:
    leaves the map as it is; the row of a trip on the map picks out that trip's line and pin. A list of more than nine
    rows shows its first eight with "Show all N" under them, N being the number of reports; pressed, the button shows
    the rest and reads "Show fewer", and pressed again it folds the list back to eight rows.
+   Since Phase 12, on the Map page and the region pages alike:
+   - Each activity in the legend is a button: pressed, the map dims the other activities and the list shows every row
+     of that activity, unfolded ("N of M reports" is read out); pressed again, everything shows and the list folds
+     back as it was.
+   - A numbered circle ("several reports start here") is a button too, "N reports start here" to a screen reader:
+     pressed, the list keeps the reports that start there, the count line says "N REPORTS START HERE · Show all", and
+     that "Show all", the list's own "Show all" or "Show fewer", Escape or a second press brings the rest back. A
+     planned route among them is not counted (a circle of planned routes alone says so). On the Ski page a numbered
+     circle still brings the first of its reports into view in the list.
+   - On a phone or tablet a first tap on a pin or a journal line picks it out and shows its row; a second tap opens
+     it; a tap on the map's paper clears the pick.
+   - On a phone the map's credit is in its corner, the caption is two lines and a compact one-row key stands for the
+     legend. The button in the map's corner opens the full-size map, `map/<region>/`, centred on the whole region,
+     with the scale and "NOT FOR NAVIGATION" in its top bar.
+   - From 1000 px the legend is one row under the map's caption, and the map, its caption and the legend stay in view
+     together while the list scrolls, on a laptop screen too; on a window under 600 px tall they scroll with the page.
+   - A report's "See on the <Region> map" (11.5) opens the list on its row, unfolding it when the row is behind "Show
+     all", and picks the trip out on the map.
 3. **Featured**: up to three cards (11.3).
 4. **All reports**: every report of the region by year, as in the Map page's table, with the activity filter when
    the reports are of more than one activity, and the region's planned routes under "Planned". Under the table,
@@ -1287,9 +1308,14 @@ In this order:
 5. **Other regions**: a link to each other region page with its number of reports, then "Map & archive". The block is
    left out when no other region has a page.
 
-With JavaScript off, the two links into the Trips page ("Search and filter these in Trips" and the one under the
-Featured cards) are not shown, because the Trips page applies its filters with a script. The activity filter and the
-"Show all N" button are not shown either: the table lists every report, and the list beside the map every row.
+With JavaScript off, the links into the Trips page ("Search and filter these in Trips", the one under the Featured
+cards and the activities line) are not shown, because the Trips page applies its filters with a script. The activity
+filter and the "Show all N" button are not shown either: the table lists every report, and the list beside the map
+every row; the legend and the numbered circles are not buttons.
+
+On the Map page on a phone, each year of "All reports" after the first is folded under "Show 32 reports" (the page
+is about half as long as before); the year links at the top, an address that names a report in a year, and the
+activity filter open it. Without JavaScript every year shows.
 
 ### 11.3 The Featured row
 
@@ -1409,6 +1435,14 @@ Where a region has a page, these lead to it and no longer to the Map page:
 - the regions in the home page's `ALSO` row (the row names a region that has a region map only while it has a page
   or the Map page has a panel for it, 11.4);
 - the names over the home page's two region maps ("Open the map" beside each still opens the Map page).
+
+Since Phase 12 more links lead to a region, at every width (the breadcrumb is hidden on phones): the region in the
+line under a report's title (`PLACE, REGION · WITH …`), the region names in a section page's head (Mountain Biking's
+`SANTA CRUZ · LAKE TAHOE · …`, not Climbing's places), and the labels over the Ski page's region maps. And these land
+on the trip's own row of the region's list: "See on the <Region> map" after a report's map caption and a multi-day
+trip's (only with a track), the region cell at the foot of a tick-list goal (for a goal on the tick list), and on the
+PCT the links under its overview map, one per part of `region_days` (11.7): `Days 67–76 · Lake Tahoe map (Pacific
+Crest Trail)`. A trip that no list rows (a completed or archived goal) gets the plain region link.
 
 Two links read "All <Region> reports": a new one under each region's list on the Map page, and the link at the foot
 of a tick-list goal's page, which read "Open the map" before. A region page carries no such link to itself. A region

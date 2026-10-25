@@ -274,11 +274,22 @@ a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); }
   .sec-avy { max-width: none; }
   /* the stuck panel fits the viewport: sticky top 24 + tabs 45 + 12 + map + caption (4 lines in the 360–390 column) + 12
      to spare; the map (the 390×480 render) narrows, left-aligned */
-  .sec-maps .mv { width: min(100%, calc((100vh - var(--header-h) - 24px - 45px - 12px - 92px - 12px) * 390 / 480)); }
+  .sec-maps .mv { width: min(100%, calc((100svh - var(--header-h) - 24px - 45px - 12px - 92px - 12px) * 390 / 480)); }
 }
 @media (min-width: 1200px) {
   /* the same with the 506×680 render and a 3-line caption (1280×760: the map, its scale bar and the caption all show) */
-  .sec-maps .mv { width: min(100%, calc((100vh - var(--header-h) - 24px - 45px - 12px - 72px - 12px) * 506 / 680)); }
+  .sec-maps .mv { width: min(100%, calc((100svh - var(--header-h) - 24px - 45px - 12px - 72px - 12px) * 506 / 680)); }
+}
+/* a short desktop window (gap2-02): the 506 render would fall under 0.77x, so the 390 x 480 phone-shaped render, already
+   the panel's map at 760-1199, shows instead, with the same budget */
+@media (min-width: 1200px) and (max-height: 759.98px) {
+  .sec-maps .mv--desktop { display: none; }
+  .sec-maps .mv--phone { display: block; }
+  .sec-maps .mv { width: min(100%, calc((100svh - var(--header-h) - 24px - 45px - 12px - 72px - 12px) * 390 / 480)); }
+}
+/* 960-1099 (gap1-05): the list beside the panel is 496-560 px wide, so its four stat cells go two by two */
+@media (min-width: 960px) and (max-width: 1099.98px) {
+  .sec-list .trow-stats { grid-template-columns: repeat(2, minmax(0, 120px)); row-gap: 8px; }
 }
 /* too short a window for any of that: the panel scrolls with the page */
 @media (min-width: 960px) and (max-height: 599.98px) { .sec-panel-in { position: static; } }

@@ -49,7 +49,7 @@ def reports_of(site, act):
 
 def area_names(ts):
     """Where the reports are, biggest first: the distinct regions ordered by (-reports, name); when every report shares one
-    region, the distinct places inside it instead, ordered the same way (climbing: LOVER'S LEAP · KINGSBURY GRADE)."""
+    region, the distinct places inside it instead, ordered the same way (climbing: the crags of its one region)."""
     def by_size(key):
         k = {}
         for t in ts:
@@ -63,21 +63,28 @@ def area_names(ts):
     return names
 
 
-def areas(ts):
+def areas(ts, here=None):
     """The places items of the totals line: every name when there are at most MAX_AREAS + 1 (never '1 MORE'), otherwise
-    the MAX_AREAS biggest and 'N MORE'."""
+    the MAX_AREAS biggest and 'N MORE'. With here, a name that is a region links to it (core.region_link: its page,
+    else its place on map/; ia-12); places (one region's crags) stay text."""
     names = area_names(ts)
+    regional = len({(t.get('region') or '').strip() for t in ts} - {''}) > 1
+
+    def item(x):
+        txt = core.nb(esc(x).upper())
+        href = core.region_link(here, x) if (here is not None and regional) else None
+        return ('<a class="mi-a" href="%s">%s</a>' % (href, txt)) if href else txt
     if len(names) <= MAX_AREAS + 1:
-        return [core.nb(esc(x).upper()) for x in names]
-    return [core.nb(esc(x).upper()) for x in names[:MAX_AREAS]] + [core.nb('%d MORE' % (len(names) - MAX_AREAS))]
+        return [item(x) for x in names]
+    return [item(x) for x in names[:MAX_AREAS]] + [core.nb('%d MORE' % (len(names) - MAX_AREAS))]
 
 
-def totals_line(ts, act=None, planned=()):
+def totals_line(ts, act=None, planned=(), here=None):
     """Counts and places only (a meta_items() line in two lines: .ml-br after the counts): '4 REPORTS · INCL. 1 SERIES ·
     + 1 PLANNED ROUTE' / 'LAKE TAHOE · OREGON · …'. No summed distance or gain: climbing gain is the walk-off only, and one
     series would dominate the hiking totals. act is accepted for symmetry with the other section helpers."""
     counts = core.count_items(ts, list(planned))
-    return core.meta_items(counts + areas(ts), br_after=len(counts) - 1)
+    return core.meta_items(counts + areas(ts, here), br_after=len(counts) - 1)
 
 
 def count_html(k, cls):
@@ -121,7 +128,7 @@ def header(act, here, ts, intro='', planned=()):
             '<nav class="crumbs t-mono-s" aria-label="Breadcrumb">%s</nav>'
             '<div class="sec-h1row">%s<h1 id="sec-title" class="t-d1">%s</h1></div>'
             '<p class="sec-stats">%s</p>%s</section>'
-            % (crumbs, core.disc(act, 48), esc(lab), totals_line(ts, act, planned),
+            % (crumbs, core.disc(act, 48), esc(lab), totals_line(ts, act, planned, here),
                ('<p class="sec-intro">%s</p>' % esc(intro)) if intro else ''))
 
 
@@ -163,7 +170,7 @@ def featured(t, here, full_row='', fkey=None):
     # phones: chips-only chip row, the date leads the place line instead (as on the report title block)
     chips = '%s%s<span class="t-mono-s sec-feat-date">%s</span>' % (core.chip(t, variant='title'), core.trip_tags(t), date)
     place_html = ('<p class="t-mono-s sec-feat-place">%s</p>'
-                  % core.meta_items([(date, 'sec-feat-pdate')] + core.place_line(t, items=True)))
+                  % core.meta_items([(date, 'sec-feat-pdate')] + core.place_line(t, items=True, here=here)))
     variants = [('map-col', 'col'), ('map-phone', 'phone')]
     map_ = core.map_block(t, here, variants, t['url'] + 'map/', 'fm', eager=True, cls='map--nowide sec-feat-mapv')
     key = core.feature_key(t, variants, miles=True)
@@ -311,7 +318,7 @@ def series_block(t, here, fkey=None):
         sample = ('<div class="sec-ser-day"><p class="t-label">%s</p><p class="t-excerpt sec-ser-ex">%s</p></div>'
                   % (lab, esc(markdown.plain(d['body_md'], 200))))
     mp = core.map_block(t, here, [('overview-phone', 'desktop')], t['url'] + 'map/', 'ser', cls='sec-ser-map')
-    place = core.meta_items(core.place_line(t, items=True))
+    place = core.meta_items(core.place_line(t, items=True, here=here))
     return ('<section class="sec-ser wrap" id="series" aria-labelledby="ser-title"%s>%s'
             '<div class="sec-ser-g">'
             '<div class="sec-ser-mapc">%s%s</div>'
@@ -374,7 +381,9 @@ def ski_panel(ts, here):
                             'assets/maps/', 'rm-' + s, site_maps=True, eager=sel)
         mb = dedupe_roads(mb, 'rm-' + s)
         panels.append('<div class="sec-rp" role="tabpanel" id="rp-%s" aria-labelledby="rt-%s"%s>'
-                      '<p class="t-label sec-rp-l">%s</p>%s</div>' % (s, s, '' if sel else ' hidden', esc(r), mb))
+                      '<p class="t-label sec-rp-l">%s</p>%s</div>'
+                      % (s, s, '' if sel else ' hidden', ('<a class="mi-a" href="%s">%s</a>' % (core.region_link(here, r), esc(r)))
+                         if core.region_link(here, r) else esc(r), mb))
     # the shared map caption; the hover hint is dropped on touch screens and without JS (.sec-pcap-h)
     cap = '<div class="sec-pcap">%s</div>' % core.map_caption([('Hover a report to highlight its track', 'sec-pcap-h'), 'North up'])
     return ('<aside class="sec-panel" aria-labelledby="panel-h"><div class="sec-panel-in">'

@@ -735,6 +735,16 @@ class ListRowTests(MapPageFixture):
         self.assertNotIn('MI', self.meta_text(coast))                        # day 5 has no distance: none is shown
         self.assertEqual(len(self.journal_rows(self.main)), 3)               # and nowhere else on the page
 
+    def test_each_part_row_has_an_id_that_names_its_region(self):
+        # Phase 12 (gap4-01): arc-row-<region>-<part>, as one journal key may be in two regions' lists on map/
+        crest, loop = self.journal_rows(self.panel(RANGE))
+        (coast,) = self.journal_rows(self.panel(COAST))
+        self.assertEqual([r['id'] for r in (crest, loop, coast)],
+                         ['arc-row-%s-%s' % (SLUG[RANGE], content.slugify(CREST)), 'arc-row-%s-%s' % (SLUG[RANGE], content.slugify(LOOP)),
+                          'arc-row-%s-%s' % (SLUG[COAST], content.slugify(PAGE_JOURNAL))])
+        ids = [n['id'] for n in self.doc.root.walk() if n['id']]
+        self.assertEqual(len(ids), len(set(ids)))
+
     def test_a_row_shows_the_parts_own_drawing_once_it_is_rendered(self):
         def drawings(row):
             return [i for i in row.find_all('img') if 'assets/maps/' in i['src']]

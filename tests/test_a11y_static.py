@@ -12,7 +12,10 @@ What is checked, and how far a static check can go:
                                          in the header scrolls or clips, and under 480 px the header does not stick,
                                          reserves no height and leaves room for a focus ring. With scripting on, none
                                          of it applies
-  D4  map cluster markers                base.js gives focus listeners to map pins and to no .mk-cluster element
+  D4  map cluster markers                base.js gives focus listeners to map pins, and to a .mk-cluster element only
+                                         under a flag that names it first (aria-hidden off, role=button, aria-label) and
+                                         holds only beside a list with rows (Phase 12, qa-02); an unnamed cluster (the
+                                         home page's) gets none and no tab stop
   D5  short viewports                    multiday.css: the day nav is not sticky under a max-height query
   D6  the copy fallback field            base.js closes it when focus goes somewhere outside .copy (not on a focusout
                                          that goes nowhere), and on Escape from anywhere; Escape in the field focuses the
@@ -954,16 +957,55 @@ def _is_not_cluster(cond, el):
         or re.search(r'''(?<![!\w$.])%s\.matches\(\s*['"]\.mk-pin\b''' % e, cond) is not None)
 
 
-def marker_focus(src):
-    """Who gets focus listeners among the map markers of a script: {'pin': set of events, 'cluster': set of events}.
+def disjuncts(cond):
+    """The terms of a condition split at each `||` outside every bracket and string (one term when it has none)."""
+    out, depth, i, start, n = [], 0, 0, 0, len(cond)
+    while i < n:
+        c = cond[i]
+        if c in '"\'':
+            i = _string_end(cond, i)
+            continue
+        if c in '([{':
+            depth += 1
+        elif c in ')]}':
+            depth -= 1
+        elif depth == 0 and cond.startswith('||', i):
+            out.append(cond[start:i].strip())
+            i = start = i + 2
+            continue
+        i += 1
+    out.append(cond[start:].strip())
+    return out
 
-    It reads every `querySelectorAll('<selector naming .mk-pin or .mk-cluster>').forEach(function (el) { ... })` and, in
-    it, every `el.addEventListener('focus' | 'blur' | 'focusin' | 'focusout', ...)`. A listener reaches the pins when
-    the selector names .mk-pin and no condition around the call holds for clusters only; it reaches the clusters when
-    the selector names .mk-cluster and no condition around the call rules them out (see _is_cluster / _is_not_cluster;
-    the else block of a clusters-only `if` rules them out as well)."""
+
+def naming_flag(js, el, flag, start, end):
+    """Rule D4 as revised in Phase 12 (qa-02): the expression a flag that names a cluster marker is declared with, or None
+    when `flag` is not such a flag. In the loop body [start, end) the flag is a plain variable declared once
+    (`var|let|const <flag> = <expr>;`) and never assigned again, and its own `if (<flag>) { ... }` block, with no other
+    condition around the calls, takes aria-hidden off the marker and names it as a button:
+    <el>.removeAttribute('aria-hidden'), <el>.setAttribute('role', 'button') and <el>.setAttribute('aria-label', ...)."""
+    if not re.match(r'^[A-Za-z_$][\w$]*$', flag):
+        return None
+    f, e, body = re.escape(flag), re.escape(el), js.text[start:end]
+    decl = [m for m in re.finditer(r'(?<![\w$.])(?:var|let|const)\s+%s\s*=\s*([^;]+);' % f, body) if js.code(start + m.start())]
+    assigned = [m for m in re.finditer(r'(?<![\w$.])%s\s*(?:\|\||&&|[-+*/%%|&^])?=(?!=)' % f, body) if js.code(start + m.start())]
+    if len(decl) != 1 or len(assigned) != 1:          # the declaration's own '=' is the one assignment
+        return None
+    for pattern in (r'''(?<![\w$.])%s\.removeAttribute\(\s*['"]aria-hidden['"]\s*\)''' % e,
+                    r'''(?<![\w$.])%s\.setAttribute\(\s*['"]role['"]\s*,\s*['"]button['"]\s*\)''' % e,
+                    r'''(?<![\w$.])%s\.setAttribute\(\s*['"]aria-label['"]\s*,''' % e):
+        if not any(js.code(start + m.start()) and [(k, c.strip()) for k, c in js.guards(start + m.start(), start)] == [('if', flag)]
+                   for m in re.finditer(pattern, body)):
+            return None
+    return decl[0].group(1).strip()
+
+
+def marker_focus_flags(src):
+    """marker_focus(src), and the set of (loop parameter, expression) of every flag (naming_flag) that lets a focus
+    listener reach the cluster markers it names."""
     js = Script(src)
-    got = {'pin': set(), 'cluster': set()}
+    got = {'pin': set(), 'cluster': set(), 'named': set()}
+    flags = set()
     for selector, el, start, end in js.each_callbacks(lambda s: '.mk-pin' in s or '.mk-cluster' in s):
         for event, pos in js.listeners(el, start, end):
             if event not in FOCUS_EVENTS:
@@ -971,11 +1013,39 @@ def marker_focus(src):
             conds = js.guards(pos, start)
             only_clusters = any(k == 'if' and _is_cluster(c, el) for k, c in conds)
             no_clusters = any((k == 'if' and _is_not_cluster(c, el)) or (k == 'else' and _is_cluster(c, el)) for k, c in conds)
+            # an `if (a || b)` around the call: the terms that can hold for a cluster marker. When none can, the call
+            # rules the clusters out; when each of them is a flag that names the marker, the call reaches named ones only
+            named = None
+            for k, c in conds:
+                if k != 'if':
+                    continue
+                terms = [t for t in disjuncts(c) if not _is_not_cluster(t, el)]
+                if not terms:
+                    no_clusters = True
+                    continue
+                exprs = [naming_flag(js, el, t, start, end) for t in terms]
+                if all(x is not None for x in exprs):
+                    named = exprs
             if '.mk-pin' in selector and not only_clusters:
                 got['pin'].add(event)
             if '.mk-cluster' in selector and not no_clusters:
-                got['cluster'].add(event)
-    return got
+                got['named' if named else 'cluster'].add(event)
+                flags.update((el, x) for x in (named or []))
+    return got, flags
+
+
+def marker_focus(src):
+    """Who gets focus listeners among the map markers of a script: {'pin': set of events, 'cluster': set of events,
+    'named': set of events}.
+
+    It reads every `querySelectorAll('<selector naming .mk-pin or .mk-cluster>').forEach(function (el) { ... })` and, in
+    it, every `el.addEventListener('focus' | 'blur' | 'focusin' | 'focusout', ...)`. A listener reaches the pins when
+    the selector names .mk-pin and no condition around the call holds for clusters only; it reaches the clusters when
+    the selector names .mk-cluster and no condition around the call rules them out (see _is_cluster / _is_not_cluster;
+    the else block of a clusters-only `if` rules them out as well). Of those, it reaches only the clusters the loop names
+    ('named', not 'cluster') when an `if` around it holds for a cluster only through flags that name the marker
+    (naming_flag: aria-hidden off, role=button, aria-label, in the flag's own block)."""
+    return marker_focus_flags(src)[0]
 
 
 def radiogroup_setters(src):
@@ -1365,10 +1435,40 @@ class ReaderTests(unittest.TestCase):
             ("document.querySelectorAll('.mk-pin[data-key]').forEach(function (p) { p.addEventListener('focusin', on); });"
              "document.querySelectorAll('.mk-cluster').forEach(function (c) { c.addEventListener('click', go); });", {'focusin'}, set()),
             ("document.querySelectorAll('.mk-cluster').forEach((c) => { c.addEventListener('blur', off); });", set(), {'blur'}),
+            # a guard of pins only, written as a chain of `||`
+            (loop % "if (!el.classList.contains('mk-cluster') || el.matches('.mk-pin')) { el.addEventListener('focusin', on); }", {'focusin'}, set()),
         ]
         for src, pin, cluster in cases:
             with self.subTest(src=src[60:150]):
-                self.assertEqual(marker_focus(src), {'pin': pin, 'cluster': cluster})
+                self.assertEqual(marker_focus(src), {'pin': pin, 'cluster': cluster, 'named': set()})
+        # rule D4 revised (Phase 12, qa-02): a cluster marker that the loop names (aria-hidden off, role=button and an
+        # aria-label, under one flag) may have focus listeners under that flag; any other cluster may not
+        flag = "var linked = el.classList.contains('mk-cluster') && rowsFor(map).length; "
+        listen = "if (!el.classList.contains('mk-cluster') || linked) { el.addEventListener('focusin', on); el.addEventListener('focusout', off); } "
+        name = ("if (linked) { el.removeAttribute('aria-hidden'); el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0');"
+                " el.setAttribute('aria-label', n + ' reports start here'); } ")
+        named = [
+            # as base.js has it; the naming block before the listeners, and a brace-less `if (linked)` listener
+            (loop % (flag + listen + name), both, set(), both),
+            (loop % (flag + name + listen), both, set(), both),
+            (loop % (flag + "if (linked) el.addEventListener('focusin', on); " + name), {'focusin'}, set(), {'focusin'}),
+            # not named: no label, aria-hidden left on, a role that is not a button, the naming under a second condition
+            (loop % (flag + listen + name.replace(" el.setAttribute('aria-label', n + ' reports start here');", '')), both, both, set()),
+            (loop % (flag + listen + name.replace("el.removeAttribute('aria-hidden'); ", '')), both, both, set()),
+            (loop % (flag + listen + name.replace("'role', 'button'", "'role', 'img'")), both, both, set()),
+            (loop % (flag + listen + "if (linked) { if (wide) { el.removeAttribute('aria-hidden'); el.setAttribute('role', 'button');"
+                                     " el.setAttribute('aria-label', n + ' reports start here'); } } "), both, both, set()),
+            # the flag set again after it was declared, or another variable named than the one the listener waits for
+            (loop % (flag + listen + name + "linked = true; "), both, both, set()),
+            (loop % (flag + "var ok = true; " + listen.replace('|| linked', '|| ok') + name), both, both, set()),
+            # a listener with no guard reaches every cluster, named or not
+            (loop % (flag + name + "el.addEventListener('focusin', on); "), {'focusin'}, {'focusin'}, set()),
+        ]
+        for src, pin, cluster, by_name in named:
+            with self.subTest(src=src[90:260]):
+                self.assertEqual(marker_focus(src), {'pin': pin, 'cluster': cluster, 'named': by_name})
+        _got, flags = marker_focus_flags(loop % (flag + listen + name))
+        self.assertEqual(flags, {('el', "el.classList.contains('mk-cluster') && rowsFor(map).length")})
 
     def test_radiogroup_setters_reads_who_gets_the_role(self):
         loop = "document.querySelectorAll('[data-filter-nav]').forEach(function (el) { %s });"
@@ -1769,6 +1869,8 @@ class PageTests(SiteFixture):
         # for the region without a region map, and no index of them
         want |= set(REGION_PAGES)
         self.assertEqual(REGION_PAGES, ('regions/synthetic-range/', 'regions/synthetic-mesa/'))
+        # Phase 12 (qa-06): a full-screen page for each region map
+        want |= {'map/synthetic-range/', 'map/synthetic-mesa/'}
         self.assertNotIn('regions/synthetic-coast/', urls)
         self.assertNotIn('regions/', urls)
         self.assertEqual(urls, want)
@@ -1813,13 +1915,13 @@ class PageTests(SiteFixture):
         cards = main.find('ul', cls='reg-cards').find_all('li', cls='tcard')
         self.assertEqual([li['data-slug'] for li in cards], [SLUGS['story'], SLUGS['tour'], SLUGS['crag']])
         self.assertEqual(len(main.find('ul', cls='reg-cards').find_all('picture', cls='cover-pic')), 2)
-        self.assertEqual([n['class'] for n in main.find_all(cls='reg-x')], ['reg-more reg-x', 'reg-find reg-x wrap'])
+        self.assertEqual([n['class'] for n in main.find_all(cls='reg-x')], ['t-mono-s reg-acts reg-x', 'reg-more reg-x', 'reg-find reg-x wrap'])
         self.assertGreaterEqual(len(main.find('div', cls='arc-filt').find_all('button', cls='fchip')), 3)
         self.assertEqual([a['href'] for a in main.find('nav', cls='reg-others').find_all('a')], ['../../regions/synthetic-mesa/', '../../map/'])
         small = page_doc(REGION_PAGES[1]).by_id('main')
         self.assertEqual([a['href'] for a in small.find('nav', cls='reg-others').find_all('a')], ['../../regions/synthetic-range/', '../../map/'])
         self.assertIsNone(small.find('section', cls='reg-feat'))
-        self.assertEqual([n['class'] for n in small.find_all(cls='reg-x')], ['reg-find reg-x wrap'])
+        self.assertEqual([n['class'] for n in small.find_all(cls='reg-x')], ['t-mono-s reg-acts reg-x', 'reg-find reg-x wrap'])
         self.assertEqual(([li['data-key'] for li in small.find('ol', cls='arc-rows').find_all('li')], small.find_all('button')), ([SLUGS['mesa']], []))
         # the pages that link to them: the home page's region block and Also row, the Map page's panels, the browse row
         home = page_doc('')
@@ -2067,12 +2169,26 @@ class ScriptTests(unittest.TestCase):
         self.src = source('js', 'base.js')
         self.js = Script(self.src)
 
-    def test_map_pins_get_focus_listeners_and_cluster_markers_get_none(self):
-        got = marker_focus(self.src)
+    def test_map_pins_get_focus_listeners_and_only_named_cluster_markers_do(self):
+        got, flags = marker_focus_flags(self.src)
         # a pin is a link: focusing it highlights its track and its row, leaving it clears them
         self.assertEqual(got['pin'], {'focusin', 'focusout'})
-        # a cluster marker is an aria-hidden <g>: a focus listener makes it a Tab stop in Chrome
+        # a cluster marker as mapkit draws it is an aria-hidden <g>: a focus listener makes it a Tab stop in Chrome, and
+        # an unnamed one is a dead stop (14 of them on the home page before the fix)
         self.assertEqual(got['cluster'], set())
+        # rule D4 revised (Phase 12, qa-02): beside a list the marker is a toggle that selects its rows, so it is named
+        # first (aria-hidden off, role=button, an aria-label) and then gets the focus listeners, under the same flag
+        self.assertEqual(got['named'], {'focusin', 'focusout'})
+        # ... a flag that holds only for a cluster marker of a map with a region list beside it (map/, the region pages):
+        # the home page's maps have no list and the Ski panel's list is no region list, so their clusters stay unnamed
+        # and out of the Tab order (run under node: tests/maplist_js_harness.js, 'clusters' and 'review fix 2')
+        self.assertEqual(len(flags), 1, flags)
+        (el, expr), = flags
+        terms = conjuncts(expr)
+        self.assertIsNotNone(terms, expr)
+        self.assertTrue(any(_is_cluster(t, el) for t in terms), expr)
+        self.assertTrue(any(re.match(r'^panelList\(\s*[\w$]+\s*\)$', t) for t in terms), expr)
+        self.assertIn('''document.querySelector('ol.arc-rows[data-map-target="' + map.id + '"]')''', self.src)
 
     def test_the_marker_loop_still_wires_both_kinds_for_the_pointer(self):
         # of the loops over the markers, the one that gives them listeners (the others only toggle classes)
@@ -2087,16 +2203,40 @@ class ScriptTests(unittest.TestCase):
             if event.startswith('mouse'):
                 self.assertEqual(self.js.guards(pos, start), [], event)        # pins and clusters alike
 
-    def test_no_script_makes_a_cluster_marker_focusable(self):
+    def test_no_script_makes_an_unnamed_cluster_marker_focusable(self):
         names = ['base.js'] + [os.path.join('pages', n) for n in sorted(os.listdir(os.path.join(JS_DIR, 'pages'))) if n.endswith('.js')]
         for name in names:
             with self.subTest(script=name):
                 src = source('js', name)
-                self.assertEqual(marker_focus(src)['cluster'], set())
+                got = marker_focus(src)
+                self.assertEqual(got['cluster'], set())
+                if name != 'base.js':
+                    self.assertEqual(got['named'], set())           # the cluster's selection is base.js's alone
                 js = Script(src)
+                # a tab stop only inside the block that names the marker (naming_flag)
                 for _selector, el, start, end in js.each_callbacks(lambda s: '.mk-cluster' in s):
                     body = js.text[start:end]
-                    self.assertNotRegex(body, r'''(?<![\w$.])%s\.(tabIndex\s*=|setAttribute\(\s*['"]tabindex['"])''' % re.escape(el))
+                    for m in re.finditer(r'''(?<![\w$.])%s\.(tabIndex\s*=|setAttribute\(\s*['"]tabindex['"])''' % re.escape(el), body):
+                        if not js.code(start + m.start()):
+                            continue
+                        conds = [(k, c.strip()) for k, c in js.guards(start + m.start(), start)]
+                        self.assertTrue(len(conds) == 1 and conds[0][0] == 'if' and naming_flag(js, el, conds[0][1], start, end) is not None,
+                                        '%s makes a cluster marker a tab stop outside the block that names it: %r' % (name, conds))
+
+    def test_a_focused_journal_line_shows_its_halo_without_a_script(self):
+        # Phase 12: a.mk-line (a journal's days on a region map) has no outline of its own (.mk-line:focus-visible
+        # { outline: none; }); its halo is the wide hit path under the lines, drawn by CSS alone, and in Highlight under
+        # forced colours. The legend's discs keep their colours there too (archive.js moves them into its buttons)
+        rules, _unreadable = parse_css(source('css', 'base.css'))
+        halo = {r.media: r.decls for r in rules if r.selector == '.mk-line:focus-visible .mk-hit'}
+        self.assertEqual(halo, {(): {'stroke': ('var(--ink)', True), 'stroke-opacity': ('.35', False)},
+                                ('(forced-colors: active)',): {'stroke': ('Highlight', True), 'stroke-opacity': ('1', False)}})
+        rules, _unreadable = parse_css(source('css', 'pages', 'archive.css'))
+        discs = [(r.media, r.decls) for r in rules if r.selector == '.arc-legend .disc']
+        self.assertIn((('(forced-colors: active)',), {'forced-color-adjust': ('none', False)}), discs)
+        # no script draws it: neither base.js nor a page script touches .mk-hit
+        for name in ['base.js'] + [os.path.join('pages', n) for n in sorted(os.listdir(os.path.join(JS_DIR, 'pages'))) if n.endswith('.js')]:
+            self.assertNotIn('mk-hit', Script(source('js', name)).text, name)
 
     def document_listeners(self, event):
         """The bodies of every document.addEventListener('<event>', function (e) { ... }) in base.js."""
@@ -2266,8 +2406,11 @@ class MapListScriptTests(unittest.TestCase):
         on = re.search(r'(?:var|let|const)\s+([\w$]+)\s*=\s*function\s*\(\s*\)\s*\{\s*highlight\(\s*([\w$]+)\s*,\s*\[\s*%s\.dataset\.key\s*\]\s*\)\s*;\s*\}'
                        % re.escape(row), body)
         self.assertIsNotNone(on, 'a row no longer calls highlight(map, [its key])')
-        off = re.search(r'(?:var|let|const)\s+([\w$]+)\s*=\s*function\s*\(\s*\)\s*\{\s*highlight\(\s*%s\s*,\s*null\s*\)\s*;\s*\}' % re.escape(on.group(2)), body)
-        self.assertIsNotNone(off, 'leaving a row no longer calls highlight(map, null)')
+        # Phase 12 (qa-02): back to a cluster's selection when there is one, else cleared
+        m = re.escape(on.group(2))
+        off = re.search(r'(?:var|let|const)\s+([\w$]+)\s*=\s*function\s*\(\s*\)\s*\{\s*highlight\(\s*%s\s*,\s*(?:null|\(\s*%s\s*&&\s*%s\._sel\s*\)\s*\|\|\s*null)\s*\)\s*;'
+                        % (m, m, m), body)
+        self.assertIsNotNone(off, 'leaving a row no longer calls highlight(map, null) (or the selection)')
         wired = dict(re.findall(r'''(?<![\w$.])%s\.addEventListener\(\s*['"]([\w-]+)['"]\s*,\s*([\w$]+)\s*\)''' % re.escape(row), body))
         self.assertEqual(wired, {'mouseenter': on.group(1), 'focusin': on.group(1), 'mouseleave': off.group(1), 'focusout': off.group(1)})
         # the map is the one the list names
@@ -2305,6 +2448,12 @@ class MapListScriptTests(unittest.TestCase):
                 src = source('js', name)
                 if name.endswith('archive.js'):
                     self.assertIsNotNone(show_all_press(src))
+                elif name == 'base.js':
+                    # Phase 12 (the review): base.js listens to the button only to end a cluster's selection before
+                    # archive.js folds or opens the list (run under node: tests/maplist_js_harness.js, 'review fix 5')
+                    text = Script(src).text
+                    self.assertEqual(text.count('arc-all-btn'), 1)
+                    self.assertIn("btn.addEventListener('click', function () { if (map._sel && !opening) unselect(map); });", text)
                 else:
                     self.assertNotIn('arc-all-btn', Script(src).text)
 
@@ -2371,7 +2520,8 @@ class NoScriptTests(SiteFixture):
     def explorer_links(self, url):
         marked = self.nodes(url, cls='reg-x')
         links = [a for n in marked for a in n.find_all('a')]
-        self.assertEqual(len(links), len(marked))
+        # one link in each, but the activities line (Phase 12, ia-10): one per activity of the region
+        self.assertEqual(len(links), len(marked) - 1 + len(page_doc(url).find('p', cls='reg-acts').find_all('a')))
         for a in links:
             self.assertIn('trips/?region=', a['href'])
         return marked, links
@@ -2386,7 +2536,10 @@ class NoScriptTests(SiteFixture):
                     for node in marked + links:
                         seen += 1
                         self.assertFalse(displayed(node, self.rules, e), '%r: %s' % (node, why(node, 'display', self.rules, e)))
-        self.assertEqual(seen, (2 + 2 + 1 + 1) * 7)             # two links on the big region's page, one on the small one's
+        # two links on the big region's page, one on the small one's, and the activities line on each (with its links)
+        want = sum(len(self.explorer_links(url)[0]) + len(self.explorer_links(url)[1]) for url in REGION_PAGES)
+        self.assertEqual(seen, want * 7)
+        self.assertGreater(want, 2 + 2 + 1 + 1)
         # every link of the page that carries a query for trips.js is one of them
         for url in REGION_PAGES:
             queried = [a for a in page_doc(url).by_id('main').find_all('a') if '?' in (a['href'] or '')]
@@ -2783,13 +2936,126 @@ class ShortViewportTests(SiteFixture):
         self.assertEqual([r.decls['position'][0] for r in base], ['sticky'])
         self.assertGreater(short[0].order, base[0].order)        # equal weight: the later rule is the one that holds
 
-    def test_the_journals_month_bar_is_not_touched(self):
+    def test_the_journals_month_bar_releases_under_480_px_high(self):
+        # Phase 12 (gap2-05): the day bar's rule, which the month bar was left out of until then
         bar = self.nodes(trip_url('journal'), cls='ser-mnav')[0]
-        for height in (844, 480, 375):
-            self.assertEqual(computed(bar, 'position', self.rules, env(844, height)), 'sticky')
+        for height, want in ((844, 'sticky'), (481, 'sticky'), (480, 'static'), (375, 'static')):
+            with self.subTest(height=height):
+                self.assertEqual(computed(bar, 'position', self.rules, env(844, height)), want)
+
+    def test_a_short_desktop_window_shows_the_ski_panels_phone_render(self):
+        # Phase 12 (gap2-02): from 1200 px and under 760 px of height the 390 x 480 render stands in for the 506 x 680 one
+        maps = self.nodes('ski/', cls='sec-maps')[0]
+        wide, tall = [n for n in maps.walk() if 'mv--desktop' in n.classes][0], [n for n in maps.walk() if 'mv--phone' in n.classes][0]
+        for (w, h), want in (((1366, 683), (False, True)), ((1280, 620), (False, True)), ((1366, 900), (True, False)),
+                             ((1440, 760), (True, False)), ((1100, 683), (False, True))):
+            e = env(w, h)
+            with self.subTest(size='%dx%d' % (w, h)):
+                self.assertEqual((displayed(wide, self.rules, e), displayed(tall, self.rules, e)), want,
+                                 (why(wide, 'display', self.rules, e), why(tall, 'display', self.rules, e)))
+
+    def test_every_sticky_part_follows_the_one_rule(self):
+        # Phase 12 (gap2-07, docs/DEVELOPING.md 'Sticky parts'): a stuck part fits the header + 24 + its content in 100svh
+        # on a 683 px tall viewport, or scales, or releases (bars under 480 px of height, columns under 600). The evaluator
+        # does not compute calc(): a fitted part is asserted by its declaration (100svh in the width or the max-height)
+        parts = [
+            # (page, class, the fitted element's class and property, or None)
+            ('map/', 'arc-mapcol', ('mv', 'width', 'arc-mapv')),
+            (trip_url('tour'), 'mul-dnav', None),
+            (trip_url('tour'), 'mul-rail', None),
+            (trip_url('journal'), 'ser-mnav', None),
+            ('about/', 'abo-nums', None),
+            ('ski/', 'sec-panel-in', ('mv', 'width', 'sec-maps')),
+        ]
+        want = {
+            # width, height: position of arc-mapcol, mul-dnav, mul-rail, ser-mnav, abo-nums, sec-panel-in
+            (1366, 683): ('sticky', 'sticky', 'sticky', 'sticky', 'static', 'sticky'),
+            (1280, 620): ('sticky', 'sticky', 'sticky', 'sticky', 'static', 'sticky'),
+            (1152, 630): ('sticky', 'sticky', 'sticky', 'sticky', 'static', 'sticky'),
+            (1440, 790): ('sticky', 'sticky', 'sticky', 'sticky', 'static', 'sticky'),
+            (667, 375): ('static', 'static', 'static', 'static', 'static', 'static'),
+            (1300, 599): ('static', 'sticky', 'static', 'sticky', 'static', 'static'),          # columns release under 600
+        }
+        # the full-screen map's box is not sticky: it fits the screen, and a landscape phone gives it all but 68 px
+        box = self.nodes(trip_url('story', 'map/'), cls='fs-map')[0]
+        for (w, h) in want:
+            with self.subTest(size='%dx%d' % (w, h), part='fs-map'):
+                self.assertEqual(computed(box, 'max-height', self.rules, env(w, h)),
+                                 'calc(100svh - 68px)' if h <= 480 else 'calc(100svh - 168px)', why(box, 'max-height', self.rules, env(w, h)))
+        for (w, h), positions in sorted(want.items()):
+            e = env(w, h)
+            for (url, cls, fitted), pos in zip(parts, positions):
+                node = self.nodes(url, cls=cls)[0]
+                with self.subTest(size='%dx%d' % (w, h), part=cls):
+                    self.assertEqual(computed(node, 'position', self.rules, e) or 'static', pos, why(node, 'position', self.rules, e))
+                    if fitted and pos == 'sticky':
+                        inner = [n for n in node.walk() if fitted[0] in n.classes and inside(n, fitted[2])]
+                        self.assertTrue(inner)
+                        self.assertIn('100svh', computed(inner[0], fitted[1], self.rules, e) or '', why(inner[0], fitted[1], self.rules, e))
+        # the Ski panel (section.css) and the full-screen box: their fits are declarations of 100svh
+        ski = source('css', 'pages', 'section.css')
+        self.assertEqual(ski.count('100vh'), 0)
+        self.assertGreaterEqual(ski.count('100svh'), 3)
+        self.assertIn('@media (min-width: 1200px) and (max-height: 759.98px)', ski)
+        self.assertIn('@media (min-width: 960px) and (max-height: 599.98px) { .sec-panel-in { position: static; } }', ski)
+        base = source('css', 'base.css')
+        self.assertIn('max-height: calc(100svh - 168px)', base)
+        self.assertIn('.p-fsmap .fs-map { max-height: calc(100svh - 68px); }', base)
+        self.assertIn('@media (min-width: 1000px) and (max-height: 599.98px) { .mul-rail { position: static; } }', source('css', 'pages', 'multiday.css'))
 
 
 # ---------------------------------------------------------------- D7: 44 px targets
+
+class Phase12ReviewCssTests(unittest.TestCase):
+    """What Phase 12's review found in the stylesheets, read from the source."""
+
+    def rules(self, *path):
+        return parse_css(source('css', *path))[0]
+
+    def one(self, rules, selector, media=()):
+        got = [r for r in rules if r.selector == selector and list(r.media) == list(media)]
+        self.assertEqual(len(got), 1, (selector, media))
+        return got[0]
+
+    def test_a_meta_lines_clip_reaches_past_it_so_a_links_44_px_hit_area_is_not_cut(self):
+        # .ml's clip hides the dot before each line's first item (its left inset); a .mi-a or .arc-sel-clear ::before
+        # reaches 14 px above and below and 4 to 6 px to the right, and a clip at the line's own box cut it to 16 px
+        r = self.one(self.rules('base.css'), '.ml')
+        top, right, bottom, left = re.match(r'^inset\((\S+) (\S+) (\S+) (.+)\)$', r.decls['clip-path'][0]).groups()
+        self.assertEqual(left, 'var(--ml-sep)')
+        self.assertTrue(px(top) <= -14 and px(bottom) <= -14 and px(right) <= -6, r.decls['clip-path'][0])
+        for sel, css in (('.mi-a::before', 'base.css'), ('.arc-sel-clear::before', 'pages/archive.css')):
+            inset = self.one(self.rules(*css.split('/')), sel).decls['inset'][0].split()
+            self.assertTrue(-px(inset[0]) <= -px(top) and -px(inset[1]) <= -px(right), (sel, inset))
+
+    def test_a_focused_cluster_is_not_dimmed_with_the_tracks_it_picks_out(self):
+        rules = self.rules('base.css')
+        dim = self.one(rules, '.map.is-hl .mk-cluster.hl')
+        self.assertEqual(dim.decls['opacity'][0], '.2')
+        for sel in ('.map.is-hl .mk-cluster.is-linked[aria-pressed="true"]', '.map.is-hl .mk-cluster.is-linked:focus-visible'):
+            r = self.one(rules, sel)
+            self.assertEqual(r.decls['opacity'][0], '1')
+            self.assertGreater(r.order, dim.order)
+        self.assertEqual(self.one(rules, '.mk-pin.is-sel > circle:nth-of-type(2)').decls['stroke-width'][0], '3px')
+
+    def test_the_ski_labels_take_a_44_px_hit_area_and_the_region_activities_read_with_their_counts(self):
+        # the label (shown without JavaScript) takes the 44 px ::before of .mi-a; an activity link of a region's head
+        # reads 'HIKING: 4 reports', not 'HIKING4 reports'
+        labels = [a for p in page_doc('ski/').find_all('p', cls='sec-rp-l') for a in p.find_all('a')]
+        self.assertTrue(labels)
+        self.assertEqual({tuple(a.classes) for a in labels}, {('mi-a',)})
+        for url in REGION_PAGES:
+            for a in page_doc(url).find('p', cls='reg-acts').find_all('a'):
+                self.assertRegex(a.text(), r'^[A-Z ]+: \d+ reports?$')
+
+    def test_stacked_legend_buttons_take_44_px_each(self):
+        # 20 px items 24 px apart: each button's 44 px box (margin -12px 0) meets the next, never covers it
+        rules = self.rules('pages', 'archive.css')
+        b = self.one(rules, '.arc-lg-b')
+        self.assertEqual((b.decls['min-height'][0], b.decls['margin'][0]), ('44px', '-12px 0'))
+        self.assertEqual(self.one(rules, '.arc-legend li').decls['min-height'][0], '20px')
+        self.assertEqual(self.one(rules, '.arc-legend ul.arc-lg-ul', ['(max-width: 999.98px)']).decls['gap'][0], '24px')
+
 
 class TargetSizeTests(SiteFixture):
 
@@ -3486,7 +3752,8 @@ class TargetSizeTests(SiteFixture):
         url = REGION_PAGES[0]
         (button,) = self.nodes(url, cls='arc-all-btn', tag='button')
         box = button.parent
-        self.assertEqual((box.classes, [n.tag for n in box.elements()]), (['arc-inreg'], ['div', 'ol', 'button']))      # no link beside it here
+        # no link beside it here; the p is the panel's live region (Phase 12, the legend's 'N of M reports')
+        self.assertEqual((box.classes, [n.tag for n in box.elements()]), (['arc-inreg'], ['div', 'p', 'ol', 'button']))
         ol = box.find('ol')
         self.assertEqual((ol['id'], button['aria-controls'], ol.classes), ('arc-rows-' + RS, 'arc-rows-' + RS, ['arc-rows']))
         rows = ol.elements()
@@ -3574,12 +3841,21 @@ class TargetSizeTests(SiteFixture):
 
     def test_the_links_into_the_explorer_are_44_px_and_every_control_is_in_a_known_component(self):
         for url in REGION_PAGES:
-            links = [n.find('a') for n in self.nodes(url, cls='reg-x')]
+            marked = [n for n in self.nodes(url, cls='reg-x') if 'reg-acts' not in n.classes]
+            links = [n.find('a') for n in marked]
             self.assertTrue(all('alink' in a.classes for a in links))
             self.assertTargets(url, links, widths=(320,) + WIDTHS)
-            for n in self.nodes(url, cls='reg-x'):
+            for n in marked:
                 for width in (320,) + WIDTHS:
                     self.assertEqual(computed(n, 'margin-top', self.rules, env(width)), '12px')
+            # the activities line's links (Phase 12): 44 px tall inline-flex items in a Mono-S line
+            acts = page_doc(url).find('p', cls='reg-acts').find_all('a', cls='reg-act')
+            self.assertTrue(acts)
+            for a in acts:
+                for width in (320,) + WIDTHS:
+                    e = env(width)
+                    self.assertEqual((computed(a, 'display', self.rules, e), computed(a, 'min-height', self.rules, e)),
+                                     ('inline-flex', '44px'))
         # every link and button a region page has in <main> that is not one line of running text has a 44 px box or a
         # hit area of its own: rows, cards, chips, the crumbs, the browse links. What is new here is listed above; the
         # rest are components other pages use and other tests measure. Nothing on the page is a bare text link

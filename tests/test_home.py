@@ -554,11 +554,13 @@ def legacy_also_items(site):
 
 
 def legacy_where(site):
-    """home.where as it was at commit fb425ab, copied line for line (with legacy_also_items for its Also row)."""
+    """home.where as it was at commit fb425ab, copied line for line (with legacy_also_items for its Also row). Phase 12
+    gave the phone map of each region with a panel on map/ its full-screen button (map/<slug>/), and the copy follows."""
     esc, link, icon, HERE = core.esc, core.link, core.icon, home.HERE
     meta = core.site_meta().get('maps', {})
     blocks = []
     drawn = []
+    panels = {s for _n, s, _ts in core.region_groups(site)}
     for region in home.HOME_REGIONS:
         rs = home.slug(region)
         dk, ph = 'region-%s-desktop' % rs, 'region-%s-phone' % rs
@@ -570,7 +572,8 @@ def legacy_where(site):
         line = home.meta_line(bits[:1])
         spoken = ', '.join(b.replace(' ', ' ').replace('+ ', '') for b in bits).lower()
         aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
-        mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False)
+        mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False,
+                            fullscreen_href=link(HERE, 'map/%s/' % rs) if rs in panels else None)
         blocks.append('<div class="hom-reg"><div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
                       '<span class="t-mono-s hom-reg-c">%s</span>'
                       '<a class="hom-reg-a" href="%s" aria-label="%s">Open the map%s</a></div>%s</div>'

@@ -78,6 +78,29 @@ def share_casings(svg, ns):
     return out
 
 
+_MARK = re.compile(r'<(g|a) class="(mk-cat|mk-pin|mk-line)([^"]*)"([^>]*?) data-key="([^"]+)"')
+_CLUSTER_KEYS = re.compile(r'<g class="mk-cluster([^"]*)"([^>]*?) data-keys="([^"]*)"')
+
+
+def inject_acts(svg, by_slug):
+    """The legend's filter (maps-07) needs each marker's activity: data-act="<activity>" on every track (g.mk-cat), pin
+    (a.mk-pin) and journal line (a.mk-line, keyed '<journal slug>:<part>'), and data-acts="ski hike" (each once, sorted)
+    on a cluster marker, from the site's trips (by_slug). A key the site does not know gets nothing. The render is not
+    touched: this runs on the inlined fragment at build time."""
+    def act_of(key):
+        t = by_slug.get(key.split(':')[0])
+        return t['activity'] if t else None
+
+    def mark(m):
+        a = act_of(m.group(5))
+        return m.group(0) + ((' data-act="%s"' % a) if a else '')
+
+    def cluster(m):
+        acts = sorted({a for a in (act_of(k) for k in m.group(3).split()) if a})
+        return m.group(0) + ((' data-acts="%s"' % ' '.join(acts)) if acts else '')
+    return _CLUSTER_KEYS.sub(cluster, _MARK.sub(mark, svg))
+
+
 def series_tag(t):
     """The series card's tag carries the day count ('SERIES · 150 DAYS'); table rows use core.trip_tags."""
     return 'Series · %d days' % len(t['days']) if t['days'] else 'Series'
@@ -104,13 +127,57 @@ def head_block(site, regs, meta):
             '<p class="t-mono-s arc-stats">%s</p></section>' % core.meta_items(bits))
 
 
+def _site_draws(name, pattern):
+    """True when the site map fragment rendered/site/<name>.svg.html contains `pattern` (a regex)."""
+    try:
+        return re.search(pattern, core._read(os.path.join(core.ROOT, 'rendered', 'site', name + '.svg.html'))) is not None
+    except OSError:
+        return False
+
+
+# the pin cluster as the region maps draw it (paper disc, ink ring, Mono count), at key-row size
+CLUSTER_SYM = ('<svg class="hom-key-cl" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">'
+               '<circle cx="10" cy="10" r="9" style="fill:#F2F1EC;stroke:#16171A;stroke-width:1.5"/>'
+               '<text x="10" y="10.5" style="font:600 11px/1 var(--mono);fill:#16171A;text-anchor:middle;dominant-baseline:central">2</text></svg>')
+
+
+def region_key(site, meta, names, cls='hom-rkey'):
+    """One compact key row under the region maps (archive.legend's item logic): an activity disc + word for every activity
+    whose pins the drawn maps carry ('other' reads as its sub-type when only one occurs), the planned-route line when a
+    planned track is drawn, and the cluster symbol when pins merge. Symbols only, never counts. Home's maps show it at
+    every width (cls 'hom-rkey'); a region panel shows it on phones only, beside the full legend (phone-04)."""
+    by = site['by_slug']
+    keys = set()
+    for nm in names:
+        m = meta.get(nm) or {}
+        cl = m.get('clusters')  # every pin, merged or not (a lone pin is a cluster of 1)
+        keys.update([k for c in cl for k in c.get('keys', [])] if cl else m.get('trips', []))
+    ts = [by[k] for k in keys if k in by]
+    items = []
+    for a, _lab in core.NAV:
+        if not any(t['activity'] == a and t['kind'] != 'planned' for t in ts):
+            continue
+        subs = sorted({t.get('subtype') for t in ts if t['activity'] == a and t.get('subtype')})
+        sub = subs[0] if (a == 'other' and len(subs) == 1) else None
+        items.append('<li>%s%s</li>' % (core.disc(a, 16, sub), esc(core.act_word(a, sub) if sub else core.ACT[a][0])))
+    if any(_site_draws(nm, r'class="mk-cat mk-planned"') for nm in names):
+        word, sym = core.KEY_SYMBOLS['planned_site']
+        items.append('<li><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>%s</li>' % (sym, esc(word)))
+    if any(c.get('n', 0) > 1 for nm in names for c in ((meta.get(nm) or {}).get('clusters') or [])):
+        items.append('<li>%sSeveral reports start here</li>' % CLUSTER_SYM)
+    if not items:
+        return ''
+    return '<ul class="keyrow keyrow--compact %s" aria-label="Map key">%s</ul>' % (cls, ''.join(items))
+
+
 def legend(ts, meta_d):
     acts = [a for a, _ in core.NAV if any(t['activity'] == a and t['kind'] != 'planned' for t in ts)]
     items = []
     for a in acts:
         subs = sorted({t.get('subtype') for t in ts if t['activity'] == a and t.get('subtype')})
         word = core.ACT[a][0] if not (a == 'other' and len(subs) == 1) else core.act_word(a, subs[0])
-        items.append('<li>%s<span>%s</span></li>' % (core.disc(a, 16, subs[0] if (a == 'other' and len(subs) == 1) else None), esc(word)))
+        # data-act: archive.js makes each item a toggle that filters the map and the list (maps-07)
+        items.append('<li data-act="%s">%s<span>%s</span></li>' % (a, core.disc(a, 16, subs[0] if (a == 'other' and len(subs) == 1) else None), esc(word)))
     sym = []
     if any(t['kind'] == 'planned' for t in ts):
         # the region maps' light planned line (core.KEY_SYMBOLS['planned_site'], drawn 28 wide)
@@ -120,11 +187,15 @@ def legend(ts, meta_d):
         sym.append('<li><svg width="28" height="20" viewBox="0 0 28 20" aria-hidden="true"><circle cx="14" cy="10" r="9" style="fill:#F2F1EC;stroke:#16171A;stroke-width:1.5"/>'
                    '<text x="14" y="10.5" style="font:600 11px/1 var(--mono);fill:#16171A;text-anchor:middle;dominant-baseline:central">2</text></svg>'
                    '<span>Several reports start here</span></li>')
-    return ('<div class="arc-legend"><p class="t-label">Legend</p><div class="arc-legend-c"><ul aria-label="Activities">%s</ul>%s</div></div>'
+    # keyrow--d: from 560 px; phones get the compact key row instead (region_key, keyrow--p; phone-04)
+    return ('<div class="arc-legend keyrow--d"><p class="t-label">Legend</p><div class="arc-legend-c"><ul aria-label="Activities">%s</ul>%s</div></div>'
             % (''.join(items), ('<ul aria-label="Map symbols">%s</ul>' % ''.join(sym)) if sym else ''))
 
 
-def region_row(t, here, more=False):
+def region_row(t, here, more=False, region=None):
+    """One report's row in a region's list. Its id, arc-row-<slug> (a report's 'See on the <Region> map' names it), only
+    in the list of the trip's own region: a map drawn before the trip was filed elsewhere still lists it in the old
+    region's panel, and map/ then shows it twice (region: the list's region; None, the trip's own)."""
     if t['kind'] != 'planned' and not t['days'] and t['date']:
         # 'SUN, APR 5, 2026': the weekday drops out at 1000–1199, where the side column is narrow (archive.css)
         bits = ['<span class="arc-wd">%s,\u00a0</span>%s' % (t['date'].strftime('%a').upper(), core.trip_date(t, short=True))]
@@ -135,9 +206,11 @@ def region_row(t, here, more=False):
         bits.append(d)
     g = core.glyph(t, here, 'g64', cls=' arc-row-g')
     # every row carries its key: the region map's planned line (mk-cat mk-planned) has one too, so hover highlights it
-    return ('<li class="arc-row%s" data-key="%s"><a href="%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
+    rid = (' id="arc-row-%s"' % t['slug']) if (region is None or t.get('region') == region) else ''
+    # data-kind: a cluster's selection counts reports, never the planned route among its keys (base.js)
+    return ('<li class="arc-row%s" data-key="%s"%s data-kind="%s"><a href="%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
             '<span class="t-mono-s arc-row-m"><span class="arc-row-i">%s</span><span class="sr">%s · </span><span>%s</span></span></span></a></li>'
-            % (' arc-more' if more else '', t['slug'], link(here, t['url']), t['activity'], g,
+            % (' arc-more' if more else '', t['slug'], rid, t['kind'], link(here, t['url']), t['activity'], g,
                core.title_html(t['title']), icon(core.act_icon(t), 14), esc(core.act_word(t)), core.SEP.join(bits)))
 
 
@@ -179,7 +252,13 @@ def part_day_km(t, part, d):
     return geo.cumdist(pts)[-1] / 1000.0 if pts else None
 
 
-def journal_row(t, part, here, drawing=None):
+def journal_part_id(region_slug, part):
+    """'arc-row-lake-tahoe-pacific-crest-trail-2024-...': a journal part's row id, qualified by its region, since one
+    part key can be in two regions' lists on map/ (an untitled part's key is the journal's slug alone)."""
+    return 'arc-row-%s-%s' % (region_slug, content.slugify(part['key']))
+
+
+def journal_row(t, part, here, drawing=None, region_slug=None):
     """One part of a journal as a row of a region's list: the part's own name when it has one (Tahoe Rim Trail), else
     the journal's title; then the dates of its first and last day, how many journal days it is and the distance they add
     up to (from the day files' own stats). The link goes to the first of those days on the journal page. The row
@@ -198,9 +277,10 @@ def journal_row(t, part, here, drawing=None):
     if mi_:
         bits.append(U(core.nb(mi_ + ' MI'), core.nb(km_ + ' KM')))
     g = part_glyph(drawing, here) or core.glyph(t, here, 'g64', cls=' arc-row-g')
-    return ('<li class="arc-row arc-row--journal" data-key="%s"><a href="%s#%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
+    rid = (' id="%s"' % journal_part_id(region_slug, part)) if region_slug else ''
+    return ('<li class="arc-row arc-row--journal" data-key="%s"%s><a href="%s#%s" data-act="%s">%s<span class="arc-row-b"><span class="arc-row-t">%s</span>'
             '<span class="t-mono-s arc-row-m"><span class="arc-row-i">%s</span><span class="sr">%s · </span><span>%s</span></span></span></a></li>'
-            % (esc(part['key']), link(here, t['url']), content.day_anchor(days[0]['label']), t['activity'], g,
+            % (esc(part['key']), rid, link(here, t['url']), content.day_anchor(days[0]['label']), t['activity'], g,
                core.title_html(part.get('title') or t['title']), icon(core.act_icon(t), 14), esc(core.act_word(t)), core.SEP.join(bits)))
 
 
@@ -223,35 +303,48 @@ def region_panel(name, slug, ts, here, meta, first, page=False, drawn=None, site
     key_ts = (ts if (drawn is None or not page) else drawn) + [jt for jt, _part in parts if jt['slug'] in on_map]
     map_id = 'arc-map-' + slug
     anchor = ts[0]  # map_block needs a trip dict only for per-trip renders; site maps read rendered/site/
+    # attrib: the credit tag in the phone map's corner, as on a report (phone-04); fullscreen_href: its 44 px button to the
+    # region's full-screen page, map/<slug>/ (qa-06), which build() writes for each panel of map/. A region page whose
+    # map names none of the site's trips until the next render has no panel there, so no such page and no button
+    fs = not (page and site is not None and slug not in {s for _n, s, _ts in core.region_groups(site, meta)})
     mp = core.map_block(anchor, here, [('region-%s-desktop' % slug, 'desktop'), ('region-%s-phone' % slug, 'phone')],
-                        'assets/maps/', 'rg-' + slug, eager=first, cls='arc-mapv', site_maps=True, attrib=False)
+                        'assets/maps/', 'rg-' + slug, eager=first, cls='arc-mapv', site_maps=True, attrib=True,
+                        fullscreen_href=link(here, 'map/%s/' % slug) if fs else None)
     mp = share_casings(mp.replace('<div class="map', '<div id="%s" class="map' % map_id, 1), 'arc-' + slug)
+    if site:
+        mp = inject_acts(mp, site.get('by_slug') or {t['slug']: t for t in site['trips']})
     cap = '<div class="arc-cap">%s</div>' % core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])
+    # the legend beside the map, under its caption (gap2-06: it stays in view with the stuck map from 1000 px), and the
+    # compact key row in its place on phones
+    pkey = region_key(site, meta['maps'], ['region-%s-desktop' % slug, 'region-%s-phone' % slug], 'keyrow--p arc-pkey') if site else ''
+    cap += legend(key_ts, md) + pkey
     fold = len(ts) > SHOW + 1
-    rows = [region_row(t, here, i >= SHOW and fold) for i, t in enumerate(ts)]
+    rows = [region_row(t, here, i >= SHOW and fold, region=name) for i, t in enumerate(ts)]
     # the journal rows go in after the reports: before the first planned route of the list as it was handed over
     at = next((i for i, t in enumerate(ts) if t['kind'] == 'planned'), len(ts))
     drawings = {j['key']: j.get('glyph') for j in (md.get('journals') or []) if isinstance(j, dict) and isinstance(j.get('key'), str)}
-    rows = ''.join(rows[:at] + [journal_row(jt, part, here, drawings.get(part['key'])) for jt, part in parts] + rows[at:])
+    rows = ''.join(rows[:at] + [journal_row(jt, part, here, drawings.get(part['key']), slug) for jt, part in parts] + rows[at:])
     n_pub = sum(1 for t in ts if t['kind'] != 'planned')  # 'Show all 86' matches the tab's count (a planned route is not a report)
     show_all = (('<button type="button" class="alink arc-all-btn" aria-expanded="false" aria-controls="arc-rows-%s" hidden>Show all %d%s</button>'
                  % (slug, n_pub, icon('chevron-down', 16))) if fold else '')
     if page:
         return ('<div class="arc-panel" id="map">'
                 '<div class="arc-grid"><div class="arc-mapcol">%s%s</div>'
-                '<div class="arc-side">%s<div class="arc-inreg"><div class="arc-inreg-h"><h3 class="t-label" id="arc-in-%s">In this region</h3>'
-                '<span class="t-mono-s">%s</span></div><ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s" data-map-target="%s">%s</ol>%s</div>'
+                '<div class="arc-side"><div class="arc-inreg"><div class="arc-inreg-h"><h3 class="t-label" id="arc-in-%s">In this region</h3>'
+                '<span class="t-mono-s arc-count" id="arc-count-%s">%s</span></div><p class="sr arc-plive" aria-live="polite"></p>'
+                '<ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s" data-map-target="%s">%s</ol>%s</div>'
                 '</div></div></div>'
-                % (mp, cap, legend(key_ts, md), slug, count_line(ts, 'ml--end'), slug, slug, map_id,
+                % (mp, cap, slug, slug, count_line(ts, 'ml--end'), slug, slug, map_id,
                    rows, show_all))
     own = core.region_page_href(here, name)   # None unless the region has a page (and the site is registered)
     return ('<div class="arc-panel" id="region-%s">'
             '<h3 class="arc-panel-h t-h3" id="arc-ph-%s">%s</h3>'
             '<div class="arc-grid"><div class="arc-mapcol">%s%s</div>'
-            '<div class="arc-side">%s<div class="arc-inreg"><div class="arc-inreg-h"><h4 class="t-label" id="arc-in-%s">In this region</h4>'
-            '<span class="t-mono-s">%s</span></div><ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s arc-ph-%s" data-map-target="%s">%s</ol>%s%s</div>'
+            '<div class="arc-side"><div class="arc-inreg"><div class="arc-inreg-h"><h4 class="t-label" id="arc-in-%s">In this region</h4>'
+            '<span class="t-mono-s arc-count" id="arc-count-%s">%s</span></div><p class="sr arc-plive" aria-live="polite"></p>'
+            '<ol class="arc-rows" id="arc-rows-%s" aria-labelledby="arc-in-%s arc-ph-%s" data-map-target="%s">%s</ol>%s%s</div>'
             '</div></div></div>'
-            % (slug, slug, esc(name), mp, cap, legend(key_ts, md), slug, count_line(ts, 'ml--end'), slug, slug, slug, map_id, rows,
+            % (slug, slug, esc(name), mp, cap, slug, slug, count_line(ts, 'ml--end'), slug, slug, slug, map_id, rows,
                show_all,
                ('<a class="alink arc-reg-a" href="%s">All %s reports%s</a>' % (own, esc(name), icon('arrow-right', 16))) if own else ''))
 
@@ -294,7 +387,7 @@ def other_places(site, here, meta):
         return ''
     regs = ''.join('<div class="arc-oreg" id="region-%s"><div class="arc-oreg-h"><h4 class="arc-oreg-n" id="arc-on-%s">%s</h4>'
                    '<span class="t-mono-s">%s</span></div><ol class="arc-rows" aria-labelledby="arc-on-%s">%s</ol></div>'
-                   % (slug, slug, esc(name), count_line(ts, 'ml--end'), slug, ''.join(region_row(t, here) for t in ts))
+                   % (slug, slug, esc(name), count_line(ts, 'ml--end'), slug, ''.join(region_row(t, here, region=name) for t in ts))
                    for name, slug, ts in groups)
     every = series + [t for _, _, ts in groups for t in ts]
     return ('<div class="arc-other" id="other-places"><div class="arc-inreg-h"><h3 class="t-label" id="arc-other-h">Not on a region map</h3>'
@@ -356,8 +449,8 @@ def archive_section(site, here, published=None, active=None):
         gid = 'yr-%s' % str(y if y is not None else 'undated').lower()
         label = str(y) if y is not None else 'Undated'
         body.append('<div class="arc-yr" data-group="%s"><div class="arc-yr-h"><h3 class="t-label" id="%s">%s</h3>'
-                    '<span class="t-mono-s arc-yr-n">%s</span></div><ol class="arc-rows2" aria-labelledby="%s">%s</ol></div>'
-                    % (gid, gid, label, count_line(ts, 'ml--end'), gid, ''.join(row(t) for t in ts)))
+                    '<span class="t-mono-s arc-yr-n">%s</span></div><ol class="arc-rows2" id="%s-rows" aria-labelledby="%s">%s</ol></div>'
+                    % (gid, gid, label, count_line(ts, 'ml--end'), gid, gid, ''.join(row(t) for t in ts)))
         # year index: the count is the group's published reports (archive.js rescopes it to the activity filter); none on Planned
         k = sum(1 for t in ts if t['kind'] != 'planned')
         years.append('<li data-group="%s"><a href="#%s">%s%s</a></li>'
@@ -374,6 +467,30 @@ def archive_section(site, here, published=None, active=None):
                core.table_head(), ''.join(body)))
 
 
+def region_fullscreen(name, slug, ts, meta, site):
+    """map/<slug>/ (qa-06): the region's map at full size for phones, linked from the 44 px button in the phone map's
+    corner on map/, the region's page and home. The 718 x 620 desktop render shown at 1077 px (map--fscol), as its
+    hillshade is drawn; pins and journal lines stay links; data-fs="region" makes base.js centre the whole map (it draws
+    many routes, and a planned one among its .mk-trk). The bar keeps the scale and the disclaimer in view as on a
+    report's page; Back returns to the region's panel on map/. noindex, and out of the sitemap (index=False)."""
+    here = 'map/%s/' % slug
+    name_d = 'region-%s-desktop' % slug
+    md = meta['maps'].get(name_d) or {}
+    mp = core.map_block(None, here, [(name_d, 'fs')], 'assets/maps/', 'fs', site_maps=True, attrib=False, cls='map--fs map--fscol')
+    mp = inject_acts(share_casings(mp, 'fs-' + slug), site.get('by_slug') or {t['slug']: t for t in site['trips']})
+    scale = core.fs_scale(None, name_d, core.FS_WIDTHS['map--fscol'], site_maps=True)
+    body = ('<h1 class="sr">%s: map</h1><div class="wrap fs-bar"><a class="btn" href="../#region-%s">%sBack to the map</a>'
+            '<span class="t-small fs-pan">Drag to pan</span><div class="fs-line2">%s<span class="t-mono-s fs-nav">NOT FOR NAVIGATION</span></div></div>'
+            '<div class="fs-map" data-fs="region" tabindex="0" role="region" aria-label="Map, scroll to pan">%s</div>'
+            '<div class="wrap fs-foot">%s%s%s</div>'
+            % (esc(name), slug, icon('arrow-left', 18), scale, mp, legend(ts, md),
+               region_key(site, meta['maps'], [name_d], 'keyrow--p'),
+               core.map_caption(['Pins mark each start and link to the report', 'Full tracks, not trimmed', 'North up'])))
+    title = '%s map' % name
+    return core.Page(here, core.document(here, title, body, 'Full-size map of %s.' % name, active='map', body_cls='p-fsmap',
+                                         extra_head='<meta name="robots" content="noindex">'), title, index=False)
+
+
 def build(site):
     here = HERE
     meta = site_meta()
@@ -386,6 +503,7 @@ def build(site):
         rs = regs[0][1]
         head = core.map_preloads(None, here, [('region-%s-desktop' % rs, 'desktop'), ('region-%s-phone' % rs, 'phone')],
                                  'assets/maps/', site_maps=True)
-    return [core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive', extra_head=head,
-                                    image=core.site_share()),
-                      'Map & archive')]
+    return ([core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive', extra_head=head,
+                                     image=core.site_share()),
+                       'Map & archive')]
+            + [region_fullscreen(name, slug, ts, meta, site) for name, slug, ts in regs])

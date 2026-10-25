@@ -33,14 +33,22 @@
 .arc-mapcol { margin-inline: calc(-1 * var(--m)); }
 .arc-mapv .mv { background: var(--map-paper); }
 .arc-cap { padding-inline: var(--m); }  /* core.map_caption; the map column bleeds on phones */
-@media (max-width: 559.98px) { .arc-cap .mapcap-2 { display: block; } }  /* no in-map credit tag on the region maps: keep it here */
+/* phones: the credit is in the map's corner tag (attrib, phone-04), so the caption is two lines as on a report; the
+   compact key row (region_key) stands for the legend */
+.arc-pkey { padding: 12px var(--m) 0; }
+.arc-pkey .disc svg { width: 9px; height: 9px; }
 @media (min-width: 560px) { .arc-mapcol { margin-inline: 0; } .arc-cap { padding-inline: 0; } }
 @media (min-width: 760px) { .arc-grid { margin-top: 24px; } .arc-js .arc-grid { margin-top: 24px; } }
 @media (min-width: 1000px) {
   .arc-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); align-items: start; }
   .arc-mapcol { grid-column: 1 / span 7; position: sticky; top: calc(var(--header-h) + 24px); }
   .arc-side { grid-column: 8 / span 5; }
+  /* the stuck column fits the viewport (gap2-01, the Sticky parts rule): header + 24 + map + caption (52, two lines) +
+     the one-row legend (56) + 12 to spare; the 718 x 620 render narrows, keeping its shape (its inline aspect-ratio) */
+  .arc-mapv .mv { width: min(100%, calc((100svh - var(--header-h) - 24px - 52px - 56px - 12px) * 718 / 620)); }
 }
+/* too short a window for it: the map column scrolls with the page (the ski panel's release) */
+@media (min-width: 1000px) and (max-height: 599.98px) { .arc-mapcol { position: static; } .arc-mapv .mv { width: 100%; } }
 /* 1000–1199: 8 + 4 columns, so the map is ~623 wide (0.87× its 718 render) and its labels and pins still read */
 @media (min-width: 1000px) and (max-width: 1199.98px) {
   .arc-mapcol { grid-column: 1 / span 8; }
@@ -57,6 +65,23 @@
 /* the discs are the key to the track colours on the maps, which forced colours leave alone: keep the two in step */
 @media (forced-colors: active) { .arc-legend .disc { forced-color-adjust: none; } }
 .arc-legend li > svg { width: 28px; }
+/* each activity a toggle (archive.js): the item's disc and word inside a 44 px button */
+.arc-lg-b { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin: -12px 0; padding: 0 8px 0 0; border: 0;
+  background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.arc-lg-b[aria-pressed="true"] span:last-child { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.arc-lg-b:focus-visible { outline-offset: 2px; }
+/* stacked (560-999 px), the buttons' 44 px boxes take 44 px each, so no box covers its neighbour's */
+@media (max-width: 999.98px) { .arc-legend ul.arc-lg-ul { gap: 24px; } }
+/* the full legend from 560 px (keyrow--d); its own display: flex above comes after base.css, so it is hidden here too */
+@media (max-width: 559.98px) { .arc-legend { display: none; } }
+/* the legend beside the stuck map as one wrapping row (gap2-06): items inline, 12 px above, the 'Legend' label read out;
+   after the legend's own rules, which it overrides */
+@media (min-width: 1000px) {
+  .arc-legend { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 12px 0 0; border-bottom: 0; }
+  .arc-legend > .t-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .arc-legend-c { gap: 4px 16px; }
+  .arc-legend ul { flex-direction: row; flex-wrap: wrap; gap: 4px 16px; }
+}
 
 /* in this region */
 .arc-inreg { margin-top: 20px; }
@@ -75,6 +100,12 @@
 .arc-row-i { display: flex; flex-shrink: 0; margin-top: 1px; color: var(--ink-2); }
 @media (min-width: 760px) { .arc-row-i { margin-top: 2px; } }
 .arc-rows.arc-collapsed .arc-more { display: none; }
+/* a cluster's selection and the legend's activity set the other rows aside (base.js .is-off, archive.js .is-actoff) */
+.arc-rows > li.is-off, .arc-rows > li.is-actoff { display: none; }
+/* the count line's 'Show all' while a cluster holds a selection: a text button with a 44 px hit area */
+.arc-sel-clear { position: relative; padding: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; color: inherit;
+  text-transform: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.arc-sel-clear::before { content: ""; position: absolute; inset: -14px -6px; }
 .arc-all-btn { margin-top: 4px; }
 /* the link under a panel's rows on map/, to the region's own page. Beside a shown 'Show all' button it stands 24 px to
    the right; where the column is too narrow for both it wraps flush left */
@@ -139,6 +170,9 @@
 .arc-yr + .arc-yr { margin-top: 48px; }
 .arc-yr-h { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 .arc-yr-h .t-label { color: var(--ink); }
+/* phones: a folded year (archive.js, phone-03): its list hidden under the 'Show N reports' button */
+.arc-rows2.arc-collapsed { display: none; }
+.arc-yr-btn { margin-top: 4px; }
 .arc-yr-n { text-transform: uppercase; text-align: right; }
 
 /* rows: core.table_row (li > a.rtab-r). Title cell = title / status tag + place on one line. */

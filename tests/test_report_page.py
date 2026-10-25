@@ -2914,7 +2914,9 @@ class NoTrackTests(ReportFixture):
                     # no route path, so its address names no #route-start)
                     want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
                             % (block, core.key_rows(self.report.key_items(t, meta), self.report.key_items(t, meta, phone=True)),
-                               core.map_full_link('../../trips/%s/map/' % slug), self.report.map_caption(t)))
+                               core.map_full_link('../../trips/%s/map/' % slug),
+                               # Phase 12 (gap4-03): 'See on the <Region> map' after the caption, to the report's row
+                               self.report.map_caption(t) + core.see_on_map(t['url'], t)))
                 html_ = self.page(slug).html
                 self.assertEqual(MAP_SECTION.findall(html_), [want])
                 self.assertEqual('fetchpriority="high"' in want, rendered and not hero)
@@ -3488,7 +3490,9 @@ class NoTrackTests(ReportFixture):
         self.assertEqual(unrendered.count(recorded), 1)
         self.assertEqual(block, unrendered.replace(button, '').replace(recorded, ''))
         self.assertNotEqual(block, block_with.replace(button, '').replace(recorded, ''))
-        self.assertEqual([a['href'] for a in Doc(block).find_all('a')], ['../trips/syn-featured/', 'https://example.test/', '../trips/syn-featured/'])
+        # the place line's region links to the region since Phase 12 (ia-09)
+        self.assertEqual([a['href'] for a in Doc(block).find_all('a')],
+                         ['../trips/syn-featured/', '../map/#region-synthetic-range', 'https://example.test/', '../trips/syn-featured/'])
 
     def test_pick_featured_takes_only_reports_with_a_track(self):
         # 10.2: section.pick_featured(ts): only single-day reports with a track are candidates: the first one marked
@@ -4677,7 +4681,9 @@ class RegionLinkTests(ReportFixture):
         for slug in ('syn-story', 'syn-tour', 'syn-journal', 'syn-goal', 'syn-desert', 'syn-desert-goal'):
             self.assertNotIn('regions/', self.html(slug), slug)
 
-    def test_the_crumb_is_the_only_thing_a_region_page_changes_on_a_report(self):
+    def test_the_region_links_are_the_only_things_a_region_page_changes_on_a_report(self):
+        # the crumb and, since Phase 12, the place line's region (ia-09) go to the region's page, and 'See on the <Region>
+        # map' (gap4-03) to the report's row on it; without the page they go to map/ (the row there, for the last)
         with_page = {slug: self.html(slug) for slug in ('syn-story', 'syn-tour', 'syn-journal', 'syn-desert', 'syn-words', 'syn-undated')}
         self.unregistered()
         for slug, html_ in sorted(with_page.items()):
@@ -4686,8 +4692,12 @@ class RegionLinkTests(ReportFixture):
                 if slug == 'syn-desert':
                     self.assertEqual(html_, old)                              # its region has no page: nothing differs
                     continue
-                self.assertEqual(html_.count('href="../../regions/synthetic-range/"'), 1)
-                self.assertEqual(html_.replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"'), old)
+                self.assertEqual(html_.count('href="../../regions/synthetic-range/"'), 2)      # the crumb, the place line
+                t = self.by[slug]                 # the link sits in a drawn map's section, which a journal page has not
+                self.assertEqual(html_.count('href="../../regions/synthetic-range/#arc-row-%s"' % slug),
+                                 1 if (core.render_meta(t)['maps'] and t['kind'] != 'series') else 0)
+                self.assertEqual(html_.replace('href="../../regions/synthetic-range/#arc-row-', 'href="../../map/#arc-row-')
+                                 .replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"'), old)
 
     def test_a_page_built_before_registration_equals_one_that_never_has_a_region_page(self):
         # 'no site registered' and 'this region has no page' are one answer (None): every caller does what it did
@@ -4744,6 +4754,8 @@ class RegionLinkTests(ReportFixture):
     def test_region_cell_is_one_link_to_the_regions_page(self):
         cell = need(self, self.report, 'region_cell')
         got = cell(self.by['syn-goal'], 'trips/syn-goal/')
+        # Phase 12 (gap4-03): a goal the region's list rows lands on its row; this one is no active goal, so on the page
+        self.assertNotIn('syn-goal', core._LISTED[0])
         self.assertEqual(got, ['<a class="next" href="../../regions/synthetic-range/"><span class="pager-t"><span class="t-label pager-l">'
                                '<span>Synthetic Range</span>%s</span><span class="pager-n">All Synthetic Range reports</span></span></a>'
                                % core.icon('arrow-right', 14)])
@@ -4752,15 +4764,17 @@ class RegionLinkTests(ReportFixture):
         self.assertEqual(a.find('span', cls='pager-l').text(), REGION)              # the label line stays the region name
         self.assertEqual(a.find('span', cls='pager-n').text(), 'All Synthetic Range reports')
         # any trip of the region, from any page
-        self.assertEqual(Doc(cell(self.by['syn-story'], '')[0]).find('a')['href'], 'regions/synthetic-range/')
+        self.assertEqual(Doc(cell(self.by['syn-story'], '')[0]).find('a')['href'], 'regions/synthetic-range/#arc-row-syn-story')
 
     def test_region_cell_for_a_region_without_a_page_is_the_old_cell(self):
         cell = need(self, self.report, 'region_cell')
         got = cell(self.by['syn-desert-goal'], 'trips/syn-desert-goal/')
-        self.assertEqual(got, ['<a class="next" href="../../map/#region-synthetic-desert"><span class="pager-t"><span class="t-label pager-l">'
+        self.assertEqual(got, ['<a class="next" href="../../map/#arc-row-syn-desert-goal"><span class="pager-t"><span class="t-label pager-l">'
                                '<span>Synthetic Desert</span>%s</span><span class="pager-n">Open the map</span></span></a>'
                                % core.icon('arrow-right', 14)])
-        self.assertEqual(got, legacy_region_cell(self.by['syn-desert-goal'], 'trips/syn-desert-goal/'))
+        # the old cell, landing on the goal's row in 'Not on a region map' instead of the region's heading
+        self.assertEqual(got, [c.replace('#region-synthetic-desert', '#arc-row-syn-desert-goal')
+                               for c in legacy_region_cell(self.by['syn-desert-goal'], 'trips/syn-desert-goal/')])
 
     def test_region_cell_is_empty_without_a_region_or_a_place_on_the_map_page(self):
         cell = need(self, self.report, 'region_cell')
@@ -4785,7 +4799,11 @@ class RegionLinkTests(ReportFixture):
         self.unregistered()
         for slug in ('syn-goal', 'syn-story', 'syn-desert-goal', 'syn-nowhere-goal', 'syn-regionless-goal'):
             for here in ('trips/%s/' % slug, ''):
-                self.assertEqual(cell(self.by[slug], here), legacy_region_cell(self.by[slug], here))
+                # but for the row it lands on (Phase 12), when the region's list on map/ rows the trip
+                old = legacy_region_cell(self.by[slug], here)
+                if slug in core._LISTED[0]:
+                    old = [re.sub(r'map/#region-[a-z-]+"', 'map/#arc-row-%s"' % slug, c) for c in old]
+                self.assertEqual(cell(self.by[slug], here), old)
         self.assertIn('Open the map', cell(self.by['syn-goal'], '')[0])
 
     # ------------------------------------------------------------ the goal pager and the planned-route pager
@@ -4817,32 +4835,38 @@ class RegionLinkTests(ReportFixture):
                          old.replace(legacy_region_cell(t, here)[0], self.report.region_cell(t, here)[0]))
 
     def test_a_region_without_a_page_keeps_both_pagers_as_they_were(self):
+        # but for the row the region cell lands on (Phase 12): the goal's own row in 'Not on a region map'
         for slug in ('syn-desert-goal', 'syn-nowhere-goal', 'syn-regionless-goal'):
             t, here = self.by[slug], 'trips/%s/' % slug
+            row = lambda x: x.replace('#region-synthetic-desert', '#arc-row-syn-desert-goal')  # noqa: E731
             with self.subTest(slug=slug):
-                self.assertEqual(self.report.goal_pager(t, here), legacy_goal_pager(t, here))
-                self.assertEqual(self.report.planned_pager(t, here, self.site), legacy_planned_pager(t, here, self.site))
+                self.assertEqual(self.report.goal_pager(t, here), row(legacy_goal_pager(t, here)))
+                self.assertEqual(self.report.planned_pager(t, here, self.site), row(legacy_planned_pager(t, here, self.site)))
         nav = Doc(self.html('syn-desert-goal')).find('nav', cls='pager')
         self.assertEqual([(a['href'], a.find('span', cls='pager-n').text()) for a in nav.find_all('a')],
-                         [('../../tick-list/', 'Back to the tick list'), ('../../map/#region-synthetic-desert', 'Open the map')])
+                         [('../../tick-list/', 'Back to the tick list'), ('../../map/#arc-row-syn-desert-goal', 'Open the map')])
         self.assertEqual(len(Doc(self.html('syn-nowhere-goal')).find('nav', cls='pager').find_all('a')), 1)
 
-    def test_with_no_site_registered_both_pagers_are_byte_for_byte_the_old_ones(self):
+    def test_with_no_region_page_both_pagers_are_the_old_ones_landing_on_the_row(self):
         self.unregistered()
         for slug in ('syn-goal', 'syn-desert-goal', 'syn-nowhere-goal', 'syn-regionless-goal'):
             t, here = self.by[slug], 'trips/%s/' % slug
+            row = ((lambda x: re.sub(r'map/#region-[a-z-]+"', 'map/#arc-row-%s"' % slug, x)) if slug in core._LISTED[0]  # noqa: E731
+                   else (lambda x: x))
             with self.subTest(slug=slug):
-                self.assertEqual(self.report.goal_pager(t, here), legacy_goal_pager(t, here))
-                self.assertEqual(self.report.planned_pager(t, here, self.site), legacy_planned_pager(t, here, self.site))
+                self.assertEqual(self.report.goal_pager(t, here), row(legacy_goal_pager(t, here)))
+                self.assertEqual(self.report.planned_pager(t, here, self.site), row(legacy_planned_pager(t, here, self.site)))
         self.assertIn('<span class="pager-n">Open the map</span>', self.html('syn-goal'))
-        self.assertIn('href="../../map/#region-synthetic-range"><span class="pager-t">', self.html('syn-goal'))
+        self.assertIn('href="../../map/#region-synthetic-range"><span class="pager-t">', self.html('syn-goal'))   # no row: no active goal
 
     def test_a_region_page_changes_two_links_on_a_goal_page_and_nothing_else(self):
         with_page = self.html('syn-goal')
         self.unregistered()
         old = self.html('syn-goal')
-        self.assertEqual(with_page.count('href="../../regions/synthetic-range/"'), 2)          # the crumb and the pager cell
-        self.assertEqual(with_page.replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"')
+        # the crumb, the place line (Phase 12) and the pager cell (the goal is no active one, so no row to land on)
+        self.assertEqual(with_page.count('href="../../regions/synthetic-range/"'), 3)
+        self.assertEqual(with_page.replace('href="../../regions/synthetic-range/#arc-row-', 'href="../../map/#arc-row-')
+                         .replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"')
                          .replace('<span class="pager-n">All Synthetic Range reports</span>', '<span class="pager-n">Open the map</span>'), old)
 
     def test_the_report_pager_between_reports_has_no_region_cell(self):

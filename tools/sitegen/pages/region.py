@@ -65,8 +65,23 @@ def place_items(pub):
     return [(esc(x), 'mi-w') for x in names[:MAX_PLACES]] + [core.nb('%d MORE' % (len(names) - MAX_PLACES))]
 
 
-def head(name, here, pub, planned, intro=None):
-    """The H1, the counts line and, when content/regions/<slug>.md has words, those words verbatim under them."""
+def activity_items(slug, here, pub):
+    """The region's activities with their counts, each linking to the explorer narrowed to them
+    (trips/?region=<slug>&activity=<key>, which trips.js reads; ia-10): 'BACKCOUNTRY SKI 37', in the menu's order, an
+    activity without a report left out. Without JavaScript the explorer shows its full list, as the page's other two
+    links to it accept."""
+    out = []
+    for a, lab in core.NAV:
+        k = sum(1 for t in pub if t['activity'] == a)
+        if k:
+            out.append('<a class="reg-act" href="%s?region=%s&amp;activity=%s">%s<span>%s</span><span class="reg-act-n"><span class="sr">: </span>%d</span><span class="sr"> %s</span></a>'
+                       % (link(here, 'trips/'), slug, a, core.disc(a, 16), core.nb(esc(lab).upper()), k, 'report' if k == 1 else 'reports'))
+    return out
+
+
+def head(name, here, pub, planned, intro=None, slug=None):
+    """The H1, the counts line, the activities line and, when content/regions/<slug>.md has words, those words verbatim
+    under them."""
     first = core.count_items(pub, planned) + [x for x in [years_item(pub)] if x]
     words = ('<div class="prose t-body reg-intro">%s</div>' % markdown.to_html(intro['body_md'], heading_shift=1)
              if intro and intro.get('body_md') else '')
@@ -75,8 +90,10 @@ def head(name, here, pub, planned, intro=None):
     return ('<section class="reg-head wrap" aria-labelledby="reg-title">'
             '<nav class="crumbs t-mono-s" aria-label="Breadcrumb">%s</nav>'
             '<h1 id="reg-title" class="t-d1">%s</h1>'
-            '<p class="reg-stats">%s</p>%s</section>'
-            % (crumbs, esc(name), core.meta_items(first + place_items(pub), br_after=len(first) - 1), words))
+            '<p class="reg-stats">%s</p>%s%s</section>'
+            % (crumbs, esc(name), core.meta_items(first + place_items(pub), br_after=len(first) - 1),
+               # .reg-x: like the page's other links into the explorer, hidden when scripting is off (region.css)
+               ('<p class="t-mono-s reg-acts reg-x">%s</p>' % core.meta_items(activity_items(slug, here, pub))) if slug else '', words))
 
 
 # ---------------------------------------------------------------- featured
@@ -183,7 +200,7 @@ def page(name, slug, ts, site, meta, regs):
     feat = pick_featured(ts)
     find = ('<p class="reg-find reg-x wrap"><a class="alink" href="%s?region=%s">Search and filter these in Trips%s</a></p>'
             % (link(here, 'trips/'), slug, icon('arrow-right', 16)))
-    body = (head(name, here, pub, planned, (site.get('region_intros') or {}).get(slug))
+    body = (head(name, here, pub, planned, (site.get('region_intros') or {}).get(slug), slug)
             + '<section class="arc-map reg-map wrap" aria-labelledby="reg-map-h"><h2 class="sr" id="reg-map-h">Map</h2>%s</section>'
             % archive.region_panel(name, slug, ts, here, meta, True, page=True, drawn=map_trips(name, site, meta) or None, site=site)
             + featured(slug, here, pub, feat)

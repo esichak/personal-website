@@ -419,7 +419,7 @@ def overview_map(t, here, meta, eager=True):
     mp = slim(core.map_block(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', 'ov', eager=eager, cls=cls, fullscreen_href=fs))
     return ('<section class="rep-map mul-map" id="map" aria-label="Route map, all days"><div class="bleed">%s</div>'
             '<div class="wrap">%s%s%s</div></section>'
-            % (mp, core.key_rows(desk, phone), core.map_full_link(fs), cap))
+            % (mp, core.key_rows(desk, phone), core.map_full_link(fs), cap + core.see_on_map(here, t)))
 
 
 # ---------------------------------------------------------------- sticky day nav

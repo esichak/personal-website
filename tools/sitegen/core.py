@@ -146,6 +146,8 @@ def region_pages(site, meta=None):
 
 
 _REGION_PAGES = {}   # region name -> slug, for the regions with a page; register_site() fills it
+_LISTED = [None]     # the slugs a region's list rows (listed_trips), once register_site() has run
+_PANELS = [None]     # the slugs of the regions with a panel on map/ (region_groups), once register_site() has a meta
 
 
 def region_page_href(here, region):
@@ -154,6 +156,41 @@ def region_page_href(here, region):
     by it: a second spelling of a region is not on the page, so it keeps its link to map/."""
     slug = _REGION_PAGES.get(region) if region else None
     return link(here, 'regions/%s/' % slug) if slug else None
+
+
+def region_link(here, region):
+    """The region's page, else its place on map/ (the breadcrumb's target); None for a region with neither."""
+    return region_page_href(here, region) or region_map_href(here, region)
+
+
+def region_row_href(here, t):
+    """The trip's own row in its region's list (gap4-03): the region page's #arc-row-<slug> when the region has a page,
+    else map/'s (a region map's panel, or 'Not on a region map'); the plain region link for a trip no region list rows
+    (a completed or archived goal, core.listed_trips); None without a region or a place for it. The ids are
+    archive.region_row's; build.py --check verifies that every one lands."""
+    region = t.get('region')
+    plain = region_link(here, region) if region else None
+    if not plain:
+        return None
+    if _LISTED[0] is None or t['slug'] not in _LISTED[0] or t['kind'] == 'series':
+        return plain
+    # a region map with no panel on map/ (it names none of the site's trips until the next render) and no page: no row
+    rs = content.slugify(region)
+    if (not region_page_href(here, region) and _PANELS[0] is not None and rs not in _PANELS[0]
+            and rs in {content.slugify(n) for n in (site_meta().get('regions') or [])}):
+        return plain
+    # map/'s link names the region's panel (#region-<slug>): the row's id replaces it, and archive.js opens the panel
+    # that holds the row
+    return plain.split('#')[0] + '#arc-row-' + t['slug']
+
+
+def see_on_map(here, t):
+    """'See on the <Region> map' (an .alink with the arrow), linking to the trip's own row (region_row_href); '' for a
+    trip without a track (it is on no map) or without a region place."""
+    href = region_row_href(here, t) if has_track(t) else None
+    if not href:
+        return ''
+    return '<a class="alink rep-seemap" href="%s">See on the %s map%s</a>' % (href, esc(t['region']), icon('arrow-right', 16))
 
 
 def prefix(url):
@@ -399,11 +436,18 @@ def section_head(title, meta='', level=2, id_=None, cls=''):
                ('<span class="shead-m t-mono-s">%s</span>' % meta) if meta else ''))
 
 
-def place_line(t, items=False):
+def place_line(t, items=False, here=None):
     """'PLACE, REGION · WITH PARTY'. items=True: the list for meta_items() (the place item may wrap at its comma
-    when it alone is wider than the line); default: the legacy string for callers that still join with SEP."""
+    when it alone is wider than the line); default: the legacy string for callers that still join with SEP.
+    here: the page's URL; the region part then links to the region (region_link, the breadcrumb's target), at every
+    width (ia-09: the breadcrumb is hidden on phones); the place stays text."""
     bits = []
-    loc = ', '.join(nb(esc(x).upper()) for x in (t.get('place'), t.get('region')) if x)
+    region = t.get('region')
+    rhref = region_link(here, region) if (here is not None and region) else None
+    rtext = nb(esc(region).upper()) if region else ''
+    if rhref:
+        rtext = '<a class="mi-a" href="%s">%s</a>' % (rhref, rtext)
+    loc = ', '.join(x for x in (nb(esc(t['place']).upper()) if t.get('place') else '', rtext) if x)
     if loc:
         bits.append((loc, 'mi-w'))
     if t.get('party'):
@@ -628,13 +672,18 @@ _SCALE_RECT = re.compile(r'<rect [^>]*width="([\d.]+)"[^>]*style="([^"]*)"')
 _SCALE_TEXT = re.compile(r'<text\b[^>]*>([^<]*)</text>')
 
 
-def fs_scale(t, name, width):
+def fs_scale(t, name, width, site_maps=False):
     """The full-screen page's own scale bar, for its bar above the map, so a scale stays in view while the map pans
     (maps-10): the render's MI and KM scale groups (its corner, mapkit), redrawn at the size the page draws the render
     (width: its CSS width; the 718 and 560 px renders are shown at 1.5x) in a 160 x 24 SVG, each in its u-mi / u-km
-    group so the units switch applies. '' when the render has no scale."""
-    m = render_meta(t).get('maps', {}).get(name)
-    path = rendered(t, name + '.svg.html')
+    group so the units switch applies. '' when the render has no scale. site_maps: a region map of rendered/site/ (t is
+    unused), for the region full-screen pages."""
+    if site_maps:
+        m = site_meta().get('maps', {}).get(name)
+        path = os.path.join(ROOT, 'rendered', 'site', name + '.svg.html')
+    else:
+        m = render_meta(t).get('maps', {}).get(name)
+        path = rendered(t, name + '.svg.html')
     if not m or not m.get('w') or not os.path.exists(path):
         return ''
     k = float(width) / m['w']
@@ -2084,7 +2133,9 @@ def register_site(site, meta=None):
     _REGION_PAGES.clear()
     if meta is not None:
         _REGION_PAGES.update({name: slug for name, slug, _ts in region_pages(site, meta)})
+    _PANELS[0] = {slug for _n, slug, _ts in region_groups(site, meta)} if meta is not None else None
     _ON_MAPS[0] = {t['slug'] for t in listed_trips(site) if t['kind'] == 'planned' or has_track(t)}
+    _LISTED[0] = {t['slug'] for t in listed_trips(site)}
     _TITLES.clear()
     # a journal is left out: a day part written without a name is keyed by the journal's slug and labelled
     # '<title>, Day N' (render.py), which is not the title alone; its title stays in the site hash instead
