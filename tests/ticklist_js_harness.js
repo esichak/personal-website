@@ -980,7 +980,8 @@ if (MODEL) {
       deq(MODEL.views, ['cards', 'list']);
       for (const value of [REGION, STATUS, PRIORITY, MONTH]) assert.ok(value, 'a menu of the fixture offers nothing');
       deq(MODEL.menus.sort, ['priority', 'added', 'name']);
-      eq(MODEL.fragments.length, 1, 'the checks follow the page\'s one link to itself: ' + JSON.stringify(MODEL.fragments));
+      // the skip link, which the checks follow, and (Phase 13A) the phone title bar's link to the page's heading
+      deq(MODEL.fragments, ['#main', '#tkl-title'], 'the page\'s links to itself: ' + JSON.stringify(MODEL.fragments));
       // every filter the checks pick narrows the list and leaves something; the scope 'all' widens it; the sort and
       // the view change no goal
       for (const [name, _press, o] of CONTROLS) {

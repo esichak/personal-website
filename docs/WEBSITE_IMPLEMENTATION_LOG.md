@@ -2266,3 +2266,132 @@ Not run: a real phone; `render.py`; Lighthouse (the pre-push session).
 - **Carried from earlier phases:** the hero frame (Phase 10, `.cache/plan2/phase10/sheet/hero-frame-sheet.png`); the
   mile table's last row (Phase 10); the real-phone look (Phase 11); the checkout and cache moves, `strava_id`, the
   rehearsal push (Phase 8); the place names, the retitles and the merges (Phase 9).
+
+## Phase 13A - Header, menu and units (2026-10-25)
+
+The first of Phase 13's three sessions (`docs/personal-website-improvement-plan-2.md`, section 13, and Prompt 13A of
+`docs/claude-code-website-prompt-2.md`), built on branch `phase-13a-header-menu` from `phase-12-maps-on-pages` at
+`09e0e97`. Eric asked for the phases to run on without waiting for him, so the recommended answers stand for both
+decisions: (a) gap6-02, the Units row moved to the top of the phone menu (plan 8.1 kept), and (b) yes, a browser whose
+language is not English starts in kilometers. Nothing under `content/` or `rendered/` changed and `render.py` was not
+run. The disk had 17 GB free, under the plan's 30 GB line: builds were linked into the session's scratch folder, and no
+worktree or copy of the checkout was made.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/core.py` | `PREPAINT`, the head's inline script: `js` on `<html>`, then the units (the stored choice, else km for a set, non-English `navigator.language`, else miles); `site.js` with `onerror` taking `js` (and `km`) back off; `header(..., page_bar=None)`: a Home row first in the menu's Site list (`page` on the home page), `a.ab-page` for a page bar, the Units row first in the menu's nav; `document(..., page_bar=None)`. |
+| `tools/lib/icons.py` | `home`, `arrow-up`. |
+| `tools/sitegen/pages/trips.py`, `archive.py`, `section.py`, `region.py`, `ticklist.py` | `page_bar` for Trips, Map & archive, the sections, the region pages and the tick list; `enterkeyhint="search"` on the Trips and tick-list boxes. |
+| `tools/sitegen/pages/about.py` | The units sentence names the language rule. |
+| `assets/js/base.js` | The menu closes from 1000 px; the title bar watches the heading `.ab-page` names; a press of the switch stores the choice, the page's start is not stored. |
+| `assets/css/base.css` | The nav row from 1000 px; `.ab-page`; the Units row's phone and tablet layout (across both columns from 760 px); the short-phone header (with the menu open, sticky again); the `:where(html:not(.js))` / `:root:not(.js)` twins of the no-script rules. |
+| `assets/css/pages/report.css`, `about.css`, `region.css` | The one-row bottom bar on short phones; the 16 px copy field (phones and touch screens); the no-script twins. |
+| `assets/css/pages/multiday.css`, `series.css`, `trips.css` | The day and month bars release under 500 px of height; the 16 px selects (phones and touch screens). |
+| Docs | DEVELOPING.md: the 1000 px breakpoint, the script-failed header and its twins, the short-phone header, the 500 px bar release in the Sticky parts rule and table, the units rule, the menu's rows, the phone title bar. |
+| Tests | New: test_phase13a (the title bar, the menu's rows, the search key, `PREPAINT` run under node against 13 language and storage cases, the stored choice). Changed: test_a11y_static (999/1000 px, every no-script rule's twin, the script-failed header, the short-phone header and bar, the 16 px controls, the 500 px bars; the fixture's pages carry `class="js"` as a browser's do), test_nav and test_ticklist_page (Home, the Units row), test_about_units. |
+
+### Behaviour
+
+- **Which pages changed.** A `--link` build against one of `09e0e97` made before any edit differs in every page (the
+  header, the head's script, site.js's `onerror`) and the two bundles; nothing is added or removed.
+- **The header from 1000 px (visual-17).** The links, the search box and the switch show from 1000 px instead of
+  1140: at 1000 px the row has 40 px to spare on map/ (headless Chrome), and an iPad in landscape gets the desktop
+  header with its desktop layouts.
+- **The phone menu (phone-12, gap6-02).** It opens with the Units row on top (on a 390 x 844 phone at 73-117 px, in view
+  at once; before, about 833 px down a 788 px panel), then Reports, then Site, which starts with Home. From 760 px the
+  Units row spans both columns above them.
+- **The title bar on index pages (phone-13).** On a phone, once the H1 has scrolled under the header, Trips, Map &
+  archive, the five sections, the region pages and the tick list show their title and an up arrow in the header, as a
+  report shows its glyph and title; a tap goes back to the H1.
+- **Kilometers by language (gap6-03).** A browser set to German or French starts in kilometers (checked with Chrome's
+  language override), an English one in miles; a stored choice wins; only a press of the switch stores one.
+- **Short and sideways phones (phone-10).** On a 667 x 375 phone the Matterhorn report kept 122 px of fixed chrome
+  (header 57, bottom bar 65); now the header scrolls away and the bar is one 49 px row. With the menu open the header
+  sticks again with its close button. The day and month bars release under 500 px of height.
+- **When site.js does not load (resilience-01).** With site.js blocked in Chrome the home page shows the no-script
+  header (the links in rows, no menu button, no switch, a static header on a phone); before, the menu button showed
+  and did nothing.
+- **iOS zoom (phone-09).** The Trips and tick-list selects and the copy field are 16 px on phones and touch screens;
+  the two search boxes say Search on the phone keyboard's return key.
+- **validate.py**: 0 errors, 1 warning, 346 notes, as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **Trips' title bar goes to its H1, not `#search`.** trips.js focuses the search box on a `#search` hashchange, so the
+  bar's first tap raised a phone's keyboard and its second only scrolled (the review). The box sits right under the
+  H1, so the bar's tap brings it into view without taking the focus.
+- **The Units row spans both columns from 760 px** rather than sitting under the Site list: the markup has it first,
+  and placed last on screen it was the one thing the Tab key reached out of order (the review). On a phone it is
+  first in both.
+- **The 16 px rule also applies to touch screens at any width** (`(hover: none) and (pointer: coarse)`): an iPhone on
+  its side is 812-932 px wide and zoomed into the 15 px selects there. The short-phone header stays limited to under
+  760 px wide, as the prompt has it: from 760 px there is no bottom bar, so the chrome is the 56 px header alone.
+- **Only a press stores the units.** base.js stored what it showed on every load, so the language rule would have
+  decided the first page and nothing after (DEVELOPING.md, Units).
+- **site.js's `onerror` removes `km` too**, so a page without its switch says miles, as About does.
+- **Documented rules changed:** DEVELOPING.md's breakpoint line (1140 → 1000 px); the Sticky parts rule and table
+  (bars release under 500 px, the header static on short phones); the no-script header (the `html:not(.js)` twins);
+  the Units rule; the menu and the title bar; the copy control's no-script sentence.
+- **The menu's focus** still goes to its first link on opening, as the prompt asks; on a phone the Units row above it
+  is reached with Shift+Tab, as the row above any first link is.
+
+### Review
+
+One independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It built the site and ran headless Chrome, and confirmed: the twins reproduce the no-script cascade exactly
+(every header-related computed style on 5 pages at 10 sizes, scripting off against site.js blocked: identical); the
+header row has no overflow at 1000, 1024, 1139 and 1199 px on home, trips/, the PCT page and About with web fonts
+loaded; the short phone's header, bar and menu behave; the title bars show only under 760 px and past the H1, with
+names that contain their titles; German and French start in km, a stored 'mi' wins, nothing is stored on load; no
+privacy problem; no test was loosened. Its findings:
+
+1. Trips' bar to `#search` focused the search box (raising a phone's keyboard). Fixed: the bar goes to the H1.
+2. iPhones in landscape (812-932 px) missed the 16 px rule. Fixed for touch screens at any width; the short-phone
+   header stays under 760 px (above).
+3. The Units row came first in the markup and last on screen from 760 px. Fixed: it spans both columns on top.
+4. With site.js failing, a non-English browser kept `km` with the switch hidden. Fixed: `onerror` removes `km` too.
+5. A stale sentence in DEVELOPING.md said the copy button shows where `scripting` is unknown. Corrected.
+6. The twin test named four stylesheets and checked only that a twin comes later. It now reads every page sheet and
+   checks that nothing but no-script rules and twins stand between a rule and its twin.
+7. Out of scope and unchanged: with the bundle failing, trips.css's `(scripting: enabled)` rule still hides the
+   Trips page's browse links while its form shows and does nothing (the prompt leaves the forms alone; listed below).
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 3,076 tests, OK, 104 s (3,062 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 3,076 tests, OK, 130 s |
+| `python3 tests/run_orders.py --reverse` | OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 45, profile 35, series 58, ticklist 103, trips 167, viewer 50 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `diff -rq` against a `--link` build of `09e0e97` | every page and both bundles differ; no page added or removed |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| `core.PREPAINT` under node (test_phase13a) | 13 cases of stored choice, language and storage that throws |
+| Headless Chrome (scratch `p13tools/page.mjs`) | the header row at 1000 px (40 px spare, no overflow); de-DE and fr-FR start in km and store nothing until a press, en-US stays in miles; site.js blocked: the no-script header at 390 px, and `km` removed for de-DE; the menu at 390 (Units at 73-117 px, Home first) and 800 (Units across both columns); the Trips bar back to the H1 without focusing the box; the 667 x 375 report's chrome 122 → 49 px |
+| Screenshots | `.cache/plan2/phase13a/`: the open menu at 390 before and after and at 800 after; the header at 1000 and 1024 before and after (trips/); the Matterhorn report at 667 x 375 before and after; the Trips title bar at 390; the home page at 390 with site.js blocked |
+
+Not run: a real phone (the iOS zoom and the landscape header are worth the five minutes); Firefox; `render.py`;
+Lighthouse; a phone-load measurement (the header grew by a row of markup and nothing loads before it).
+
+### Remaining issues and author inputs
+
+- **(a) and (b)** were taken as recommended: gap6-02 (the Units row first in the phone menu) and yes to starting in
+  kilometers for a browser whose language is not English.
+- **Interface copy, new on the site:** "Home" (the menu's first Site row); "Back to top: <page title>" (the title bar,
+  read out; its visible text is the page's title); About: "Browsers set to a language other than English start in
+  kilometers and meters. The MI | KM switch changes every page, and this browser remembers the choice."
+- **The header on a short phone** scrolls away with the page, menu button included; to reach the menu the reader
+  scrolls back up (accepted: the menu is rarely needed mid-report, and the bottom bar stays).
+- **With site.js failing**, the Trips page's browse links stay hidden by a `(scripting: enabled)` rule while its form
+  shows and does nothing; the prompt leaves the search forms alone. A twin like the header's would fix it in a later
+  phase.
+- **A real phone:** on an iPhone, tap the Trips page's Region menu (the page should not zoom), turn the phone on its
+  side on a report (the header should scroll away and the bar be one row), and open the menu (Units first).
+- **Carried:** the gap1-01 and qa-04 sheets (Phase 12), the hero frame and the mile table's last row (Phase 10), the
+  real-phone look (Phase 11), the checkout and cache moves, `strava_id`, the rehearsal push (Phase 8), the place
+  names, retitles and merges (Phase 9).

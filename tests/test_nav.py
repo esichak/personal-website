@@ -142,7 +142,7 @@ class HeaderTests(HeaderFixture):
         doc = self.header('', None)
         self.assertNotIn(PCT, [a['href'] for a in doc.find_all('a')])
         self.assertEqual([h for h, _, _ in self.main_nav(doc)], ['trips/', 'tick-list/', 'map/', 'about/'])
-        self.assertEqual([a['href'] for a in self.site_column(doc)], ['trips/', 'tick-list/', 'map/', 'about/'])
+        self.assertEqual([a['href'] for a in self.site_column(doc)], ['./', 'trips/', 'tick-list/', 'map/', 'about/'])
         helpers.make_site(self.trips)
         self.assertIn(PCT, [h for h, _, _ in self.main_nav(self.header('', None))])
 
@@ -153,15 +153,22 @@ class HeaderTests(HeaderFixture):
         reports = [a['href'] for a in menu.find('div', cls='menu-c1').find_all('a')]
         self.assertEqual(reports, [core.section_url(a) for a, _ in core.NAV])
         site = self.site_column(doc)
-        self.assertEqual([a['href'] for a in site], SITE_LINKS)
-        self.assertEqual([a.text() for a in site], ['Trips', 'Tick list', 'Map & archive', 'PCT', 'About'])
+        # Home first (Phase 13A, phone-12), marked as the page on the home page
+        self.assertEqual([a['href'] for a in site], ['./'] + SITE_LINKS)
+        self.assertEqual([a.text() for a in site], ['Home', 'Trips', 'Tick list', 'Map & archive', 'PCT', 'About'])
+        self.assertEqual(site[0]['aria-current'], 'page')
+        self.assertEqual(site[0].find('path')['d'], 'M3.5 11L12 4l8.5 7')         # the 'home' icon
         units = menu.find(cls='menu-units')
         self.assertIsNotNone(units)
         self.assertIsNotNone(units.find(attrs={'role': 'radiogroup'}))
+        # the Units row first, above both lists (Phase 13A, gap6-02), so a phone shows it as the menu opens
+        nav = menu.find('nav')
+        self.assertEqual([n.classes for n in nav.elements()], [['menu-units'], ['menu-c1'], ['menu-c2']])
+        self.assertEqual(len(menu.find_all(cls='menu-units')), 1)
 
     def test_menu_site_column_marks_current_like_the_main_nav(self):
         cur = [(a['href'], a['aria-current']) for a in self.site_column(self.header('trips/', 'trips')) if a['aria-current']]
-        self.assertEqual(cur, [('../trips/', 'page')])
+        self.assertEqual(cur, [('../trips/', 'page')])                   # Home is the page only on the home page
         t = self.by['pacific-crest-trail-2024']
         cur = [(a['href'], a['aria-current']) for a in self.site_column(self.header(PCT, 'hike', t)) if a['aria-current']]
         self.assertEqual(cur, [('../../' + PCT, 'page')])

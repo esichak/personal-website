@@ -545,7 +545,7 @@ def page(act, site):
     title = '%s trip reports' % core.ACT[act][0]
     return core.Page(here, core.document(here, title, ''.join(body), description(act, ts), active=act,
                                          image=og_image(([feat] if feat else []) + ts), extra_head=extra_head,
-                                         body_cls='p-section p-section--%s' % act), title)
+                                         body_cls='p-section p-section--%s' % act, page_bar=(core.ACT[act][0], 'sec-title')), title)
 
 
 def build(site):

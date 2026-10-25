@@ -31,6 +31,10 @@ AUTHOR_NAME = SITE_NAME          # the one author of every write-up (structured 
 AUTHOR_URL = SITE_URL + 'about/'
 STRUCTURED_MIN_CHARS = 100       # a report needs this much of Eric's own text to be marked up as a BlogPosting
 HOME_COORDS = '39.09°N 120.04°W · LAKE TAHOE'
+# the head's inline script (document): 'js' on <html> (resilience-01), then the units: the stored choice, else kilometers
+# for a browser whose language is set and is not English (gap6-03), else miles
+PREPAINT = ('var d=document.documentElement,u=null;d.classList.add("js");try{u=localStorage.getItem("units")}catch(e){}'
+            'var l=navigator.language||"";if(u==="km"||(!u&&l&&!/^en/i.test(l)))d.classList.add("km")')
 FONTS = ('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..112,400..700'
          '&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=Geist+Mono:wght@400..600&display=swap')  # serif: 400 only
 SUB_ICON = {'SUP': 'SUP', 'Rafting': 'RFT', 'Kayaking': 'KYK', 'Mountaineering': 'MTN'}
@@ -2178,14 +2182,16 @@ def search_form(here, fid):
             % (link(here, 'trips/'), fid, fid, icon('search', 18)))
 
 
-def header(here, active=None, trip=None):
+def header(here, active=None, trip=None, page_bar=None):
     """Site header + menu. Main nav: Trips · Tick list · Map · PCT · About, then Search: a search box that lands on the
     explorer (search_form), except on trips/ itself, which has its own box and keeps a link to it. active:
     'trips', 'ticklist', 'goal' (a goal page: Tick list is current as 'true'), 'map', 'about', or an activity key (section,
     report, multi-day and full-screen-map pages: Trips is current as 'true', and the phone menu's activity row as before).
     aria-current="page" only on the page a link points to; the PCT journal page marks PCT alone. The activity pages stay reachable from the phone menu's Reports column, the
     footer and the home page. trip: report, multi-day and series pages get the phone compact app bar (glyph + title,
-    shown once the H1 has scrolled under the header; links back to the top)."""
+    shown once the H1 has scrolled under the header; links back to the top). page_bar: (title, H1 id) for the long
+    index pages without a trip (Trips, Map & archive, the sections, the region pages, the tick list; phone-13): the
+    same bar with the page's title and an up arrow, to the H1."""
     pct_page = bool(trip) and trip.get('slug') == PCT_SLUG and here == trip.get('url')
 
     def cur(key, url):
@@ -2215,11 +2221,14 @@ def header(here, active=None, trip=None):
                          % (link(here, section_url(act)), cur(act, section_url(act)), disc(act, 32), lab, sub,
                             icon('chevron-right', 20)))
     site_rows = []
-    menu_icons = {'trips': 'list', 'ticklist': 'checkbox', 'map': 'map', 'pct': 'HIK', 'about': 'info'}
-    for key, lab, url in main + ([('search', 'Search', 'trips/#search')] if on_trips else []):
+    menu_icons = {'home': 'home', 'trips': 'list', 'ticklist': 'checkbox', 'map': 'map', 'pct': 'HIK', 'about': 'info'}
+    # Home first (phone-12): below 1000 px the name is the only other way home, and it hides while the title bar shows
+    home = [('home', 'Home', '')]
+    for key, lab, url in home + main + ([('search', 'Search', 'trips/#search')] if on_trips else []):
         word = 'Map &amp; archive' if key == 'map' else lab
         site_rows.append('<li><a href="%s"%s>%s<span class="menu-w"><span>%s</span></span>%s</a></li>'
-                         % (link(here, url), cur(key, url) if key != 'search' else '', icon(menu_icons.get(key, 'search'), 24), word,
+                         % (link(here, url), cur(key, url) if key not in ('search', 'home') else (' aria-current="page"' if key == 'home' and here == '' else ''),
+                            icon(menu_icons.get(key, 'search'), 24), word,
                             icon('chevron-right', 20)))
     if not on_trips:
         site_rows.append('<li class="menu-search">%s</li>' % search_form(here, 'menu-q'))
@@ -2227,6 +2236,10 @@ def header(here, active=None, trip=None):
     if trip:
         ab = ('<a class="ab-trip" href="#title" aria-label="Back to top: %s"><span class="ab-g" aria-hidden="true">%s</span>'
               '<span class="ab-t" aria-hidden="true">%s</span></a>' % (esc(trip['title']), glyph(trip, here, 'g64', 'ab'), esc(trip['title'])))
+    elif page_bar:
+        bar_title, top_id = page_bar
+        ab = ('<a class="ab-page" href="#%s" data-ab-title="%s" aria-label="Back to top: %s"><span class="ab-t" aria-hidden="true">%s</span>%s</a>'
+              % (top_id, top_id, esc(bar_title), esc(bar_title), icon('arrow-up', 20)))
     return ('<a class="skip" href="#main">Skip to content</a>'
             '<header class="site-h"><div class="site-h-in">'
             '<a class="brand" href="%s"><span class="brand-n">%s</span><span class="brand-c">%s</span></a>%s'
@@ -2235,11 +2248,11 @@ def header(here, active=None, trip=None):
             '<button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu">%s%s</button>'
             '</div>'
             '<div class="menu" id="menu" hidden><nav aria-label="Menu">'
+            '<div class="menu-units"><span class="t-label">Units</span>%s</div>'
             '<div class="menu-c1"><p class="t-label menu-l">Reports</p><ul class="menu-list">%s</ul></div>'
-            '<div class="menu-c2"><p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">%s</ul>'
-            '<div class="menu-units"><span class="t-label">Units</span>%s</div></div></nav></div></header>'
+            '<div class="menu-c2"><p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">%s</ul></div></nav></div></header>'
             % (link(here, ''), SITE_NAME, HOME_COORDS, ab, ''.join(items), search, units_control(),
-               icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), ''.join(menu_rows), ''.join(site_rows), units_control()))
+               icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), units_control(), ''.join(menu_rows), ''.join(site_rows)))
 
 
 def footer(here):
@@ -2272,12 +2285,18 @@ def lightbox():
 
 
 def document(here, title, body, description='', active=None, css_pages=(), image=None, extra_head='', body_cls='', bottom='',
-             og_type='website', full_title=None, trip=None, canonical=True, report=None):
+             og_type='website', full_title=None, trip=None, canonical=True, report=None, page_bar=None):
     """full_title: the whole <title> text (default '<title> · Eric Sichak'), also the og:title; og_type: 'article' on trip
     pages. trip: the trip the page shows (default: looked up by URL, see register_site()) for the phone app bar.
     image: the share image, a share_photo() dict (or a site-relative path). canonical=False: a page that stands for no
     URL of its own (the 404 page) gets neither a canonical link nor og:url. report: the published trip a report page
-    is about; it adds the publication dates index.md states and, for a written report, one BlogPosting block."""
+    is about; it adds the publication dates index.md states and, for a written report, one BlogPosting block.
+    page_bar: the phone title bar of a long index page (header's page_bar).
+
+    The head's one inline script runs before the page paints: it marks <html> with 'js' (the header's no-script rules
+    also apply while it is missing: html:not(.js), resilience-01; site.js's onerror takes it back off when the bundle
+    fails to load, and 'km' with it, since the switch is then hidden and the page says miles) and chooses the units: the stored choice, else kilometers when the browser's language is set and is
+    not English (gap6-03; read in the browser, nothing leaves it), else miles."""
     p = prefix(here)
     p = '' if p == './' else p
     if not full_title:
@@ -2303,9 +2322,9 @@ def document(here, title, body, description='', active=None, css_pages=(), image
             '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
             '<link rel="stylesheet" href="%s">'
             '<link rel="stylesheet" href="%sassets/site.css">'
-            '<script>try{if(localStorage.getItem("units")==="km")document.documentElement.classList.add("km")}catch(e){}</script>'
+            '<script>%s</script>'
             '%s</head><body class="%s">%s<main id="main">%s</main>%s%s%s'
-            '<script src="%sassets/site.js" defer></script></body></html>\n'
+            '<script src="%sassets/site.js" defer onerror="document.documentElement.classList.remove(\'js\', \'km\')"></script></body></html>\n'
             % (esc(full_title), esc(description or SITE_TAGLINE), canon_link, og_type, esc(full_title), esc(description or SITE_TAGLINE), og_url, og,
-               p, SITE_NAME, p, FONTS.replace('&', '&amp;'), p, extra_head, body_cls, header(here, active, trip), body, footer(here),
+               p, SITE_NAME, p, FONTS.replace('&', '&amp;'), p, PREPAINT, extra_head, body_cls, header(here, active, trip, page_bar), body, footer(here),
                bottom, lb, p))

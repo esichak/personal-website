@@ -211,7 +211,7 @@ def page(name, slug, ts, site, meta, regs):
     preload = core.map_preloads(None, here, [('region-%s-desktop' % slug, 'desktop'), ('region-%s-phone' % slug, 'phone')],
                                 'assets/maps/', site_maps=True)
     return core.Page(here, core.document(here, title, body, description(name, pub), active='map', body_cls='p-region',
-                                         image=share_image(feat, pub), extra_head=preload), title)
+                                         image=share_image(feat, pub), extra_head=preload, page_bar=(name, 'reg-title')), title)
 
 
 def build(site):

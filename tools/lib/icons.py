@@ -16,6 +16,8 @@ PATHS = {
     'expand': '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
     'arrow-right': '<path d="M4 12h15"/><path d="M13.5 6.5L19 12l-5.5 5.5"/>',
     'arrow-left': '<path d="M20 12H5"/><path d="M10.5 6.5L5 12l5.5 5.5"/>',
+    'arrow-up': '<path d="M12 20V5"/><path d="M6.5 10.5L12 5l5.5 5.5"/>',
+    'home': '<path d="M3.5 11L12 4l8.5 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-6h4v6"/>',
     'chevron-down': '<path d="M6 9.5l6 6 6-6"/>',
     'chevron-right': '<path d="M9.5 6l6 6-6 6"/>',
     'menu': '<path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/>',

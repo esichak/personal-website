@@ -1345,8 +1345,8 @@ class HeaderTests(TickListFixture):
         doc = self.header('', None)
         ul = doc.by_id('menu').find('ul', cls='menu-list--site')
         links = ul.find_all('a')
-        self.assertEqual([a['href'] for a in links], SITE_LINKS)
-        self.assertEqual([a.text() for a in links][:2], ['Trips', 'Tick list'])
+        self.assertEqual([a['href'] for a in links], ['./'] + SITE_LINKS)                    # Home first (Phase 13A)
+        self.assertEqual([a.text() for a in links][:3], ['Home', 'Trips', 'Tick list'])
         self.assertEqual(ul.find('form', cls='nav-search').find('input', attrs={'name': 'q'})['id'], 'menu-q')
         cur = [(a['href'], a['aria-current']) for a in self.header('tick-list/', 'ticklist').by_id('menu').find('ul', cls='menu-list--site').find_all('a')
                if a['aria-current']]

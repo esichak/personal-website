@@ -3116,9 +3116,10 @@ class PageTests(RegionFixture):
                     for n in doc.root.walk():
                         for ref in (n[attr] or '').split():
                             self.assertIn(ref, ids, '%s="%s" names no element' % (attr, n[attr]))
-        # the page's links into itself: the skip link and the year index (the first round's link down to the table is gone)
+        # the page's links into itself: the skip link, the phone title bar's (Phase 13A) and the year index (the first
+        # round's link down to the table is gone)
         self.assertEqual([a['href'][1:] for a in self.doc(RANGE).find_all('a') if (a['href'] or '').startswith('#')],
-                         ['main', 'yr-2026', 'yr-2025', 'yr-2024', 'yr-2023', 'yr-2022', 'yr-undated', 'yr-planned'])
+                         ['main', 'reg-title', 'yr-2026', 'yr-2025', 'yr-2024', 'yr-2023', 'yr-2022', 'yr-undated', 'yr-planned'])
         # 'Show all' names the list it opens, and the list names its map and its heading
         button = self.doc(RANGE).find('button', cls='arc-all-btn')
         self.assertEqual(self.one(RANGE, button['aria-controls']).tag, 'ol')

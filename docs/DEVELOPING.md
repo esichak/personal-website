@@ -90,7 +90,8 @@ Type classes (phone → tablet ≥760 → desktop ≥1200 sizes are built in): `
 
 Layout: `.wrap` (1248 max, page margins 16/40/48px), `.bleed` (full width up to 1440), `.sec` (section gap
 56/72/96px), `.grid12`. Breakpoints: phone < 760, tablet 760–1199, desktop ≥ 1200. Header nav collapses to the
-menu button below 1140px.
+menu button below 1000px (1140 until Phase 13A, visual-17: the two-column layouts start at 1000, and the row fits there
+with 40 px to spare).
 
 ## Rules
 
@@ -117,6 +118,10 @@ menu button below 1140px.
 ### Units, links and maps
 
 - Units: every distance/elevation goes through `core.U` / `core.distance` / `core.elev` so the MI|KM toggle works.
+  A page starts in the stored choice, else in kilometers when the browser's language is set and does not start with
+  `en` (Phase 13A, gap6-03; `core.PREPAINT` reads `navigator.language` in the browser, nothing leaves it), else in
+  miles; without JavaScript it is miles. Only a press of the switch stores a choice (base.js; until Phase 13A every
+  page load stored what it showed), so the language decides until the reader chooses. The menu's Units row is its first row (gap6-02), across both columns from 760 px.
   Rendered fragments carry both units too: profile grid lines, y labels and distance ticks, map scale bars and GPS-max
   labels sit in `<g class="u-mi">` / `<g class="u-km">` (or `<tspan>`s), which base.css shows one at a time. Mile discs
   and contour labels stay imperial.
@@ -195,31 +200,45 @@ menu button below 1140px.
     6px` there, which keeps the focus ring of a link in the first or last row whole. The two-part selectors are needed:
     `.nav a` and the later `.units` and `.nav-l` rules would win over a bare class. On the About page the sentence
     about the `MI | KM` switch is hidden with the switch (`.abo-units-how`, written by `about.units_block` and hidden
-    in about.css; tests/test_about_units.py), and the sentence before it, which is true either way, stays. A browser
-    that does not know the `scripting` media feature shows the header as it is with JavaScript.
+    in about.css; tests/test_about_units.py), and the sentence before it, which is true either way, stays.
+    Since Phase 13A (resilience-01) the same header also shows when the bundle did not run: the head's inline script
+    (`core.PREPAINT`) puts `js` on `<html>` before the page paints and `site.js`'s `onerror` takes it off again (with
+    `km`: the switch is hidden then, so the page shows miles), and
+    every `(scripting: none)` rule in base.css, about.css, report.css and region.css has a twin right after its block,
+    `:where(html:not(.js)) <selector>` with the same declarations (`:where()` keeps the twin's weight, so the cascade is
+    the original's; the `--header-h` twin is `:root:not(.js)`, which must outweigh `:root`). So a failed download of
+    site.js, and a browser that does not know the `scripting` media feature with JavaScript off, get the no-script
+    header too; tests/test_a11y_static.py checks every pair and the script-failed header.
+  - A short or sideways phone (Phase 13A, phone-10): under 760 px wide and 500 px high the header leaves its sticky
+    place as the no-script phone block does (`--header-h: 0px`, `.site-h { position: static; }`, `.site-h-in`
+    `min-height: 56px`, `padding-block: 6px`), and report.css makes the bottom bar one row (`.bbar a` 40 px, icon beside
+    word; the footer's room 56 px). While the menu is open (`body.menu-open`) the header sticks again with
+    `--header-h: 56px`, so the close button stays in reach and the menu opens under it; with the menu shut the menu
+    button scrolls away with the page, which the phase accepted.
   - A second sticky bar needs its own scroll margin, because `html`'s `scroll-padding-top` clears the header only. Under
     the journal's month bar `.ser-log :is(a, button, input, summary)` has `scroll-margin-top: calc(var(--ser-nav-h) +
     8px)`, and under the multi-day day bar `.mul-body :is(a, button, input, summary)` has `calc(var(--dnav-h) + 8px)`,
     so a control reached with the keyboard is not left under the bar; the bars' own links are set back to 0. On a
-    viewport under 480 px high the day bar is not sticky (`@media (max-height: 480px) { .mul-dnav { position: static;
-    } }`), and since Phase 12 neither is the journal's month bar, whose scroll margins go with it (gap2-05).
+    viewport under 500 px high (480 until Phase 13A, which lines it up with the phone header's release) the day bar is
+    not sticky (`@media (max-height: 500px) { .mul-dnav { position: static; } }`), and since Phase 12 neither is the
+    journal's month bar, whose scroll margins go with it (gap2-05).
   - Sticky parts (gap2-07). The one rule: a stuck element fits the header + 24 px + its content inside `100svh` on a
     683 px tall viewport (a 1366 x 768 laptop), or it scales to fit, or it releases (`position: static`); bars release
-    under 480 px of height, columns under 600. tests/test_a11y_static.py `ShortViewportTests` holds the table at 1366 x
+    under 500 px of height (480 until Phase 13A), columns under 600. tests/test_a11y_static.py `ShortViewportTests` holds the table at 1366 x
     683, 1280 x 620, 1152 x 630, 1440 x 790 and 667 x 375 (the static evaluator does not compute `calc()`, so it asserts
     the declarations: position, and `100svh` in a fitted width); a browser check at 1366 x 768 and 1280 x 720 is the
     final word (the Phase 12 log has one).
 
     | Element | Sticks from | Top | Holds | Fit or release | Test |
     | --- | --- | --- | --- | --- | --- |
-    | `.site-h` (header) | every width | 0 | the bar, 52 / 64 px | static without JS under 480 px wide; static on `.p-fsmap` under 480 px high | NoScriptTests, ShortViewportTests |
+    | `.site-h` (header) | every width | 0 | the bar, 52 / 64 px | static without JS under 480 px wide; static on a phone under 500 px high (sticky again while the menu is open); static on `.p-fsmap` under 480 px high | NoScriptTests, ShortViewportTests |
     | `.arc-mapcol` (map/, region pages) | 1000 px | header + 24 | the 718 x 620 map, caption (52), one-row legend (56) | the map's width scales to `100svh`; static under 600 px high | ShortViewportTests |
     | `.sec-panel-in` (Ski) | 960 px | header + 24 | tabs, map, caption | the map scales to `100svh`; the phone render under 760 px high from 1200; static under 600 | ShortViewportTests |
     | `.abo-nums` (About) | 1000 px, 1600 px high | header + 24 | the numbers column | sticks only from 1600 px of height | ShortViewportTests |
-    | `.mul-dnav` (day bar) | 760 px | header | the day chips | static under 480 px high | ShortViewportTests |
+    | `.mul-dnav` (day bar) | 760 px | header | the day chips | static under 500 px high | ShortViewportTests |
     | `.mul-rail` (chapter rail) | 1000 px | header + bar + 24 | number, title, stats, GPX | compact under 720 px high; static under 600 | ShortViewportTests |
     | `.rep-rail` (Beta) | 1000 px | header + 24 | at most a few rows | none needed (the tallest Beta rail has 3 rows) | — |
-    | `.ser-mnav` (month bar) | every width | header | the month tabs | static under 480 px high | ShortViewportTests |
+    | `.ser-mnav` (month bar) | every width | header | the month tabs | static under 500 px high | ShortViewportTests |
     | `.p-fsmap .fs-map` (box, not sticky) | — | — | the map | `max-height: calc(100svh - 168px)`; `100svh - 68px` under 480 px high | ShortViewportTests |
   - Map cluster markers (`.mk-cluster`) on a map without a list (home) are `aria-hidden` pointer targets without a
     name and must never become Tab stops: base.js gives them hover listeners but no `focusin` / `focusout` listener
@@ -581,10 +600,16 @@ menu button below 1140px.
     `page` on Trips; an activity key (section, report, multi-day, full-screen-map pages) gives `true` on Trips;
     `'ticklist'` gives `page` on Tick list and `'goal'` (a goal page) gives `true` there; `'map'` / `'about'` give `page`
     on their link, and `'map'` on a page that is not `map/` itself (a region page) gives `true` on Map; the PCT page
-    gives `page` on PCT and nothing on Trips. The phone menu keeps the five activity rows under Reports and lists
-    Trips, Tick list, Map & archive, PCT, About under Site, then a search box (`li.menu-search`, `menu-q`), or on trips/
-    the Search row; the footer's Site list is Trips, Tick list, Map &
+    gives `page` on PCT and nothing on Trips. The phone menu opens with its Units row (Phase 13A, gap6-02; across both
+    columns from 760 px), keeps the five activity rows under Reports and lists Home (Phase 13A, phone-12;
+    `page` on the home page), Trips, Tick list, Map & archive, PCT, About under Site, then a search box
+    (`li.menu-search`, `menu-q`), or on trips/ the Search row; the footer's Site list is Trips, Tick list, Map &
     archive, About, RSS.
+  - The phone title bar: a trip's page (report, multi-day, journal) shows its glyph and title in the header once the H1
+    has scrolled under it (`a.ab-trip`, to `#title`). Since Phase 13A (phone-13) the long index pages show their title
+    and an up arrow the same way (`a.ab-page`, from `core.document(..., page_bar=(title, H1 id))`): Trips, Map & archive, the five sections, the region pages and the tick list. base.js watches
+    the heading the bar's `data-ab-title` names with the same 52 px margin and sets `body.past-title`; About, the 404
+    page, a goal and home have no bar.
   - Adding a facet: emit it as a `data-*` attribute in `core.trip_card`; add the control in trips.py (option values = the
     attribute values present, and only those); in trips.js add the key to `DEFAULTS`, `KEYS`, `FACETS`, `allowed`,
     `names`, `sel` and its change listener, `setControls`, the test in `facetOk` (cards and journal days both go
@@ -787,8 +812,8 @@ menu button below 1140px.
   link to this page'); `series.written_nav` (`cls='alink'`, 'Copy link to this entry', `of='Day <label>'`, `share='Share
   this entry'`). The status
   element is always rendered, empty until base.js fills it. Never inside `<noscript>`: with scripting off report.css
-  hides the control and the share row (`@media (scripting: none) { .copy, .rep-share { display: none; } }`). A
-  browser that does not know the `scripting` media feature still shows the button there, and it then does nothing.
+  hides the control and the share row (`@media (scripting: none) { .copy, .rep-share { display: none; } }`), and since
+  Phase 13A so does its twin when the bundle did not run (`:where(html:not(.js))`; the header's no-script rules, above).
 - Journal page (`tools/sitegen/pages/series.py`; `body_cls` stays `p-series`; day articles, month sections, ids, GPX
   hrefs and `download` names are unchanged):
   - Page order: `title_block`, then `tick_backlink`, `report.hero` (when `t['cover']` and `report.lead_photo(t)`), the

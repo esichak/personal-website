@@ -195,8 +195,10 @@ def units_block():
             # the second sentence is about the switch: without JavaScript the switch is not shown (base.css), and neither
             # is the sentence (about.css)
             '<div class="abo-units-row"><p class="abo-p">Distances and heights are shown in miles and feet by default. '
-            '<span class="abo-units-how">The <span class="abo-nw">MI | KM</span> switch '
-            'changes every page to kilometers and meters, and this browser remembers the choice.</span></p>%s</div></section>' % ctl)
+            # a browser whose language is not English starts in kilometers (gap6-03: core.PREPAINT, which needs the script)
+            '<span class="abo-units-how">Browsers set to a language other than English start in kilometers and meters. '
+            'The <span class="abo-nw">MI | KM</span> switch changes every page, and this browser remembers the choice.</span>'
+            '</p>%s</div></section>' % ctl)
 
 
 def follow(here):

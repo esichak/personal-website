@@ -643,7 +643,8 @@ class StylesheetAndScriptTests(BuiltCase):
                 up = '../' * rel.count('/')        # 404.html resolves its links against <base>, the site root
                 text = read(self.path(rel))
                 self.assertIn('<link rel="stylesheet" href="%sassets/site.css">' % up, text)
-                self.assertIn('<script src="%sassets/site.js" defer></script>' % up, text)
+                # site.js's onerror takes the head script's 'js' (and 'km') back off when the bundle fails to load (Phase 13A)
+                self.assertIn('<script src="%sassets/site.js" defer onerror="document.documentElement.classList.remove(\'js\', \'km\')"></script>' % up, text)
 
     def test_the_real_stylesheets_publish_without_a_comment(self):
         # the one read of the repository itself: assets/css through the real build.css_bundle()

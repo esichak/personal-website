@@ -108,7 +108,7 @@ def controls(site):
     # autocomplete="off" on the form, as on the Trips page (trips.controls): the script sets the controls from the address
     return ('<form class="trx-form tkl-form wrap" role="search" aria-label="Search and filter goals" id="search" action="" autocomplete="off" hidden>'
             '<label class="sr" for="tkl-q">Search goals</label>'
-            '<input class="trx-q" type="search" id="tkl-q" name="q" placeholder="Search by name, place, region, tag or note" autocomplete="off" maxlength="200">'
+            '<input class="trx-q" type="search" id="tkl-q" name="q" placeholder="Search by name, place, region, tag or note" autocomplete="off" maxlength="200" enterkeyhint="search">'
             '<div class="trx-filters">'
             '<div class="trx-acts" role="radiogroup" aria-label="Activity">%s</div>'
             '%s'
@@ -163,4 +163,5 @@ def results(site):
 def build(site):
     body = head(site) + ((controls(site) + status_row(site)) if with_form(site) else '') + results(site)
     desc = 'Routes and objectives on my tick list: planned routes with approximate stats, planning notes, status and priority.'
-    return [core.Page(HERE, core.document(HERE, 'Tick list', body, desc, active='ticklist', body_cls='p-ticklist', image=core.site_share()), 'Tick list')]
+    return [core.Page(HERE, core.document(HERE, 'Tick list', body, desc, active='ticklist', body_cls='p-ticklist', image=core.site_share(),
+                                           page_bar=('Tick list', 'tkl-title')), 'Tick list')]

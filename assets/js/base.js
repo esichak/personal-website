@@ -5,9 +5,11 @@
   var root = document.documentElement;
 
   // ------------------------------------------------------------ units (MI | KM), remembered per browser
+  // A press stores the choice; the page's start (core.PREPAINT: the stored choice, else km for a browser whose language
+  // is not English, else miles) is shown but not stored, so the language decides until the reader chooses (gap6-03)
   function setUnits(u, announce) {
     root.classList.toggle('km', u === 'km');
-    try { localStorage.setItem('units', u); } catch (e) { /* private mode */ }
+    if (announce) { try { localStorage.setItem('units', u); } catch (e) { /* private mode */ } }
     document.querySelectorAll('.units button').forEach(function (b) {
       b.setAttribute('aria-checked', String(b.dataset.units === u));
       b.tabIndex = b.dataset.units === u ? 0 : -1;  // one tab stop; arrow keys move within the radio group
@@ -130,7 +132,7 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(true); });
     // a link in the menu closes it: a same-page target (trips/#search on the Trips page) would otherwise leave it open
     menu.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a[href]')) closeMenu(false); });
-    window.addEventListener('resize', function () { if (window.innerWidth >= 1140) closeMenu(false); });
+    window.addEventListener('resize', function () { if (window.innerWidth >= 1000) closeMenu(false); });
   }
 
   // ------------------------------------------------------------ list rows ↔ map tracks, pins and clusters
@@ -409,8 +411,12 @@
   }
 
   // ------------------------------------------------------------ phone app bar: glyph + title once the H1 is under the header
-  var h1 = document.getElementById('title');
-  if (h1 && document.querySelector('.ab-trip') && 'IntersectionObserver' in window) {
+  // A trip's page has its glyph and title (.ab-trip, the H1 #title); a long index page its title and an up arrow
+  // (.ab-page, phone-13), whose data-ab-title names the heading it waits for
+  var abPage = document.querySelector('.ab-page');
+  var h1 = document.querySelector('.ab-trip') ? document.getElementById('title')
+    : (abPage ? document.getElementById(abPage.getAttribute('data-ab-title')) : null);
+  if (h1 && 'IntersectionObserver' in window) {
     new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
         document.body.classList.toggle('past-title', !e.isIntersecting && e.boundingClientRect.top < 52);

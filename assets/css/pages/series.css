@@ -152,9 +152,9 @@ body.p-series .rep-strip { margin-top: 24px; }
 /* a control reached with the keyboard clears the sticky month bar too: html's scroll padding only knows the header */
 .ser-log :is(a, button, input, summary) { scroll-margin-top: calc(var(--ser-nav-h) + 8px); }
 .ser-mnav :is(a, button) { scroll-margin-top: 0; }
-/* a short viewport (gap2-05): the month bar scrolls with the page under 480 px of height, as the day bar does
-   (multiday.css), and the scroll margins kept for it go */
-@media (max-height: 480px) {
+/* a short viewport (gap2-05): the month bar scrolls with the page under 500 px of height, as the day bar does
+   (multiday.css) and a phone's header does (base.css, phone-10), and the scroll margins kept for it go */
+@media (max-height: 500px) {
   .ser-mnav { position: static; }
   .ser-log :is(a, button, input, summary), .ser-month, .ser-day { scroll-margin-top: 0; }
 }

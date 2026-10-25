@@ -38,3 +38,4 @@
 
 /* the links into the Trips explorer carry its filters in the address, which only its script reads */
 @media (scripting: none) { .reg-x { display: none; } }
+:where(html:not(.js)) .reg-x { display: none; }   /* the bundle did not run (base.css) */

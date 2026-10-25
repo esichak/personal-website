@@ -1781,9 +1781,20 @@ _DOCS = {}
 
 
 def page_doc(url):
+    """A built page as a browser holds it once the head's inline script has run: <html> carries 'js' (Phase 13A,
+    resilience-01; without it the html:not(.js) twins of the no-script rules apply, as when the bundle fails to load:
+    script_failed_doc). Without scripting the (scripting: none) queries apply whatever the class says."""
     if url not in _DOCS:
-        _DOCS[url] = Doc(site_pages()[url])
+        html_ = site_pages()[url]
+        assert html_.count('<html lang="en">') == 1, url
+        _DOCS[url] = Doc(html_.replace('<html lang="en">', '<html lang="en" class="js">', 1))
     return _DOCS[url]
+
+
+def script_failed_doc(url):
+    """A built page as the browser holds it when site.js did not load: the inline script ran, then the bundle's onerror
+    took 'js' back off (and with scripting off it is never there)."""
+    return Doc(site_pages()[url])
 
 
 def trip_url(key, sub=''):
@@ -1838,7 +1849,7 @@ class PageTests(SiteFixture):
     def test_every_search_landmark_has_a_name_of_its_own(self):
         # Phase 7: the header's box, the menu's, the 404 page's and the explorers' forms are role="search" landmarks; a
         # landmark list names each, as it names the navs. The menu's box repeats the header's name: the two are never
-        # shown at once (the header's row from 1140 px, the menu below it)
+        # shown at once (the header's row from 1000 px, the menu below it)
         seen = 0
         for url in self.pages:
             if url.endswith('.json'):
@@ -2514,8 +2525,8 @@ class NoScriptTests(SiteFixture):
         self.assertEqual(self.displays(rules), {'reg-x': 'none'})
         self.assertEqual([r.selector for r in scripting_none(rules)], ['.reg-x'])           # the block holds that one rule
         self.assertEqual(self.displays(self.rules).get('reg-x'), 'none')                    # and the published stylesheet keeps it
-        # no rule outside the scripting query hides or shows the class
-        self.assertEqual([r.selector for r in self.rules if 'reg-x' in r.selector and not scripting_none([r])], [])
+        # no rule outside the scripting query hides or shows the class, but its twin for a bundle that did not run
+        self.assertEqual([r.selector for r in self.rules if 'reg-x' in r.selector and not scripting_none([r])], [':where(html:not(.js)) .reg-x'])
 
     def explorer_links(self, url):
         marked = self.nodes(url, cls='reg-x')
@@ -2633,8 +2644,9 @@ class NoScriptTests(SiteFixture):
 
     def test_with_scripting_the_header_is_as_before(self):
         nav, btn, units, search = self.header_parts('')
-        for width, nav_display, btn_display in ((390, 'none', 'flex'), (800, 'none', 'flex'), (1139, 'none', 'flex'),
-                                                (1140, 'flex', 'none'), (1300, 'flex', 'none')):
+        # the row from 1000 px (Phase 13A, visual-17; 1140 before)
+        for width, nav_display, btn_display in ((390, 'none', 'flex'), (800, 'none', 'flex'), (999, 'none', 'flex'),
+                                                (1000, 'flex', 'none'), (1139, 'flex', 'none'), (1300, 'flex', 'none')):
             with self.subTest(width=width):
                 e = env(width)
                 self.assertEqual(computed(nav, 'display', self.rules, e), nav_display)
@@ -2673,8 +2685,8 @@ class NoScriptTests(SiteFixture):
     # the header without JavaScript at every width a visitor meets: links that wrap, nothing that scrolls or clips
 
     # 320 is a phone, or a desktop window zoomed to 400 %; 479 / 480 is where the no-script header starts to stick again,
-    # 1139 / 1140 where the links take the menu's place when there is JavaScript
-    NS_WIDTHS = (320, 360, 390, 479, 480, 760, 1139, 1140, 1280)
+    # 999 / 1000 where the links take the menu's place when there is JavaScript (1140 before Phase 13A)
+    NS_WIDTHS = (320, 360, 390, 479, 480, 760, 999, 1000, 1280)
     NS_PAGES = ('', 'trips/', 'about/', 'ski/', trip_url('story'), trip_url('journal'), trip_url('tour'))
 
     def header_boxes(self, url):
@@ -2814,7 +2826,60 @@ class NoScriptTests(SiteFixture):
                         for prop in ('flex-wrap', 'row-gap', 'min-width', 'overflow-x', 'overflow'):
                             self.assertIsNone(computed(row, prop, self.rules, e), why(row, prop, self.rules, e))
                     self.assertIsNone(computed(nav, 'min-width', self.rules, e))
-                    self.assertEqual(computed(nav, 'display', self.rules, e), 'flex' if width >= 1140 else 'none')
+                    self.assertEqual(computed(nav, 'display', self.rules, e), 'flex' if width >= 1000 else 'none')
+
+    def test_every_no_script_rule_has_its_twin_for_a_bundle_that_did_not_run(self):
+        # Phase 13A (resilience-01): (scripting: none) matches only with scripting off, and only in browsers that know the
+        # query; a page whose site.js failed to load still had scripting. The head's script puts 'js' on <html> and
+        # site.js's onerror takes it off, so each rule's twin, ':where(html:not(.js)) <selector>' with the same
+        # declarations under the same other conditions, covers that page. :where() keeps the twin's weight; the
+        # custom property's twin is ':root:not(.js)', heavier than the ':root' rules it must beat
+        seen = 0
+        sheets = [('base.css',)] + [('pages', f) for f in sorted(os.listdir(os.path.join(ROOT, 'assets', 'css', 'pages'))) if f.endswith('.css')]
+        twin_of = lambda sel: sel.startswith((':where(html:not(.js)) ', ':root:not(.js)'))  # noqa: E731
+        for path in sheets:
+            rules = parse_css(source('css', *path))[0]
+            for r in scripting_none(rules):
+                # the same conditions without the scripting one: '(scripting: none) and (max-width: 479.98px)' gives
+                # '(max-width: 479.98px)', a bare '(scripting: none)' gives none
+                media = tuple(q.replace('(scripting: none) and ', '') for q in r.media)
+                media = tuple(q for q in media if re.sub(r'\s+', '', q.lower()) != '(scripting:none)')
+                twin = ':root:not(.js)' if r.selector == ':root' else ':where(html:not(.js)) ' + r.selector
+                with self.subTest(sheet='/'.join(path), selector=r.selector):
+                    got = [t for t in rules if t.selector == twin and tuple(t.media) == media and t.decls == r.decls]
+                    self.assertEqual(len(got), 1, (twin, media))
+                    self.assertGreater(got[0].order, r.order)
+                    # right after its block: nothing but no-script rules and other twins between the two
+                    between = [t for t in rules if r.order < t.order < got[0].order]
+                    self.assertEqual([t.selector for t in between if not scripting_none([t]) and not twin_of(t.selector)], [])
+                    if r.selector != ':root':
+                        self.assertEqual(got[0].spec, r.spec)
+                    seen += 1
+        self.assertGreaterEqual(seen, 13)
+        # the markup's half: the head's script adds the class before the page paints, and the bundle's onerror removes it
+        html_ = site_pages()['']
+        self.assertIn('<script>' + core.PREPAINT + '</script>', html_)
+        self.assertIn('d.classList.add("js")', core.PREPAINT)
+        # ... and 'km' with it: the switch is hidden then, and the page says miles (the review of Phase 13A)
+        self.assertIn('<script src="assets/site.js" defer onerror="document.documentElement.classList.remove(\'js\', \'km\')"></script>', html_)
+
+    def test_when_the_bundle_did_not_run_the_header_is_the_no_script_one(self):
+        # scripting on, no 'js' on <html> (site.js failed to load): the links take the menu's place below 1000 px, the
+        # controls that need the script are not shown, as with scripting off
+        doc = script_failed_doc('')
+        nav, btn = doc.find('nav', cls='nav'), doc.find('button', cls='menu-btn')
+        units = [u for u in doc.find_all(cls='units') if inside(u, 'site-h')]
+        for width in (320, 390, 760, 999, 1280):
+            e = env(width)
+            with self.subTest(width=width):
+                self.assertEqual(computed(nav, 'display', self.rules, e), 'flex')
+                self.assertFalse(displayed(btn, self.rules, e), why(btn, 'display', self.rules, e))
+                for u in units:
+                    self.assertFalse(displayed(u, self.rules, e))
+                self.assertEqual(computed(doc.find('html'), '--header-h', self.rules, e), '0px' if width < 480 else ('72px' if width >= 1200 else '56px'))
+        # with the class, the header is the scripted one
+        nav = page_doc('').find('nav', cls='nav')
+        self.assertEqual(computed(nav, 'display', self.rules, env(390)), 'none')
 
     def test_the_no_script_header_rules_are_all_inside_scripting_queries(self):
         # the same from the stylesheet's side: base.css states each of these only where scripting is off
@@ -2822,6 +2887,9 @@ class NoScriptTests(SiteFixture):
 
         def off(r):
             return any('scripting' in q and 'none' in q for q in r.media)
+
+        def short(r):           # a short or sideways phone (Phase 13A, phone-10): the same header, with or without a script
+            return any('max-height: 500px' in q for q in r.media)
 
         for selector, prop in (('.nav-l', 'flex-wrap'), ('.nav-l', 'row-gap'), ('.nav-l', 'min-width'), ('.nav', 'min-width'),
                                ('.site-h-in', 'min-height'), ('.site-h-in', 'padding-block'), ('.nav-sep + .nav-l', 'display'),
@@ -2832,15 +2900,19 @@ class NoScriptTests(SiteFixture):
                     self.assertEqual([off(r) for r in stated], [False])
                     continue
                 self.assertTrue(stated, 'no rule states %s for %s' % (prop, selector))
-                self.assertEqual([r.selector for r in stated if not off(r)], [])
-        for selector, prop, values in (('.site-h', 'position', ['sticky', 'static']), ('.site-h-in', 'height', ['var(--header-h)', 'auto']),
-                                       (':root', '--header-h', ['56px', '72px', '0px'])):
+                self.assertEqual([r.selector for r in stated if not off(r) and not short(r)], [])
+        for selector, prop, values in (('.site-h', 'position', ['sticky', 'static', 'static']),
+                                       ('.site-h-in', 'height', ['var(--header-h)', 'auto']),
+                                       (':root', '--header-h', ['56px', '72px', '0px', '0px'])):
             with self.subTest(selector=selector, prop=prop):
                 stated = [r for r in rules if r.selector == selector and prop in r.decls]
                 self.assertEqual([r.decls[prop][0] for r in stated], values)
-                self.assertEqual([off(r) for r in stated], [False] * (len(values) - 1) + [True])
+                # the last of each is the short phone's (phone-10), stated with and without a script
+                n = len(values) - (1 if selector == '.site-h-in' else 2)
+                self.assertEqual([off(r) for r in stated][:n + 1], [False] * n + [True])
+                self.assertTrue(all(short(r) for r in stated[n + 1:]))
         # the phone block is narrower than the width at which five links fit beside the name (about 452 px)
-        phone = [r for r in rules if r.selector == '.site-h' and r.decls.get('position', ('',))[0] == 'static']
+        phone = [r for r in rules if r.selector == '.site-h' and r.decls.get('position', ('',))[0] == 'static' and off(r)]
         self.assertEqual(len(phone), 1)
         self.assertEqual(len(phone[0].media), 1)
         limit = re.search(r'\(\s*max-width\s*:\s*([\d.]+)px\s*\)', phone[0].media[0])
@@ -2917,9 +2989,10 @@ class StickyBarTests(SiteFixture):
 
 class ShortViewportTests(SiteFixture):
 
-    def test_the_day_nav_is_not_sticky_on_a_viewport_under_480_px_high(self):
+    def test_the_day_nav_is_not_sticky_on_a_viewport_under_500_px_high(self):
+        # 500 since Phase 13A (phone-10, where a phone's header goes static too); 480 before
         bar = self.nodes(trip_url('tour'), cls='mul-dnav')[0]
-        for width, height, want in ((390, 844, 'sticky'), (1300, 900, 'sticky'), (844, 481, 'sticky'), (844, 480, 'static'),
+        for width, height, want in ((390, 844, 'sticky'), (1300, 900, 'sticky'), (844, 501, 'sticky'), (844, 500, 'static'),
                                     (844, 390, 'static'), (667, 375, 'static'), (1300, 400, 'static')):
             with self.subTest(width=width, height=height):
                 self.assertEqual(computed(bar, 'position', self.rules, env(width, height)), want)
@@ -2931,17 +3004,61 @@ class ShortViewportTests(SiteFixture):
         self.assertEqual(short[0].decls['position'][0], 'static')
         self.assertEqual(len(short[0].media), 1)
         limit = px(re.match(r'^\(\s*max-height\s*:\s*([^)]+)\)$', short[0].media[0]).group(1))
-        self.assertTrue(470 <= limit <= 480, short[0].media)
+        self.assertTrue(490 <= limit <= 500, short[0].media)
         base = [r for r in rules if r.selector == '.mul-dnav' and 'position' in r.decls and not r.media]
         self.assertEqual([r.decls['position'][0] for r in base], ['sticky'])
         self.assertGreater(short[0].order, base[0].order)        # equal weight: the later rule is the one that holds
 
-    def test_the_journals_month_bar_releases_under_480_px_high(self):
-        # Phase 12 (gap2-05): the day bar's rule, which the month bar was left out of until then
+    def test_the_journals_month_bar_releases_under_500_px_high(self):
+        # Phase 12 (gap2-05): the day bar's rule, which the month bar was left out of until then (500 since Phase 13A)
         bar = self.nodes(trip_url('journal'), cls='ser-mnav')[0]
-        for height, want in ((844, 'sticky'), (481, 'sticky'), (480, 'static'), (375, 'static')):
+        for height, want in ((844, 'sticky'), (501, 'sticky'), (500, 'static'), (375, 'static')):
             with self.subTest(height=height):
                 self.assertEqual(computed(bar, 'position', self.rules, env(844, height)), want)
+
+    def test_a_short_or_sideways_phone_lets_the_header_scroll_away_and_keeps_it_while_the_menu_is_open(self):
+        # Phase 13A (phone-10): under 760 px wide and 500 px high the header is static (no room is kept for it), the bottom
+        # bar is one 40 px row; with the menu open the header sticks again and the menu opens under its 56 px
+        url = trip_url('story')
+        doc = page_doc(url)
+        root, head, inner = doc.find('html'), doc.find('header', cls='site-h'), doc.find('div', cls='site-h-in')
+        link = doc.find('nav', cls='bbar').find('a')
+        for (w, h), static in (((390, 844), False), ((667, 375), True), ((390, 500), True), ((390, 501), False), ((800, 375), False),
+                               ((1280, 400), False)):
+            e = env(w, h)
+            with self.subTest(size='%dx%d' % (w, h)):
+                self.assertEqual(computed(head, 'position', self.rules, e), 'static' if static else 'sticky')
+                self.assertEqual(computed(root, '--header-h', self.rules, e), '0px' if static else ('72px' if w >= 1200 else '56px'))
+                if static:
+                    self.assertEqual(computed(inner, 'min-height', self.rules, e), '56px')
+                if w < 760:
+                    self.assertEqual((computed(link, 'height', self.rules, e), computed(link, 'flex-direction', self.rules, e)),
+                                     ('40px', 'row') if static else ('56px', 'column'))
+        body = doc.find('body')
+        body.attrs['class'] = body.attrs.get('class', '') + ' menu-open'
+        try:
+            e = env(667, 375)
+            self.assertEqual(computed(head, 'position', self.rules, e), 'sticky')
+            self.assertEqual(computed(body, '--header-h', self.rules, e), '56px')
+        finally:
+            body.attrs['class'] = body.attrs['class'].replace(' menu-open', '')
+
+    def test_a_phones_selects_and_copy_field_are_16_px_so_ios_does_not_zoom(self):
+        # Phase 13A (phone-09)
+        # (from 760 px the font shorthand's 15 px and 13 px stand: no font-size of their own)
+        sel = page_doc('trips/').find('label', cls='trx-sel').find('select')
+        copy = Doc('<div class="copy-pop"><input type="text" class="copy-url"></div>').find('input')    # base.js makes it
+        for w, want in ((390, '16px'), (759, '16px'), (760, None), (1280, None)):
+            e = env(w)
+            with self.subTest(width=w):
+                self.assertEqual(computed(sel, 'font-size', self.rules, e), want)
+                self.assertEqual(computed(copy, 'font-size', self.rules, e), want)
+        # a phone on its side is wider than 760 px: a touch screen gets 16 px at any width (the review of Phase 13A)
+        for w, h in ((844, 390), (932, 430), (1180, 820)):
+            e = dict(env(w, h), hover='none', pointer='coarse')
+            with self.subTest(touch='%dx%d' % (w, h)):
+                self.assertEqual((computed(sel, 'font-size', self.rules, e), computed(copy, 'font-size', self.rules, e)), ('16px', '16px'))
+        self.assertIn("inp.type = 'text'; inp.readOnly = true; inp.className = 'copy-url';", source('js', 'base.js'))
 
     def test_a_short_desktop_window_shows_the_ski_panels_phone_render(self):
         # Phase 12 (gap2-02): from 1200 px and under 760 px of height the 390 x 480 render stands in for the 506 x 680 one
@@ -2956,7 +3073,7 @@ class ShortViewportTests(SiteFixture):
 
     def test_every_sticky_part_follows_the_one_rule(self):
         # Phase 12 (gap2-07, docs/DEVELOPING.md 'Sticky parts'): a stuck part fits the header + 24 + its content in 100svh
-        # on a 683 px tall viewport, or scales, or releases (bars under 480 px of height, columns under 600). The evaluator
+        # on a 683 px tall viewport, or scales, or releases (bars under 500 px of height, columns under 600). The evaluator
         # does not compute calc(): a fitted part is asserted by its declaration (100svh in the width or the max-height)
         parts = [
             # (page, class, the fitted element's class and property, or None)
@@ -3946,7 +4063,8 @@ class TargetSizeTests(SiteFixture):
             self.assertIn((r.selector, r.media), published)
         # every class it styles is one the region page writes: no rule is left without an element
         html_ = self.pages[REGION_PAGES[0]]
-        for cls in sorted({m for r in mine[0] for m in re.findall(r'\.([a-z][\w-]*)', r.selector)}):
+        # (.js is <html>'s class from the head's inline script, not written in the markup: Phase 13A)
+        for cls in sorted({m for r in mine[0] for m in re.findall(r'\.([a-z][\w-]*)', r.selector)} - {'js'}):
             self.assertRegex(html_, r'class="[^"]*\b%s\b' % re.escape(cls), '.%s is styled and never written' % cls)
 
     def test_the_search_placeholder_is_cut_with_an_ellipsis(self):
@@ -4089,7 +4207,10 @@ class FooterRoomTests(SiteFixture):
         self.assertEqual([(r.selector, r.decls['padding-bottom'][0], r.media) for r in room],
                          [('body.p-report .site-f', '72px', ()),
                           ('body.p-report:not(:has(.bbar)) .site-f', '0', ()),
-                          ('body.p-report .site-f', '0', ('(min-width: 760px)',))])
+                          ('body.p-report .site-f', '0', ('(min-width: 760px)',)),
+                          # a short or sideways phone's one-row bar (Phase 13A, phone-10): less room, never more than 0 for
+                          # a page without the bar, as the clearing rule outweighs it
+                          ('body.p-report .site-f', '56px', ('(max-width: 759.98px) and (max-height: 500px)',))])
         clearing = room[1]
         self.assertEqual([r.selector for r in rules if r.order == clearing.order], [clearing.selector])
         self.assertEqual(clearing.decls, {'padding-bottom': ('0', False)})

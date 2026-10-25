@@ -153,7 +153,7 @@ def controls(site):
     # when the visitor left the page, which need not be the entry they come back to
     return ('<form class="trx-form wrap" role="search" aria-label="Search and filter trips" id="search" action="" autocomplete="off" hidden>'
             '<label class="sr" for="trx-q">Search trips</label>'
-            '<input class="trx-q" type="search" id="trx-q" name="q" placeholder="%s" autocomplete="off" maxlength="200">'
+            '<input class="trx-q" type="search" id="trx-q" name="q" placeholder="%s" autocomplete="off" maxlength="200" enterkeyhint="search">'
             '<div class="trx-filters">'
             '<div class="trx-acts" role="radiogroup" aria-label="Activity">%s</div>'
             '%s'
@@ -220,7 +220,8 @@ def results(site):
 def build(site):
     body = head(site) + browse(site) + controls(site) + status(site) + results(site) + journal_block(site)
     desc = 'Every trip report on one page. %s; filter by activity, region, year, month and format.' % SEARCH_HINT
-    page = core.Page(HERE, core.document(HERE, 'Trips', body, desc, active='trips', body_cls='p-trips', image=core.site_share()), 'Trips')
+    page = core.Page(HERE, core.document(HERE, 'Trips', body, desc, active='trips', body_cls='p-trips', image=core.site_share(),
+                                           page_bar=('Trips', 'trips-title')), 'Trips')
     index = core.Page('trips/search.json', search.dumps(search.build_index(site)), 'Search index', index=False)
     out = [page, index]
     days = search.build_day_index(site)

@@ -743,8 +743,8 @@ class TickListPageScenarioTests(unittest.TestCase):
         self.assertEqual(model['menus']['sort'], ['priority', 'added', 'name'])
         for name in ('region', 'status', 'priority', 'month'):
             self.assertEqual(sorted(model['labels'][name]), sorted(model['menus'][name]), name)
-        # the page's one link to a fragment of itself is the skip link, and its target is on the page
-        self.assertEqual(model['fragments'], ['#main'])
+        # the page's links to fragments of itself: the skip link, and (Phase 13A) the phone title bar's to the heading
+        self.assertEqual(model['fragments'], ['#main', '#tkl-title'])
         html = json.dumps(model['body'])
         self.assertEqual(html.count('"href": "#main"'), 1)
         self.assertEqual(html.count('"id": "main"'), 1)

@@ -504,6 +504,7 @@ def build(site):
         head = core.map_preloads(None, here, [('region-%s-desktop' % rs, 'desktop'), ('region-%s-phone' % rs, 'phone')],
                                  'assets/maps/', site_maps=True)
     return ([core.Page(here, core.document(here, 'Map & archive', body, desc, active='map', body_cls='p-archive', extra_head=head,
+                                     page_bar=('Map & archive', 'arc-title'),
                                      image=core.site_share()),
                        'Map & archive')]
             + [region_fullscreen(name, slug, ts, meta, site) for name, slug, ts in regs])

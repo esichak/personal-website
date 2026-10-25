@@ -180,7 +180,10 @@
 .copy-url { display: block; width: min(36ch, calc(100vw - 50px)); min-height: 44px; padding: 0 8px; border: 1px solid var(--rule-strong);
   border-radius: 2px; font: 400 13px/20px var(--mono); color: var(--ink); background: var(--surface); }
 .rep-actions .copy { flex-shrink: 0; }
+/* phones and touch screens: 16 px, so iOS Safari does not zoom in when base.js focuses and selects the field (phone-09) */
+@media (max-width: 759.98px), (hover: none) and (pointer: coarse) { .copy-url { font-size: 16px; width: min(40ch, calc(100vw - 50px)); } }
 @media (scripting: none) { .copy, .rep-share { display: none; } }
+:where(html:not(.js)) .copy, :where(html:not(.js)) .rep-share { display: none; }   /* the bundle did not run (base.css) */
 
 /* photos: justified rows (core.photo_rows, base.css .jrows) */
 .rep-sh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
@@ -200,6 +203,12 @@ body.p-report:not(:has(.bbar)) .site-f { padding-bottom: 0; }
 /* focused links (gallery photos, the pager) never hide under the bar */
 @media (max-width: 759.98px) { html:has(.bbar) { scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom)); } }
 @media (min-width: 760px) { .bbar { display: none; } body.p-report .site-f { padding-bottom: 0; } }
+/* a short or sideways phone (phone-10): one row, icon beside word, 40 px high (49 px with its padding and rule) */
+@media (max-width: 759.98px) and (max-height: 500px) {
+  .bbar a { height: 40px; flex-direction: row; gap: 8px; }
+  body.p-report .site-f { padding-bottom: 56px; }
+  html:has(.bbar) { scroll-padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+}
 
 /* ---------------------------------------------------------------- tick-list goal pages (p-goal): Why · Planning notes · Season · Source · References · Checklist · Outings */
 .rep-tick { margin-top: 16px; display: flex; align-items: center; gap: 8px; }

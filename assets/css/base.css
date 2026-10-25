@@ -191,12 +191,18 @@ form.nav-search { position: relative; display: flex; align-items: center; gap: 0
 .menu-btn[aria-expanded="true"] .i-close { display: block; }
 .menu-btn[aria-expanded="true"] .i-open { display: none; }
 @media (min-width: 760px) { .brand-n { font-size: 20px; line-height: 22px; } .brand-c { display: block; } }
-@media (min-width: 1140px) { .nav { display: flex; } .menu-btn { display: none; } }
+/* the whole row from 1000 px, where the two-column layouts start (visual-17): at 1000 it is 920 px wide and the name,
+   the links, the search box and the switch take about 880 */
+@media (min-width: 1000px) { .nav { display: flex; } .menu-btn { display: none; } }
 /* without JavaScript the menu button, the units switches (the header's, the menu's and the About page's) and the Search
-   link could do nothing, so they are not shown; below 1140 px the primary links take the menu's place as a row that
+   link could do nothing, so they are not shown; below 1000 px the primary links take the menu's place as a row that
    wraps where they do not all fit beside the name (under about 450 px), so every link shows and nothing scrolls
    sideways or clips a focus ring. The two-part selectors are needed: `.nav a` and the later `.units` and `.nav-l` rules
-   would otherwise win over a bare class here */
+   would otherwise win over a bare class here.
+   Each (scripting: none) rule has a twin for a page whose bundle did not run (resilience-01): the head's inline script
+   puts 'js' on <html> and site.js's onerror takes it off, so html:not(.js) also covers a failed download and a browser
+   that does not know the query. :where() keeps each twin's weight that of its original, so the cascade is the same;
+   the custom property's twin needs :root's own weight (tests/test_a11y_static.py checks every pair) */
 @media (scripting: none) {
   .menu-btn, .site-h .units, .units.abo-units, .nav .nav-search, .nav-sep, .nav-sep + .nav-l { display: none; }
   .nav { display: flex; min-width: 0; }
@@ -204,6 +210,11 @@ form.nav-search { position: relative; display: flex; align-items: center; gap: 0
   .site-h-in { height: auto; min-height: var(--header-h); }
   .site-h .brand { flex: none; }   /* the name stays on one line; the links give way and wrap */
 }
+:where(html:not(.js)) .menu-btn, :where(html:not(.js)) .site-h .units, :where(html:not(.js)) .units.abo-units, :where(html:not(.js)) .nav .nav-search, :where(html:not(.js)) .nav-sep, :where(html:not(.js)) .nav-sep + .nav-l { display: none; }
+:where(html:not(.js)) .nav { display: flex; min-width: 0; }
+:where(html:not(.js)) .nav-l { min-width: 0; flex-wrap: wrap; row-gap: 0; }
+:where(html:not(.js)) .site-h-in { height: auto; min-height: var(--header-h); }
+:where(html:not(.js)) .site-h .brand { flex: none; }
 /* a phone: the header may then be two rows of links, too tall to follow the page down, so it stays at the top. Nothing
    sticks under it any more, so the height the page reserves for it (scroll padding, the day and month bars' `top`) is
    0; 6 px above and below the rows keep the focus ring of a link in the first or last row whole (2 px, 2 px away) */
@@ -212,14 +223,32 @@ form.nav-search { position: relative; display: flex; align-items: center; gap: 0
   .site-h { position: static; }
   .site-h-in { min-height: 56px; padding-block: 6px; }
 }
+@media (max-width: 479.98px) {
+  :root:not(.js) { --header-h: 0px; }
+  :where(html:not(.js)) .site-h { position: static; }
+  :where(html:not(.js)) .site-h-in { min-height: 56px; padding-block: 6px; }
+}
+/* a short or sideways phone (phone-10): under 500 px of height a sticky header and the bottom bar would take a third of
+   the screen, so the header scrolls away with the page as above (the sticky bars release too: multiday.css,
+   series.css). While the menu is open the header stays at the top, so the button that closes it stays in reach and
+   the menu opens under it */
+@media (max-width: 759.98px) and (max-height: 500px) {
+  :root { --header-h: 0px; }
+  .site-h { position: static; }
+  .site-h-in { min-height: 56px; padding-block: 6px; }
+  body.menu-open { --header-h: 56px; }
+  body.menu-open .site-h { position: sticky; }
+}
 @media (min-width: 1280px) { .brand-n { font-size: 22px; line-height: 24px; } }
 
-/* phones: once the H1 has scrolled under the header, the bar names the trip (glyph + title, back to top) — Phone-Report-B */
-.ab-trip { display: none; }
+/* phones: once the H1 has scrolled under the header, the bar names the trip (glyph + title, back to top) — Phone-Report-B;
+   a long index page's bar (.ab-page, phone-13) names the page, with an up arrow after its title */
+.ab-trip, .ab-page { display: none; }
 @media (max-width: 759.98px) {
   body.past-title .site-h .brand { display: none; }
-  body.past-title .ab-trip { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; min-height: 44px; color: var(--ink);
+  body.past-title .ab-trip, body.past-title .ab-page { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; min-height: 44px; color: var(--ink);
     animation: ab-in .12s ease-out; }
+  .ab-page .ic { flex-shrink: 0; color: var(--ink-2); }
   .ab-g :is(svg, img) { width: 40px; height: 30px; }
   .ab-t { font: 600 15px/20px var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
@@ -244,11 +273,17 @@ form.nav-search { position: relative; display: flex; align-items: center; gap: 0
 .menu-w { display: flex; flex-direction: column; gap: 2px; }
 .menu-sub { font: 400 13px/18px var(--sans); color: var(--ink-3); }
 .menu-sub .ml { --ml-sep: 1.1em; }
-.menu-units { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; }
-/* tablets: Reports | Site + Units side by side */
+/* the units come first on a phone (gap6-02): one quiet 44 px row with its own rule, above the lists, so it is in view
+   when the menu opens; plan 8.1 keeps it less prominent than the destinations */
+.menu-units { min-height: 44px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--rule); }
+/* tablets: Reports | Site side by side under the units row, which spans both, so what is seen first is also what the
+   Tab key reaches first (the markup's order) */
 @media (min-width: 760px) {
   .menu nav { max-width: none; margin-inline: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--gap);
     align-items: start; }
+  .menu-units { grid-column: 1 / -1; grid-row: 1; }
+  .menu-c1 { grid-column: 1; grid-row: 2; }
+  .menu-c2 { grid-column: 2; grid-row: 2; }
 }
 body.menu-open { overflow: hidden; }
 
