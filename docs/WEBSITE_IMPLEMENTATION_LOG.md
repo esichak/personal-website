@@ -2883,3 +2883,127 @@ readers' names online; Lighthouse; `render.py`.
   the hero frame and the mile table's last row (Phase 10), the real-phone look, the checkout and cache moves,
   `strava_id`, the rehearsal push (Phase 8), the place names, retitles and merges (Phase 9). Phase 15 (one render
   round) needs your agreement to run `render.py` and, by the plan, more free disk (13 GB now).
+
+## Phase 15 - Renderer round and storage budget (2026-10-25)
+
+Phase 15 of `docs/personal-website-improvement-plan-2.md` (section 15) and its prompt in
+`docs/claude-code-website-prompt-2.md`, built on branch `phase-15-render-round` from `phase-14-metadata-sharing` at
+`be6e5d8`, in one session that held all three sittings (before the run, the run, after it). Eric agreed to the render
+("Yes", 2026-10-25) and said not to worry about the disk (14 GB free, under the plan's 20 GB). Three commits:
+`3346ccb` (the code, tests and goldens), `f2132d2` 'Render round 2026' (`rendered/` alone, staged by path) and the
+commit holding this entry (the storage budget, the yearly upkeep list and the cost beside VERSION). The second needs
+the first: base.css's halo and touch width rely on the redrawn site maps' class rule, and the redrawn maps on the new
+MAP_CSS. Push them to `main` together.
+
+### Author inputs
+
+- **Hillshade quality: q80.** The preview sheets (`.cache/plan2/phase15/quality-*.png`: three site maps and the
+  Matterhorn maps at q88, q80 and q75, 1x and 2x) showed no visible difference; q80 was 29 to 35 % smaller than q88.
+  Eric did not pick between them (he asked for the branch push instead); the recommended q80 was taken under his
+  standing instruction. On the committed files the hillshades went from 23.9 MB to 16.2 MB (-32 %).
+- **The run:** 2026-10-25 around noon, `/opt/homebrew/bin/python3.12 tools/render.py --jobs 3 --no-site` (32 minutes,
+  168 trips, none failed, no OpenStreetMap missing), then `--site` (5 minutes, 15 maps, all from cached answers).
+  Both summary lines are in the 'Render round 2026' commit message.
+- **The cost:** `git diff --stat -- rendered`: 1,427 files changed (1,241 changed, 168 new card drawings, 18 new files
+  for the three panel maps). Packed, the round adds 18.8 MB of history (a thin pack of `f2132d2` against `3346ccb`;
+  the 2026-09-28 round measures 9.7 MB the same way). Tracked `rendered/`: 51.0 MB before, 45.4 MB after.
+- **count-objects:** before the round (`be6e5d8`) 5,733 loose objects, 53.49 MiB, and a 182.75 MiB pack; after
+  `f2132d2` 7,610 loose, 77.08 MiB, the same pack. The whole history repacks to 224.2 MB (204.7 MB on 2026-10-13).
+  `git gc` is due (DEVELOPING.md, Yearly upkeep, item 1); it is yours to run.
+- **The contact sheet** of every changed map is in `.cache/render-sheet/index.html` (`render_sheet.py --all`); I
+  looked through it; your own look is pending.
+- **Region merges:** none were decided in Phase 9, so the round carried none and there are no old region URLs to
+  check.
+- **Pending yearly items** (DEVELOPING.md, Yearly upkeep): every workflow action has a newer major than the one
+  pinned (a bump wants a `workflow_dispatch` proof run, so it is left to you); `git gc`; nine stray `.git/index N`
+  files; both Overpass endpoints timed out on a one-node query on 2026-10-25 (the round did not need them); the
+  render caches are still in `.cache/` (the move in DEVELOPING.md, Render caches).
+- **Interface copy to read:** the panel headings 'Ride map by region' and 'Hike map by region'; the panel maps' alt
+  text 'Map of mountain bike trips in <region>' and 'Map of hiking trips in <region>'; a one-region panel's label (the
+  region's name, linked to its page); 'Kilometer' in the map key's KM view; a cluster's tooltip 'N reports start
+  here: A; B; C and K more' ('1 report starts here: A'); the PCT's month labels 'MAY' to 'SEP'.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/renderkey.py` | VERSION 8 with the cost of a round beside it; `TALL`, `track_aspect`, `report_frame`, `FRAME_SINCE` and the frame in `trip_inputs`; ride and hike panel jobs in `site_jobs` (`PANEL_TRIPS`); `drawn_titles` reads the new cluster titles. |
+| `tools/render.py` | `renderer_record` (meta['renderer']), `osm_fetches` and `POOL_FETCHED`; `HILLSHADE_Q` 80 with `-m 6`; the cwebp stop and `--allow-png`; `--list`; the progress and summary lines; the tall frames, the card drawing, the PCT month labels and the panel maps; the journal drawn with `--jobs`; `render_folders` leaves iCloud copies alone; the 'map frame changed' reason. |
+| `tools/lib/mapkit.py` | The wide scale bar up to 200 px; contour labels and distance discs in both units; `cluster_title`; `point_labels`; the hit stroke as MAP_CSS's `.mk-line .mk-hit`; `render_tile(width=)`; two files closed. |
+| `tools/lib/geo.py` | Tiles as `array('d')`, at most 256 in memory. |
+| `tools/lib/checks.py` | The warning while renders disagree on the renderer version, or the site maps are older than the newest trip. |
+| `tools/sitegen/core.py`, `pages/report.py`, `multiday.py`, `home.py`, `section.py`, `tools/build.py` | `card_tile` and the card drawing copied; `mile_key` and the Kilometer key; `relabel` through `cluster_title`; the ride and hike panels (`PANELS`, one region shown with its label). |
+| `assets/css/base.css`, `pages/section.css` | The halo and the touch width without `!important`; `.sec-rp--one`. |
+| `tools/render_sheet.py`, `tools/size_report.py` | New author tools. |
+| `tests/` | New: `test_mapkit_golden.py` with `golden/render/`, `test_render_contract.py`, `render_fixtures.py`, `test_render_sheet.py`, `test_size_report.py`, `test_phase15.py`; changed: render goals (run record, renderer change, jobs, accounting), the credits test in `test_report_page.py`, and expectations of the new renderer in eight others. |
+| `rendered/` | The round (`f2132d2`). |
+| `docs/DEVELOPING.md`, `README.md`, `ADDING-TRIPS.md` | A render round, the 2026 changes, Storage budget, Yearly upkeep and the pointers to them. |
+
+### Behaviour
+
+- Every map is drawn by renderer 8. The 34 tall single-day tracks have 1440 x 800 and 718 x 500 frames; the ten
+  multi-day phone overviews carry numbered day squares; the PCT overviews carry month labels; the Matterhorn wide
+  map's scale bar reads 1 mi; 157 wide maps label their contours in both units and 146 carry a kilometre disc set.
+- Cards show the 400 x 267 drawing (168 published); Mountain biking has the panel with Santa Cruz (43) and Lake
+  Tahoe (9), Hiking the Lake Tahoe panel without a tab row; cluster tooltips read 'N reports start here: …'.
+- Before and after captures of the Matterhorn report, the Haute Route, map/, Mountain biking, Hiking and the home
+  page at 1280 and 390 px are in `.cache/plan2/phase15/` (`before-*`, `after-*`, `after-*-panel-*`).
+
+### Where the work departs from the prompt
+
+- **`--jobs 3` and no `--budget`:** the round fitted one sitting (32 minutes), so it ran once with three workers on
+  a 10-core Mac; the prompt's `--jobs 2 --budget 3600`, repeated, stays the documented way for a longer round.
+- **Three commits, not two:** the code first, so the renders are made by committed code; the budget and the log after
+  the round, since they hold its measured cost.
+- **The caches were not moved** before the run (the prompt's pre-run check); the run used `.cache/` as it is.
+- **Fixed on the way, both older than Phase 15:** `render.py --jobs N` never drew the journal (the series was left
+  out of the pool and the one-at-a-time loop skipped; since 2026-09-28); and a run removed iCloud copy folders
+  (`<slug> 2`) as renders of gone trips. This round removed 66 such folders before the fix, and the folder swap of
+  every redrawn trip dropped the copies inside it: about 6,200 untracked iCloud copies under `rendered/` are gone,
+  none of them tracked. `tidy.py --delete` would have removed the same ones; the project leaves that to you.
+- **Ten files iCloud put back:** after the run, five trip folders held `map-*.png` and `*.meta.json` files that
+  render.py had already converted and deleted (they lack the provenance attribute every file the run wrote has).
+  They are untracked, left out of the commit, and left in place; the next redraw of those trips removes them.
+
+### Review
+
+An independent read-only review of the code found no blocking defect; everything it found was fixed: a one-region
+panel hid its region's name while scripting ran; the summary counted a failed trip again as left when a budget
+stopped a run, and the journal as skipped; the progress line repeated; a trip drawn from a pool area fetched in the
+same run recorded 'cached'; `drawn_titles` split the new cluster titles wrongly; `test_phase15` printed a
+ResourceWarning (two files in mapkit closed now); the tab counts left out the featured report; a frame-only change
+had no reason of its own in `--status`; a run past its budget skipped the site maps although only unchanged trips
+were left; the panel tests mocked away the real lookup of the panel maps (a test now reads a synthetic site meta);
+and two fixture docstrings called their spot open water. It also noted that the CSS must reach `main` with the
+redrawn site maps (above).
+
+### Checks actually run
+
+| Check | Result |
+| --- | --- |
+| Both Pythons, `-W error`, `RENDER_TESTS=1`, before the run | 3,232 tests OK on 3.9.6 (201.5 s) and 3.12 (154.0 s), after fixing eight expectations of the new renderer |
+| The goldens under `PYTHONHASHSEED=1` and `=2` | OK, both |
+| `python3 tools/doctor.py` before the run | WARN disk 14 GB, 8 `.git/index` copies, 6,138 iCloud copies; all 5,092 tracked files on disk |
+| `render.py --list` | 168 trips, 'renderer changed'; site maps stale |
+| Preview renders into a temp folder | three trips and five site maps; the quality and contact sheets in `.cache/plan2/phase15/` |
+| The run | the two summary lines above; `render.py --status` after: all 168 up to date, site maps up to date |
+| `rendered/` after | no null hash, no `osm_failed`, all at renderer 8; no PNG, temp or old folder tracked or staged |
+| `render_sheet.py --all` | `.cache/render-sheet/index.html` |
+| `build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `validate.py` | 0 errors, 1 warning (a planned route without a goal.json), 346 notes; no renderer-version warning |
+| Both Pythons, `-W error`, `RENDER_TESTS=1`, after | 3,241 tests OK on 3.9.6 (207.6 s) and 3.12 (155.2 s) |
+| `size_report.py` before and after, `git count-objects -vH`, `git pack-objects --stdout` | the figures above and in DEVELOPING.md, Storage budget |
+| `privacy_audit.py` | 1,004 photos, none with EXIF, XMP or a colour profile; section 6 unchanged |
+| The sources (curl), the actions' releases (`gh api`), GitHub's limits pages and the runner README | as in Yearly upkeep |
+
+Not run: Lighthouse; a VoiceOver pass; anything after a deploy (there was none).
+
+### Remaining issues and author inputs
+
+- **Publishing:** nothing of Phase 15 is pushed. Phases 6 to 14 are on GitHub as branches (pushed at your word on
+  2026-10-25); `main` is still `1cb9cf2`. The prompt's review gate is the step before a push to `main`.
+- **Yours:** a look at the contact sheet; `git gc`; the `.git/index N` files; whether to delete the ten files iCloud
+  put back; the workflow actions' bump; the cache move.
+- **Carried:** the VoiceOver pass (13C), the region pages' year heads (13B), the gap1-01 and qa-04 sheets (Phase 12),
+  the hero frame (Phase 10), the real-phone look, the checkout move, `strava_id`, the rehearsal push (Phase 8), the
+  place names, retitles and merges (Phase 9), and the after-deploy checks of Phase 14.

@@ -17,10 +17,11 @@ import re
 import content
 import goals
 
-# bump once per render round, after the renderer changes (docs/DEVELOPING.md, "A render round"). A bump re-renders all
-# 3,393 files under rendered/; git keeps only the ones whose bytes change: 9.7 MB of packed history when only the SVG
-# changes (a9baab9, 2026-09-28), about 35 MB when the hillshade rasters change too. After a round,
-# `git diff --stat -- rendered | tail -1` is its cost: put it in the commit message.
+# bump once per render round, after the renderer changes (docs/DEVELOPING.md, "A render round"). A bump redraws every
+# file under rendered/ (3,579 since the 2026 round); git keeps only the ones whose bytes change: 9.7 MB of packed history
+# when only the SVG changed (a9baab9, 2026-09-28), 18.8 MB for the 2026 round (f2132d2, VERSION 8: the hillshades
+# re-encoded at q80 too, 1,427 files changed). After a round, `git diff --stat -- rendered | tail -1` and the packed
+# cost (docs/DEVELOPING.md, "Storage budget") go in the commit message.
 VERSION = 8
 PANEL_TRIPS = 5  # a region gets a Mountain biking or Hiking panel map from this many trips of the activity (maps-15)
 MIN_REGION_TRIPS = 3

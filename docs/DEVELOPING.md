@@ -2159,7 +2159,8 @@ a year (Phase 15 was 2026's). The round:
    progress line every 10 trips and ends with a summary line (rendered, skipped, failed, OSM missing, left, site maps)
    for the commit message. A run that stops on its budget skips the site maps; the last one draws them, or run
    `python3 tools/render.py --site`. `/opt/homebrew/bin/python3.12 tools/render.py` draws the same files about 40 %
-   faster; the tools stay 3.9-compatible.
+   faster; the tools stay 3.9-compatible. The 2026 round ran `--jobs 3 --no-site` on Python 3.12 with warm caches: 32
+   minutes for the 168 trips (about 14 s a trip), then 5 minutes for the 15 site maps.
 5. `python3 tools/render_sheet.py --all` and look at the before/after sheet in `.cache/render-sheet/` before staging.
 6. Stage by path, `git add rendered/trips rendered/site`, after `git status --short` shows no ' 2' / ' 3' names; one
    commit carrying the summary line.
@@ -2225,3 +2226,125 @@ the two taps. The review gate's
 before-and-after captures take these three sizes beside 1440 and 390. The first run is in the Phase 13C log entry, its
 captures in `.cache/plan2/phase13/`. docs/CHECKING_WITH_A_SCREEN_READER.md is the screen-reader pass the review gate
 repeats.
+
+## Storage budget
+
+What the repository and the site weigh, measured on 2026-10-25 at `f2132d2` (the 2026 render round), in decimal MB
+(1 MB = 1,000,000 bytes) throughout. `python3 tools/size_report.py` prints every number below (`--site DIR` for a
+build other than `_site/`); the commands beside each row are what it runs, for checking by hand.
+
+| What | Size | Where the number comes from |
+| --- | --- | --- |
+| Tracked files | 228.4 MB in 5,510 files | `git ls-tree -r -l HEAD`, the sizes summed |
+| … photos (full, `.sm`, `.th`) | 144.5 MB in 1,004 files (108.9, 30.2, 5.4) | the same, by name (`tools/lib/photos.py`) |
+| … GPX | 31.4 MB in 341 files | the same |
+| … `rendered/` | 45.4 MB in 3,579 files: hillshades 16.3, base layers 16.4, overlays and drawings 12.3, meta.json 0.4 | the same |
+| … everything else | 7.1 MB in 586 files | the same |
+| History, repacked | 224.2 MB (204.7 MB on 2026-10-13) | `git rev-list --objects --all \| git pack-objects --stdout \| wc -c` |
+| History as stored | 272.5 MB: 191.6 MB in the pack and 80.8 MB in 7,610 loose objects, which `git gc` would pack | `git count-objects -v` (its KiB times 1.024 give KB; `-vH` prints MiB, times 1.048576) |
+| The published site | 243.8 MB in 3,614 files: photos 144.5, GPX 32.9, map rasters 17.6, base layers 16.4, pages and the rest 32.5 | `size_report.py --site DIR` on a build (a `--link` build counts its links' targets); `du -sh _site` on a copying build gives MiB |
+| The 2026 render round | 18.8 MB of packed history (the 2026-09-28 round: 9.7 MB) | `printf 'f2132d2\n^3346ccb\n' \| git pack-objects --revs --thin --stdout \| wc -c` |
+
+Per trip, from the same files:
+
+- A single-day report's render is a median 216.9 KB in 17 files (the hillshades, base layers, overlays, charts and
+  drawings of `rendered/trips/<slug>/`); before this round it was 240.6 KB in 16 files.
+- A photo costs about 274 KB as published, 76 KB as its `.sm` copy and 26 KB as its `.th` copy (means over the 398
+  photos, 398 `.sm` and 208 `.th` copies), so a trip with six photos adds about 2.1 MB (a `.th` copy for its cover
+  only).
+- A GPX track is a median 82 KB (341 files, 31.4 MB).
+- Photos and WebP rasters never delta-compress in git: each new version of one is stored whole, and every earlier
+  version stays in the history for good (docs/PRIVACY_NOTES.md says the same about what the history keeps). SVG and GPX
+  pack to about 40 % and 17 % of their size.
+
+GitHub's limits, read on 2026-10-25
+(https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits and
+https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github):
+
+| Limit | Value | Now |
+| --- | --- | --- |
+| Published Pages site | 1 GB | 243.8 MB |
+| Source repository | 1 GB recommended, 5 GB strongly recommended | 272.5 MB (224.2 MB repacked) stored |
+| One file | a warning over 50 MiB (52.4 MB), blocked over 100 MiB (104.9 MB) | largest 0.8 MB (a photo) |
+| A Pages deployment | times out after 10 minutes | about a minute |
+| Bandwidth | 100 GB a month, a soft limit | not measured (no analytics) |
+
+At 2025's pace (the last full year: site +36.4 MB, history about +28.6 MB) the site reaches 1 GB in about 21 years and
+the history in about 25; at 2026's pace so far (a bulk import of the GPX archive and the PCT photos fell in it) in
+about 8 and 9 years. There is no pressure today; the rules below are there to keep it that way.
+
+Rules for a session:
+
+1. Do not re-encode existing photos or hillshades across the tree for a saving under 30 % of their tracked size: the
+   old blobs stay in the history, and the new rasters are stored whole beside them. The 2026 round's hillshade change
+   (q88 to q80, 32 % smaller: 23.9 MB to 16.2 MB on the same files) was made inside the year's render round, where
+   every raster was drawn again anyway.
+2. Batch renderer changes so a render round, which changes every map, happens about once a year. Its measured cost is
+   in the comment beside `VERSION` in `tools/lib/renderkey.py`; after a round, `git diff --stat -- rendered | tail -1`
+   and the size report's history line go in its commit message and log entry. A second round in the same year needs a
+   stated reason (a drawing defect on the live site).
+3. Anything `build.py` can derive with the standard library is never committed (the table below).
+4. A phase that adds more than 25 MB to the tracked files says so in its `docs/WEBSITE_IMPLEMENTATION_LOG.md` entry,
+   with the size report's numbers before and after.
+
+| Derived files | Examples | Committed? |
+| --- | --- | --- |
+| Need cwebp, sips or the network | photo copies (`.sm`, `.th`), share crops, route share images, the renders under `rendered/` | Yes: CI has none of those tools and never renders |
+| Need only the standard library | a multi-day trip's combined GPX, GPX bundles, the search and explorer indexes, the standalone `.svg` drawings | No: `build.py` writes them into the build, and `sitecheck` checks them there (the combined GPX as `sitecheck.gpx` does) |
+
+The caps the plan attached to the derived files it proposed, should any of them be built later:
+
+- A 1200 px photo copy only for cover and lead photos (about 16 MB), and only once a 3x phone shows the 800 px copy
+  visibly short (docs/IMPLEMENTATION_REPORT.md, 12.1).
+- Share images, if ever made: one per trip at 1200 x 630, EXIF stripped, under 150 KB each and 20 MB in all, made only
+  from photos that are already published. None exist (Phase 14 kept the text card).
+- GPX bundles, if ever: written by `build.py`, offered only where a region's bundle is under 6 MB (Santa Cruz's would
+  be 8.9 MB, so it keeps per-trip files). Pages serves GPX uncompressed, so a bundle downloads at full size.
+- A `.th` copy for the 190 photos without one: fine at about 5 MB.
+
+## Yearly upkeep
+
+Once a year, with the first trip of the year (ADDING-TRIPS.md says so at its end), go down this list. Each item has
+the value it had on 2026-10-25, when the list was first written, and what to do if it has changed; write the new value
+in place of the old one and the date at the top of the list.
+
+1. **Size.** `python3 tools/size_report.py` and `git count-objects -vH`, and update the Storage budget table above.
+   2026-10-25: tracked 228.4 MB, history 224.2 MB repacked (272.5 MB as stored), the site 243.8 MB. Run `git gc`
+   when the loose objects pass 1,000 (it packs them, and removes only objects that nothing has reached for two weeks):
+   on 2026-10-25 they were 7,610, so it is due.
+2. **Workflow actions.** For each `uses:` in `.github/workflows/pages.yml`, look up the newest major release and any
+   deprecation notice on its repository's releases page (`gh api repos/actions/<name>/releases/latest --jq .tag_name`).
+   2026-10-25, pinned → newest: checkout v4 → v7, setup-python v5 → v7, setup-node v4 → v7, configure-pages v5 → v6,
+   upload-pages-artifact v3 → v5, download-artifact v4 → v8, deploy-pages v4 → v5; none of the pinned ones had
+   stopped working. If one has: bump them all in one commit, read each release note for a changed input, and prove the
+   commit with a `workflow_dispatch` run (ADDING-TRIPS.md, "When something goes wrong") on a quiet day, not with a
+   trip push.
+3. **Runner.** Read the `ubuntu-latest` image README
+   (https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md). 2026-10-25: image
+   20261023.334.3, Ubuntu 24.04.5 LTS, Node.js 22.23.3 (the `node-version: '22'` the Node-run tests use), Python 3.12.3
+   on the image and 3.12.15 in its tool cache (what `setup-python` installs for `'3.12'`). If the image's Node or
+   Python major moved, run the unit tests on that version before the next push of code. CPython 3.12 stops getting
+   security fixes in October 2028: move `pages.yml` to a newer Python before then, and keep the tools 3.9-compatible as
+   long as the Mac's `/usr/bin/python3` is 3.9.6.
+4. **GitHub's limits.** Re-read the two pages the Storage budget cites and change the table, `size_report.LIMITS`
+   and `size_report.LIMITS_READ` if a number moved. 2026-10-25: as in the table (site 1 GB, deploy 10 minutes, 100 GB a
+   month, repository 1 GB recommended and 5 GB strongly, files warned over 50 MiB and blocked over 100 MiB).
+5. **Credits and sources.** The credits are tested: the map caption's (`test_caption_keeps_the_credit_line`) and the
+   footer's two lines and the tag over a phone map (`test_the_footer_and_the_in_map_tag_keep_their_credits`), both in
+   `tests/test_report_page.py`. Check that the sources still answer: the terrain bucket (`geo.TILE_URL`), both Overpass
+   endpoints (`geo.OVERPASS`) and the font stylesheet (`core.FONTS`, which `tools/fonts.py` reads). 2026-10-25: the
+   terrain bucket and the font stylesheet answered; both Overpass endpoints timed out on a one-node query that
+   afternoon, while the round's map data came from the cache. If a source has moved or closed, the maps or the fonts
+   need a new one before the next round: a change to the code, not to this list.
+6. **Map data.** The OpenStreetMap answers in the cache are used for ever (Render caches). Delete the cache's `osm/`
+   folder just before the year's render round (A render round), so the round's region and trip maps pick up a year of
+   map edits in the same redraw rather than in a second forced one. 2026-10-25: the 2026 round drew from answers fetched
+   between 2026-09-27 and 2026-10-25, with the cache kept; delete `osm/` before the 2027 round.
+7. **iCloud copies.** `python3 tools/tidy.py` lists the conflict copies (`<name> 2.<ext>`) under `content/` (where the
+   check stops the build), `rendered/` and `_site/` (git-ignored, harmless but slow); `python3 tools/doctor.py` also
+   finds stray `.git/index N` files. 2026-10-25: 2 copies under `_site/` and nine `.git/index N` files (2 to 10); the
+   2026 round removed the 6,200 or so under `rendered/` (a redrawn folder replaces the old one, copies and all).
+   `tidy.py --delete` removes the generated ones; the `.git/index N` files go by hand once `git status` works.
+8. **Checks.** Run `python3 tools/validate.py` and `python3 tools/privacy_audit.py` and read their summaries.
+   2026-10-25: `validate.py` 0 errors and 1 warning (a planned route without a goal.json); `privacy_audit.py` 1,004
+   photos with no EXIF, XMP or colour profile, and its section 6 as docs/PRIVACY_NOTES.md lists it.
