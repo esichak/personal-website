@@ -1,5 +1,10 @@
 {
- "hash": "39504c317d3888ac3d5a0276b66dc6831fbdc76f",
+ "hash": "c32d8981ea1c8a715c0d1c2c817069297bc36409",
+ "inputs": {
+  "fields": "a628314f4d4a8b9cca5977b3068c6183f7c77a6b",
+  "files": "c29a59cea442b7c90267a42b741fa63cc6bbd14f",
+  "version": 8
+ },
  "slug": "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 21.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 14.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.111375,
   36.992382,
   -122.07969
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

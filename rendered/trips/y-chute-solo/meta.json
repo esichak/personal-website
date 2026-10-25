@@ -1,5 +1,10 @@
 {
- "hash": "11aba09a9009ed7ac9ac2d23562e3cd070b04f35",
+ "hash": "7a5dd280231ef7e0330a6dcf65783fd895b2b443",
+ "inputs": {
+  "fields": "51e5417762948e0ce8278ea21eb7968d98da521c",
+  "files": "e1d6884d1bc0af0636fcecd6516033e708a7057a",
+  "version": 8
+ },
  "slug": "y-chute-solo",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 17.0
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 6.3
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.122713,
   38.966408,
   -120.102482
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

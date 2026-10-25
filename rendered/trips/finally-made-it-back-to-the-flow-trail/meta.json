@@ -1,5 +1,10 @@
 {
- "hash": "b9527efde57edfe952d43a4bd146317fda4ba11d",
+ "hash": "6d5a6d88c3f32bfbb247587c87fba39f6d9e1bc0",
+ "inputs": {
+  "fields": "dd608e86588b129d1de1bfec40fc18433b209020",
+  "files": "b18381a1d7ea122c579c3b007dd8a4db95f30e55",
+  "version": 8
+ },
  "slug": "finally-made-it-back-to-the-flow-trail",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 33.2
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.905726,
   37.090931,
   -121.830295
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

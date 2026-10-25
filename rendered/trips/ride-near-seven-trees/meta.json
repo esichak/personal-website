@@ -1,5 +1,10 @@
 {
- "hash": "3ab1aa556e065f629b2f9ec1eafbd7f61ace4817",
+ "hash": "fb3576d9d4d2880ddd9def9bf153a7a74e85778d",
+ "inputs": {
+  "fields": "7499485227ba2072770373782172c6aae45fb15a",
+  "files": "f0343bbc126b39652f9ba6c1c75ad8f701d873b5",
+  "version": 8
+ },
  "slug": "ride-near-seven-trees",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 18.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.793739,
   37.22011,
   -121.767611
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

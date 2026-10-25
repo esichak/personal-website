@@ -1,23 +1,30 @@
 {
- "hash": "cce74e937335d391dc40efb251ff57ba5fc6bb1c",
+ "hash": "a52445c0f43829c2071b6648d0380004d487b46e",
+ "inputs": {
+  "fields": "74192c2469bfee1b5d501266220edad0e528804a",
+  "files": "aa624215c4dc38f896d841ff4116f4e9cb941b6f",
+  "version": 8
+ },
  "slug": "tamolich-blue-pool",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 17.7
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
-   "interval_ft": 200,
-   "outbound_only": true
+   "interval_ft": 100,
+   "outbound_only": true,
+   "base_gz_kb": 9.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.6
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.035771,
   44.312871,
   -122.024968
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

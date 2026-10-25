@@ -1,5 +1,10 @@
 {
- "hash": "38004df1ba7456fbb48084b3cb05ebd2f388d5ad",
+ "hash": "147166c6e14fce3e55873a7dc8ea2138ccb54e00",
+ "inputs": {
+  "fields": "104531a52fcae2860acabe6df28ce32aefa7d895",
+  "files": "9bf6464a364082a0dfd902def2bfa8b0ed4a4b49",
+  "version": 8
+ },
  "slug": "napsack-surrealistic-direct",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.3
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 5.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.142865,
   38.806011,
   -120.131632
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

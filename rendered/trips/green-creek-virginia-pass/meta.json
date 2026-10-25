@@ -1,5 +1,10 @@
 {
- "hash": "50e1fb82b90312a911b28dd3629307d7b2b72a41",
+ "hash": "16399cb6b8ba029dc7d234f893a8b7d433aa6a79",
+ "inputs": {
+  "fields": "b8355ad6b36a29393bf80f4896202fb65b294e49",
+  "files": "199d6379cd4a27325b796e3b7860691f6908de78",
+  "version": 8
+ },
  "slug": "green-creek-virginia-pass",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 400,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 18.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 10.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 1000,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.6
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.337338,
   38.112462,
   -119.275254
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,23 +1,30 @@
 {
- "hash": "ddcf76834eccd2c215024107ebcfdf2d064afcf3",
+ "hash": "b3f2aacd598877bb4899a27d879456bbb1eb0f83",
+ "inputs": {
+  "fields": "39e42517dd2dddbe749a21be6f3959f6df494611",
+  "files": "89572ece421bc8e1a54166b4acfa1cddc85fd444",
+  "version": 8
+ },
  "slug": "pie-shop-climbing-approach",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 7.7
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 4.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -35,9 +43,9 @@
    "gps_max_ft": 6689.63,
    "min_ft": 6321.96,
    "total_mi": 0.44,
-   "gx": 1220.91,
+   "gx": 1226.12,
    "gy": 19.38,
-   "gps_max_mi": 0.43,
+   "gps_max_mi": 0.44,
    "y_lo": 6300.37,
    "y_hi": 6717.74,
    "pad_l": 72,
@@ -50,9 +58,9 @@
    "gps_max_ft": 6689.63,
    "min_ft": 6321.96,
    "total_mi": 0.44,
-   "gx": 703.12,
+   "gx": 700,
    "gy": 16.79,
-   "gps_max_mi": 0.43,
+   "gps_max_mi": 0.44,
    "y_lo": 6300.37,
    "y_hi": 6717.74,
    "pad_l": 72,
@@ -65,9 +73,9 @@
    "gps_max_ft": 6689.63,
    "min_ft": 6321.96,
    "total_mi": 0.44,
-   "gx": 339.75,
+   "gx": 340,
    "gy": 21.41,
-   "gps_max_mi": 0.43,
+   "gps_max_mi": 0.44,
    "y_lo": 6300.37,
    "y_hi": 6717.74,
    "pad_l": 0,
@@ -88,5 +96,12 @@
   -120.013032,
   38.879066,
   -120.011032
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

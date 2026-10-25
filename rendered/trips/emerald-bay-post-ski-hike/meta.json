@@ -1,5 +1,10 @@
 {
- "hash": "c1036973c88e30ee0061105ba8b5325d5629a3e4",
+ "hash": "edc520eee1dd7024710ba263d196915407f38fc6",
+ "inputs": {
+  "fields": "85572eae4712e3bb0627235a81e1a12766671026",
+  "files": "831d4e82d102a5c86abea97ebbf16c6029e1a763",
+  "version": 8
+ },
  "slug": "emerald-bay-post-ski-hike",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 18.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 7.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 4.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.115538,
   38.952022,
   -120.110857
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

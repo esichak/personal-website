@@ -1,5 +1,10 @@
 {
- "hash": "0ef76695151c7daf796a0114e69c7ebafe38b497",
+ "hash": "b2f32771306893583205c7a68c1448a26fea1985",
+ "inputs": {
+  "fields": "5360c890228755e2eda4417ab1ee3076daccf708",
+  "files": "3816e2bfe970f3f27b5b03206db49577261c1e17",
+  "version": 8
+ },
  "slug": "spontaneous-ride",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 27.2
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906061,
   37.091031,
   -121.848612
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

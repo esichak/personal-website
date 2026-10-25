@@ -1,5 +1,10 @@
 {
- "hash": "4e0aa212495e423788abac74aa343023949264a9",
+ "hash": "bbe7428038cf2f3649b1a35d3bcdc2cd81b3cf1b",
+ "inputs": {
+  "fields": "79425d3d490afd8371c9c59e72cfad8c69485285",
+  "files": "7c5455139cb01d90d55ef5261dea4180e417a3bc",
+  "version": 8
+ },
  "slug": "exploring-new-trails-in-santa-cruz",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 42.0
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 25.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.6
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.094377,
   37.02641,
   -122.030263
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

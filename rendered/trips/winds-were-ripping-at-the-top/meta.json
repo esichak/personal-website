@@ -1,5 +1,10 @@
 {
- "hash": "3cc6c9aa21cf75d3c03ac8c2f50c82328eb2e6d4",
+ "hash": "3d244a9845ac3e2ad63d5e46a60cba58edf57314",
+ "inputs": {
+  "fields": "e6a3013313b4a3b7e8b4e84434ec33e11378b3ec",
+  "files": "5e89f468e8efc0b6d3453a43f35fc84e2fd2f612",
+  "version": 8
+ },
  "slug": "winds-were-ripping-at-the-top",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 21.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 7.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.942995,
   38.936564,
   -119.901572
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

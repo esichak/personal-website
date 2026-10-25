@@ -1,23 +1,30 @@
 {
- "hash": "aee90a7bcb21aa9801bd0f511c0f2b4552ef9e99",
+ "hash": "35f75a19f1ed1a6adcaefa4561895ae76c0fe2a6",
+ "inputs": {
+  "fields": "247cca42d2fab6b3d7f4e33b2a1e75ceeb9f26cc",
+  "files": "43a6b16eef86036425170a6fac9c5800e939b30b",
+  "version": 8
+ },
  "slug": "avy-1-field-day",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 80,
-   "outbound_only": false
+   "interval_ft": 40,
+   "outbound_only": false,
+   "base_gz_kb": 20.7
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 7.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.211564,
   39.187439,
   -120.200009
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

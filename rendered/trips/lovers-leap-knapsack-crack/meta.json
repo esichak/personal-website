@@ -1,5 +1,10 @@
 {
- "hash": "66e01f918eb59736bf90f8bb6a78e568965cb75a",
+ "hash": "b5d099aae591071ad3762d5b88028857bf260414",
+ "inputs": {
+  "fields": "b6d8b82c66ba847c193839cb74c14f53af154fe4",
+  "files": "9994531d81e6c3a3f24de396d3c86dd11429447f",
+  "version": 8
+ },
  "slug": "lovers-leap-knapsack-crack",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 15.3
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 5.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.145238,
   38.805987,
   -120.131686
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

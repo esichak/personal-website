@@ -1,5 +1,10 @@
 {
- "hash": "e8bfe6387ec375b95d3d97385c2e24066bc66a6e",
+ "hash": "a18acb4876d91e5ad5e084830d2f4231e92c5f5a",
+ "inputs": {
+  "fields": "646129d33c9013a955eb2418e312e597fcbea7ca",
+  "files": "ed9249ad84177d0e87198f0e00998c87febef5fa",
+  "version": 8
+ },
  "slug": "maggies-peak-with-the-family",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 13.0
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.115306,
   38.944437,
   -120.09961
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

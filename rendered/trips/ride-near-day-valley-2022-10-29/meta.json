@@ -1,5 +1,10 @@
 {
- "hash": "aac01782e64d2bdeb7cc4686d91aaa7d43422623",
+ "hash": "f23b0ec071598257a03415c71b6d3849b5f636fd",
+ "inputs": {
+  "fields": "600e2055c6d3db3003c8ce1d9be937f39511e3c0",
+  "files": "44e6c2c5b337c0180e44d2b00cc59bccba98f681",
+  "version": 8
+ },
  "slug": "ride-near-day-valley-2022-10-29",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 25.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.905995,
   37.09079,
   -121.850708
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

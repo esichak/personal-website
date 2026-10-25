@@ -1,5 +1,10 @@
 {
- "hash": "c3688d3d410a740e4c0bc93dc8dc6d1c1dd33ffb",
+ "hash": "a1badf49a489c7c2f182e4f65f34ce07ca5f3905",
+ "inputs": {
+  "fields": "afd5f7e78bf480ed4b910d9fe3c3bf97f4c40560",
+  "files": "7937badc220f9137e387420f2ce3adf84f438787",
+  "version": 8
+ },
  "slug": "new-tires-good-conditions-so-much-grip",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 26.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.4
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906082,
   37.090928,
   -121.849243
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

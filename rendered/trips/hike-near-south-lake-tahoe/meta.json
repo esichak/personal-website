@@ -1,5 +1,10 @@
 {
- "hash": "3bb322d1ce960dc080bfc78840d5afdcf7632209",
+ "hash": "8f257c7bff54158db1ec1fcbea7e224b0a4b7d49",
+ "inputs": {
+  "fields": "0887cb8945b9117b355ce31255e2eb7ffa7a2aa7",
+  "files": "c8561a18162ae5c048f01ea4491fa71e2bcfb88f",
+  "version": 8
+ },
  "slug": "hike-near-south-lake-tahoe",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 26.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 11.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 5.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.146447,
   38.884652,
   -120.080315
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

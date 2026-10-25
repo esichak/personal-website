@@ -1,5 +1,10 @@
 {
- "hash": "07451cd637734792921d5ffb28352296252e0e4c",
+ "hash": "6e6a70fbb3fe3cebb46705cff87eb5fd99f23ef2",
+ "inputs": {
+  "fields": "4599426eb22dcae127ed10cc3e50844d2493cb29",
+  "files": "79235bfaea2e9326f40bbc6e119d02d7d319e39f",
+  "version": 8
+ },
  "slug": "exploring-saratoga",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 27.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 4.1
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.165605,
   37.296413,
   -122.121021
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

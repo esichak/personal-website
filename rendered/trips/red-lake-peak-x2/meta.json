@@ -1,5 +1,10 @@
 {
- "hash": "72f730bce8440d0595fc89a8d8b2ed5d74e33d23",
+ "hash": "5686382dc5c3d3491614d0e0fb16ae36549636a9",
+ "inputs": {
+  "fields": "6f4207cc8c7382c87a060f3d6fe83b581c940bc4",
+  "files": "ecff7ab492e5a1288bda7d44eded19e382599396",
+  "version": 8
+ },
  "slug": "red-lake-peak-x2",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 9.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 6.4
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.979908,
   38.728794,
   -119.954157
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "a4eeb68a0ecc637cc2f2be3aaa2b4fa193bf520f",
+ "hash": "d7fd0bcdabef1fe7a062b81b47b906414efea72a",
+ "inputs": {
+  "fields": "c502285161f800c242e071467ccf8c636fa62031",
+  "files": "5fb58300801f8577e0d748f5f5b12f62f4b629f6",
+  "version": 8
+ },
  "slug": "slow-tallac-lap-after-work",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 20.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.101229,
   38.921371,
   -120.068161
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

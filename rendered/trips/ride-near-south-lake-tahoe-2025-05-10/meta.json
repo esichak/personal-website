@@ -1,23 +1,30 @@
 {
- "hash": "6a8b6a6bdcfb97bbe9273eaf35d535eb801caf02",
+ "hash": "8ffa60b6adeb5c36ac2d5235529814addc357bac",
+ "inputs": {
+  "fields": "bc69891312129af4dc12fd612be51620387c4276",
+  "files": "2e2ac25e3c74333d26d63c09e18443ec75e60c5f",
+  "version": 8
+ },
  "slug": "ride-near-south-lake-tahoe-2025-05-10",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 24.5
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 13.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.9
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.064971,
   38.924975,
   -120.020937
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

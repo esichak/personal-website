@@ -1,5 +1,10 @@
 {
- "hash": "395409be40573b18fb5a4d3d174eb52b3d983e7e",
+ "hash": "177396783a1d781881464cdcc3faa7fa3f76b920",
+ "inputs": {
+  "fields": "4a011b86680d1993973140c6a042f20b22277d29",
+  "files": "385cf0a9a60579c4218a00299f3b444587ed4ace",
+  "version": 8
+ },
  "slug": "daggett-loop-with-kevin",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 24.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.908603,
   38.997983,
   -119.881442
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

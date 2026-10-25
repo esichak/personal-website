@@ -1,23 +1,30 @@
 {
- "hash": "2ff9336c3af6dbc1bf5b0b750c7a6fb41a53dc93",
+ "hash": "59b18ff62125b59436a70ba18178adebfc57fdc2",
+ "inputs": {
+  "fields": "329b381f45eae92584a87b7138bf05caa79d12f8",
+  "files": "1d29b11659080e6eba95723d15284b28c260fcdb",
+  "version": 8
+ },
  "slug": "showing-holt-and-aliya-around-tahoe",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 18.7
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
-   "interval_ft": 400,
-   "outbound_only": false
+   "interval_ft": 200,
+   "outbound_only": false,
+   "base_gz_kb": 12.4
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.05441,
   38.924975,
   -120.020926
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

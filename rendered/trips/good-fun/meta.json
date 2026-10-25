@@ -1,5 +1,10 @@
 {
- "hash": "9a0b11f642f8a050e4d8b86e3b1d89b32169e389",
+ "hash": "5867e48596cbdd4cb96eb98d014af30f85a7f944",
+ "inputs": {
+  "fields": "67d26e52461579a12bd788d66a218921f0715b92",
+  "files": "87ae01f5b9af8f8d7c3fe016b45cfe10fd767fe8",
+  "version": 8
+ },
  "slug": "good-fun",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 38.5
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 26.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.9
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -116.19538,
   43.636055,
   -116.108294
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

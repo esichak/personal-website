@@ -1,5 +1,10 @@
 {
- "hash": "823e8e36adcf5c8ee7e0aaa91ce5eac6f38d6c16",
+ "hash": "236e2f94a9d417b2cb51433bc66b27ab19c61e74",
+ "inputs": {
+  "fields": "fc39fae068f9bf6efb94a7efb684897b29dca01f",
+  "files": "8ebfa9ea67cf429f51bc43e4dab8bcf26611c2cd",
+  "version": 8
+ },
  "slug": "jakes-peak-to-emerald-bay",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.124108,
   38.976047,
   -120.100291
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

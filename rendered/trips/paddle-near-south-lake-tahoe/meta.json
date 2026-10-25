@@ -1,5 +1,10 @@
 {
- "hash": "dc8d184c7c9deeb72bd7d5e4817350fd8666cbfd",
+ "hash": "f8b2258c84a65238b63c0d96bbd52ab516848a28",
+ "inputs": {
+  "fields": "742c89f3219fc7f5c08915b5579844bc3790c02a",
+  "files": "02c9d82487b093d0dd34f26743f3370daf7a3728",
+  "version": 8
+ },
  "slug": "paddle-near-south-lake-tahoe",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 5.3
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 100,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.0
   }
  },
  "charts": {
@@ -76,5 +84,12 @@
   -120.071692,
   38.957658,
   -120.052849
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

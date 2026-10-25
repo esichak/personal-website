@@ -1,23 +1,30 @@
 {
- "hash": "a342a31c3fdb21c6b6bec4402f99c6d2945abfab",
+ "hash": "5bc08daeb474acbad1e58829593ddcc530f8d2fd",
+ "inputs": {
+  "fields": "cdeda9ac5f140e215f419b5b1604c24c88fb0b84",
+  "files": "d6c0bbaee0c9eba17b8e3e75b520b42cf8466f2d",
+  "version": 8
+ },
  "slug": "paddle-near-incline-village",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 9.0
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
-   "interval_ft": 200,
-   "outbound_only": null
+   "interval_ft": 100,
+   "outbound_only": null,
+   "base_gz_kb": 5.3
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.4
   }
  },
  "charts": {
@@ -76,5 +84,12 @@
   -119.932661,
   39.19448,
   -119.926464
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

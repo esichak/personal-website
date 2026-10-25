@@ -1,23 +1,30 @@
 {
- "hash": "05a6bf29e818ff395ddb159deaa4f877a06b6b22",
+ "hash": "67b23443ac6f5c009705db4a263ca9ee23c095cd",
+ "inputs": {
+  "fields": "a866cbbe2e11f039f7116df1f990974b23d6baaa",
+  "files": "2aa61429f155b4b981ffa59ed7661503fb5ff5fc",
+  "version": 8
+ },
  "slug": "cowboy-hat-peak",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 10.7
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 4.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 100,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.009002,
   38.850988,
   -120.001936
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

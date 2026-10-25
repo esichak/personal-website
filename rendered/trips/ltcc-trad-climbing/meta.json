@@ -1,5 +1,10 @@
 {
- "hash": "86e27f30b604d22ec3085a7d7fcc901e31816d91",
+ "hash": "f7c4b8b9230cb50b37593a09ad39ae409f948562",
+ "inputs": {
+  "fields": "5b590dd75d17c03f48c53bb2223cad776c52e4a3",
+  "files": "e8e39042c37ba7e2c01541ccc76a6bf915adecbf",
+  "version": 8
+ },
  "slug": "ltcc-trad-climbing",
  "kind": "multi-day",
  "maps": {
@@ -7,55 +12,64 @@
    "w": 1440,
    "h": 560,
    "png": "overview-wide.webp",
-   "base": "overview-wide.base.svg"
+   "base": "overview-wide.base.svg",
+   "base_gz_kb": 15.9
   },
   "overview-col": {
    "w": 718,
    "h": 440,
    "png": "overview-col.webp",
-   "base": "overview-col.base.svg"
+   "base": "overview-col.base.svg",
+   "base_gz_kb": 7.5
   },
   "overview-phone": {
    "w": 390,
    "h": 260,
    "png": "overview-phone.webp",
-   "base": "overview-phone.base.svg"
+   "base": "overview-phone.base.svg",
+   "base_gz_kb": 2.9
   },
   "day-01-col": {
    "w": 718,
    "h": 400,
    "png": "day-01-col.webp",
-   "base": "day-01-col.base.svg"
+   "base": "day-01-col.base.svg",
+   "base_gz_kb": 5.4
   },
   "day-01-phone": {
    "w": 390,
    "h": 240,
    "png": "day-01-phone.webp",
-   "base": "day-01-phone.base.svg"
+   "base": "day-01-phone.base.svg",
+   "base_gz_kb": 2.3
   },
   "day-02-col": {
    "w": 718,
    "h": 400,
    "png": "day-02-col.webp",
-   "base": "day-02-col.base.svg"
+   "base": "day-02-col.base.svg",
+   "base_gz_kb": 3.9
   },
   "day-02-phone": {
    "w": 390,
    "h": 240,
    "png": "day-02-phone.webp",
-   "base": "day-02-phone.base.svg"
+   "base": "day-02-phone.base.svg",
+   "base_gz_kb": 1.6
   },
   "day-03-col": {
    "w": 718,
    "h": 400,
    "png": "day-03-col.webp",
-   "base": "day-03-col.base.svg"
+   "base": "day-03-col.base.svg",
+   "base_gz_kb": 6.5
   },
   "day-03-phone": {
    "w": 390,
    "h": 240,
    "png": "day-03-phone.webp",
-   "base": "day-03-phone.base.svg"
+   "base": "day-03-phone.base.svg",
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -208,5 +222,12 @@
   -120.113492,
   38.95274,
   -119.86138
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

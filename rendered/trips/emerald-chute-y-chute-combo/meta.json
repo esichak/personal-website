@@ -1,5 +1,10 @@
 {
- "hash": "02d9d36d4840e1a06d612b5d8c3a39bf12721431",
+ "hash": "f6168a820a9c7cb0d2ccf82a145b5c3649deb3bf",
+ "inputs": {
+  "fields": "af640855c89c618fa59d2a8f81330b16421cce4f",
+  "files": "45f4aa1300d190eac7cddcbc613273208f4514df",
+  "version": 8
+ },
  "slug": "emerald-chute-y-chute-combo",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 17.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 6.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.8
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.124696,
   38.964609,
   -120.102657
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

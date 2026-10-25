@@ -1,23 +1,30 @@
 {
- "hash": "1179e96591bbda9af84c3690e48023f9c7dd6ab0",
+ "hash": "0f9473510ec0e6738450a8ca9193bab3137c5411",
+ "inputs": {
+  "fields": "6c55a9b1947031ba073c21c17b6d6577ef04feaf",
+  "files": "a655f393f33002849a145ebf97f0a0b9064d8449",
+  "version": 8
+ },
  "slug": "dunderberg-peak-and-black-mountain",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 100,
-   "outbound_only": false
+   "interval_ft": 80,
+   "outbound_only": false,
+   "base_gz_kb": 29.8
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.2764,
   38.062381,
   -119.261436
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

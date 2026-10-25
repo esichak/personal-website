@@ -1,5 +1,10 @@
 {
- "hash": "02108e2b2d3abca6f90b97719c98f11f44794295",
+ "hash": "3bc310fe720ac6f50e74919b8010af60f6863fcc",
+ "inputs": {
+  "fields": "0724de0a2edbc36b5be5f246ca78fc3b7650e0eb",
+  "files": "0188ddc6618450f0862f6765a6f2f22469bf4ba7",
+  "version": 8
+ },
  "slug": "misery-ridge-loop",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 14.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 9.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.8
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.151385,
   44.373248,
   -121.137175
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

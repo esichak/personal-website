@@ -1,5 +1,10 @@
 {
- "hash": "cb252a4970a62bfe6537bc880be43ee553465692",
+ "hash": "67b413f2362ec305876f01b1398095de962aeffe",
+ "inputs": {
+  "fields": "fabcdb8609e904755530f2eb1011d2a1ad487e13",
+  "files": "7f951b345d96c3de1ce53ed15f9d27b100729b5b",
+  "version": 8
+ },
  "slug": "ride-near-kingsbury",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 22.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.939826,
   39.002392,
   -119.896442
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

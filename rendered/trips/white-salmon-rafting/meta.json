@@ -1,23 +1,30 @@
 {
- "hash": "10fd6d76ca00b9dffc07dea079d76f5e4c53241d",
+ "hash": "5883554a920fdda4c7d9d099d3529f544c055260",
+ "inputs": {
+  "fields": "465f6d63f8686e7b5e7566f89454433bec0e67c9",
+  "files": "d35210059fbd990595fbfd6c0fd94e957c1ba333",
+  "version": 8
+ },
  "slug": "white-salmon-rafting",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 400,
-   "outbound_only": false
+   "interval_ft": 200,
+   "outbound_only": false,
+   "base_gz_kb": 25.4
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 1000,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.510531,
   45.864418,
   -121.480613
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

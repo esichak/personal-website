@@ -1,23 +1,30 @@
 {
- "hash": "da5ea6003b6536c5b75d10a9612558601d970e14",
+ "hash": "f5387da4a018bac24fd8d781454534499973ae37",
+ "inputs": {
+  "fields": "1d7b5c5f957634d8fad192328608d701812af909",
+  "files": "89cff9ed2c54b9fe00c9c1beefe684c414e21f37",
+  "version": 8
+ },
  "slug": "paddle-lake-tahoe",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 40,
-   "outbound_only": null
+   "interval_ft": 20,
+   "outbound_only": null,
+   "base_gz_kb": 4.2
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 40,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.1
   }
  },
  "charts": {
@@ -76,5 +84,12 @@
   -120.157818,
   39.113387,
   -120.154236
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

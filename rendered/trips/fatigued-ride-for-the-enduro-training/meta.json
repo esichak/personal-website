@@ -1,5 +1,10 @@
 {
- "hash": "f7c4b37498815a988e2e6a0196834b6109b4c104",
+ "hash": "7830da46bb19021e40fadc275cb429b4c7e65e4f",
+ "inputs": {
+  "fields": "bbd20038cbf93abf732312852cfb81a75e6c9367",
+  "files": "064d351158b8099f863b94ed315e4a2afde8011f",
+  "version": 8
+ },
  "slug": "fatigued-ride-for-the-enduro-training",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 25.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906048,
   37.090717,
   -121.850797
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

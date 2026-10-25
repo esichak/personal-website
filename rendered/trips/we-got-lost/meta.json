@@ -1,5 +1,10 @@
 {
- "hash": "10d07e21a2041e19bd6f21a78be22ac0c6e3e043",
+ "hash": "16c5751f7572d86af483536184bb6609176ff187",
+ "inputs": {
+  "fields": "89fed0567aa525b3d2bfefaa4e65c83b4031712d",
+  "files": "45a6695f1fae1dcd7e4ae549c6ae3590dd734e67",
+  "version": 8
+ },
  "slug": "we-got-lost",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 16.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 10.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.8
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.122812,
   36.992429,
   -122.08791
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

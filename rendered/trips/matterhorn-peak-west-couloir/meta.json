@@ -1,23 +1,30 @@
 {
- "hash": "54759f636e71f9d6573b28dc29043cc1d9ea5209",
+ "hash": "3ca3d435724a99d81519b6f54fec21b6db3d82cc",
+ "inputs": {
+  "fields": "e4cb63d8f02ebee223b6cd4cbc6d0696f1441b3b",
+  "files": "74e4838ce61191922e8b40e50a8a90ffb29d5288",
+  "version": 8
+ },
  "slug": "matterhorn-peak-west-couloir",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 29.9
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 10.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 4.9
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.382661,
   38.149198,
   -119.371465
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

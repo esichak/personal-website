@@ -1,23 +1,30 @@
 {
- "hash": "9aa8c067d311f1343d2ea073aa24ab65540ade33",
+ "hash": "3f0dd0d7b0b4f87a8571e3b66c2fad15b3acd66d",
+ "inputs": {
+  "fields": "eefda7e61361661d3e2edc3a4278f1d05ae35c18",
+  "files": "cfaa4365f9c70320beb39ee436ccceb373fbf279",
+  "version": 8
+ },
  "slug": "crystal-range-to-bayview",
  "kind": "planned",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 500,
-   "outbound_only": null
+   "interval_ft": 400,
+   "outbound_only": null,
+   "base_gz_kb": 33.1
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 1000,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 13.3
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 2000,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 4.5
   }
  },
  "charts": {},
@@ -42,5 +50,12 @@
   -120.175071,
   38.944335,
   -120.100043
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

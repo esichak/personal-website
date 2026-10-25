@@ -1,5 +1,10 @@
 {
- "hash": "3c57b72ad39ec5f13449ff5b35e19fdfcb93ece5",
+ "hash": "2f0fc21abb4647085a70fce3c257c59d9b50f2ae",
+ "inputs": {
+  "fields": "1974ea126cdd49e45f5f544e68b0cd5e044b8514",
+  "files": "6b61f07ee19c6c265bab759eca690ed491f9bed1",
+  "version": 8
+ },
  "slug": "took-some-souls-on-the-climbs-today",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 25.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.1
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.90591,
   37.090971,
   -121.850685
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "e0a76248206f030f4ef159c185f1d951f9102b51",
+ "hash": "dbe116865006b8cb5f277f5ed2efdbfd406f6c81",
+ "inputs": {
+  "fields": "c6b4e6c96f4575d0b974372384847b78b2b36393",
+  "files": "66567322f304d3bbc361ae162f6204013df1ec95",
+  "version": 8
+ },
  "slug": "morning-stroll",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 9.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.775638,
   37.285704,
   -121.757719
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

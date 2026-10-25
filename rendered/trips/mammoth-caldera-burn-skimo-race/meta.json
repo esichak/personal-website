@@ -1,5 +1,10 @@
 {
- "hash": "66802c09961fb38393105183729c83c985bfd97a",
+ "hash": "bd0cf497f515b01d54d4faf30ca8bdf5c28e8966",
+ "inputs": {
+  "fields": "706d93fcfa991a1865fbc7f3044d882eb5203f6e",
+  "files": "d2fdd1c7acd829b89aeb06da24af8fbd8fe40176",
+  "version": 8
+ },
  "slug": "mammoth-caldera-burn-skimo-race",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 6.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.9
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.030299,
   37.647843,
   -119.001703
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,23 +1,30 @@
 {
- "hash": "cfa151e7cf8eb58bbbb053a577ebd01a98bb983b",
+ "hash": "4f4f944fab32ed3bbced00d340441655d63b526f",
+ "inputs": {
+  "fields": "b4c6d8910aa89f4ae41f52a149d07e00c6df5967",
+  "files": "df00329bf3de729e3bd3a81aeba71a9e3e069ef6",
+  "version": 8
+ },
  "slug": "paddle-near-tahoma",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 9.5
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
-   "interval_ft": 400,
-   "outbound_only": null
+   "interval_ft": 200,
+   "outbound_only": null,
+   "base_gz_kb": 5.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -76,5 +84,12 @@
   -120.116402,
   39.016919,
   -120.093052
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

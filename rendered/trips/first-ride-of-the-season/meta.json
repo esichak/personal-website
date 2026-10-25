@@ -1,5 +1,10 @@
 {
- "hash": "6fce5cba1fd31c3402afd5ba895b24d156ce6b28",
+ "hash": "d5207d570abe32e2006d3ecedacfb2ff15066cb2",
+ "inputs": {
+  "fields": "2c62cd71678da520dcb947e36e246361f27b943f",
+  "files": "9f07a5c7c6738c1dcdd9853de60863020321a6f9",
+  "version": 8
+ },
  "slug": "first-ride-of-the-season",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 23.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 16.4
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.0
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -116.194607,
   43.632492,
   -116.141385
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

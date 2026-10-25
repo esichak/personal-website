@@ -1,23 +1,30 @@
 {
- "hash": "6c36e2c3394426485aa1947e40f97b45ce9b95fe",
+ "hash": "2c46638648e3dc80273141527fb49067e8a5c0e1",
+ "inputs": {
+  "fields": "5d7e3d4c35821ec3d1c5991f1cd8db76f51584ec",
+  "files": "729a196573f50f0bb740bf6cac190c6bdd917389",
+  "version": 8
+ },
  "slug": "powderhouse-lap-before-work",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 80,
-   "outbound_only": false
+   "interval_ft": 40,
+   "outbound_only": false,
+   "base_gz_kb": 15.0
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 5.3
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.9
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.981535,
   38.796341,
   -119.970882
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

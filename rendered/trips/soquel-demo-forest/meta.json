@@ -1,5 +1,10 @@
 {
- "hash": "dad1714aa3d84d17f4d21cbdcd4194153b523765",
+ "hash": "47d0ac3591569acfaadc772bef95153307177660",
+ "inputs": {
+  "fields": "485ecfb888a34556b4c706851eae1b634c02154b",
+  "files": "716baf59ce0bf14efab9c716f3eb4e4afd6c197e",
+  "version": 8
+ },
  "slug": "soquel-demo-forest",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 31.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 13.4
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.6
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.915319,
   37.090946,
   -121.849177
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

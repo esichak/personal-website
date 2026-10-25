@@ -1,5 +1,10 @@
 {
- "hash": "0809cf1e498ec30a5abf96b90aaec74764700737",
+ "hash": "f5d34e96f72b7dffd430cfcd7beca9e27fb8fefd",
+ "inputs": {
+  "fields": "1fd3fa4b429f53d95a38f126bd07f8bd5304e262",
+  "files": "c17f9096bb158abfcc499520dd78fd6590dce5a4",
+  "version": 8
+ },
  "slug": "first-uphill-of-the-season",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 12.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.4
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.943058,
   38.936442,
   -119.91814
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "8d77b0e4c3556ef13efe08c9d3650dd7130e337e",
+ "hash": "adf5254183e425dd5bc95e06cce1f29b2a1c1f5c",
+ "inputs": {
+  "fields": "5388346cc67d4faa05cfccc6f2d9c5ef96471913",
+  "files": "0ca831efc952490dfacef6f842c9f8eb29a194d2",
+  "version": 8
+ },
  "slug": "ride-near-mccall",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -116.023649,
   44.842364,
   -116.007597
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

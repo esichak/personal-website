@@ -1,5 +1,10 @@
 {
- "hash": "ea96a47e7577a2870d785b2d67a74cffe5724208",
+ "hash": "cf93ddb203b2a3bfbb1a4156d100dcb3473c2c6c",
+ "inputs": {
+  "fields": "7e268d186d1e0710b1a9fb21fb58e2b729bf8e8d",
+  "files": "4a3b89fdf4efb80ce46cbd297526042b1c44236d",
+  "version": 8
+ },
  "slug": "checking-out-corral",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 16.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 6.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.995222,
   38.881341,
   -119.940363
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "cb96a40737da9848c2781c59c2e7084f22730cbb",
+ "hash": "fe0c1614bc71efd88054add463fd183838a68a1d",
+ "inputs": {
+  "fields": "34a5e13f2acfe623f299c92ca8a40cf57dd132e2",
+  "files": "45f9b1b7469676745f5f6a56b04edbc84159683c",
+  "version": 8
+ },
  "slug": "pacific-crest-trail-2024",
  "kind": "series",
  "maps": {
@@ -7,13 +12,15 @@
    "w": 560,
    "h": 860,
    "png": "overview-tall.webp",
-   "base": null
+   "base": null,
+   "base_gz_kb": null
   },
   "overview-phone": {
    "w": 390,
    "h": 600,
    "png": "overview-phone.webp",
-   "base": null
+   "base": null,
+   "base_gz_kb": null
   }
  },
  "charts": {},
@@ -30,5 +37,12 @@
   -123.2211,
   49.064083,
   -116.413561
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

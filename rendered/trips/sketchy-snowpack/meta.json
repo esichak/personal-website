@@ -1,5 +1,10 @@
 {
- "hash": "77fd95b85dc98e60b8378877eb0a020512aa4015",
+ "hash": "02a6cebefd9529218c1d96febc65e84a79b10326",
+ "inputs": {
+  "fields": "f168ae16eb0ee8761c2eb47accb23d9b2fa0cb70",
+  "files": "dcace26a0c65697acc1a51feafd3f6a334f6bfd8",
+  "version": 8
+ },
  "slug": "sketchy-snowpack",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 21.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 7.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.942986,
   38.936401,
   -119.901977
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

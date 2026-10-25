@@ -1,5 +1,10 @@
 {
- "hash": "64728aaf8a79cd510f288992f5539e845f926733",
+ "hash": "4054f3fa1df074e6ec21086a9d047ab1a332bf75",
+ "inputs": {
+  "fields": "4f82fa2cfc813c98212df90f0a958b21bab40b2f",
+  "files": "c5c9db85a9e76e3970413c143b6086b890116705",
+  "version": 8
+ },
  "slug": "kingsbury-stinger-shuttle",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 22.3
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.937154,
   39.00238,
   -119.89561
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

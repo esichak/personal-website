@@ -1,5 +1,10 @@
 {
- "hash": "50375475b969da01c6146c21f477cb4909a26fc6",
+ "hash": "7700c6302dc1eb786dcac845a31be6676e2b393d",
+ "inputs": {
+  "fields": "c718cafaa13e0309c806ecbc4f9d92f1f734b304",
+  "files": "fddea678b652ff440042811497f8e8b1bd83f4bd",
+  "version": 8
+ },
  "slug": "lovers-leap-pop-bottle-surrealistic-pillar",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 14.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 5.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.1
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.138474,
   38.805301,
   -120.125365
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

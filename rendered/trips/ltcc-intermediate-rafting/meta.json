@@ -1,5 +1,10 @@
 {
- "hash": "dacef967e4399c19db249765ea2f0d49e0da2855",
+ "hash": "9fb13fdfa2b7e89c1affe5111580f15de4459143",
+ "inputs": {
+  "fields": "9b65b43e7330c46b3e59be660a6b90bc414e6d85",
+  "files": "f2ecd669bb5c6b0ee5dacdcedd6624d537a9f68a",
+  "version": 8
+ },
  "slug": "ltcc-intermediate-rafting",
  "kind": "multi-day",
  "maps": {
@@ -7,43 +12,50 @@
    "w": 1440,
    "h": 560,
    "png": "overview-wide.webp",
-   "base": "overview-wide.base.svg"
+   "base": "overview-wide.base.svg",
+   "base_gz_kb": 13.4
   },
   "overview-col": {
    "w": 718,
    "h": 440,
    "png": "overview-col.webp",
-   "base": "overview-col.base.svg"
+   "base": "overview-col.base.svg",
+   "base_gz_kb": 5.0
   },
   "overview-phone": {
    "w": 390,
    "h": 260,
    "png": "overview-phone.webp",
-   "base": "overview-phone.base.svg"
+   "base": "overview-phone.base.svg",
+   "base_gz_kb": 2.6
   },
   "day-01-col": {
    "w": 718,
    "h": 400,
    "png": "day-01-col.webp",
-   "base": "day-01-col.base.svg"
+   "base": "day-01-col.base.svg",
+   "base_gz_kb": 8.1
   },
   "day-01-phone": {
    "w": 390,
    "h": 240,
    "png": "day-01-phone.webp",
-   "base": "day-01-phone.base.svg"
+   "base": "day-01-phone.base.svg",
+   "base_gz_kb": 2.4
   },
   "day-02-col": {
    "w": 718,
    "h": 400,
    "png": "day-02-col.webp",
-   "base": "day-02-col.base.svg"
+   "base": "day-02-col.base.svg",
+   "base_gz_kb": 5.0
   },
   "day-02-phone": {
    "w": 390,
    "h": 240,
    "png": "day-02-phone.webp",
-   "base": "day-02-phone.base.svg"
+   "base": "day-02-phone.base.svg",
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -166,5 +178,12 @@
   -119.768686,
   38.86886,
   -119.691033
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

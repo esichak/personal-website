@@ -1,23 +1,30 @@
 {
- "hash": "66c731eb8320f6d3ccc9a3635dc076575558b1c7",
+ "hash": "15f988a68412e9e1e38d09d455702f736f88bfa6",
+ "inputs": {
+  "fields": "0ebc306d4f64899f26f7665cfe52a9aa702bd573",
+  "files": "1bae281df67e16aca23e345386aef8379ac42819",
+  "version": 8
+ },
  "slug": "tallac-cathedral-bowl-solo",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 200,
-   "outbound_only": false
+   "interval_ft": 100,
+   "outbound_only": false,
+   "base_gz_kb": 24.2
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 9.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.101587,
   38.933002,
   -120.07718
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

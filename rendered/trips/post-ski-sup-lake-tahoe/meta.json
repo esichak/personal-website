@@ -1,5 +1,10 @@
 {
- "hash": "34ff51cc6d6a635f0717c6aa90cd692506ae5a4e",
+ "hash": "d5f991120d95361bd415991fa901b39fe57bc0c7",
+ "inputs": {
+  "fields": "7726afe2cab80e1957897618b32374d9d529b5a5",
+  "files": "fdc1f9a3a2bf200dfe5ecb84f521f1ade2db830d",
+  "version": 8
+ },
  "slug": "post-ski-sup-lake-tahoe",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 4.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 40,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.1
   }
  },
  "charts": {
@@ -76,5 +84,12 @@
   -120.161421,
   39.121195,
   -120.155143
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "765b5a3980bd19f4cd5b6dd0894d69c926311cef",
+ "hash": "be7e3429e4411f019a564c16e8af6d65455aed02",
+ "inputs": {
+  "fields": "2fa64fe79b4b2a89b04bc82e3c8a2377b4f69eaf",
+  "files": "d82f80c4260d320602b3b07ded265a136368185e",
+  "version": 8
+ },
  "slug": "mount-tallac",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 14.3
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.101264,
   38.923841,
   -120.06693
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

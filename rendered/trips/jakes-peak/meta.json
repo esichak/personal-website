@@ -1,5 +1,10 @@
 {
- "hash": "764329684408888db1b6ba6691d0611d7ec2739d",
+ "hash": "959b67f1f6483e971c9be728289b965928f62520",
+ "inputs": {
+  "fields": "6746479a4122cca447ab2744c8b7a8de1ee85423",
+  "files": "4704323095e917b62012ace72ae79768f9c1cbe3",
+  "version": 8
+ },
  "slug": "jakes-peak",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 14.3
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 5.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 100,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.118902,
   38.976046,
   -120.100282
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

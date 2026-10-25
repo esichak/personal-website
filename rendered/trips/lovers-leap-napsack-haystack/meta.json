@@ -1,5 +1,10 @@
 {
- "hash": "1fa0a78b6f688aa5c87ebf57ac9f4b7ad569f061",
+ "hash": "83cfbbc94cb9c8fb187655ed6481e7b29ad8ea4f",
+ "inputs": {
+  "fields": "28d944de2fd53ab849a4e775d4333dc9199aa14f",
+  "files": "5a9184467c187db93b0f1c74a4d50dd79f3f243b",
+  "version": 8
+ },
  "slug": "lovers-leap-napsack-haystack",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 15.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 5.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.1
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.142717,
   38.804637,
   -120.129459
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

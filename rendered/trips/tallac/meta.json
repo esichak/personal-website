@@ -1,5 +1,10 @@
 {
- "hash": "8f719961ab050e50d8f855074e477f45705fcfc1",
+ "hash": "609f749fd3d0d13f583730fee821deedc4bf7462",
+ "inputs": {
+  "fields": "9b98b2603d9341fc107d97751e5e4a717ceea81f",
+  "files": "d978c24bcf0fd04ba150b23175da048f7af47c50",
+  "version": 8
+ },
  "slug": "tallac",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 20.2
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.101228,
   38.921404,
   -120.068183
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

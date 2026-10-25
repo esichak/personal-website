@@ -1,5 +1,10 @@
 {
- "hash": "8a1cbbc3ab5313c0104012c22b408fbb5aebed6a",
+ "hash": "5f7021683c378a097ebcd588a15452fa73e4497f",
+ "inputs": {
+  "fields": "0a4687bc4df316a60b9f72c164dc23f7e1252c17",
+  "files": "dd5e35dcc4c1c6083386bf35eabb64a5d9982103",
+  "version": 8
+ },
  "slug": "ski-mountaineering-course",
  "kind": "multi-day",
  "maps": {
@@ -7,43 +12,50 @@
    "w": 1440,
    "h": 560,
    "png": "overview-wide.webp",
-   "base": "overview-wide.base.svg"
+   "base": "overview-wide.base.svg",
+   "base_gz_kb": 13.0
   },
   "overview-col": {
    "w": 718,
    "h": 440,
    "png": "overview-col.webp",
-   "base": "overview-col.base.svg"
+   "base": "overview-col.base.svg",
+   "base_gz_kb": 6.3
   },
   "overview-phone": {
    "w": 390,
    "h": 260,
    "png": "overview-phone.webp",
-   "base": "overview-phone.base.svg"
+   "base": "overview-phone.base.svg",
+   "base_gz_kb": 2.3
   },
   "day-01-col": {
    "w": 718,
    "h": 400,
    "png": "day-01-col.webp",
-   "base": "day-01-col.base.svg"
+   "base": "day-01-col.base.svg",
+   "base_gz_kb": 5.7
   },
   "day-01-phone": {
    "w": 390,
    "h": 240,
    "png": "day-01-phone.webp",
-   "base": "day-01-phone.base.svg"
+   "base": "day-01-phone.base.svg",
+   "base_gz_kb": 1.6
   },
   "day-02-col": {
    "w": 718,
    "h": 400,
    "png": "day-02-col.webp",
-   "base": "day-02-col.base.svg"
+   "base": "day-02-col.base.svg",
+   "base_gz_kb": 6.1
   },
   "day-02-phone": {
    "w": 390,
    "h": 240,
    "png": "day-02-phone.webp",
-   "base": "day-02-phone.base.svg"
+   "base": "day-02-phone.base.svg",
+   "base_gz_kb": 2.4
   }
  },
  "charts": {
@@ -166,5 +178,12 @@
   -120.367047,
   39.370257,
   -120.310495
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "a6571c7513a45bf6151b0063498a0dd1db32cbfb",
+ "hash": "8f07c5b6b0861226f5b54076b4fbc1c8cb0d3314",
+ "inputs": {
+  "fields": "45965a0501346d53c45cef28c429d89545faf792",
+  "files": "d07c996b7ebd00c93aa1520071955572e47e91aa",
+  "version": 8
+ },
  "slug": "divided-sky",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 12.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 5.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.047164,
   38.84374,
   -120.040255
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "82c87b73e82439cc350cb8bd2b2b1c364e7ca1ac",
+ "hash": "588afb321e51a2e21bd9f50e9e23f4e05c82ecde",
+ "inputs": {
+  "fields": "57bc881fa52440d4e6e13f7f8ca2f9adc219d0b2",
+  "files": "92adf4f3b3692c0974c20542e178b8b7302ec6cb",
+  "version": 8
+ },
  "slug": "return-to-emerald-chute",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 18.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 7.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.123289,
   38.96207,
   -120.102522
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,23 +1,30 @@
 {
- "hash": "6d35afc1503f5f20f8bfcdc674687d0511547c18",
+ "hash": "522b7ecdfa4098aa409f5f68af949679f9ec0228",
+ "inputs": {
+  "fields": "515e35b91a0679b91d86f5b68f10f273a7c75c68",
+  "files": "c819dc95d2a3e13ec0e80c3a0cd32b136d8129d1",
+  "version": 8
+ },
  "slug": "showing-kevin-the-go-to-mtb-loop",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 18.7
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
-   "interval_ft": 400,
-   "outbound_only": false
+   "interval_ft": 200,
+   "outbound_only": false,
+   "base_gz_kb": 12.4
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.6
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.054334,
   38.925021,
   -120.02103
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

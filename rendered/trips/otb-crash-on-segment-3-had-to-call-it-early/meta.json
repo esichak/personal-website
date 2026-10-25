@@ -1,5 +1,10 @@
 {
- "hash": "caec8f3209bd9721c2c885cc5375e212ae7a3b0d",
+ "hash": "7603e7fe0a04f9068064e250281c26f6209d7215",
+ "inputs": {
+  "fields": "db3b2017dc99947824eedbdf87dc3faaaba3ac3a",
+  "files": "a42bdae0111ed3c2a0f86564da9ea1f4908581f7",
+  "version": 8
+ },
  "slug": "otb-crash-on-segment-3-had-to-call-it-early",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 25.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906011,
   37.090926,
   -121.850698
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "048c6ada4d11d36c1e37476126bb3dd3c39a9780",
+ "hash": "ab1912aa348006cd1727c18cc01647d211a54695",
+ "inputs": {
+  "fields": "56961db96d45e5a0813f8f18370bb5157d206845",
+  "files": "1ebcc6e1e0ea25a2ab93474d6007a684a350c089",
+  "version": 8
+ },
  "slug": "love-a-fire-road-climb-with-a-rave-in-the-background",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 33.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.90611,
   37.090851,
   -121.830275
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

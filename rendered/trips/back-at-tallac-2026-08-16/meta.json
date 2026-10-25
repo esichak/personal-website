@@ -1,5 +1,10 @@
 {
- "hash": "dda077331d5829c15309c8e151323c33040e9e11",
+ "hash": "48c6e08c68f19111b29c09fd5cfc360b33033e26",
+ "inputs": {
+  "fields": "165dacf2ca0e3ac1b213c392234df97fcb2cc340",
+  "files": "aad2789eed635c81e270ba8b22aa2a8a77af761a",
+  "version": 8
+ },
  "slug": "back-at-tallac-2026-08-16",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 20.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.101236,
   38.921389,
   -120.068168
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

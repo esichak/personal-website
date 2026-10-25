@@ -1,5 +1,10 @@
 {
- "hash": "6f6e8ca696ae6956dedfc51bbd24c545f6996f6b",
+ "hash": "63e10e30a9cb6108b2237164d1620f9050818d5c",
+ "inputs": {
+  "fields": "4775eb3ede5ceced89b06660321697c96011b4b9",
+  "files": "27444d861cd453a2c1047ae36bd2d3b6178dbea4",
+  "version": 8
+ },
  "slug": "tumalo-falls-north-fork-to-bridge-creek-loop",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 12.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 4.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.4
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.612689,
   44.049595,
   -121.566012
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

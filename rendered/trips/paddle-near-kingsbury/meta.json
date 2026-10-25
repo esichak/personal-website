@@ -1,23 +1,30 @@
 {
- "hash": "4fb1cfe22cb8081672171f84c3fa435c582522b4",
+ "hash": "8e91a49c45230a432761817b41d24c08301a82b5",
+ "inputs": {
+  "fields": "c43cc385dd3e3761d87ecec99846c60ae3323f28",
+  "files": "e9f73816424fb8e824ddf4fb64db3391cdcf957b",
+  "version": 8
+ },
  "slug": "paddle-near-kingsbury",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 40,
-   "outbound_only": null
+   "interval_ft": 20,
+   "outbound_only": null,
+   "base_gz_kb": 4.8
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 40,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.4
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.2
   }
  },
  "charts": {
@@ -76,5 +84,12 @@
   -119.95421,
   39.018446,
   -119.949541
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

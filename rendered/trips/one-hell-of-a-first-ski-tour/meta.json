@@ -1,5 +1,10 @@
 {
- "hash": "d49296bd450bef3c04dcac49745fcd41006931ea",
+ "hash": "bd9ee2d22ae2a6829b36618e9748fe90e97bf7d7",
+ "inputs": {
+  "fields": "b60dff522a6a5e38fad003b2880ffce5de3e4697",
+  "files": "b4bd5e717ecde993124aaf320d24531829226f7c",
+  "version": 8
+ },
  "slug": "one-hell-of-a-first-ski-tour",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 14.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.246567,
   39.236165,
   -120.206189
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

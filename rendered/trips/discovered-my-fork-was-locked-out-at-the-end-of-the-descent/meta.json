@@ -1,5 +1,10 @@
 {
- "hash": "14a316f82a287ae5df4c39c17e5005507495b659",
+ "hash": "aa81ea5389f15d4abc6bad27dfdd524c043cde7e",
+ "inputs": {
+  "fields": "b7f0dd61217f7690b5305c5c5dfd9e812ec3c686",
+  "files": "ab4bdc3d3a663b9ce17a0f49507b64467e8a10c2",
+  "version": 8
+ },
  "slug": "discovered-my-fork-was-locked-out-at-the-end-of-the-descent",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 18.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.793752,
   37.220113,
   -121.767632
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

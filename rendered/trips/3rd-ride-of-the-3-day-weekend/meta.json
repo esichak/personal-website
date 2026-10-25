@@ -1,5 +1,10 @@
 {
- "hash": "861043703735c237b757555fc2c075834b0ec067",
+ "hash": "3a32c06e33d287e21bbc6342c8f9acbf25aebcdd",
+ "inputs": {
+  "fields": "d868eb345ee6d8d890cd48fb78cfeebbf827d60c",
+  "files": "be6d8efdadf23aec1f35ee6a5218ee85ebc71623",
+  "version": 8
+ },
  "slug": "3rd-ride-of-the-3-day-weekend",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 27.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.905997,
   37.090808,
   -121.847494
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

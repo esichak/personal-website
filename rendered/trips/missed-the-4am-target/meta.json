@@ -1,5 +1,10 @@
 {
- "hash": "6db0973e5b5ccfcc0c9d3be3bdbd50b950375df0",
+ "hash": "b424c23e138549c5cf5aed9066600fd5238feed5",
+ "inputs": {
+  "fields": "4c0a44a06c1ac4125c04eb174eb1cd8edf49ccf0",
+  "files": "b7bb17b54587eb08670acc6ae098e02c3d6f338f",
+  "version": 8
+ },
  "slug": "missed-the-4am-target",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 21.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 7.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.942742,
   38.936527,
   -119.902007
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "2b5be30bce5877a19069706608ca46217f1e7e21",
+ "hash": "e1c1acc524522a5d700048aee57a02d2c7ceec70",
+ "inputs": {
+  "fields": "69a2651deb26a01abd6480c904a8aea7cb56f690",
+  "files": "c53c30b418dd499580817f4ad1ff6e8de58c638b",
+  "version": 8
+ },
  "slug": "checking-out-the-mount-rose-area",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 12.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 7.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.944682,
   39.314577,
   -119.920299
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

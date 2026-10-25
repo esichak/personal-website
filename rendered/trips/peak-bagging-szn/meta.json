@@ -1,5 +1,10 @@
 {
- "hash": "58b563e322fad420c0d09050ec03db119734e40d",
+ "hash": "bc1728de9c3ff73d1501edf1b7d2fc35ad85bb55",
+ "inputs": {
+  "fields": "b3b548939e84455a8f50da3b569b35fb48031e75",
+  "files": "f6ce22ff67a2140eae50de8ae450b7660de65102",
+  "version": 8
+ },
  "slug": "peak-bagging-szn",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 28.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 12.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 6.1
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.154134,
   38.906905,
   -120.072932
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

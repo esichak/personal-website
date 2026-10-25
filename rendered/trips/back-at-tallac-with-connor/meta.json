@@ -1,23 +1,30 @@
 {
- "hash": "8f8171650599bed2a5e8b714ea1e80771094ec5c",
+ "hash": "41e8bb5957a84b9d659c1988c91f4c6217315cf2",
+ "inputs": {
+  "fields": "db651aee3bced2fdf5a2834de39908ef40d9a14a",
+  "files": "87b3487eee3dd400c3d6a2d4bb3bc2f7df2067f4",
+  "version": 8
+ },
  "slug": "back-at-tallac-with-connor",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 200,
-   "outbound_only": false
+   "interval_ft": 100,
+   "outbound_only": false,
+   "base_gz_kb": 23.7
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 9.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.101919,
   38.933169,
   -120.076888
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

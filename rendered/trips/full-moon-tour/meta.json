@@ -1,5 +1,10 @@
 {
- "hash": "a0a2a71847634f1fdfa9f31982acb0339fc0801a",
+ "hash": "e85e85b6195b6275eff975f8735b326e248f49d4",
+ "inputs": {
+  "fields": "60550d3007f54a2a22cf9f8d301f7d811bf21e8b",
+  "files": "0e0396904cdb3404f731a2b9a7416ca0bddc11a8",
+  "version": 8
+ },
  "slug": "full-moon-tour",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 21.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 7.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.942957,
   38.936523,
   -119.902006
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

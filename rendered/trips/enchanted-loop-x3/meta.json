@@ -1,5 +1,10 @@
 {
- "hash": "4398ab61bc04efb0de01fdeca9e9dd74697a7e99",
+ "hash": "218fbd0db990033a0fb7d8d47c1850d23d78e1ef",
+ "inputs": {
+  "fields": "e9aa59d82d150e98d34c92dc78d91520d5884c7f",
+  "files": "341a31d10bd2ad0865e47352a9717f641d341ec0",
+  "version": 8
+ },
  "slug": "enchanted-loop-x3",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 21.2
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 14.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.111446,
   36.992417,
   -122.079676
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

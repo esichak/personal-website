@@ -1,5 +1,10 @@
 {
- "hash": "c8ba390e1e0aba3c99ed4bf1617ac136ce3c5bae",
+ "hash": "6d90b3db5249454eaec2a0e5e55ee6f2ebc31c6c",
+ "inputs": {
+  "fields": "97eff31ea43dbc08a665253b9d0508553d36408d",
+  "files": "23cbeb3492fd2afbc62a12e55925c947344cdc1a",
+  "version": 8
+ },
  "slug": "finding-faster-lines",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 26.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906074,
   37.09096,
   -121.849308
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

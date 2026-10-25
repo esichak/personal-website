@@ -1,5 +1,10 @@
 {
- "hash": "0f0f140390dd1076fcc5a7f01c52d3258d6a5222",
+ "hash": "4717fd99d3050ca8432ef068ae3b0fe0414ad144",
+ "inputs": {
+  "fields": "51b7f51bc8ea0ed11387182ca34bb98eeca55c46",
+  "files": "6f7416e1d36522d9653d66bbba70b213e842f222",
+  "version": 8
+ },
  "slug": "ride-near-santa-cruz",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 21.2
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 14.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.111504,
   36.99242,
   -122.079675
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

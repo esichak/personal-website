@@ -1,5 +1,10 @@
 {
- "hash": "06075df93a4ee258d0b0db7bf79c6523b7668d91",
+ "hash": "1f4324a31e01ee40bf538a9ca64fcc71c1fc02d2",
+ "inputs": {
+  "fields": "184a5686051c94e8939ccd95bffe580ca60fee23",
+  "files": "5513807cb9c4c40fe2be7c3d041ac119164806c5",
+  "version": 8
+ },
  "slug": "ltcc-beginner-rock-climbing",
  "kind": "multi-day",
  "maps": {
@@ -7,55 +12,64 @@
    "w": 1440,
    "h": 560,
    "png": "overview-wide.webp",
-   "base": "overview-wide.base.svg"
+   "base": "overview-wide.base.svg",
+   "base_gz_kb": 14.0
   },
   "overview-col": {
    "w": 718,
    "h": 440,
    "png": "overview-col.webp",
-   "base": "overview-col.base.svg"
+   "base": "overview-col.base.svg",
+   "base_gz_kb": 8.5
   },
   "overview-phone": {
    "w": 390,
    "h": 260,
    "png": "overview-phone.webp",
-   "base": "overview-phone.base.svg"
+   "base": "overview-phone.base.svg",
+   "base_gz_kb": 2.6
   },
   "day-01-col": {
    "w": 718,
    "h": 400,
    "png": "day-01-col.webp",
-   "base": "day-01-col.base.svg"
+   "base": "day-01-col.base.svg",
+   "base_gz_kb": 4.7
   },
   "day-01-phone": {
    "w": 390,
    "h": 240,
    "png": "day-01-phone.webp",
-   "base": "day-01-phone.base.svg"
+   "base": "day-01-phone.base.svg",
+   "base_gz_kb": 1.4
   },
   "day-02-col": {
    "w": 718,
    "h": 400,
    "png": "day-02-col.webp",
-   "base": "day-02-col.base.svg"
+   "base": "day-02-col.base.svg",
+   "base_gz_kb": 3.6
   },
   "day-02-phone": {
    "w": 390,
    "h": 240,
    "png": "day-02-phone.webp",
-   "base": "day-02-phone.base.svg"
+   "base": "day-02-phone.base.svg",
+   "base_gz_kb": 1.4
   },
   "day-03-col": {
    "w": 718,
    "h": 400,
    "png": "day-03-col.webp",
-   "base": "day-03-col.base.svg"
+   "base": "day-03-col.base.svg",
+   "base_gz_kb": 5.8
   },
   "day-03-phone": {
    "w": 390,
    "h": 240,
    "png": "day-03-phone.webp",
-   "base": "day-03-phone.base.svg"
+   "base": "day-03-phone.base.svg",
+   "base_gz_kb": 3.1
   }
  },
  "charts": {
@@ -208,5 +222,12 @@
   -120.043843,
   38.994875,
   -119.896541
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

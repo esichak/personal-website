@@ -1,5 +1,10 @@
 {
- "hash": "f985924f98024e0c53fa92d243951e7a9dc621ba",
+ "hash": "2ef3998be5806c033d49ace8a533c652f63671a4",
+ "inputs": {
+  "fields": "2292797644db995cdf699294af62f8f96a3f51ab",
+  "files": "b4c138bab55e3fe09d570d752153c74259db3e6b",
+  "version": 8
+ },
  "slug": "ltcc-multiday-backcountry-ski-class",
  "kind": "multi-day",
  "maps": {
@@ -7,67 +12,78 @@
    "w": 1440,
    "h": 560,
    "png": "overview-wide.webp",
-   "base": "overview-wide.base.svg"
+   "base": "overview-wide.base.svg",
+   "base_gz_kb": 9.1
   },
   "overview-col": {
    "w": 718,
    "h": 440,
    "png": "overview-col.webp",
-   "base": "overview-col.base.svg"
+   "base": "overview-col.base.svg",
+   "base_gz_kb": 5.2
   },
   "overview-phone": {
    "w": 390,
    "h": 260,
    "png": "overview-phone.webp",
-   "base": "overview-phone.base.svg"
+   "base": "overview-phone.base.svg",
+   "base_gz_kb": 1.9
   },
   "day-01-col": {
    "w": 718,
    "h": 400,
    "png": "day-01-col.webp",
-   "base": "day-01-col.base.svg"
+   "base": "day-01-col.base.svg",
+   "base_gz_kb": 6.7
   },
   "day-01-phone": {
    "w": 390,
    "h": 240,
    "png": "day-01-phone.webp",
-   "base": "day-01-phone.base.svg"
+   "base": "day-01-phone.base.svg",
+   "base_gz_kb": 2.8
   },
   "day-02-col": {
    "w": 718,
    "h": 400,
    "png": "day-02-col.webp",
-   "base": "day-02-col.base.svg"
+   "base": "day-02-col.base.svg",
+   "base_gz_kb": 5.6
   },
   "day-02-phone": {
    "w": 390,
    "h": 240,
    "png": "day-02-phone.webp",
-   "base": "day-02-phone.base.svg"
+   "base": "day-02-phone.base.svg",
+   "base_gz_kb": 2.1
   },
   "day-03-col": {
    "w": 718,
    "h": 400,
    "png": "day-03-col.webp",
-   "base": "day-03-col.base.svg"
+   "base": "day-03-col.base.svg",
+   "base_gz_kb": 6.8
   },
   "day-03-phone": {
    "w": 390,
    "h": 240,
    "png": "day-03-phone.webp",
-   "base": "day-03-phone.base.svg"
+   "base": "day-03-phone.base.svg",
+   "base_gz_kb": 2.8
   },
   "day-04-col": {
    "w": 718,
    "h": 400,
    "png": "day-04-col.webp",
-   "base": "day-04-col.base.svg"
+   "base": "day-04-col.base.svg",
+   "base_gz_kb": 4.2
   },
   "day-04-phone": {
    "w": 390,
    "h": 240,
    "png": "day-04-phone.webp",
-   "base": "day-04-phone.base.svg"
+   "base": "day-04-phone.base.svg",
+   "base_gz_kb": 1.8
   }
  },
  "charts": {
@@ -250,5 +266,12 @@
   -120.04645,
   38.742095,
   -119.966752
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

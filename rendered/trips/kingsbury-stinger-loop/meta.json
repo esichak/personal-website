@@ -1,5 +1,10 @@
 {
- "hash": "f040f0246f59ff5319e1c367a643a5b809ff3c87",
+ "hash": "f2ae6c313d02577c60db7197ee5a6a8b1434ba1f",
+ "inputs": {
+  "fields": "4baf01715917204c66da320904da6ff632ed01d3",
+  "files": "d874893f9d0c6ca0e8299daf094a743b3e8e483d",
+  "version": 8
+ },
  "slug": "kingsbury-stinger-loop",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 21.9
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.937192,
   39.002391,
   -119.896609
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

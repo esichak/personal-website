@@ -1,5 +1,10 @@
 {
- "hash": "ab139e16f38dbe5823abb01350b2f881f0e44f2e",
+ "hash": "e7b7bfd88004b32bdff71ffc4da57bce1e4c81ff",
+ "inputs": {
+  "fields": "66ae2cc078ebe6a35cbe741e1d359a7a65e38858",
+  "files": "6a0c0fb76aa5e104f18cc70b080d7918a3e25fc6",
+  "version": 8
+ },
  "slug": "lower-tire-psi-more-fun",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 33.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.4
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906151,
   37.09092,
   -121.830215
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

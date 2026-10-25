@@ -1,5 +1,10 @@
 {
- "hash": "07fa054b1491f305e4108bacfaa81e0d17f0413c",
+ "hash": "bf50e070933d60c9fbfe713ef5de70d84e4329f8",
+ "inputs": {
+  "fields": "562432ec0a060bec2fb2dd627ad2c751e3f48c68",
+  "files": "a9390803cdb8576a58067f3eba3b3c3df33a28af",
+  "version": 8
+ },
  "slug": "scoping-out-the-emerald-bay-chutes",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.2
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 5.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.118164,
   38.976007,
   -120.098288
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

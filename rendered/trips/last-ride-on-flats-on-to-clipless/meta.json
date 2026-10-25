@@ -1,5 +1,10 @@
 {
- "hash": "bed074951eb86e09ba38df4b18ab459eb265cdd4",
+ "hash": "7260006617c27b80982d4aad2e9cd8bf33685f7f",
+ "inputs": {
+  "fields": "48e15df56f5605ba4c8de9fb8654e36ca9765226",
+  "files": "7904aaa8bdc00e74326955d99491dff042812d65",
+  "version": 8
+ },
  "slug": "last-ride-on-flats-on-to-clipless",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 35.5
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.4
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906048,
   37.090859,
   -121.830182
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

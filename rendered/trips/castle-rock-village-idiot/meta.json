@@ -1,5 +1,10 @@
 {
- "hash": "7b2b8ab4ff6046b19171414fe84046b4b55fa9de",
+ "hash": "b18d59c14fa1d2037998e6d9cb8e31e2ecd3b304",
+ "inputs": {
+  "fields": "624c52d92caa4036b4c696ceeaa19843f1df3728",
+  "files": "ca796f8d7a33acf16f38abdde69d29611c489dcb",
+  "version": 8
+ },
  "slug": "castle-rock-village-idiot",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 16.0
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 6.3
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.8
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.908599,
   38.99617,
   -119.896336
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

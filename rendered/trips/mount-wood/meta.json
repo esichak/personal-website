@@ -1,5 +1,10 @@
 {
- "hash": "33a3e20774c3699f3db8cfb2e3876d3ae4f5497a",
+ "hash": "44777cd6154d227a5c1d9539a092ce34c17be5ad",
+ "inputs": {
+  "fields": "9dcf4c5de1398ba1da3d012fdfd26af714ed3b75",
+  "files": "759983d2ca66bb8ba6787672544050fb621ee063",
+  "version": 8
+ },
  "slug": "mount-wood",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 20.4
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 4.4
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.162706,
   37.809729,
   -119.122137
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

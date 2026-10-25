@@ -1,23 +1,30 @@
 {
- "hash": "d61a59b7f618f47918776e3848ca530380f45c1f",
+ "hash": "3672c5d98470631058657b2719831e790af561db",
+ "inputs": {
+  "fields": "df452196ba0d6d4d9785f510a98129b712d4d09b",
+  "files": "501e794d3e7c01e5741be69db8fcd58db3ecdf4b",
+  "version": 8
+ },
  "slug": "heavenly-uphill-2025-04-09",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 20.3
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 9.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.904792,
   38.966513,
   -119.890348
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

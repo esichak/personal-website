@@ -1,5 +1,10 @@
 {
- "hash": "c211838e0fe970bde6c6f5bba9db5734bada8a84",
+ "hash": "29382041abf89dbd2f66ffa6c23588479039ae4e",
+ "inputs": {
+  "fields": "004adf8f4ebc259cb1e449ecd39f78c0a464990b",
+  "files": "8599c5467b71d6f77cb5c0f3d46cd61875883588",
+  "version": 8
+ },
  "slug": "kirkwood-sidecountry-cali-chute-far-corner",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 9.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -35,7 +43,7 @@
    "gps_max_ft": 9796.59,
    "min_ft": 7835.96,
    "total_mi": 10.04,
-   "gx": 561.8,
+   "gx": 561.24,
    "gy": 19.38,
    "gps_max_mi": 4.18,
    "y_lo": 7718.64,
@@ -50,7 +58,7 @@
    "gps_max_ft": 9796.59,
    "min_ft": 7835.96,
    "total_mi": 10.04,
-   "gx": 341.06,
+   "gx": 340.75,
    "gy": 16.79,
    "gps_max_mi": 4.18,
    "y_lo": 7718.64,
@@ -65,7 +73,7 @@
    "gps_max_ft": 9796.59,
    "min_ft": 7835.96,
    "total_mi": 10.04,
-   "gx": 149.11,
+   "gx": 148.94,
    "gy": 21.41,
    "gps_max_mi": 4.18,
    "y_lo": 7718.64,
@@ -88,5 +96,12 @@
   -120.065969,
   38.684782,
   -120.031987
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

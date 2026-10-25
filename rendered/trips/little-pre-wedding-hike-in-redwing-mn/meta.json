@@ -1,5 +1,10 @@
 {
- "hash": "de9f55c823c47ea118064413ce1876c8e2b2b23c",
+ "hash": "35a7855476c2d4ba76f8f906b38bb5db3c3edcfe",
+ "inputs": {
+  "fields": "77f4d1068808ac344888767d2a7328580a5c356d",
+  "files": "c11d7b4e1f7af989893ab351519372fc37d2a01b",
+  "version": 8
+ },
  "slug": "little-pre-wedding-hike-in-redwing-mn",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 8.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 5.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.4
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -92.531742,
   44.570456,
   -92.518159
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

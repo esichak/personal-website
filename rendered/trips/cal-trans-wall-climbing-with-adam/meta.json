@@ -1,5 +1,10 @@
 {
- "hash": "6bcaa9fb28c82f65b2dcc668edf11570aa0d5adf",
+ "hash": "d2ec9430bf6b95bcd55bbb1d194e41a5c35b1fc8",
+ "inputs": {
+  "fields": "088ce22702cf5f020d992ea3fad0ddb356d175cf",
+  "files": "c4bb10a55e2a4b47ce720ee977de616d0d9e2bc9",
+  "version": 8
+ },
  "slug": "cal-trans-wall-climbing-with-adam",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 12.3
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 4.9
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.043939,
   38.84361,
   -120.040019
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

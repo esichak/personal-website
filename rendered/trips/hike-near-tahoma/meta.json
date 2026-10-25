@@ -1,23 +1,30 @@
 {
- "hash": "1f144215514980b90f47b0dc80ed985d97e10f1a",
+ "hash": "1d3243675afe6cad339817acd0b89a2c563397fd",
+ "inputs": {
+  "fields": "006000b94cf12f8fbd2db508bc3ad8111bc9ef31",
+  "files": "044045a6e75a56d6f1531847bb4745e93067405d",
+  "version": 8
+ },
  "slug": "hike-near-tahoma",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.6
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
-   "interval_ft": 200,
-   "outbound_only": true
+   "interval_ft": 100,
+   "outbound_only": true,
+   "base_gz_kb": 6.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.102965,
   38.999207,
   -120.094359
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

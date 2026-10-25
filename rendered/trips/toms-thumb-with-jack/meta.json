@@ -1,5 +1,10 @@
 {
- "hash": "e1254eb903ab3c74fe73aaeb944e6e8933dfc2fa",
+ "hash": "941a1e993f7abd549433478c89136d430d2d0f29",
+ "inputs": {
+  "fields": "a40cf41f72cc22dfe3880746bf7cf02b23d09993",
+  "files": "d914b214a0c7f3f50a468aa69f366dcc0c34701d",
+  "version": 8
+ },
  "slug": "toms-thumb-with-jack",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 19.0
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 12.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.7
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -111.860398,
   33.682118,
   -111.808735
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

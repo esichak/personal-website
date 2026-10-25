@@ -1,5 +1,10 @@
 {
- "hash": "ed24122c46630bbab624a86c9737b49a431cf62a",
+ "hash": "f042d94a08da4dde0a5f4e0e79b94b35fcaa94a6",
+ "inputs": {
+  "fields": "8ae51cb97249ed5b97ae6d009dc5ae742f66251f",
+  "files": "e6b72e0cdb750224dab216ac05cb22d64375abf5",
+  "version": 8
+ },
  "slug": "brought-holt-to-the-demo-forest",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 26.5
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.2
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906012,
   37.090995,
   -121.849772
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

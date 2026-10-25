@@ -1,5 +1,10 @@
 {
- "hash": "f98493d3ddcbcd785eb7cafe0458e4bb73b4e514",
+ "hash": "daac7edb3e75ad8712a6b0f1fd5b8111caf6bf32",
+ "inputs": {
+  "fields": "ee5666d47bf2735f55e5e13ae38234b2dc4b7035",
+  "files": "357b4e715a14c7e0b70125eb242f9765aed0ebae",
+  "version": 8
+ },
  "slug": "converted-to-clipless",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 36.0
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 500,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.4
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.905938,
   37.091025,
   -121.830184
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

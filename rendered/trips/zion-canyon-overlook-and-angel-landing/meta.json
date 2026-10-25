@@ -1,23 +1,30 @@
 {
- "hash": "6ef20deafa3401c00d13f2ea43c3ee5ed1652764",
+ "hash": "faf207e0b1930029cae4ad004a3460d1191547be",
+ "inputs": {
+  "fields": "a84ce731c271f520d9fbc7d89129358234ff8400",
+  "files": "deec7d513d2ee35107aa4cf26529aa100f35731f",
+  "version": 8
+ },
  "slug": "zion-canyon-overlook-and-angel-landing",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 400,
-   "outbound_only": false
+   "interval_ft": 200,
+   "outbound_only": false,
+   "base_gz_kb": 49.4
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 400,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 16.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 1000,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 4.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -112.970779,
   37.275378,
   -112.938161
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "fetched"
+ }
 }

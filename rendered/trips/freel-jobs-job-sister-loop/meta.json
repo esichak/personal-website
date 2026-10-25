@@ -1,5 +1,10 @@
 {
- "hash": "5ef50bb5b05274a6648b9491a791f23b4770f8eb",
+ "hash": "f6af44577158d6833d59ad2e01664f39a1536f1b",
+ "inputs": {
+  "fields": "1f41f8ae9ddc3adf039380900260c413d3edd979",
+  "files": "84c1e96add2879cc736ca235580c9cfe2fc2de04",
+  "version": 8
+ },
  "slug": "freel-jobs-job-sister-loop",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 9.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.9
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.919077,
   38.863486,
   -119.861382
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

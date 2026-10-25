@@ -1,5 +1,10 @@
 {
- "hash": "7d66cb69516d92093b3399617019975cedf8c978",
+ "hash": "64c96cbd9b9e9ca2acd67249752da516d3f55ac1",
+ "inputs": {
+  "fields": "2b6d265358c7aa181c67e76763188a93e6ed3245",
+  "files": "48dee4f0178ced23ccea264a5e9711358a428ac8",
+  "version": 8
+ },
  "slug": "echo-peak-with-ross",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 13.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 6.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 2.5
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.072148,
   38.862453,
   -120.041945
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

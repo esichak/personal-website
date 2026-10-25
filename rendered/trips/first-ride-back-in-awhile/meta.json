@@ -1,5 +1,10 @@
 {
- "hash": "573a5a2759476e0d07c6ed0eb6f77b975c706ba8",
+ "hash": "19b85d8b0bd1b82428a44818ce5a345c7010e6ec",
+ "inputs": {
+  "fields": "352b91c485ee516267a8d6777b041411cd0ec8d6",
+  "files": "e0f6510b8ee6ecada19f3cdc643a69d70516a556",
+  "version": 8
+ },
  "slug": "first-ride-back-in-awhile",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 25.6
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.0
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.905895,
   37.090737,
   -121.850757
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

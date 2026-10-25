@@ -1,5 +1,10 @@
 {
- "hash": "a25df18d045d11be528e800bef7e3ce154f5dbe1",
+ "hash": "d57ddc317d50e842e51506298b2c6f84b2ebcfc7",
+ "inputs": {
+  "fields": "b0c57b6efa4cd2ac7802a56ffea1e9f3c180ec58",
+  "files": "f05f9bf121037072ebfb25a6501fe6f3b7a5608e",
+  "version": 8
+ },
  "slug": "demo-forest-was-closed",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 21.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 14.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.6
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -122.111313,
   36.992404,
   -122.079681
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

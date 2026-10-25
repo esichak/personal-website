@@ -1,23 +1,30 @@
 {
- "hash": "d10661fced6e8809bb7cc19f97112005c152c7f2",
+ "hash": "da1dcec70098e22d150baeb02812db1d8683b2a5",
+ "inputs": {
+  "fields": "b141edbe5121cbfd8d7582b01c82c822893b2b50",
+  "files": "0e782b064c780402ae1e0d3f35751306d6dbdbe8",
+  "version": 8
+ },
  "slug": "mount-glory-2026-03-02",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 16.5
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 6.1
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 100,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.3
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -110.955201,
   43.507091,
   -110.94962
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

@@ -1,5 +1,10 @@
 {
- "hash": "25a4a7c2891f14781bc155b0201a1fa0860b996b",
+ "hash": "4547585ad8d8b4cb267eb5cf385f73315294b41d",
+ "inputs": {
+  "fields": "a3d81f7499c415f10f4ddbe04b10d1e9e68e6e7e",
+  "files": "03b2fa43db8715b04a53863fed4417637ba7e4ec",
+  "version": 8
+ },
  "slug": "half-dome",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 100,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 37.7
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.6
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 5.1
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.574645,
   37.752313,
   -119.511121
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

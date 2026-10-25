@@ -1,5 +1,10 @@
 {
- "hash": "55d4a747f027c25dc831f7d5392b61b36807ea33",
+ "hash": "4306c6b521746aa671c99af66ddeb2d5471fb576",
+ "inputs": {
+  "fields": "ab3cee4b5dc969544df39471beb0b4f936653f23",
+  "files": "6b104ee4ec8e75599f633f121edf223e6a9ac23c",
+  "version": 8
+ },
  "slug": "lovers-leap-corrugation-corner",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 15.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 5.8
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 80,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.0
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -120.142744,
   38.804538,
   -120.129993
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

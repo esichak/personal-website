@@ -1,23 +1,30 @@
 {
- "hash": "30e93a9d4e8744507686e1f79f5b1dcc3e6bc635",
+ "hash": "bf22a70c1e4dd2b8c3603c69fffc4ae35238c369",
+ "inputs": {
+  "fields": "fe3b30a09dc439d16ef3276fe5b7e08b03206d78",
+  "files": "fa26ae07e15c50c9981a29c7a76b50d62088b829",
+  "version": 8
+ },
  "slug": "powderhouse-for-first-tour-of-the-season",
  "kind": "trip",
  "maps": {
   "map-wide": {
    "w": 1440,
-   "h": 640,
+   "h": 800,
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
-   "interval_ft": 80,
-   "outbound_only": true
+   "interval_ft": 40,
+   "outbound_only": true,
+   "base_gz_kb": 15.0
   },
   "map-col": {
    "w": 718,
-   "h": 400,
+   "h": 500,
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 5.3
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.9
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -119.978651,
   38.796337,
   -119.973615
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

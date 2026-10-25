@@ -1,11 +1,12 @@
 {
- "hash": "e421347f834c93c05dd93c520345728d74f90059",
+ "hash": "2eca64f7c217be537b1d93087f58482bf105fb7e",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
    "h": 620,
    "png": "region-lake-tahoe-desktop.webp",
    "base": "region-lake-tahoe-desktop.base.svg",
+   "base_gz_kb": 12.0,
    "region": "Lake Tahoe",
    "trips": [
     "tallac-2026-09-24",
@@ -375,6 +376,7 @@
    "h": 480,
    "png": "region-lake-tahoe-phone.webp",
    "base": "region-lake-tahoe-phone.base.svg",
+   "base_gz_kb": 7.7,
    "region": "Lake Tahoe",
    "trips": [
     "tallac-2026-09-24",
@@ -709,6 +711,7 @@
    "h": 680,
    "png": "ski-lake-tahoe-desktop.webp",
    "base": "ski-lake-tahoe-desktop.base.svg",
+   "base_gz_kb": 10.1,
    "region": "Lake Tahoe",
    "trips": [
     "pow-laps-in-april-after-work",
@@ -885,6 +888,7 @@
    "h": 480,
    "png": "ski-lake-tahoe-phone.webp",
    "base": "ski-lake-tahoe-phone.base.svg",
+   "base_gz_kb": 7.7,
    "region": "Lake Tahoe",
    "trips": [
     "pow-laps-in-april-after-work",
@@ -1028,11 +1032,365 @@
     }
    ]
   },
+  "mtb-lake-tahoe-desktop": {
+   "w": 506,
+   "h": 680,
+   "png": "mtb-lake-tahoe-desktop.webp",
+   "base": "mtb-lake-tahoe-desktop.base.svg",
+   "base_gz_kb": 4.5,
+   "region": "Lake Tahoe",
+   "trips": [
+    "tahoe-mountain-loop-2026-09-23",
+    "tahoe-mountain-loop",
+    "ride-near-kingsbury",
+    "kingsbury-stinger-loop",
+    "showing-holt-and-aliya-around-tahoe",
+    "kingsbury-stinger-shuttle",
+    "ride-near-south-lake-tahoe-2025-05-10",
+    "ride-near-south-lake-tahoe",
+    "checking-out-corral"
+   ],
+   "clusters": [
+    {
+     "x": 178.95640790972107,
+     "y": 398.9644028124837,
+     "n": 2,
+     "keys": [
+      "tahoe-mountain-loop-2026-09-23",
+      "tahoe-mountain-loop"
+     ]
+    },
+    {
+     "x": 453.41138632862237,
+     "y": 127.39335548627275,
+     "n": 2,
+     "keys": [
+      "ride-near-kingsbury",
+      "kingsbury-stinger-shuttle"
+     ]
+    },
+    {
+     "x": 356.0123393225135,
+     "y": 176.66947400340996,
+     "n": 1,
+     "keys": [
+      "kingsbury-stinger-loop"
+     ]
+    },
+    {
+     "x": 96.18036383817437,
+     "y": 362.95493158843107,
+     "n": 3,
+     "keys": [
+      "showing-holt-and-aliya-around-tahoe",
+      "ride-near-south-lake-tahoe-2025-05-10",
+      "ride-near-south-lake-tahoe"
+     ]
+    },
+    {
+     "x": 217.31131606449307,
+     "y": 537.133467201593,
+     "n": 1,
+     "keys": [
+      "checking-out-corral"
+     ]
+    }
+   ]
+  },
+  "mtb-lake-tahoe-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "mtb-lake-tahoe-phone.webp",
+   "base": "mtb-lake-tahoe-phone.base.svg",
+   "base_gz_kb": 2.6,
+   "region": "Lake Tahoe",
+   "trips": [
+    "tahoe-mountain-loop-2026-09-23",
+    "tahoe-mountain-loop",
+    "ride-near-kingsbury",
+    "kingsbury-stinger-loop",
+    "showing-holt-and-aliya-around-tahoe",
+    "kingsbury-stinger-shuttle",
+    "ride-near-south-lake-tahoe-2025-05-10",
+    "ride-near-south-lake-tahoe",
+    "checking-out-corral"
+   ],
+   "clusters": [
+    {
+     "x": 137.9308282308127,
+     "y": 269.83607628550465,
+     "n": 2,
+     "keys": [
+      "tahoe-mountain-loop-2026-09-23",
+      "tahoe-mountain-loop"
+     ]
+    },
+    {
+     "x": 349.4672740477524,
+     "y": 60.541999918126976,
+     "n": 2,
+     "keys": [
+      "ride-near-kingsbury",
+      "kingsbury-stinger-shuttle"
+     ]
+    },
+    {
+     "x": 274.39686232367643,
+     "y": 98.51806479526925,
+     "n": 1,
+     "keys": [
+      "kingsbury-stinger-loop"
+     ]
+    },
+    {
+     "x": 74.13111046815811,
+     "y": 242.08433656760005,
+     "n": 3,
+     "keys": [
+      "showing-holt-and-aliya-around-tahoe",
+      "ride-near-south-lake-tahoe-2025-05-10",
+      "ride-near-south-lake-tahoe"
+     ]
+    },
+    {
+     "x": 167.4929115912101,
+     "y": 376.3200590170184,
+     "n": 1,
+     "keys": [
+      "checking-out-corral"
+     ]
+    }
+   ]
+  },
+  "hike-lake-tahoe-desktop": {
+   "w": 506,
+   "h": 680,
+   "png": "hike-lake-tahoe-desktop.webp",
+   "base": "hike-lake-tahoe-desktop.base.svg",
+   "base_gz_kb": 5.7,
+   "region": "Lake Tahoe",
+   "trips": [
+    "tallac-2026-09-24",
+    "peak-bagging-szn",
+    "tallac-2026-09-17",
+    "slow-tallac-lap-after-work",
+    "tallac-2026-08-23",
+    "tallac-with-some-extras",
+    "cowboy-hat-peak",
+    "back-at-tallac-2026-08-16",
+    "tallac",
+    "hike-near-south-lake-tahoe-2026-08-02",
+    "maggies-peak-with-the-family",
+    "freel-jobs-job-sister-loop",
+    "mount-tallac-sunrise",
+    "mount-tallac",
+    "hike-near-south-lake-tahoe",
+    "daggett-loop-with-kevin",
+    "showing-kevin-the-go-to-mtb-loop",
+    "hike-near-tahoma",
+    "emerald-bay-post-ski-hike",
+    "crystal-range-to-bayview"
+   ],
+   "clusters": [
+    {
+     "x": 188.59278063095599,
+     "y": 310.77371467793057,
+     "n": 10,
+     "keys": [
+      "tallac-2026-09-24",
+      "tallac-2026-09-17",
+      "slow-tallac-lap-after-work",
+      "tallac-2026-08-23",
+      "tallac-with-some-extras",
+      "back-at-tallac-2026-08-16",
+      "tallac",
+      "hike-near-south-lake-tahoe-2026-08-02",
+      "mount-tallac-sunrise",
+      "mount-tallac"
+     ]
+    },
+    {
+     "x": 173.2654145267901,
+     "y": 383.96922186264806,
+     "n": 2,
+     "keys": [
+      "peak-bagging-szn",
+      "hike-near-south-lake-tahoe"
+     ]
+    },
+    {
+     "x": 273.06498017598267,
+     "y": 444.89683365904966,
+     "n": 1,
+     "keys": [
+      "cowboy-hat-peak"
+     ]
+    },
+    {
+     "x": 147.964284666173,
+     "y": 273.9946616982655,
+     "n": 2,
+     "keys": [
+      "maggies-peak-with-the-family",
+      "emerald-bay-post-ski-hike"
+     ]
+    },
+    {
+     "x": 405.0262949376351,
+     "y": 460.5995283487214,
+     "n": 1,
+     "keys": [
+      "freel-jobs-job-sister-loop"
+     ]
+    },
+    {
+     "x": 410.43671313280356,
+     "y": 187.53133571515158,
+     "n": 1,
+     "keys": [
+      "daggett-loop-with-kevin"
+     ]
+    },
+    {
+     "x": 217.09367571533954,
+     "y": 309.0629077322466,
+     "n": 1,
+     "keys": [
+      "showing-kevin-the-go-to-mtb-loop"
+     ]
+    },
+    {
+     "x": 144.88460748350113,
+     "y": 219.11698533658122,
+     "n": 1,
+     "keys": [
+      "hike-near-tahoma"
+     ]
+    },
+    {
+     "x": 100.29449743214576,
+     "y": 497.4956018420095,
+     "n": 1,
+     "keys": [
+      "crystal-range-to-bayview"
+     ]
+    }
+   ]
+  },
+  "hike-lake-tahoe-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "hike-lake-tahoe-phone.webp",
+   "base": "hike-lake-tahoe-phone.base.svg",
+   "base_gz_kb": 4.2,
+   "region": "Lake Tahoe",
+   "trips": [
+    "tallac-2026-09-24",
+    "peak-bagging-szn",
+    "tallac-2026-09-17",
+    "slow-tallac-lap-after-work",
+    "tallac-2026-08-23",
+    "tallac-with-some-extras",
+    "cowboy-hat-peak",
+    "back-at-tallac-2026-08-16",
+    "tallac",
+    "hike-near-south-lake-tahoe-2026-08-02",
+    "maggies-peak-with-the-family",
+    "freel-jobs-job-sister-loop",
+    "mount-tallac-sunrise",
+    "mount-tallac",
+    "hike-near-south-lake-tahoe",
+    "daggett-loop-with-kevin",
+    "showing-kevin-the-go-to-mtb-loop",
+    "hike-near-tahoma",
+    "emerald-bay-post-ski-hike",
+    "crystal-range-to-bayview"
+   ],
+   "clusters": [
+    {
+     "x": 145.35807202781194,
+     "y": 206.442472669994,
+     "n": 11,
+     "keys": [
+      "tallac-2026-09-24",
+      "tallac-2026-09-17",
+      "slow-tallac-lap-after-work",
+      "tallac-2026-08-23",
+      "tallac-with-some-extras",
+      "back-at-tallac-2026-08-16",
+      "tallac",
+      "hike-near-south-lake-tahoe-2026-08-02",
+      "mount-tallac-sunrise",
+      "mount-tallac",
+      "showing-kevin-the-go-to-mtb-loop"
+     ]
+    },
+    {
+     "x": 133.5444894574074,
+     "y": 262.85108088353144,
+     "n": 2,
+     "keys": [
+      "peak-bagging-szn",
+      "hike-near-south-lake-tahoe"
+     ]
+    },
+    {
+     "x": 211.87457980093464,
+     "y": 313.72683066416397,
+     "n": 1,
+     "keys": [
+      "cowboy-hat-peak"
+     ]
+    },
+    {
+     "x": 114.0436186162203,
+     "y": 178.09844897521685,
+     "n": 2,
+     "keys": [
+      "maggies-peak-with-the-family",
+      "emerald-bay-post-ski-hike"
+     ]
+    },
+    {
+     "x": 312.1744170467938,
+     "y": 321.90674020081156,
+     "n": 1,
+     "keys": [
+      "freel-jobs-job-sister-loop"
+     ]
+    },
+    {
+     "x": 316.34450221698296,
+     "y": 111.46490727555405,
+     "n": 1,
+     "keys": [
+      "daggett-loop-with-kevin"
+     ]
+    },
+    {
+     "x": 111.66995438451669,
+     "y": 135.80659986290036,
+     "n": 1,
+     "keys": [
+      "hike-near-tahoma"
+     ]
+    },
+    {
+     "x": 77.30208300106098,
+     "y": 350.3409465387562,
+     "n": 1,
+     "keys": [
+      "crystal-range-to-bayview"
+     ]
+    }
+   ]
+  },
   "region-oregon-desktop": {
    "w": 718,
    "h": 620,
    "png": "region-oregon-desktop.webp",
    "base": "region-oregon-desktop.base.svg",
+   "base_gz_kb": 5.6,
    "region": "Oregon",
    "trips": [
     "tamolich-blue-pool",
@@ -1071,6 +1429,7 @@
    "h": 480,
    "png": "region-oregon-phone.webp",
    "base": "region-oregon-phone.base.svg",
+   "base_gz_kb": 4.6,
    "region": "Oregon",
    "trips": [
     "tamolich-blue-pool",
@@ -1109,6 +1468,7 @@
    "h": 620,
    "png": "region-eastern-sierra-desktop.webp",
    "base": "region-eastern-sierra-desktop.base.svg",
+   "base_gz_kb": 8.8,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1194,6 +1554,7 @@
    "h": 480,
    "png": "region-eastern-sierra-phone.webp",
    "base": "region-eastern-sierra-phone.base.svg",
+   "base_gz_kb": 5.3,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1279,6 +1640,7 @@
    "h": 680,
    "png": "ski-eastern-sierra-desktop.webp",
    "base": "ski-eastern-sierra-desktop.base.svg",
+   "base_gz_kb": 6.9,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1337,6 +1699,7 @@
    "h": 480,
    "png": "ski-eastern-sierra-phone.webp",
    "base": "ski-eastern-sierra-phone.base.svg",
+   "base_gz_kb": 5.3,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1395,6 +1758,7 @@
    "h": 620,
    "png": "region-tetons-desktop.webp",
    "base": "region-tetons-desktop.base.svg",
+   "base_gz_kb": 6.1,
    "region": "Tetons",
    "trips": [
     "mount-glory-2026-03-03",
@@ -1428,6 +1792,7 @@
    "h": 480,
    "png": "region-tetons-phone.webp",
    "base": "region-tetons-phone.base.svg",
+   "base_gz_kb": 3.7,
    "region": "Tetons",
    "trips": [
     "mount-glory-2026-03-03",
@@ -1448,7 +1813,7 @@
     },
     {
      "x": 176.24926923110993,
-     "y": 30.078067802996124,
+     "y": 30.07806780299612,
      "n": 1,
      "keys": [
       "teton-canyon"
@@ -1461,6 +1826,7 @@
    "h": 680,
    "png": "ski-tetons-desktop.webp",
    "base": "ski-tetons-desktop.base.svg",
+   "base_gz_kb": 4.8,
    "region": "Tetons",
    "trips": [
     "mount-glory-2026-03-03",
@@ -1494,6 +1860,7 @@
    "h": 480,
    "png": "ski-tetons-phone.webp",
    "base": "ski-tetons-phone.base.svg",
+   "base_gz_kb": 3.7,
    "region": "Tetons",
    "trips": [
     "mount-glory-2026-03-03",
@@ -1514,7 +1881,7 @@
     },
     {
      "x": 176.24926923110993,
-     "y": 30.078067802996124,
+     "y": 30.07806780299612,
      "n": 1,
      "keys": [
       "teton-canyon"
@@ -1527,6 +1894,7 @@
    "h": 620,
    "png": "region-alps-desktop.webp",
    "base": "region-alps-desktop.base.svg",
+   "base_gz_kb": 28.4,
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -1567,6 +1935,7 @@
    "h": 480,
    "png": "region-alps-phone.webp",
    "base": "region-alps-phone.base.svg",
+   "base_gz_kb": 16.3,
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -1600,6 +1969,7 @@
    "h": 680,
    "png": "ski-alps-desktop.webp",
    "base": "ski-alps-desktop.base.svg",
+   "base_gz_kb": 24.3,
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -1640,6 +2010,7 @@
    "h": 480,
    "png": "ski-alps-phone.webp",
    "base": "ski-alps-phone.base.svg",
+   "base_gz_kb": 16.3,
    "region": "Alps",
    "trips": [
     "gran-paradiso-haute-route",
@@ -1673,6 +2044,7 @@
    "h": 620,
    "png": "region-santa-cruz-desktop.webp",
    "base": "region-santa-cruz-desktop.base.svg",
+   "base_gz_kb": 4.3,
    "region": "Santa Cruz",
    "trips": [
     "hike-near-bonny-doon",
@@ -1802,6 +2174,7 @@
    "h": 480,
    "png": "region-santa-cruz-phone.webp",
    "base": "region-santa-cruz-phone.base.svg",
+   "base_gz_kb": 2.9,
    "region": "Santa Cruz",
    "trips": [
     "hike-near-bonny-doon",
@@ -1926,11 +2299,250 @@
     }
    ]
   },
+  "mtb-santa-cruz-desktop": {
+   "w": 506,
+   "h": 680,
+   "png": "mtb-santa-cruz-desktop.webp",
+   "base": "mtb-santa-cruz-desktop.base.svg",
+   "base_gz_kb": 4.8,
+   "region": "Santa Cruz",
+   "trips": [
+    "enchanted-loop-x3",
+    "ride-near-day-valley-2022-10-29",
+    "otb-crash-on-segment-3-had-to-call-it-early",
+    "enjoying-the-cool-overcast-weather",
+    "3rd-ride-of-the-3-day-weekend",
+    "fatigued-ride-for-the-enduro-training",
+    "first-ride-back-in-awhile",
+    "took-some-souls-on-the-climbs-today",
+    "sunrise-ride-before-a-half-day-of-work",
+    "back-in-action",
+    "derailleur-down",
+    "spontaneous-ride",
+    "the-price-of-progression",
+    "finally-made-it-back-to-the-flow-trail",
+    "demo-forest-was-closed",
+    "beat-the-rain-storm-didnt-see-anyone-else-out",
+    "back-to-clipless",
+    "ride-near-day-valley-2021-12-05",
+    "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+    "thankful-for-the-demo-forest",
+    "finding-faster-lines",
+    "ran-into-some-goats-and-one-wheels",
+    "new-tires-good-conditions-so-much-grip",
+    "the-nomad-has-arrived",
+    "can-i-call-myself-a-local-now",
+    "brought-holt-to-the-demo-forest",
+    "getting-a-wet-ride-in-between-storms",
+    "soquel-demo-forest",
+    "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+    "ride-near-santa-cruz-2021-10-09",
+    "stretching-out-the-legs",
+    "converted-to-clipless",
+    "last-ride-on-flats-on-to-clipless",
+    "love-a-fire-road-climb-with-a-rave-in-the-background",
+    "exploring-new-trails-in-santa-cruz",
+    "hit-the-three-piece",
+    "ride-near-day-valley-2021-08-07",
+    "ride-near-santa-cruz",
+    "ride-near-day-valley-2021-07-03",
+    "lower-tire-psi-more-fun",
+    "ride-near-day-valley-2021-06-20",
+    "ride-near-day-valley-2021-06-19",
+    "ride-near-day-valley"
+   ],
+   "clusters": [
+    {
+     "x": 88.61497648593107,
+     "y": 455.0549818832661,
+     "n": 4,
+     "keys": [
+      "enchanted-loop-x3",
+      "demo-forest-was-closed",
+      "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+      "ride-near-santa-cruz"
+     ]
+    },
+    {
+     "x": 424.5336060940978,
+     "y": 239.29768692176273,
+     "n": 36,
+     "keys": [
+      "ride-near-day-valley-2022-10-29",
+      "otb-crash-on-segment-3-had-to-call-it-early",
+      "enjoying-the-cool-overcast-weather",
+      "3rd-ride-of-the-3-day-weekend",
+      "fatigued-ride-for-the-enduro-training",
+      "first-ride-back-in-awhile",
+      "took-some-souls-on-the-climbs-today",
+      "sunrise-ride-before-a-half-day-of-work",
+      "back-in-action",
+      "derailleur-down",
+      "spontaneous-ride",
+      "the-price-of-progression",
+      "finally-made-it-back-to-the-flow-trail",
+      "beat-the-rain-storm-didnt-see-anyone-else-out",
+      "back-to-clipless",
+      "ride-near-day-valley-2021-12-05",
+      "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+      "thankful-for-the-demo-forest",
+      "finding-faster-lines",
+      "new-tires-good-conditions-so-much-grip",
+      "the-nomad-has-arrived",
+      "can-i-call-myself-a-local-now",
+      "brought-holt-to-the-demo-forest",
+      "getting-a-wet-ride-in-between-storms",
+      "soquel-demo-forest",
+      "stretching-out-the-legs",
+      "converted-to-clipless",
+      "last-ride-on-flats-on-to-clipless",
+      "love-a-fire-road-climb-with-a-rave-in-the-background",
+      "hit-the-three-piece",
+      "ride-near-day-valley-2021-08-07",
+      "ride-near-day-valley-2021-07-03",
+      "lower-tire-psi-more-fun",
+      "ride-near-day-valley-2021-06-20",
+      "ride-near-day-valley-2021-06-19",
+      "ride-near-day-valley"
+     ]
+    },
+    {
+     "x": 160.37419815796767,
+     "y": 414.4496580505678,
+     "n": 3,
+     "keys": [
+      "ran-into-some-goats-and-one-wheels",
+      "ride-near-santa-cruz-2021-10-09",
+      "exploring-new-trails-in-santa-cruz"
+     ]
+    }
+   ]
+  },
+  "mtb-santa-cruz-phone": {
+   "w": 390,
+   "h": 480,
+   "png": "mtb-santa-cruz-phone.webp",
+   "base": "mtb-santa-cruz-phone.base.svg",
+   "base_gz_kb": 2.9,
+   "region": "Santa Cruz",
+   "trips": [
+    "enchanted-loop-x3",
+    "ride-near-day-valley-2022-10-29",
+    "otb-crash-on-segment-3-had-to-call-it-early",
+    "enjoying-the-cool-overcast-weather",
+    "3rd-ride-of-the-3-day-weekend",
+    "fatigued-ride-for-the-enduro-training",
+    "first-ride-back-in-awhile",
+    "took-some-souls-on-the-climbs-today",
+    "sunrise-ride-before-a-half-day-of-work",
+    "back-in-action",
+    "derailleur-down",
+    "spontaneous-ride",
+    "the-price-of-progression",
+    "finally-made-it-back-to-the-flow-trail",
+    "demo-forest-was-closed",
+    "beat-the-rain-storm-didnt-see-anyone-else-out",
+    "back-to-clipless",
+    "ride-near-day-valley-2021-12-05",
+    "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+    "thankful-for-the-demo-forest",
+    "finding-faster-lines",
+    "ran-into-some-goats-and-one-wheels",
+    "new-tires-good-conditions-so-much-grip",
+    "the-nomad-has-arrived",
+    "can-i-call-myself-a-local-now",
+    "brought-holt-to-the-demo-forest",
+    "getting-a-wet-ride-in-between-storms",
+    "soquel-demo-forest",
+    "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+    "ride-near-santa-cruz-2021-10-09",
+    "stretching-out-the-legs",
+    "converted-to-clipless",
+    "last-ride-on-flats-on-to-clipless",
+    "love-a-fire-road-climb-with-a-rave-in-the-background",
+    "exploring-new-trails-in-santa-cruz",
+    "hit-the-three-piece",
+    "ride-near-day-valley-2021-08-07",
+    "ride-near-santa-cruz",
+    "ride-near-day-valley-2021-07-03",
+    "lower-tire-psi-more-fun",
+    "ride-near-day-valley-2021-06-20",
+    "ride-near-day-valley-2021-06-19",
+    "ride-near-day-valley"
+   ],
+   "clusters": [
+    {
+     "x": 68.30008069073739,
+     "y": 320.57368118520213,
+     "n": 4,
+     "keys": [
+      "enchanted-loop-x3",
+      "demo-forest-was-closed",
+      "needed-an-excuse-to-go-back-to-the-santa-cruz-factory",
+      "ride-near-santa-cruz"
+     ]
+    },
+    {
+     "x": 327.2096963966367,
+     "y": 154.29138023533187,
+     "n": 36,
+     "keys": [
+      "ride-near-day-valley-2022-10-29",
+      "otb-crash-on-segment-3-had-to-call-it-early",
+      "enjoying-the-cool-overcast-weather",
+      "3rd-ride-of-the-3-day-weekend",
+      "fatigued-ride-for-the-enduro-training",
+      "first-ride-back-in-awhile",
+      "took-some-souls-on-the-climbs-today",
+      "sunrise-ride-before-a-half-day-of-work",
+      "back-in-action",
+      "derailleur-down",
+      "spontaneous-ride",
+      "the-price-of-progression",
+      "finally-made-it-back-to-the-flow-trail",
+      "beat-the-rain-storm-didnt-see-anyone-else-out",
+      "back-to-clipless",
+      "ride-near-day-valley-2021-12-05",
+      "beat-the-sunrise-and-almost-ate-it-over-a-downed-tree",
+      "thankful-for-the-demo-forest",
+      "finding-faster-lines",
+      "new-tires-good-conditions-so-much-grip",
+      "the-nomad-has-arrived",
+      "can-i-call-myself-a-local-now",
+      "brought-holt-to-the-demo-forest",
+      "getting-a-wet-ride-in-between-storms",
+      "soquel-demo-forest",
+      "stretching-out-the-legs",
+      "converted-to-clipless",
+      "last-ride-on-flats-on-to-clipless",
+      "love-a-fire-road-climb-with-a-rave-in-the-background",
+      "hit-the-three-piece",
+      "ride-near-day-valley-2021-08-07",
+      "ride-near-day-valley-2021-07-03",
+      "lower-tire-psi-more-fun",
+      "ride-near-day-valley-2021-06-20",
+      "ride-near-day-valley-2021-06-19",
+      "ride-near-day-valley"
+     ]
+    },
+    {
+     "x": 123.6085717027814,
+     "y": 289.2795055749619,
+     "n": 3,
+     "keys": [
+      "ran-into-some-goats-and-one-wheels",
+      "ride-near-santa-cruz-2021-10-09",
+      "exploring-new-trails-in-santa-cruz"
+     ]
+    }
+   ]
+  },
   "region-bay-area-desktop": {
    "w": 718,
    "h": 620,
    "png": "region-bay-area-desktop.webp",
    "base": "region-bay-area-desktop.base.svg",
+   "base_gz_kb": 9.0,
    "region": "Bay Area",
    "trips": [
     "its-good-to-be-back",
@@ -1980,6 +2592,7 @@
    "h": 480,
    "png": "region-bay-area-phone.webp",
    "base": "region-bay-area-phone.base.svg",
+   "base_gz_kb": 8.0,
    "region": "Bay Area",
    "trips": [
     "its-good-to-be-back",
@@ -2008,7 +2621,7 @@
      ]
     },
     {
-     "x": 366.8999440721441,
+     "x": 366.899944072144,
      "y": 203.16033695175184,
      "n": 1,
      "keys": [
@@ -2022,6 +2635,7 @@
    "h": 620,
    "png": "region-boise-desktop.webp",
    "base": "region-boise-desktop.base.svg",
+   "base_gz_kb": 5.4,
    "region": "Boise",
    "trips": [
     "good-fun",
@@ -2064,6 +2678,7 @@
    "h": 480,
    "png": "region-boise-phone.webp",
    "base": "region-boise-phone.base.svg",
+   "base_gz_kb": 2.8,
    "region": "Boise",
    "trips": [
     "good-fun",
@@ -2127,5 +2742,12 @@
   "Utah",
   "Washington",
   "Yosemite"
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

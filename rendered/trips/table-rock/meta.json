@@ -1,5 +1,10 @@
 {
- "hash": "de409557e5e9414edaedc46c566db29ce00a71c6",
+ "hash": "ec7146e5ccbf213a061c481ecb16bf022339f968",
+ "inputs": {
+  "fields": "2de6445780d324644fe05e73444cc6a3b93bdb94",
+  "files": "0be5a7ac1cdf8014b15631fe1fe41933227f46f2",
+  "version": 8
+ },
  "slug": "table-rock",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 40,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 17.1
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 80,
-   "outbound_only": false
+   "outbound_only": false,
+   "base_gz_kb": 8.7
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 200,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 1.8
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -116.163746,
   43.603962,
   -116.140147
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

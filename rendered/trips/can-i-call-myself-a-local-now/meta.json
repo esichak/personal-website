@@ -1,5 +1,10 @@
 {
- "hash": "88655ef7f7172edc549fff01b3dc48dbb07fae94",
+ "hash": "3c13051c14214887a419e1d3fdbd98e36fa422f7",
+ "inputs": {
+  "fields": "50c12d05d7b016e8100d97f8507ac1b14c154173",
+  "files": "a65b47de218d705980b58962f58730b72fdfd02b",
+  "version": 8
+ },
  "slug": "can-i-call-myself-a-local-now",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 26.8
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906142,
   37.090972,
   -121.849196
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }

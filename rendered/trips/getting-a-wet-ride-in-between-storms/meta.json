@@ -1,5 +1,10 @@
 {
- "hash": "6c5a4571dc09b0d34aab78939ab7609da3af3ef8",
+ "hash": "327ab340e80d9e4f0b58049678d706ed7708df72",
+ "inputs": {
+  "fields": "2cf3fa7a752ce5733fc01ee187e1fb62a2b46224",
+  "files": "8d0b9addc563b2788a328d023345d07cfa6306d2",
+  "version": 8
+ },
  "slug": "getting-a-wet-ride-in-between-storms",
  "kind": "trip",
  "maps": {
@@ -9,7 +14,8 @@
    "png": "map-wide.webp",
    "base": "map-wide.base.svg",
    "interval_ft": 80,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 27.0
   },
   "map-col": {
    "w": 718,
@@ -17,7 +23,8 @@
    "png": "map-col.webp",
    "base": "map-col.base.svg",
    "interval_ft": 200,
-   "outbound_only": true
+   "outbound_only": true,
+   "base_gz_kb": 11.5
   },
   "map-phone": {
    "w": 390,
@@ -25,7 +32,8 @@
    "png": "map-phone.webp",
    "base": "map-phone.base.svg",
    "interval_ft": 400,
-   "outbound_only": null
+   "outbound_only": null,
+   "base_gz_kb": 3.2
   }
  },
  "charts": {
@@ -88,5 +96,12 @@
   -121.906059,
   37.09094,
   -121.848926
- ]
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.12.11",
+  "cwebp": "1.5.0",
+  "date": "2026-10-25",
+  "osm": "cached"
+ }
 }
