@@ -97,6 +97,18 @@ message when a slug is unknown, a draft, a planned route or listed twice. An opt
 draws (Lake Tahoe and Eastern Sierra without it); a name without a region map stops the build. Details:
 **[docs/CONTENT_GUIDE.md](docs/CONTENT_GUIDE.md)**.
 
+## Let readers reach you
+
+An optional `content/author.json` puts a contact on the site: an address shown on About ('Follow & contact') and in
+the footer, with 'Ask about this trip' on every report, and the profiles you name, on About only:
+
+```json
+{"email": "<an alias you are willing to keep public>", "links": [{"label": "Strava", "url": "https://..."}]}
+```
+
+Leave the file out and the site shows no contact. Use an alias, not your own address: once committed it stays in the
+repository's history for good (docs/PRIVACY_NOTES.md). The build stops on a misspelt key or a link that is not https.
+
 ## Keep a tick list of future goals
 
 Future routes live beside the reports as `kind: planned` trips with an optional `goal.json`, shown at
@@ -131,6 +143,8 @@ python3 tools/about_photo.py FILE    # put a photo on the About page (content/ab
 python3 tools/render.py --status     # what a render would draw and why (offline; exit 1 when something is to draw)
 python3 tools/render.py              # render anything whose track or map settings changed (needs internet)
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)
+python3 tools/share_preview.py       # what each page's share card is made of, with flags (reads _site/; --site DIR)
+python3 tools/fonts.py --check       # are the site's own fonts complete? (tools/fonts.py without --check downloads them)
 python3 -m unittest discover -s tests   # the generator's unit tests (see docs/DEVELOPING.md)
 python3 tools/smoke.py ~/Library/Caches/personal-website/site   # a few pages in headless Chrome (CI runs it too)
 ```
@@ -153,6 +167,35 @@ search indexes, the GPX copies, ARIA references and heading order. On each push 
 only Markdown the build never reads (this file, the log, the plans) starts no run.
 `docs/CONTENT_GUIDE.md`, section 5, lists the lines both commands print and what to do about each; among the warnings
 are maps drawn from older inputs than the trip has now (`maps were drawn from other inputs ...`).
+
+Before a push that changes titles, descriptions or covers, run `python3 tools/share_preview.py` on the build and read
+its flags. After the push, once the site is live:
+
+- `curl -I "https://esichak.github.io/personal-website/assets/site.css?v=<the hash a page names>"` answers 200 with
+  `cache-control: max-age=600`;
+- paste a report and the home page into Google's Rich Results Test (the BreadcrumbList and, on a written report, the
+  BlogPosting);
+- check `https://esichak.github.io/personal-website/feed.xml` once in the W3C feed validator;
+- paste the Matterhorn report, a report with a portrait cover and the home page into a share debugger (Facebook's
+  Sharing Debugger or opengraph.xyz) and an iMessage thread, and note what each drew.
+
+## Search Console
+
+Search engines find the site through its sitemap, which has to be submitted: `robots.txt` sits at
+`/personal-website/robots.txt`, and crawlers only read one at the host's root (`esichak.github.io/robots.txt`, which
+does not exist), so they never see its `Sitemap:` line.
+
+1. In Google Search Console add a URL-prefix property for `https://esichak.github.io/personal-website/`.
+2. Choose the HTML tag method and put its token in `tools/sitegen/core.py`:
+   `VERIFY_TAGS = (('google-site-verification', '<token>'),)`. The token is public; commit it, push, then press Verify.
+3. Submit `sitemap.xml`, and inspect one report's address to see it as Google does.
+4. Import the property into Bing Webmaster Tools, adding its `('msvalidate.01', '<token>')` pair the same way if it
+   asks for a tag.
+
+Optional, outside this repository: a public `esichak/esichak.github.io` repository with a `robots.txt` (`User-agent:
+*`, `Allow: /`, `Sitemap: https://esichak.github.io/personal-website/sitemap.xml`) and an `index.html` that links to
+`/personal-website/`, so the bare host stops answering 404. No Disallow lines: the explorer's search indexes must stay
+readable.
 
 ## Setting up a new Mac
 

@@ -79,14 +79,18 @@ def activity_items(slug, here, pub):
     return out
 
 
+def crumb_items(name, here):
+    """The region page's crumbs, Reports / Map / <region> (the page itself), for the nav and its BreadcrumbList."""
+    return [('Reports', link(here, '')), ('Map', link(here, 'map/')), (name, None)]
+
+
 def head(name, here, pub, planned, intro=None, slug=None):
     """The H1, the counts line, the activities line and, when content/regions/<slug>.md has words, those words verbatim
     under them."""
     first = core.count_items(pub, planned) + [x for x in [years_item(pub)] if x]
     words = ('<div class="prose t-body reg-intro">%s</div>' % markdown.to_html(intro['body_md'], heading_shift=1)
              if intro and intro.get('body_md') else '')
-    crumbs = ('<a href="%s">Reports</a><span aria-hidden="true">/</span><a href="%s">Map</a><span aria-hidden="true">/</span>'
-              '<span aria-current="page">%s</span>' % (link(here, ''), link(here, 'map/'), esc(name)))
+    crumbs = core.crumbs(here, crumb_items(name, here))[0]
     return ('<section class="reg-head wrap" aria-labelledby="reg-title">'
             '<nav class="crumbs t-mono-s" aria-label="Breadcrumb">%s</nav>'
             '<h1 id="reg-title" class="t-d1">%s</h1>'
@@ -211,7 +215,8 @@ def page(name, slug, ts, site, meta, regs):
     preload = core.map_preloads(None, here, [('region-%s-desktop' % slug, 'desktop'), ('region-%s-phone' % slug, 'phone')],
                                 'assets/maps/', site_maps=True)
     return core.Page(here, core.document(here, title, body, description(name, pub), active='map', body_cls='p-region',
-                                         image=share_image(feat, pub), extra_head=preload, page_bar=(name, 'reg-title')), title)
+                                         image=share_image(feat, pub), extra_head=preload, page_bar=(name, 'reg-title'),
+                                         ld=[core.crumbs(here, crumb_items(name, here))[1]]), title)
 
 
 def build(site):

@@ -769,22 +769,33 @@ class MetadataTests(Fixture):
     def test_at_most_one_structured_data_block_and_it_is_a_blog_posting(self):
         rel = 'trips/alpha/index.html'
         self.assertEqual(self.one(rel, head=ld()), [])
-        self.assertEqual(self.one(rel, head=ld() + ld()), ['META %s: 2 application/ld+json blocks (expected at most 1)' % rel])
+        self.assertEqual(self.one(rel, head=ld() + ld()), ['META %s: 2 BlogPosting blocks (expected at most 1)' % rel])
         # wherever the second one stands
-        self.assertEqual(self.one(rel, head=ld(), body=ld()), ['META %s: 2 application/ld+json blocks (expected at most 1)' % rel])
+        self.assertEqual(self.one(rel, head=ld(), body=ld()), ['META %s: 2 BlogPosting blocks (expected at most 1)' % rel])
         single = "<script type='application/ld+json'>%s</script>"   # however the type is quoted
         self.assertEqual(self.one(rel, body=single % json.dumps({'@type': 'BlogPosting'})), [])
         self.assertEqual(self.one(rel, body=single % json.dumps({'@type': 'Recipe'})),
-                         ['META %s: application/ld+json @type is "Recipe" (expected BlogPosting)' % rel])
+                         ['META %s: application/ld+json @type is "Recipe" (expected BlogPosting or BreadcrumbList)' % rel])
         self.assertEqual(self.one(rel, head=ld(**{'@type': 'Article'})),
-                         ['META %s: application/ld+json @type is "Article" (expected BlogPosting)' % rel])
+                         ['META %s: application/ld+json @type is "Article" (expected BlogPosting or BreadcrumbList)' % rel])
         untyped = '<script type="application/ld+json">{"headline": "x"}</script>'
-        self.assertEqual(self.one(rel, head=untyped), ['META %s: application/ld+json @type is null (expected BlogPosting)' % rel])
+        self.assertEqual(self.one(rel, head=untyped), ['META %s: application/ld+json @type is null (expected BlogPosting or BreadcrumbList)' % rel])
         listed = '<script type="application/ld+json">[{"@type": "BlogPosting"}]</script>'
-        self.assertEqual(self.one(rel, head=listed), ['META %s: application/ld+json @type is null (expected BlogPosting)' % rel])
+        self.assertEqual(self.one(rel, head=listed), ['META %s: application/ld+json @type is null (expected BlogPosting or BreadcrumbList)' % rel])
         self.assertEqual(self.one(rel, head=ld() + ld(**{'@type': 'FAQPage'})),
-                         ['META %s: 2 application/ld+json blocks (expected at most 1)' % rel,
-                          'META %s: application/ld+json @type is "FAQPage" (expected BlogPosting)' % rel])
+                         ['META %s: application/ld+json @type is "FAQPage" (expected BlogPosting or BreadcrumbList)' % rel])
+
+    def test_a_breadcrumb_list_beside_the_blog_posting_and_one_of_each_at_most(self):
+        # Phase 14 (seo-06): a crumbed page carries its BreadcrumbList; two of either kind are one too many
+        rel = 'trips/alpha/index.html'
+        crumbs = ld(**{'@type': 'BreadcrumbList', 'itemListElement': []})
+        self.assertEqual(self.one(rel, head=crumbs), [])
+        self.assertEqual(self.one(rel, head=ld() + crumbs), [])
+        self.assertEqual(self.one(rel, head=ld(), body=crumbs), [])
+        self.assertEqual(self.one(rel, head=crumbs + crumbs), ['META %s: 2 BreadcrumbList blocks (expected at most 1)' % rel])
+        self.assertEqual(self.one(rel, head=ld() + crumbs + ld() + crumbs),
+                         ['META %s: 2 BlogPosting blocks (expected at most 1)' % rel,
+                          'META %s: 2 BreadcrumbList blocks (expected at most 1)' % rel])
 
     def test_a_structured_data_block_must_be_json(self):
         rel = 'trips/alpha/index.html'
@@ -807,7 +818,7 @@ class MetadataTests(Fixture):
     def test_a_page_without_a_head(self):
         self.assertEqual(self.meta({'frag.html': '<p>A stray fragment.</p>'}), ['META frag.html: no <head> element'])
         self.assertEqual(self.meta({'frag.html': '<p>x</p>' + ld() + ld()}),
-                         ['META frag.html: no <head> element', 'META frag.html: 2 application/ld+json blocks (expected at most 1)'])
+                         ['META frag.html: no <head> element', 'META frag.html: 2 BlogPosting blocks (expected at most 1)'])
 
     def test_lines_come_in_rule_order_page_by_page(self):
         files = {'b/index.html': page('b/index.html', head='<title>2</title><meta name="description" content="2">' + ld() + ld()),
@@ -817,7 +828,7 @@ class MetadataTests(Fixture):
                           'META a/index.html: og:image:width without og:image:height',
                           'META b/index.html: 2 <title> elements in the head (expected 1)',
                           'META b/index.html: 2 meta description tags (expected 1)',
-                          'META b/index.html: 2 application/ld+json blocks (expected at most 1)'])
+                          'META b/index.html: 2 BlogPosting blocks (expected at most 1)'])
         self.assertEqual(self.sc.metadata(self.out, 'a/index.html'), self.meta(files)[:2])
 
 

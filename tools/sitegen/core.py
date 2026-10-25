@@ -11,6 +11,7 @@ import os
 import re
 import sys
 from datetime import date, datetime
+from urllib.parse import urljoin
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
@@ -27,6 +28,7 @@ SITE_NAME = 'Eric Sichak'
 TAGLINE = 'Backcountry skiing, climbing, hiking, mountain biking and other trips, each with the full GPX track and map.'
 SITE_TAGLINE = TAGLINE
 SITE_URL = 'https://esichak.github.io/personal-website/'
+REPO_URL = 'https://github.com/esichak/personal-website'   # the public repository the site is built from (gap5-02)
 AUTHOR_NAME = SITE_NAME          # the one author of every write-up (structured data); never a `party:` name
 AUTHOR_URL = SITE_URL + 'about/'
 STRUCTURED_MIN_CHARS = 100       # a report needs this much of Eric's own text to be marked up as a BlogPosting
@@ -792,25 +794,26 @@ PRELOAD_MEDIA = {'wide': '(min-width: 1200px)', 'col': '(min-width: 560px) and (
                  'phone': '(max-width: 559.98px)', 'desktop': '(min-width: 560px)'}
 
 
-def map_preloads(t, here, variants, asset_dir, nowide=False, site_maps=False):
+def map_preloads(t, here, variants, asset_dir, nowide=False, site_maps=False, media=None):
     """<link rel="preload"> for the hillshade and the base layer (contours, water, roads) each breakpoint shows, so the
     hero map (the LCP image) paints in one step. Pass only the hero variants. nowide=True: the col variant also serves
-    >= 1200 (map--nowide)."""
+    >= 1200 (map--nowide). media: {size: query} for a map whose page shows its variants at other widths than
+    PRELOAD_MEDIA says (the Ski panel, section.SKI_MEDIA)."""
     meta = site_meta() if site_maps else render_meta(t)
     out = []
     for name, size in variants:
         m = meta['maps'].get(name)
         if not m:
             continue
-        media = '(min-width: 560px)' if (size == 'col' and nowide) else PRELOAD_MEDIA.get(size)
-        if not media:
+        q = (media or {}).get(size) or ('(min-width: 560px)' if (size == 'col' and nowide) else PRELOAD_MEDIA.get(size))
+        if not q:
             continue
         if m.get('png'):
             out.append('<link rel="preload" as="image" href="%s%s" media="%s" fetchpriority="high">'
-                       % (link(here, asset_dir), m['png'], media))
+                       % (link(here, asset_dir), m['png'], q))
         if m.get('base'):
             out.append('<link rel="preload" as="image" type="image/svg+xml" href="%s%s" media="%s" fetchpriority="high">'
-                       % (link(here, asset_dir), m['base'], media))
+                       % (link(here, asset_dir), m['base'], q))
     return ''.join(out)
 
 
@@ -1085,9 +1088,11 @@ def phone_sizes(sizes, p):
     return sizes.replace(PHONE_FULL, '100vw')
 
 
-def photo(t, p, here, sizes='(min-width: 1200px) 1248px, ' + PHONE_FULL, cls='', eager=False, caption=True, full=True):
+def photo(t, p, here, sizes='(min-width: 1200px) 1248px, ' + PHONE_FULL, cls='', eager=False, caption=True, full=True,
+          thumb=False):
     """full=False: the page never takes the full file, only the .th and .sm copies (the journal's photos: its column is
-    620 px at most, and a 2x screen would otherwise fetch the 1600 px file for it); the link to the file stays."""
+    620 px at most, and a 2x screen would otherwise fetch the 1600 px file for it); the link to the file stays.
+    thumb=True: a small slot (the Hiking page's journal squares, perf-14) lists the .th copy first, when there is one."""
     base = link(here, t['url'])
     src = base + p['file']
     srcset = ''
@@ -1097,7 +1102,8 @@ def photo(t, p, here, sizes='(min-width: 1200px) 1248px, ' + PHONE_FULL, cls='',
         big_w = p['w'] if p['w'] >= p['h'] else int(p['w'])
         small_w = int(round(p['w'] * 800.0 / max(p['w'], p['h'])))
         if full:
-            srcset = ' srcset="%s %dw, %s %dw" sizes="%s"' % (base + p['sm'], small_w, src, big_w, sizes)
+            th = ('%s %dw, ' % (base + p['th'], thumb_width(p))) if (thumb and p.get('th')) else ''
+            srcset = ' srcset="%s%s %dw, %s %dw" sizes="%s"' % (th, base + p['sm'], small_w, src, big_w, sizes)
         else:
             src = base + p['sm']
             th = ('%s %dw, ' % (base + p['th'], thumb_width(p))) if p.get('th') else ''
@@ -1896,14 +1902,16 @@ def copy_link(url, label='Copy link', cls='btn', of='', share=None):
     and shows the share icon instead of the link icon (both are in the markup; base.css shows one): a press then opens
     the phone's share sheet, and the clipboard path is the fallback (phone-06). `share` defaults to the label's own
     length: 'Share' for the short 'Copy link' of a title block (a longer word there wrapped the journal's title actions
-    onto a third row on phones, and the page moved when the script ran), 'Share this page' otherwise."""
+    onto a third row on phones, and the page moved when the script ran), 'Share this page' otherwise. share=False: a
+    control that only ever copies (About's feed address, to paste into a feed reader, is no page to share)."""
     if share is None:
         share = 'Share' if label == 'Copy link' else 'Share this page'
     more = '<span class="sr">, %s</span>' % esc(of) if of else ''
     ics = (icon('link', 18).replace('<svg class="ic"', '<svg class="ic copy-ic copy-ic--link"', 1)
            + icon('share', 18).replace('<svg class="ic"', '<svg class="ic copy-ic copy-ic--share"', 1))
-    return ('<span class="copy"><button type="button" class="%s copy-btn" data-copy="%s" data-share="%s">%s<span class="copy-l">%s</span>%s</button>'
-            '<span class="copy-msg t-small" role="status"></span></span>' % (cls, esc(url), esc(share), ics, esc(label), more))
+    sheet = '' if share is False else ' data-share="%s"' % esc(share)
+    return ('<span class="copy"><button type="button" class="%s copy-btn" data-copy="%s"%s>%s<span class="copy-l">%s</span>%s</button>'
+            '<span class="copy-msg t-small" role="status"></span></span>' % (cls, esc(url), sheet, ics, esc(label), more))
 
 
 def goal_tags(goal):
@@ -1986,6 +1994,52 @@ def count_items(ts, planned=0):
     return items
 
 
+def page_title(t, dup=False):
+    """A trip page's <title> and og:title (seo-01): '{title} · {activity}, {place or region}', then ', {short date}' when
+    another published report carries the same title (dup), then ' · Eric Sichak'. The H1 and the BlogPosting headline
+    stay the title as written; the activity, place and region are index.md's. A place whose words all stand in the
+    title already is passed over for the region, and the region the same way; with neither left the title keeps the
+    form it had: '{title}[, {short date}] · Eric Sichak'."""
+    words = lambda x: set(re.findall(r'\w+', x.casefold()))  # noqa: E731
+    named = words(t['title'])
+    where = next((x for x in (t.get('place'), t.get('region')) if x and not words(x) <= named), '')
+    when = (', ' + fdate(t['date'], 'short')) if dup and t.get('date') else ''
+    if not where:
+        return '%s%s · %s' % (t['title'], when, SITE_NAME)
+    return '%s · %s, %s%s · %s' % (t['title'], act_word(t), where, when, SITE_NAME)
+
+
+DESC_LIMIT = 160
+DESC_FLOOR = 40   # a write-up that leads is cut at its last sentence end from this many characters to DESC_LIMIT
+
+
+def describe(t, facts, limit=DESC_LIMIT):
+    """A trip page's meta description (seo-02), never cut inside the facts. facts: the page leads with the facts (a
+    planned route, a multi-day trip, a report with little or no write-up or with a repeated title). The factual summary
+    is then written whole, whatever its length, followed by the start of the writing (a goal's why, a multi-day trip's
+    first written day as 'Day N: ...', else the write-up) only in whole sentences that fit in what is left of limit.
+    Otherwise the write-up leads, cut at its last sentence end from DESC_FLOOR characters on (markdown.plain_sentences);
+    a write-up with no sentence end in that span leads with the facts instead, so no description ends mid-sentence.
+    Always a verbatim prefix of the author's text after the facts, never a rewrite."""
+    if not facts:
+        lead = markdown.plain_sentences(t['body_md'], limit, floor=float(DESC_FLOOR) / limit)
+        if not lead.endswith('…'):
+            return lead
+    desc = summary(t)
+    lead, text = ' ', t['body_md']
+    if t['kind'] == 'planned':
+        text = (t.get('goal') or {}).get('why') or ''
+    elif t['kind'] == 'multi-day':
+        d = next((d for d in t['days'] if d['body_md']), None)
+        lead, text = (' Day %d: ' % d['n'], d['body_md']) if d else (' ', '')
+    room = limit - len(desc) - len(lead)
+    if text and room > 0:
+        more = markdown.plain_sentences(text, room, floor=0)
+        if not more.endswith('…'):
+            desc += lead + more
+    return desc
+
+
 def summary(t):
     """Factual one-paragraph summary (meta description, RSS) built only from content fields — never from prose."""
     act = act_word(t)
@@ -2045,6 +2099,21 @@ def units_control():
 
 
 _TRIPS_BY_URL = {}
+# set by build.py for the length of a build: the bundles' hashes, which every page puts in its addresses for them
+# (perf-01: a page never meets a stylesheet older than itself in a ten-minute cache), and whether the fonts are the
+# site's own (perf-02: assets/css/fonts.css, written by tools/fonts.py). Empty, document() writes what it always did.
+_ASSET_VERSION = {}
+_SELF_FONTS = [False]
+_AUTHOR = [None]      # content/author.json as sitegen.author.load read it (register_site): the contact rows, or None
+# fonts preloaded when they are the site's own: none. Measured on 2026-10-25 (25 desktop runs, the phone profile's median
+# of 3): preloading Archivo and Source Serif 4 (138 KB) left desktop first paint where it was (56 against 60 ms on home)
+# and held the phone's largest paint back 780 ms (2,524 against 1,740 ms), the fonts taking the slow line from the lead
+# image; found by the stylesheet, they arrive in time for desktop and after the image on a phone
+FONT_PRELOADS = ()
+# search engines' site-verification tags, (name, content) pairs written into every head, e.g.
+# ('google-site-verification', '<token>') and ('msvalidate.01', '<token>') (seo-12; README.md 'Search Console'). The
+# tokens are public values. Empty: no tag.
+VERIFY_TAGS = ()
 _ON_MAPS = [None]     # the slugs a site map may still draw (gone_keys); None until a site is registered
 _TITLES = {}          # slug -> title of the registered site's trips: the site maps' labels (relabel)
 _OTHER_SUBS = []
@@ -2130,6 +2199,24 @@ def written_report(t):
     return len(text) >= STRUCTURED_MIN_CHARS
 
 
+def crumbs(here, items):
+    """A Breadcrumb nav's contents and the BreadcrumbList that repeats them (seo-06), from one list: items is [(name,
+    href)], href relative to the page as link() writes it, or None for the page itself (aria-current, no item URL in the
+    list). Returns (html, ld): the names as shown, the hrefs made absolute against the page's URL."""
+    html_ = '<span aria-hidden="true">/</span>'.join(
+        ('<a href="%s">%s</a>' % (h, esc(n))) if h is not None else ('<span aria-current="page">%s</span>' % esc(n))
+        for n, h in items)
+    ld = {'@context': 'https://schema.org', '@type': 'BreadcrumbList', 'itemListElement': [
+        dict({'@type': 'ListItem', 'position': i + 1, 'name': n}, **({'item': urljoin(SITE_URL + here, h)} if h is not None else {}))
+        for i, (n, h) in enumerate(items)]}
+    return html_, ld
+
+
+def ld_script(data):
+    """One <script type="application/ld+json"> block; '<' is written as \\u003c so no name can close the script."""
+    return '<script type="application/ld+json">%s</script>' % json.dumps(data, ensure_ascii=False).replace('<', '\\u003c')
+
+
 def blog_posting(t, canon, description, image=None):
     """The schema.org BlogPosting of a written report, from content only: the title as written, the page's own URL and
     description, the one author, the report's own share photo when its size is recorded, and the publication dates
@@ -2148,16 +2235,23 @@ def blog_posting(t, canon, description, image=None):
 
 
 def _report_head(t, canon, description, image):
-    """Head tags only a report page carries: article:published_time / modified_time when index.md states them, and the
-    BlogPosting block when the page is a written report. '<' is written as \\u003c so no title can close the script."""
-    out = ''
+    """Head tags only a report page carries: article:author (the About page), article:section (the activity's label) and
+    one article:tag per region and per summit in map: peaks: (seo-03), article:published_time / modified_time when
+    index.md states them, and the BlogPosting block when the page is a written report. '<' is written as \\u003c so no
+    title can close the script."""
+    out = ('<meta property="article:author" content="%s"><meta property="article:section" content="%s">'
+           % (AUTHOR_URL, esc(ACT[t['activity']][0])))
+    tags = []
+    for x in [t.get('region')] + list((t.get('map') or {}).get('peaks') or []):
+        if isinstance(x, str) and x.strip() and x.strip().casefold() not in [y.casefold() for y in tags]:
+            tags.append(x.strip())
+    out += ''.join('<meta property="article:tag" content="%s">' % esc(x) for x in tags)
     if t.get('published_at'):
         out += '<meta property="article:published_time" content="%s">' % esc(t['published_at'])
     if t.get('updated_at'):
         out += '<meta property="article:modified_time" content="%s">' % esc(t['updated_at'])
     if written_report(t):
-        out += ('<script type="application/ld+json">%s</script>'
-                % json.dumps(blog_posting(t, canon, description, image), ensure_ascii=False).replace('<', '\\u003c'))
+        out += ld_script(blog_posting(t, canon, description, image))
     return out
 
 
@@ -2170,6 +2264,7 @@ def register_site(site, meta=None):
     _TRIPS_BY_URL.clear()
     _TRIPS_BY_URL.update({t['url']: t for t in site['trips']})
     _HAS_PCT[0] = any(t['slug'] == PCT_SLUG for t in site['trips'])
+    _AUTHOR[0] = site.get('author')
     feat = site.get('featured') or []
     _SITE_SHARE[0] = share_photo(feat[0]) if feat else None
     _OTHER_SUBS[:] = other_subtypes(site.get('published') or [t for t in site['trips'] if t['kind'] != 'planned'])
@@ -2296,18 +2391,37 @@ def header(here, active=None, trip=None, page_bar=None):
                icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), units_control(), ''.join(menu_rows), ''.join(site_rows)))
 
 
+def touch_icon(p):
+    """The home-screen icon's link (phone-16: iOS takes its tile from it), when assets/apple-touch-icon.png exists (a
+    test's temporary tree has none, as it may have no print.css)."""
+    if not os.path.exists(os.path.join(ROOT, 'assets', 'apple-touch-icon.png')):
+        return ''
+    return '<link rel="apple-touch-icon" href="%sassets/apple-touch-icon.png">' % p
+
+
+def author_email():
+    """The public address content/author.json gives (gap5-01), or None: the footer's row, About's contact and every
+    report's 'Ask about this trip' are there only when it is."""
+    return (_AUTHOR[0] or {}).get('email')
+
+
 def footer(here):
     reports = ''.join('<li><a href="%s">%s</a></li>' % (link(here, section_url(a)), lab) for a, lab in NAV)
-    site = ('<li><a href="%s">Trips</a></li><li><a href="%s">Tick list</a></li><li><a href="%s">Map</a></li><li><a href="%s">About</a></li><li><a href="%s">%sRSS</a></li>'
-            % (link(here, 'trips/'), link(here, 'tick-list/'), link(here, 'map/'), link(here, 'about/'), link(here, 'feed.xml'), icon('rss', 16)))
+    # 'Follow' lands on About's section, which says what to do with the feed, rather than on the raw XML (gap5-05)
+    site = ('<li><a href="%s">Trips</a></li><li><a href="%s">Tick list</a></li><li><a href="%s">Map</a></li><li><a href="%s">About</a></li>'
+            '<li><a href="%s">%sFollow</a></li><li><a href="%s">Source on GitHub</a></li>'
+            % (link(here, 'trips/'), link(here, 'tick-list/'), link(here, 'map/'), link(here, 'about/'), link(here, 'about/#follow'),
+               icon('rss', 16), REPO_URL))
+    email = author_email()
+    mail = ('<a class="f-mail" href="mailto:%s">%s</a>' % (esc(email), esc(email))) if email else ''
     return ('<footer class="site-f"><div class="site-f-in">'
-            '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">%s</span></div>'
+            '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">%s</span>%s</div>'
             '<nav class="f-nav" aria-labelledby="f-rep"><p class="t-label" id="f-rep">By activity</p><ul>%s</ul></nav>'
             '<nav class="f-nav" aria-labelledby="f-site"><p class="t-label" id="f-site">Site</p><ul>%s</ul></nav>'
             '<div class="f-note"><p>Reports describe past conditions, not advice. Check the current avalanche forecast before you go.</p>'
             '<p class="t-mono-s">%s</p>'
             '<p class="t-mono-s">© %d ERIC SICHAK</p></div></div></footer>'
-            % (link(here, ''), SITE_NAME, meta_items([nb('BASED IN LAKE TAHOE'), nb('AVALANCHE TRAINING: AIARE 2')]), reports, site,
+            % (link(here, ''), SITE_NAME, meta_items([nb('BASED IN LAKE TAHOE'), nb('AVALANCHE TRAINING: AIARE 2')]), mail, reports, site,
                meta_items([nb('MAPS: AWS TERRAIN TILES'), nb('© OPENSTREETMAP CONTRIBUTORS')]), date.today().year))
 
 
@@ -2326,13 +2440,14 @@ def lightbox():
 
 
 def document(here, title, body, description='', active=None, css_pages=(), image=None, extra_head='', body_cls='', bottom='',
-             og_type='website', full_title=None, trip=None, canonical=True, report=None, page_bar=None):
+             og_type='website', full_title=None, trip=None, canonical=True, report=None, page_bar=None, ld=()):
     """full_title: the whole <title> text (default '<title> · Eric Sichak'), also the og:title; og_type: 'article' on trip
     pages. trip: the trip the page shows (default: looked up by URL, see register_site()) for the phone app bar.
     image: the share image, a share_photo() dict (or a site-relative path). canonical=False: a page that stands for no
     URL of its own (the 404 page) gets neither a canonical link nor og:url. report: the published trip a report page
     is about; it adds the publication dates index.md states and, for a written report, one BlogPosting block.
-    page_bar: the phone title bar of a long index page (header's page_bar).
+    page_bar: the phone title bar of a long index page (header's page_bar). ld: structured-data blocks the page adds (its
+    BreadcrumbList, crumbs()), written at the end of the head; every page names the site and its locale (seo-03).
 
     The head's one inline script runs before the page paints: it marks <html> with 'js' (the header's no-script rules
     also apply while it is missing: html:not(.js), resilience-01; site.js's onerror takes it back off when the bundle
@@ -2351,21 +2466,28 @@ def document(here, title, body, description='', active=None, css_pages=(), image
     canon_link = ('<link rel="canonical" href="%s">' % canon) if canonical else ''
     og_url = ('<meta property="og:url" content="%s">' % canon) if canonical else ''
     lb = lightbox() if any(('class="%s' % c) in body for c in ('jph', 'mul-ph', 'ser-ph')) else ''
+    ver = lambda k: ('?v=' + _ASSET_VERSION[k]) if _ASSET_VERSION.get(k) else ''  # noqa: E731
+    if _SELF_FONTS[0]:
+        fonts = ''.join('<link rel="preload" href="%s%s" as="font" type="font/woff2" crossorigin>' % (p, f) for f in FONT_PRELOADS)
+    else:
+        fonts = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+                 '<link rel="stylesheet" href="%s">' % FONTS.replace('&', '&amp;'))
     return ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             '<title>%s</title><meta name="description" content="%s">'
             '%s'
             '<meta property="og:type" content="%s"><meta property="og:title" content="%s">'
-            '<meta property="og:description" content="%s">%s%s'
-            '<meta name="theme-color" content="#F2F1EC">'
-            '<link rel="icon" href="%sassets/favicon.svg" type="image/svg+xml">'
+            '<meta property="og:description" content="%s"><meta property="og:site_name" content="%s">'
+            '<meta property="og:locale" content="en_US">%s%s'
+            '<meta name="theme-color" content="#F2F1EC">%s'
+            '<link rel="icon" href="%sassets/favicon.svg" type="image/svg+xml">%s'
             '<link rel="alternate" type="application/rss+xml" title="%s — trip reports" href="%sfeed.xml">'
-            '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-            '<link rel="stylesheet" href="%s">'
-            '<link rel="stylesheet" href="%sassets/site.css">'
+            '%s'
+            '<link rel="stylesheet" href="%sassets/site.css%s">'
             '<script>%s</script>'
-            '%s</head><body class="%s">%s<main id="main">%s</main>%s%s%s'
-            '<script src="%sassets/site.js" defer onerror="document.documentElement.classList.remove(\'js\', \'km\')"></script></body></html>\n'
-            % (esc(full_title), esc(description or SITE_TAGLINE), canon_link, og_type, esc(full_title), esc(description or SITE_TAGLINE), og_url, og,
-               p, SITE_NAME, p, FONTS.replace('&', '&amp;'), p, PREPAINT, extra_head, body_cls, header(here, active, trip, page_bar), body, footer(here),
-               bottom, lb, p))
+            '%s%s</head><body class="%s">%s<main id="main">%s</main>%s%s%s'
+            '<script src="%sassets/site.js%s" defer onerror="document.documentElement.classList.remove(\'js\', \'km\')"></script></body></html>\n'
+            % (esc(full_title), esc(description or SITE_TAGLINE), canon_link, og_type, esc(full_title), esc(description or SITE_TAGLINE),
+               SITE_NAME, og_url, og, ''.join('<meta name="%s" content="%s">' % (esc(k), esc(v)) for k, v in VERIFY_TAGS),
+               p, touch_icon(p), SITE_NAME, p, fonts, p, ver('css'), PREPAINT, extra_head, ''.join(ld_script(x) for x in ld), body_cls, header(here, active, trip, page_bar), body, footer(here),
+               bottom, lb, p, ver('js')))

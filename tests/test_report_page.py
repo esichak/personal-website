@@ -67,6 +67,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # the repo 
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 from sitegen import core  # noqa: E402
+import markdown  # noqa: E402
 
 import helpers  # noqa: E402
 from helpers import Doc, photo, LANDSCAPE, PORTRAIT  # noqa: E402
@@ -78,6 +79,9 @@ WRITEUP = ('Synthetic write-up for a test.\n\n'
 NOTES = 'Synthetic planning notes for a test.'
 CAPTION = 'Synthetic caption: "quoted" & <bracketed>.'
 REGION = 'Synthetic Range'
+# the region crumb's item in a page's BreadcrumbList, to the region's page or to its place on map/ (Phase 14, seo-06)
+CRUMB_REGION = '"item": "%sregions/synthetic-range/"' % core.SITE_URL
+CRUMB_MAP = '"item": "%smap/#region-synthetic-range"' % core.SITE_URL
 BETA = [{'label': 'Trailhead', 'value': 'Synthetic Lot'}]
 TRACK_NOTE = 'Synthetic recorder, one synthetic gap'      # a beta row labelled Track: the stats footnote prints it
 CREDIT = ['Terrain: AWS Terrain Tiles', 'Map data © OpenStreetMap contributors', 'Not for navigation']   # every caption's end
@@ -2866,13 +2870,19 @@ class NoTrackTests(ReportFixture):
                 self.assertIn('stats', ids(with_))
                 # the head: the same elements, and the description without its closing fact
                 self.assertEqual(self.head_but_descriptions(without), self.head_but_descriptions(with_))
-                self.assertNotIn('ld+json', with_)
+                self.assertNotIn('BlogPosting', with_)            # its one block is the BreadcrumbList (seo-06)
                 first, facts = self.SUMMARY[slug]
                 ex = core.excerpt(self.by[slug], 400)
-                tail = (' ' + ex) if ex else ''
                 closing = (facts + ', ' if facts else '') + 'with map and GPX'
-                want_with = core.clip_words('%s. %s.%s' % (first, closing, tail), 155)
-                want = core.clip_words('%s.%s%s' % (first, (' %s.' % facts) if facts else '', tail), 155)
+
+                def described(head):
+                    # Phase 14 (seo-02): the summary whole, then the write-up's whole sentences that fit (core.describe)
+                    room = core.DESC_LIMIT - len(head) - 1
+                    more = markdown.plain_sentences(self.by[slug]['body_md'], room, floor=0) if ex and room > 0 else ''
+                    return head + ((' ' + more) if more and not more.endswith('…') else '')
+                want_with = described('%s. %s.' % (first, closing))
+                want = described('%s.%s' % (first, (' %s.' % facts) if facts else ''))
+                self.assertFalse(want_with.endswith('…'))
                 self.assertEqual(self.descriptions(with_), (want_with, want_with))
                 self.assertEqual(self.descriptions(without), (want, want))
                 self.assertIn('with map and GPX.', want_with)
@@ -2978,13 +2988,13 @@ class NoTrackTests(ReportFixture):
                 self.assertEqual(html_.count('strip-note'), 1 if note else 0)
                 if note:
                     self.assertIs(notes[0].parent, self.doc(slug).by_id('stats'))
-        # their descriptions: the summary's first sentence and the facts the content has, then the write-up; nothing else
-        ex = core.excerpt(self.by['syn-nt-words'], 400)
+        # their descriptions: the summary's first sentence and the facts the content has, then the write-up's whole
+        # sentences that fit in 160 characters (Phase 14, seo-02); nothing else
         self.assertEqual(self.descriptions(self.page('syn-nt-lead').html)[0],
-                         core.clip_words('Hiking trip report: Synthetic Trackless Story, Synthetic Range, Thu, Jun 19, 2025. '
-                                         '7.5 mi, 2,625 ft gain, GPS max 9,514 ft. ' + ex, 155))
+                         'Hiking trip report: Synthetic Trackless Story, Synthetic Range, Thu, Jun 19, 2025. '
+                         '7.5 mi, 2,625 ft gain, GPS max 9,514 ft. Synthetic write-up for a test.')
         self.assertEqual(self.descriptions(self.page('syn-nt-words').html)[0],
-                         core.clip_words('Hiking trip report: Synthetic Trackless Words, Synthetic Range, Tue, Jun 17, 2025. ' + ex, 155))
+                         'Hiking trip report: Synthetic Trackless Words, Synthetic Range, Tue, Jun 17, 2025. Synthetic write-up for a test.')
         self.assertEqual(self.descriptions(self.page('syn-nt-bare').html),
                          ('Hiking trip report: Synthetic Trackless Bare, Synthetic Range, Mon, Jun 16, 2025.',) * 2)
         self.assertEqual(self.descriptions(self.page('syn-nt-ride').html),
@@ -4695,8 +4705,10 @@ class RegionLinkTests(ReportFixture):
                 t = self.by[slug]                 # the link sits in a drawn map's section, which a journal page has not
                 self.assertEqual(html_.count('href="../../regions/synthetic-range/#arc-row-%s"' % slug),
                                  1 if (core.render_meta(t)['maps'] and t['kind'] != 'series') else 0)
+                # ... and the crumb's item in the page's BreadcrumbList (Phase 14, seo-06)
                 self.assertEqual(html_.replace('href="../../regions/synthetic-range/#arc-row-', 'href="../../map/#arc-row-')
-                                 .replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"'), old)
+                                 .replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"')
+                                 .replace(CRUMB_REGION, CRUMB_MAP), old)
 
     def test_a_page_built_before_registration_equals_one_that_never_has_a_region_page(self):
         # 'no site registered' and 'this region has no page' are one answer (None): every caller does what it did
@@ -4866,7 +4878,8 @@ class RegionLinkTests(ReportFixture):
         self.assertEqual(with_page.count('href="../../regions/synthetic-range/"'), 3)
         self.assertEqual(with_page.replace('href="../../regions/synthetic-range/#arc-row-', 'href="../../map/#arc-row-')
                          .replace('href="../../regions/synthetic-range/"', 'href="../../map/#region-synthetic-range"')
-                         .replace('<span class="pager-n">All Synthetic Range reports</span>', '<span class="pager-n">Open the map</span>'), old)
+                         .replace('<span class="pager-n">All Synthetic Range reports</span>', '<span class="pager-n">Open the map</span>')
+                         .replace(CRUMB_REGION, CRUMB_MAP), old)
 
     def test_the_report_pager_between_reports_has_no_region_cell(self):
         # Newer / Older is a pager of reports: the phase does not touch it

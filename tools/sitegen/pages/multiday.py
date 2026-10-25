@@ -819,18 +819,6 @@ def bottom_bar(t):
             % (len(items), ''.join('<a href="%s"%s>%s<span>%s</span></a>' % (h, dl, icon(ic, 24), lab) for h, ic, lab, dl in items)))
 
 
-def description(t, limit=160):
-    """Meta description: the factual summary; 'Day N: <excerpt>' of the first written day only if it all fits in limit."""
-    desc = core.summary(t)
-    d = next((d for d in t['days'] if d['body_md']), None)
-    if d:
-        lead = ' Day %d: ' % d['n']
-        room = limit - 1 - len(desc) - len(lead)
-        if room >= 40:
-            desc += lead + markdown.plain(d['body_md'], room)
-    return desc
-
-
 def page(t, site):
     here = t['url']
     meta = core.render_meta(t)
@@ -840,7 +828,7 @@ def page(t, site):
     actions += core.copy_link(core.SITE_URL + here)
     # the cover (a day photo, content.resolve_cover) leads when it is a landscape, as on a single-day story (report-11)
     lead = report.lead_photo(t)
-    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site)]
+    body = [report.title_block(t, here, actions, ask=report.ask_link(t)), report.tick_backlink(t, here, site)]
     if lead:
         body.append(report.hero(t, here))
     body += ['<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note(t, here=here)),
@@ -850,13 +838,16 @@ def page(t, site):
                  '<h2 class="sr" id="days-h">Day by day</h2>%s</section></div>'
                  % (day_nav(t, here), stitched_profile(t, here, meta), overview(t, here), chapters))
     body.append(report.published_line(t))
-    body.append(report.share_row(here))   # phones hide the title actions here too (multiday.css); the copy link moves down
+    body.append(report.share_row(here, report.ask_link(t)))   # phones hide the title actions here too (multiday.css): both move down
     body.append(core.related_block(t, here, site, skip=report.neighbours(t, site)))
     body.append(report.pager(t, here, site))
     head = (core.cover_preload(t, here, report.HERO_SIZES) if lead else
             core.map_preloads(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', nowide='overview-wide' not in meta.get('maps', {})))
-    return core.Page(here, core.document(here, t['title'], ''.join(body), description(t), active=t['activity'], image=share_image(t),
-                                         extra_head=head, body_cls='p-multiday', bottom=bottom_bar(t), og_type='article', report=t),
+    # the factual summary whole, then the first written day's opening sentences when they fit (core.describe)
+    return core.Page(here, core.document(here, t['title'], ''.join(body), core.describe(t, facts=True), active=t['activity'],
+                                         image=share_image(t), full_title=core.page_title(t, report.dup_title(t, site)),
+                                         extra_head=head, body_cls='p-multiday', bottom=bottom_bar(t), og_type='article', report=t,
+                                         ld=report.crumbs_ld(t, here)),
                      t['title'])
 
 

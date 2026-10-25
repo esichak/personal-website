@@ -45,6 +45,7 @@ import goals  # noqa: E402
 import markdown  # noqa: E402
 import renderkey  # noqa: E402
 import strava  # noqa: E402
+from sitegen import author  # noqa: E402
 from sitegen import core  # noqa: E402
 from sitegen import curation  # noqa: E402
 from sitegen.sitecheck import conflict_copy  # noqa: E402
@@ -73,6 +74,7 @@ MAP_KEYS = ('peaks', 'places', 'water_labels')
 BETA_KEYS = ('label', 'value')                       # both required
 BETA_OPTIONAL = ('url',)                             # a guidebook or route page the value links to (benchmark-11)
 HOME_KEYS = ('featured_slugs', 'region_maps')
+AUTHOR_KEYS = author.KEYS                                       # content/author.json (sitegen.author.load refuses any other)
 ABOUT_KEYS = ('photo', 'cover_focal_x', 'cover_focal_y')       # content/about.md (content.load_about)
 REGION_INTRO_KEYS = ('title',)                                  # content/regions/<slug>.md (content.load_region_intros)
 
@@ -1410,6 +1412,7 @@ def survey(trips_dir=None, home_json=None, rendered_dir=None, today=None):
         site_wide.append(('rendered/site/meta.json', _site_hash_findings, (live, rendered_dir)))
     root = os.path.dirname(trips_dir)
     site_wide += [('content/about.md', _about_findings, (root,)),
+                  (author.FILE, _author_findings, (os.path.join(root, 'author.json'),)),
                   ('content/regions', _region_intro_findings, (root, records, live, rendered_dir))]
     for file, check, args in site_wide:
         try:
@@ -1424,6 +1427,15 @@ def _heading_jumps(where, body, out):
     for lvl, before in markdown.heading_jumps(body or ''):
         _err(out, where, 'a heading of the write-up skips a level (%s after %s): go one level at a time, %s after %s'
              % ('#' * lvl, '#' * before, '#' * (before + 1), '#' * before))
+
+
+def _author_findings(path, out):
+    """content/author.json (optional): what the build would refuse, word for word (sitegen.author.load, whose keys are
+    AUTHOR_KEYS). A missing file is no finding: the site then shows no contact."""
+    try:
+        author.load(path)
+    except author.AuthorError as ex:
+        out.append(_raised(str(ex), author.FILE))
 
 
 def _about_findings(root, out):

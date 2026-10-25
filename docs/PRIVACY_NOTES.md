@@ -59,7 +59,12 @@ the code, say so.
     track over the terrain with its two ends marked, so where a track starts can be read off a map by eye. That is
     the first point of this section, not something this check rules out.
 
-  The feed dates each item at noon UTC on the trip's date, not at its start time (from the code).
+  The feed dates each item at noon UTC on the trip's date, not at its start time (from the code). Since Phase 14 an
+  item whose trip has a write-up also carries the whole write-up and that trip's photos (their .sm copies), which
+  the page already shows.
+- **An email address, only if you write one.** With `content/author.json` (Phase 14) the address it names is shown on
+  About, in the footer and in every report's 'Ask about this trip' link, and it stays in the repository's history for
+  good. Without the file the site names no address and no profile.
 
 ## 2. What the repository adds
 

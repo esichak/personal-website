@@ -189,8 +189,11 @@ class HeaderTests(HeaderFixture):
         self.assertEqual(links[0]['href'], '../trips/')
         self.assertEqual(links[0].text(), 'Trips')
         hrefs = [a['href'] for a in links]
-        for want in ('../map/', '../about/', '../feed.xml'):
+        for want in ('../map/', '../about/'):
             self.assertIn(want, hrefs)
+        # Phase 14: 'Follow' lands on About's section (gap5-05), then the repository (gap5-02), last
+        self.assertEqual([(a.text(), a['href']) for a in links[-2:]], [('Follow', '../about/#follow'), ('Source on GitHub', core.REPO_URL)])
+        self.assertNotIn('../feed.xml', hrefs)
         reports = doc.find('nav', attrs={'aria-labelledby': 'f-rep'})
         self.assertEqual([a['href'] for a in reports.find_all('a')], ['../' + core.section_url(a) for a, _ in core.NAV])
 

@@ -120,9 +120,14 @@ def writeup(t, limit=600):
 
 # ---------------------------------------------------------------- header + filter band
 
+def crumb_items(act, here):
+    """The section's crumbs, Reports / <activity> (the page itself), for the nav and its BreadcrumbList (core.crumbs)."""
+    return [('Reports', link(here, '')), (core.ACT[act][0], None)]
+
+
 def header(act, here, ts, intro='', planned=()):
     lab = core.ACT[act][0]
-    crumbs = '<a href="%s">Reports</a><span aria-hidden="true">/</span><span aria-current="page">%s</span>' % (link(here, ''), esc(lab))
+    crumbs = core.crumbs(here, crumb_items(act, here))[0]
     return ('<section class="sec-head wrap" aria-labelledby="sec-title">'
             '<nav class="crumbs t-mono-s" aria-label="Breadcrumb">%s</nav>'
             '<div class="sec-h1row">%s<h1 id="sec-title" class="t-d1">%s</h1></div>'
@@ -326,8 +331,9 @@ def series_block(t, here, fkey=None):
         cells.append(('Write-ups', '%s<span class="unit">day%s</span>' % (n(len(written)), '' if len(written) == 1 else 's')))
     stats = ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % c for c in cells)
     firsts = [d['photos'][0] for d in days if d['photos']][:3]
+    # square slots of 224 px at most: the .th copy first in the srcset, which a 2x screen takes up to ~213 px (perf-14)
     pics = ''.join(core.photo(t, p, here, sizes='(min-width: 1200px) 224px, (min-width: 560px) 15vw, 30vw', caption=False,
-                              cls='sec-ser-ph')
+                              cls='sec-ser-ph', thumb=True)
                    for p in firsts)
     sample = ''
     if written:
@@ -434,6 +440,11 @@ def ski_body(ts, here):
 
 
 # without JS every region map shows (no tabs), so below 960 the panel moves under the list
+# where the Ski panel shows each variant of its map (section.css): the 506 x 680 'desktop' render at 560-759 px and from
+# 1200 px in a window at least 760 px tall, the 390 x 480 'phone' render everywhere else; its preloads follow (perf-07)
+SKI_MEDIA = {'desktop': '(min-width: 560px) and (max-width: 759.98px), (min-width: 1200px) and (min-height: 760px)',
+             'phone': '(max-width: 559.98px), (min-width: 760px) and (max-width: 1199.98px), '
+                      '(min-width: 1200px) and (max-height: 759.98px)'}
 NOSCRIPT = ('<noscript><style>.sec-rp[hidden]{display:block!important}.sec-rp+.sec-rp{margin-top:24px}'
             '.sec-rp-l{display:block!important}.sec-tabs-x,.sec-pcap-h{display:none!important}'
             '.sec-panel-in{position:static!important}'
@@ -525,7 +536,12 @@ def page(act, site):
         if len(seasons) > 1:
             body.append(band('Filter by season', segs, 'reports'))
         body.append(main)
-        extra_head = NOSCRIPT
+        # the panel's first region map is the page's first image: its hillshade and base layer preloaded for both
+        # breakpoints like the other sections' featured maps (perf-07); both variants stay loading="lazy"
+        regions = ski_regions(ts)
+        extra_head = NOSCRIPT + (core.map_preloads(None, here, [('ski-%s-desktop' % slug(regions[0]), 'desktop'),
+                                                                ('ski-%s-phone' % slug(regions[0]), 'phone')],
+                                                   'assets/maps/', site_maps=True, media=SKI_MEDIA) if regions else '')
     else:
         feat = pick_featured(ts)
         ser = next((t for t in ts if t['kind'] == 'series' and t['days']), None) if act == 'hike' else None
@@ -564,7 +580,8 @@ def page(act, site):
     title = '%s trip reports' % core.ACT[act][0]
     return core.Page(here, core.document(here, title, ''.join(body), description(act, ts), active=act,
                                          image=og_image(([feat] if feat else []) + ts), extra_head=extra_head,
-                                         body_cls='p-section p-section--%s' % act, page_bar=(core.ACT[act][0], 'sec-title')), title)
+                                         body_cls='p-section p-section--%s' % act, page_bar=(core.ACT[act][0], 'sec-title'),
+                                         ld=[core.crumbs(here, crumb_items(act, here))[1]]), title)
 
 
 def build(site):

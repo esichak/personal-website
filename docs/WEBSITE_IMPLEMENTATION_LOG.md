@@ -2680,3 +2680,206 @@ the next deploy); Windows High Contrast itself (the forced-colours rules are che
   sheets (Phase 12), the hero frame and the mile table's last row (Phase 10), the real-phone look (Phases 11 to 13),
   the checkout and cache moves, `strava_id`, the rehearsal push (Phase 8), the place names, retitles and merges
   (Phase 9).
+
+## Phase 14 - Loading, metadata, sharing, follow and contact (2026-10-25)
+
+Phase 14 of `docs/personal-website-improvement-plan-2.md` (section 14) and its prompt in
+`docs/claude-code-website-prompt-2.md`, built on branch `phase-14-metadata-sharing` from `phase-13c-a11y-copy` at
+`1d593b4`. Eric's standing instruction for this run is to go on with the plan's recommended answers; where an answer
+needs something only he can give (a download, an address, his accounts), the work stops short of it and says so below.
+Nothing under `content/` or `rendered/` changed and `render.py` was not run. The disk had 13 GB free, under the plan's
+30 GB line: builds were linked into the session's scratch folder, and no worktree or copy of the checkout was made.
+
+### Author inputs
+
+- **(a) perf-02, the fonts: yes** (Eric, later the same day). `tools/fonts.py` downloaded seven files into
+  `assets/fonts/`: the Latin woff2 files of Archivo (90,096 B), Source Serif 4 roman (48,704 B) and italic (50,560 B)
+  and Geist Mono (23,108 B) from Google Fonts, and the three SIL Open Font License texts from the google/fonts
+  repository; it wrote `assets/css/fonts.css`. No font is preloaded (below).
+- **(b) gap5-01, the contact path: the address Eric gave** is in `content/author.json`; it shows on About ('Follow &
+  contact'), in the footer and as 'Ask about this trip' on every report, and becomes public with the next push.
+- **(c) gap5-03, profile links: none named.** The `links` list of the same file, empty until you name a service and
+  a handle.
+- **(d) seo-12, Search Console: yours to do.** README.md has the steps; `core.VERIFY_TAGS` takes the token. The
+  `esichak.github.io` repository for a root robots.txt is skipped, as recommended.
+- **(e) seo-04, share images: the text card and the WebP stay** until the real preview check (item 10, after the next
+  deploy) shows a previewer that fails; no 1200 x 630 crops were made.
+- **After the next deploy:** the `curl -I` check of a versioned bundle, Google's Rich Results Test on a report and the
+  home page, the W3C feed validator, and the real share preview (the Matterhorn report, a report with a portrait cover,
+  the home page; README.md lists them). All pending.
+- **The feed readers named on About** (NetNewsWire, Feedly) were not checked online in this session; no RSS-to-email
+  service is named until you approve one.
+- **Interface copy to read** (every new label and sentence):
+  - Trip page titles: '<title> · <activity>, <place or region> · Eric Sichak' (the date after the place when a title
+    repeats).
+  - The footer's Site list ends 'Follow' (with the RSS icon, to About's #follow) and 'Source on GitHub'.
+  - About: the section heading 'Follow' ('Follow & contact' once there is an address or a link); 'New reports go out
+    on the RSS feed. Paste this address into a feed reader, such as NetNewsWire or Feedly, to see each one as it is
+    published.'; 'Prefer email? An RSS-to-email service can turn this feed into messages.'; buttons 'Copy feed
+    address', 'Open feed.xml', and with an address 'Email'.
+  - About's method list, last item: 'The site is built from a public repository on GitHub. To report a broken link or
+    a wrong name, open an issue there. It needs a GitHub account, and it is for problems with the site, not for
+    private questions.'
+  - With an address only: 'Ask about this trip' on every report.
+  - The feed's full items end 'Open the report · Download GPX'; a multi-day trip's days are headed 'Day N: <title>'.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/core.py` | `page_title`, `describe` (`DESC_LIMIT`, `DESC_FLOOR`), `crumbs`, `ld_script`; `document(ld=...)` writes og:site_name, og:locale, the verification tags, the home-screen icon (`touch_icon`), the bundles' `?v=` (`_ASSET_VERSION`) and, with `_SELF_FONTS`, two font preloads in place of Google's stylesheet (`FONT_PRELOADS`); `_report_head` adds article:author, article:section, article:tag; `photo(thumb=)`; `REPO_URL`, `VERIFY_TAGS`, `_AUTHOR`, `author_email`; the footer's Follow, Source on GitHub and address row. |
+| `tools/build.py` | Bundles before pages and `asset_hash`; fonts.css first in the bundle and `assets/fonts/` copied when present; `site['author']`; `feed_content` and `xmlns:content`. |
+| `tools/sitegen/author.py` | New: the strict loader of `content/author.json`. |
+| `tools/sitegen/sitecheck.py` | `LD_TYPES`: BlogPosting and BreadcrumbList, at most one of each. |
+| `tools/lib/checks.py` | `AUTHOR_KEYS`, `_author_findings`. |
+| `tools/sitegen/pages/report.py` | `crumb_items`, `crumbs_ld`, `dup_title`, `ask_link`, `share_row(ask=)`; titles and descriptions through core; the BreadcrumbList on report and goal pages. |
+| `tools/sitegen/pages/multiday.py`, `series.py` | The same titles, the BreadcrumbList and 'Ask about this trip'; `multiday.description` gone (core.describe). |
+| `tools/sitegen/pages/section.py`, `region.py` | `crumb_items` and the BreadcrumbList; the Ski page's map preloads under `SKI_MEDIA`; the Hiking journal squares' `.th` first. |
+| `tools/sitegen/pages/about.py` | The #follow section (copy, raw feed, RSS-to-email, contact and profiles); the issue path. |
+| `tools/share_preview.py`, `tools/fonts.py` | New tools. |
+| `assets/apple-touch-icon.png` | New: 180 px, from favicon.svg (`sips`). |
+| `assets/fonts/`, `assets/css/fonts.css` | New: the four Latin woff2 files, the three OFL texts and their @font-face rules (tools/fonts.py). |
+| `content/author.json` | New: the contact address Eric gave. |
+| `assets/css/base.css`, `pages/about.css`, `pages/report.css` | `.f-mail`; the follow rows; `.rep-share--ask` shown on phones without scripting. |
+| Docs | DEVELOPING.md (file table, Rules: structured data, indexing, titles and descriptions; sitecheck's META; the report head; a new section 'Metadata, loading, following and contact'; the measuring method's cache header), CONTENT_GUIDE.md section 9 (titles, descriptions, share_preview.py in place of the og:image grep, crumbs, author.json) and its table of messages (author.json), README.md ('Let readers reach you', the share and font tools, the after-deploy checks, 'Search Console'), PRIVACY_NOTES.md (the feed's full items, a published address). |
+| Tests | New: `test_phase14.py`, `test_about_follow.py`, `test_share_preview.py`. Changed: `test_metadata`, `test_build_site`, `test_report_page`, `test_region_page`, `test_sitecheck`, `test_nav`. |
+
+### Behaviour
+
+- **Which files changed.** A `--link` build against one made from `1d593b4` before any edit differs in every page
+  (the head and the footer), `assets/site.css`, `feed.xml` and the new `assets/apple-touch-icon.png`; `site.js` is
+  unchanged.
+- **Titles (seo-01).** Every trip page's `<title>` and og:title name the activity and the place, e.g. the Matterhorn
+  report's 'Matterhorn Peak – West Couloir · Backcountry Skiing, Sawtooth Ridge · Eric Sichak'. No two indexable pages
+  share a title. Ten pages whose title names both its place and its region keep the old form, as the prompt says. Titles over 60 characters go from 8 to 123 (share_preview.py); search results and cards cut the end, which is
+  the site's name.
+- **Descriptions (seo-02).** Of the 168 trip pages, 89 descriptions ended in '…' before and none does now: a
+  description that leads with the facts writes them whole, and one that leads with the write-up ends at its last
+  sentence end within 160 characters (the shortest, 56 characters, is a whole first sentence).
+- **Head metadata (seo-03, seo-06).** og:site_name and og:locale on every page; article:author, article:section and
+  one article:tag per region and summit on report pages; a BreadcrumbList on every page with crumbs (report,
+  multi-day, journal, goal, section and region pages), its names and addresses those of the visible crumbs.
+- **Bundles (perf-01).** Every page names `assets/site.css?v=<hash>` and `assets/site.js?v=<hash>` (the first 8 hex
+  digits of each file's SHA-1). The live `curl -I` check waits for the deploy.
+- **Fonts (perf-02).** Every page serves the site's own fonts and makes no request to fonts.googleapis.com or
+  fonts.gstatic.com. Desktop first paint (medians of 25 cold runs, 1440 x 900): home 316 ms before (232-480; it waited
+  for Google's stylesheet at 284 ms), 56 ms after (48-68); the Matterhorn report 312 ms before, 48 ms after. The phone
+  profile's largest paint is unchanged (1,740 ms on home, 1,744 and 1,736 ms on the report). The only characters on
+  the site outside the Latin files are → and ≈ (and emoji), which none of Google's 21 subsets covered either.
+- **Ski page (perf-07).** Four preloads now: the first panel map's hillshade and base layer, each pair under the media
+  where the panel shows that render (section.SKI_MEDIA). In Chrome a window fetches only the render it shows (390 x 844,
+  1000 x 800 and 1280 x 720: the phone render; 1440 x 900: the desktop one). Phone profile, median of 3: LCP 2,368 ms
+  before, 1,640 ms after.
+- **Hiking page (perf-14).** The journal block's three squares take the .th copies: 229,912 bytes before (the .sm
+  copies), 73,260 after, measured on the phone profile with the block scrolled into view.
+- **Feed (seo-09).** feed.xml has 30 items as before; the 14 whose trip has a write-up carry it whole in
+  `<content:encoded>` with its photos and links (16 KB to 33 KB). The W3C validator check waits for the deploy.
+- **Home-screen icon (phone-16).** Linked from every head: the favicon's mark on an opaque square (iOS rounds it).
+- **Follow and contact (gap5-01 to gap5-08).** About's Follow section (at #follow) explains the feed, copies its
+  address, opens the raw feed and mentions RSS-to-email; the footer's RSS link is now 'Follow' and lands there, and
+  'Source on GitHub' follows it. With no content/author.json nothing else appears; a scratch build with a synthetic
+  example.test address showed About's 'Follow & contact', the footer's address and 'Ask about this trip' under the
+  title's place line and in the phone share row (screenshots below).
+- **validate.py**: 0 errors, 1 warning, 346 notes, as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **No font is preloaded** (the prompt preloads Archivo and Source Serif 4). With the two preloads, desktop first
+  paint was the same (60 ms on home) and the phone profile's largest paint rose from 1,740 to 2,524 ms (2,496 on the
+  report): 138 KB of fonts took the slow line from the lead image. Without them both profiles are as measured above
+  (`core.FONT_PRELOADS = ()`, with the figures beside it).
+- **The fonts and the contact waited for Eric's answers**, built and inert, until he gave them later the same day;
+  the entry was amended then (one Phase 14 commit).
+- **`core._ASSET_VERSION` is private and lives only for a build** (the prompt names `core.ASSET_VERSION`, default
+  `{}`): build.build() sets it and clears it in a `finally`, so a page built in a test, or a second build in the same
+  process, never carries a stale hash, and the test helpers' state snapshots cover it.
+- **Descriptions end at a sentence from 40 characters, not 80.** The prompt's span of 80 to 160 left eight pages cut
+  mid-sentence (their first sentences run 56 to 75 characters), against the gate's 'description ending in … 0'. A
+  write-up that leads now ends at its last sentence end within 160 characters from 40 on, and one with no sentence end
+  in that span leads with the facts instead (core.DESC_FLOOR, the review's finding 2).
+- **'Ask about this trip' sits under the title's place line, not among the buttons.** In the button row (as the prompt
+  says) it narrowed a long title from three lines to five at 1000 px (the review's finding 4); on phones the share row
+  carries it, as the prompt says, and the journal, which has no share row, keeps it under its title.
+- **The icon is linked only when the file exists**, as print.css is bundled only when present: the tests' temporary
+  site trees have no icon, and a link to a missing file would be a broken link in the site check.
+- **'Copy feed address' only copies** (`copy_link(share=False)`): on a touch screen base.js turns copy controls into
+  the share sheet labelled 'Share this page', which would have offered the feed as a page; found on the 390 px
+  capture.
+- **The feed's multi-day sections carry that day's photos**, after each written day, besides the trip's own photos;
+  unwritten days get no section.
+- **Feed readers named without an online check** (NetNewsWire, Feedly), and no RSS-to-email service named (item 19
+  names only services Eric approves).
+- **Not done (optional in the prompt):** the web manifest and 512 px icon, the robots `max-image-preview` meta.
+- **Documented rules changed:** DEVELOPING.md's Rules (structured data now BlogPosting and BreadcrumbList; indexing of
+  track-only reports; titles and descriptions), sitecheck's META line, the report head's tags, the file table and a new
+  section 'Metadata, loading, following and contact (Phase 14)'; CONTENT_GUIDE.md section 9; README.md; PRIVACY_NOTES.md
+  section 1.
+
+### Review
+
+One independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It built the site, ran the share listing, checked every built page's bundle hashes against the bytes written,
+every BreadcrumbList against the visible crumbs (181 pages), the feed's 65 absolute addresses, the fonts' paths as a
+real fonts.css would give them, and measured the Ski page at four sizes in Chrome. It found nothing serious; its
+findings, all fixed:
+
+1. The Ski preload took the base `(min-width: 560px)` for the desktop render, but the panel shows the phone render at
+   760-1199 px and in short desktop windows, so a 1000 x 800 window downloaded about 72 KB it never showed. The pairs
+   now follow the panel's own rules (SKI_MEDIA), and a test holds them against section.css at 40 sizes.
+2. Eight descriptions still ended in '…' (above): fixed.
+3. A write-up's relative link would have resolved against feed.xml in a reader: every href and src in the feed's
+   content is made absolute. (No write-up has one today.)
+4. 'Ask about this trip' narrowed long titles at desktop widths: moved (above).
+5. The address check let through `? # & %`, which a mailto reads as its own: now letters, digits, `. _ + -`, an `@`
+   and a host.
+6. tools/fonts.py would have fetched any address Google's stylesheet named, of any size: now fonts.gstatic.com only,
+   2 MB at most per file.
+7. Tests: nothing checked that the Hiking page passes the thumbnail option (added on the journal block; it fails
+   without it); two tests re-derive core.describe's rule (left, with exact strings beside them).
+8. CONTENT_GUIDE's table of messages had no content/author.json rows: added.
+9. Nits: a multi-day day's own headings came out at the level of its 'Day N' heading (now one under); the icon's
+   transparent corners (now opaque); the icon must be committed for the test that reads it (it is).
+
+The review's measurement also showed each preloaded map fetched twice; that came from the scratch server's
+`Cache-Control: no-store`. Served with GitHub Pages' `max-age=600`, the Ski and Climbing pages request each map once
+(DEVELOPING.md's measuring method now says so).
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 3,158 tests, OK, 107 s (3,109 before the phase); the check of the checkout's own fonts.css runs once it exists |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 3,158 tests, OK, 98 s |
+| `python3 tests/run_orders.py --reverse` | 3,158 tests, OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 46, profile 35, series 58, ticklist 103, trips 167, viewer 50 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `diff -rq` against a `--link` build of `1d593b4` | every page, `assets/site.css`, `feed.xml`, the new icon |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| `python3 tools/share_preview.py` on both builds | before: 62 no image, 89 descriptions ending in '…', 8 titles over 60, 124 WebP, 30 portrait; after: 62, 0, 123, 124, 30 (`.cache/plan2/phase14/share-preview-*.txt`) |
+| Phone profile (scratch `measure14.mjs`, the DEVELOPING.md method, median of 3) | Ski LCP 2,368 ms before, 1,640 ms after; Hiking's three journal squares 229,912 bytes before, 73,260 after (scrolled into view) |
+| Headless Chrome (scratch `p12tools/`, `p13tools/netcount.mjs`) | the Ski map each of four window sizes fetches; one request per preloaded map under `max-age=600` |
+| A scratch build with a synthetic example.test contact (author.load patched in memory) | About's 'Follow & contact', the footer row, 'Ask about this trip' in the title and the phone share row |
+| Screenshots | `.cache/plan2/phase14/`: About's section at 1280 and 390 px (synthetic address) and at 1280 without one; the Matterhorn report's title at 1280 and 1000 px and its share row at 390 px (synthetic address); `heads-before-after.txt` (four reports' heads as text) |
+
+Fonts (after Eric's yes): `python3 tools/fonts.py` (the download, then `--check`: OK); the desktop profile 25 times
+per build and page (scratch `p12tools/desktop.mjs`: Google Fonts, the site's own fonts with and without the two
+preloads), and the phone profile (median of 3) for each; served with `max-age=600`. A first 'before' set was thrown
+away: an old scratch server held its port and the runs measured its error page.
+
+Not run: the checks after the deploy (curl, Rich Results Test, W3C feed validator, the real share preview); the feed
+readers' names online; Lighthouse; `render.py`.
+
+### Remaining issues and author inputs
+
+- **Profile links**, if you want any, in `content/author.json` (README.md, 'Let readers reach you').
+- **After the next deploy:** the curl check, the Rich Results Test, the W3C feed validator and the real share preview
+  (README.md lists the pages); Search Console when you have time (README.md, 'Search Console').
+- **The interface copy** above, and the two feed readers named on About.
+- **Ten titles keep the old form** (their title names both place and region, so no activity word); a fallback of
+  '<title> · <activity>' would read better, if you want it.
+- **Carried:** the VoiceOver pass (13C), the region pages' year heads (13B), the gap1-01 and qa-04 sheets (Phase 12),
+  the hero frame and the mile table's last row (Phase 10), the real-phone look, the checkout and cache moves,
+  `strava_id`, the rehearsal push (Phase 8), the place names, retitles and merges (Phase 9). Phase 15 (one render
+  round) needs your agreement to run `render.py` and, by the plan, more free disk (13 GB now).

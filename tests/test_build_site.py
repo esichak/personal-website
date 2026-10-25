@@ -71,6 +71,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 import mapkit  # noqa: E402
 from sitegen import core  # noqa: E402
+import markdown  # noqa: E402
 from sitegen import curation  # noqa: E402
 from sitegen import sitecheck  # noqa: E402
 from sitegen.pages import home as home_page  # noqa: E402
@@ -602,6 +603,21 @@ class StylesheetAndScriptTests(BuiltCase):
         self.css = read(self.path('assets/site.css'))
         self.js = read(self.path('assets/site.js'))
 
+    def test_every_page_names_the_bundles_by_their_hash(self):
+        # Phase 14 (perf-01): assets/site.css?v=<the first 8 hex of its SHA-1>, the same for site.js, on every page;
+        # once the build is over, core writes the bare names again (a page built in a test names no stale hash)
+        want = ('assets/site.css?v=%s' % build.asset_hash(self.css), 'assets/site.js?v=%s' % build.asset_hash(self.js))
+        for rel in self.html_files():
+            with self.subTest(page=rel):
+                text = read(self.path(rel))
+                self.assertEqual(len(re.findall(r'assets/site\.css[?"]', text)), 1)
+                self.assertEqual(len(re.findall(r'assets/site\.js[?"]', text)), 1)
+                for w in want:
+                    self.assertIn(w + '"', text)
+        self.assertEqual(core._ASSET_VERSION, {})
+        self.assertEqual(core._SELF_FONTS, [False])
+        self.assertIn('https://fonts.googleapis.com/css2?', read(self.path('index.html')))     # no fonts.css in this root
+
     def test_site_css_has_no_comment(self):
         self.assertNotIn('/*', self.css)
         self.assertNotIn('*/', self.css)
@@ -645,9 +661,12 @@ class StylesheetAndScriptTests(BuiltCase):
             with self.subTest(page=rel):
                 up = '../' * rel.count('/')        # 404.html resolves its links against <base>, the site root
                 text = read(self.path(rel))
-                self.assertIn('<link rel="stylesheet" href="%sassets/site.css">' % up, text)
+                # each address with its bundle's hash (Phase 14, perf-01; test_every_page_names_the_bundles_by_their_hash)
+                css, js = build.asset_hash(read(self.path('assets/site.css'))), build.asset_hash(read(self.path('assets/site.js')))
+                self.assertIn('<link rel="stylesheet" href="%sassets/site.css?v=%s">' % (up, css), text)
                 # site.js's onerror takes the head script's 'js' (and 'km') back off when the bundle fails to load (Phase 13A)
-                self.assertIn('<script src="%sassets/site.js" defer onerror="document.documentElement.classList.remove(\'js\', \'km\')"></script>' % up, text)
+                self.assertIn('<script src="%sassets/site.js?v=%s" defer onerror="document.documentElement.classList.remove(\'js\', \'km\')"></script>'
+                              % (up, js), text)
 
     def test_the_real_stylesheets_publish_without_a_comment(self):
         # the one read of the repository itself: assets/css through the real build.css_bundle()
@@ -936,6 +955,12 @@ class SectionDescriptionTests(BuiltCase):
 # ================================================================ a site of reports without a track (contract 10.2)
 
 SHORT = 'Synthetic note.'
+def blog_postings(head):
+    """The head's BlogPosting blocks: since Phase 14 a trip page also carries its BreadcrumbList (seo-06)."""
+    return [s for s in head.find_all('script', attrs={'type': 'application/ld+json'})
+            if json.loads(s.text(clean=False)).get('@type') != 'BreadcrumbList']
+
+
 PLAIN_LONG = ('Synthetic write-up for a build test, long enough to count as a written report. '
               'Second synthetic paragraph of the same write-up, with a few more synthetic words.')
 NT_TITLES = {'synb-nt-flag': 'Synthetic Flagged Without Track', 'synb-nt-twin': 'Synthetic Twin', 'synb-twin': 'Synthetic Twin',
@@ -1018,7 +1043,7 @@ class NoTrackSiteTests(BuiltCase):
     def descriptions(self, slug):
         """What the page says the report is: (meta description, og:description, the JSON-LD description or None)."""
         head = self.doc('trips/%s/' % slug).find('head')
-        ld = head.find_all('script', attrs={'type': 'application/ld+json'})
+        ld = blog_postings(head)
         self.assertLessEqual(len(ld), 1)
         return (head.find('meta', attrs={'name': 'description'})['content'],
                 head.find('meta', attrs={'property': 'og:description'})['content'],
@@ -1193,36 +1218,48 @@ class NoTrackSiteTests(BuiltCase):
     def test_the_descriptions_word_for_word(self):
         # a report with little or no write-up, or with a title another report has, leads its description with the
         # summary; a long write-up under a title of its own is the description by itself
-        clip = core.clip_words
+        # Phase 14 (seo-02): the summary whole, then the write-up's whole sentences that fit in 160 characters
+        def led(summary, text):
+            room = core.DESC_LIMIT - len(summary) - 1
+            more = markdown.plain_sentences(text, room, floor=0) if room > 0 else ''
+            return summary + ((' ' + more) if more and not more.endswith('…') else '')
         self.assertEqual(self.descriptions('synb-nt-ride-b'), (NT_SUMMARY['synb-nt-ride-b'],) * 2 + (None,))
         self.assertEqual(self.descriptions('synb-nt-ride-a'), (NT_SUMMARY['synb-nt-ride-a'],) * 2 + (None,))
         self.assertEqual(self.descriptions('synb-nt-climb'), (NT_SUMMARY['synb-nt-climb'] + ' ' + SHORT,) * 2 + (None,))
-        twin = clip(NT_SUMMARY['synb-nt-twin'] + ' ' + PLAIN_LONG, 155)
-        self.assertTrue(twin.startswith(NT_SUMMARY['synb-nt-twin'] + ' Synthetic write-up for a build test'))
+        twin = led(NT_SUMMARY['synb-nt-twin'], PLAIN_LONG)
+        self.assertEqual(twin, NT_SUMMARY['synb-nt-twin'])        # its first sentence would run past 160: the summary alone
         self.assertEqual(self.descriptions('synb-nt-twin'), (twin, twin, twin))            # the JSON-LD description as well
         flag = self.descriptions('synb-nt-flag')
         self.assertEqual(flag[0], flag[2])
         self.assertTrue(flag[0].startswith('Synthetic write-up for a build test, long enough to count as a written report.'))
         # the twin WITH a track is described as it always was
-        with_ = clip('Hiking trip report: Synthetic Twin, Synthetic Range, Wed, Jun 10, 2026. with map and GPX. ' + PLAIN_LONG, 155)
+        with_ = led('Hiking trip report: Synthetic Twin, Synthetic Range, Wed, Jun 10, 2026. with map and GPX.', PLAIN_LONG)
+        self.assertFalse(with_.endswith('…'))
         self.assertEqual(self.descriptions('synb-twin'), (with_, with_, with_))
         self.assertEqual(self.feed_descriptions()['synb-twin'],
                          'Hiking trip report: Synthetic Twin, Synthetic Range, Wed, Jun 10, 2026. with map and GPX. ' + PLAIN_LONG)
         self.assertEqual(self.feed_descriptions()['synb-climb-a'],
                          'Climbing trip report: Synthetic Climb A, Synthetic Range, Sun, Mar 1, 2026. with map and GPX.')
-        self.assertEqual(self.doc('trips/synb-nt-twin/').find('title').text(), 'Synthetic Twin, Jun 20, 2026 · %s' % core.SITE_NAME)
+        self.assertEqual(self.doc('trips/synb-nt-twin/').find('title').text(),
+                         'Synthetic Twin · Hiking, Synthetic Range, Jun 20, 2026 · %s' % core.SITE_NAME)
+
+    def test_a_track_only_report_is_indexed_like_any_other(self):
+        # Phase 14 (seo-08): neither a write-up nor a photo, only its track: no robots meta, listed in sitemap.xml
+        html_ = self.html('trips/synb-climb-a/')
+        self.assertNotIn('name="robots"', html_.split('</head>', 1)[0])
+        self.assertIn('<loc>%strips/synb-climb-a/</loc>' % U, read(self.path('sitemap.xml')))
 
     def test_the_structured_data_of_a_written_report_without_a_track(self):
         for slug in ('synb-nt-flag', 'synb-nt-twin'):
             with self.subTest(slug=slug):
-                ld = self.doc('trips/%s/' % slug).find('head').find_all('script', attrs={'type': 'application/ld+json'})
+                ld = blog_postings(self.doc('trips/%s/' % slug).find('head'))
                 self.assertEqual(len(ld), 1)
                 data = json.loads(ld[0].text(clean=False))
                 self.assertEqual((data['@type'], data['headline'], data['url']), ('BlogPosting', NT_TITLES[slug], U + 'trips/%s/' % slug))
                 self.assertNotIn('GPX', json.dumps(data))
                 self.assertNotIn('/map/', json.dumps(data))
         for slug in ('synb-nt-climb', 'synb-nt-ride-a', 'synb-nt-ride-b'):
-            self.assertNotIn('ld+json', self.html('trips/%s/' % slug))
+            self.assertNotIn('BlogPosting', self.html('trips/%s/' % slug))
 
 
 # ================================================================ a site with region pages (contract-phase5.md)
@@ -1410,6 +1447,7 @@ class RegionSiteTests(BuiltCase):
                 self.assertGreater(checked, 30)
                 for src in re.findall(r'src="([^"]+)"', self.html(url)):
                     self.assertFalse(src.startswith(('/', 'http')), src)
+                    src = src.split('?', 1)[0]                     # site.js?v=<hash> (Phase 14) is the file site.js
                     self.assertTrue(os.path.isfile(os.path.normpath(os.path.join(self.path(url), src))), '%s on %s' % (src, url))
         # the map a region page draws is published, and preloaded by the page
         for f in ('region-synthetic-reach-desktop.webp', 'region-synthetic-reach-desktop.base.svg', 'region-synthetic-reach-phone.webp',

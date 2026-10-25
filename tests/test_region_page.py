@@ -2991,12 +2991,19 @@ class DocumentTests(RegionFixture):
                 self.assertEqual(self.meta_tag(name, 'property', 'og:type'), 'website')
                 self.assertEqual(self.head(name).find_all('meta', attrs={'name': 'robots'}), [])       # indexed
 
-    def test_no_structured_data_and_no_article_dates(self):
+    def test_the_one_structured_data_is_the_crumbs_and_no_article_dates(self):
+        # Phase 14 (seo-06): the visible crumbs as a BreadcrumbList, the page itself last and without an item URL
         for name in PAGES:
-            self.assertEqual(self.doc(name).find_all('script', attrs={'type': 'application/ld+json'}), [])
-            self.assertNotIn('ld+json', self.html(name))
-            self.assertNotIn('article:', self.html(name))
-            self.assertNotIn('schema.org', self.html(name))
+            with self.subTest(region=name):
+                blocks = self.doc(name).find_all('script', attrs={'type': 'application/ld+json'})
+                self.assertEqual(len(blocks), 1)
+                self.assertEqual(json.loads(blocks[0].text(clean=False)), {
+                    '@context': 'https://schema.org', '@type': 'BreadcrumbList', 'itemListElement': [
+                        {'@type': 'ListItem', 'position': 1, 'name': 'Reports', 'item': core.SITE_URL},
+                        {'@type': 'ListItem', 'position': 2, 'name': 'Map', 'item': core.SITE_URL + 'map/'},
+                        {'@type': 'ListItem', 'position': 3, 'name': name}]})
+                self.assertNotIn('article:', self.html(name))
+                self.assertNotIn('BlogPosting', self.html(name))
 
     def test_the_body_class_is_p_region(self):
         for name in PAGES:
@@ -3026,7 +3033,8 @@ class DocumentTests(RegionFixture):
                 want = core.map_preloads(None, here, [('region-%s-desktop' % slug, 'desktop'), ('region-%s-phone' % slug, 'phone')],
                                          'assets/maps/', site_maps=True)
                 self.assertTrue(want)
-                self.assertIn(want + '</head>', self.html(name))
+                # the preloads end the page's own head tags; only its BreadcrumbList follows them (Phase 14)
+                self.assertRegex(self.html(name), re.escape(want) + r'<script type="application/ld\+json">[^<]*</script></head>')
                 links = self.head(name).find_all('link', attrs={'rel': 'preload'})
                 self.assertEqual([(ln['href'], ln['media'], ln['as'], ln['fetchpriority']) for ln in links],
                                  [('../../assets/maps/region-%s-desktop.webp' % slug, '(min-width: 560px)', 'image', 'high'),
@@ -3239,6 +3247,8 @@ class SiteLinkTests(RegionFixture):
             doc = self.page_doc(url)
             for a in doc.find('body').find_all('a'):
                 href = a['href']
+                if href == core.REPO_URL:
+                    continue                    # the footer's 'Source on GitHub' (Phase 14, gap5-02): the one link elsewhere
                 with self.subTest(page=url, href=href):
                     self.assertIsNotNone(href)
                     self.assertFalse(href.startswith('/'), 'a root-relative link breaks under the site\'s folder on GitHub Pages')
@@ -3255,12 +3265,14 @@ class SiteLinkTests(RegionFixture):
         self.assertGreater(checked, 120)
 
     def test_a_region_page_links_where_the_contract_says(self):
-        want = {'', 'map/', 'trips/', 'tick-list/', 'about/', 'feed.xml', 'regions/synthetic-range/', 'regions/synthetic-coast/'}
+        # the footer's Follow lands on about/#follow (Phase 14), and its 'Source on GitHub' is the one link elsewhere
+        want = {'', 'map/', 'trips/', 'tick-list/', 'about/', 'regions/synthetic-range/', 'regions/synthetic-coast/'}
         want |= {core.section_url(a) for a in core.ACT}
         want |= {'trips/%s/' % s for s in PEAKS_PUB}
         url = 'regions/synthetic-obrien-peaks/'
         want.add('map/synthetic-obrien-peaks/')                                # the phone map's full-screen button (Phase 12)
-        got = {resolve(url, a['href'])[0] for a in self.page_doc(url).find('body').find_all('a') if not a['href'].startswith('#')}
+        got = {resolve(url, a['href'])[0] for a in self.page_doc(url).find('body').find_all('a')
+               if not a['href'].startswith('#') and a['href'] != core.REPO_URL}
         self.assertEqual(got, want)
         # its links into the explorer keep their query
         acts = ['../../trips/?region=synthetic-obrien-peaks&activity=%s' % a['href'].split('activity=')[1]
@@ -3284,8 +3296,9 @@ class SiteLinkTests(RegionFixture):
                     target = resolve(url, ref)[0]
                     self.assertRegex(target, r'^(assets/(site\.css|site\.js|favicon\.svg|maps/region-[a-z-]+-(desktop|phone)\.(webp|base\.svg))'
                                              r'|feed\.xml|trips/syn-r-[a-z-]+/photos/\d\d(\.sm)?\.webp)$')
-            # the only full addresses in the head are the page's own, in the canonical link and the share tags
-            head = self.all[url].split('</head>', 1)[0]
+            # the only full addresses in the head are the page's own, in the canonical link and the share tags (the
+            # BreadcrumbList names its crumbs' pages, test_the_one_structured_data_is_the_crumbs_and_no_article_dates)
+            head = re.sub(r'<script type="application/ld\+json">.*?</script>', '', self.all[url].split('</head>', 1)[0])
             own = re.findall(r'"(https://[^"]+)"', head)
             self.assertEqual([u for u in own if not u.startswith(('https://fonts.', core.SITE_URL))], [])
             self.assertEqual({u for u in own if u.startswith(core.SITE_URL) and '/photos/' not in u}, {core.SITE_URL + url})

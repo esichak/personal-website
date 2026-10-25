@@ -578,7 +578,7 @@ def page(t, site):
     # 'Continue reading: Day N · title' (features-08): series.js fills and shows it when this browser has opened an entry
     # before (localStorage); empty and hidden otherwise, so nothing shows without JavaScript or a stored entry
     actions += '<a class="alink ser-continue" href="#days" hidden></a>'
-    body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site)]
+    body = [report.title_block(t, here, actions, ask=report.ask_link(t)), report.tick_backlink(t, here, site)]   # on phones too
     cover = t.get('cover')
     lead = bool(cover) and report.lead_photo(t) is not None   # a portrait cover fronts the cards but does not lead the page
     if lead:
@@ -599,7 +599,8 @@ def page(t, site):
     # every width, each band fetching the render it shows
     head = core.cover_preload(t, here, report.HERO_SIZES) if lead else ov_preloads(t, here)
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active=t['activity'], image=img,
-                                         body_cls='p-series', og_type='article', extra_head=head, report=t), t['title'])
+                                         full_title=core.page_title(t, report.dup_title(t, site)), body_cls='p-series',
+                                         og_type='article', extra_head=head, report=t, ld=report.crumbs_ld(t, here)), t['title'])
 
 
 def build(site):

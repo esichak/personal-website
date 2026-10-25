@@ -47,12 +47,16 @@
 :where(html:not(.js)) .abo-units-how { display: none; }   /* the bundle did not run (base.css) */
 .abo-units button { height: 44px; margin: -1px 0; border-block: 1px solid transparent; width: 56px; font-size: 13px; }
 
-.abo-follow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px;
+/* the words, then one row per kind of button under them: the feed's, the address's, the profiles' (Phase 14) */
+.abo-follow { display: flex; flex-direction: column; align-items: flex-start; gap: 16px;
   padding-top: 24px; border-top: 1px solid var(--rule); }
 .abo-follow-t { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .abo-follow-p { font: 400 15px/24px var(--sans); color: var(--ink); }
 .abo-follow-u { font: 400 13px/18px var(--mono); color: var(--ink-3); overflow-wrap: anywhere; }
 .abo-follow-b { flex-shrink: 0; }
+/* the buttons under the words: the feed's (copy, open), the address's, the profiles' (Phase 14, gap5-01/03/05) */
+.abo-follow-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.abo-follow-links { display: flex; flex-wrap: wrap; gap: 12px; }
 
 /* numbers */
 .abo-nums { display: flex; flex-direction: column; }

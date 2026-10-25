@@ -275,6 +275,10 @@ is the value found in the file. `photos[1]` and `beta[0]` count entries from 0: 
 | `content/home.json: …` | the slug is a draft (named) | Remove `draft: true` from that trip's `index.md`, or take it out of the list. |
 | `content/home.json: …` | the slug is a planned route (named) | Planned routes cannot be featured; take it out of the list. |
 | `content/home.json: …` | more than six slugs (the count is given) | Cut the list to six or fewer. |
+| `content/author.json: …` | malformed JSON, the file is not a JSON object, or a key is written twice | Compare with the example in section 9: `{"email": "...", "links": [...]}`, double quotes, no trailing comma. |
+| `content/author.json: unknown key …` | a key other than `email` and `links` (named) | Fix the spelling or remove it. |
+| `content/author.json: email … is not an address …` | the address has a space or a character a mail link would misread (`? # & %`), or no host | Write a plain address: letters, digits, `. _ + -`, an `@` and the host. |
+| `content/author.json: links …` | `links` is not a list, has more than six entries, an entry lacks `label` or `url` or has another key, a `url` is not `https://`, or a label is written twice | Each entry is `{"label": "Strava", "url": "https://..."}`; keep six at most. |
 | `content/trips/<slug>/index.md: …` | `cover_photo` is not a photo declared under `photos:`, or the path escapes the folder (path named). A declared photo whose file is gone is reported as `photos[N].file … is missing` (next table) | Use the exact `file:` value of a photo under `photos:` in `index.md` or a `days/NN.md`, and drop any `..` or leading `/`. |
 | `content/trips/<slug>/index.md: …` | `cover_focal_x` / `cover_focal_y` is out of range or not a number | Plain number from 0 to 100: `cover_focal_y: 45`, not `"45%"` or `true`. |
 | `content/trips/<slug>/index.md: …` | `card_summary` is not text | Quote it: `card_summary: "…"`. A bare number, `true`, or a `[list]` parses as something other than text. |
@@ -1124,6 +1128,18 @@ A build is enough; no `render.py` run.
 What a link shows when it is pasted into a message or a post is read from the page's head: its title, its description
 and one image. Nothing in this section needs a new field.
 
+**The title** of a trip's page, in a search result or a share card, is the title as written, then the activity and the
+place: `Matterhorn Peak – West Couloir · Backcountry Skiing, Sawtooth Ridge · Eric Sichak`. The place is `place:`, or
+`region:` when there is no place or the title names it already; when the title names both, the title stands alone.
+A title another report also has adds its date: `Morning Ride · Mountain Biking, <region>, Jun 1, 2026 · Eric Sichak`.
+The heading on the page stays the title as written.
+
+**The description** of a report that leads with its facts (a track-only report, one with a short note, a repeated
+title, a multi-day trip, a goal) is the factual summary in full, then the start of the write-up only in whole
+sentences that fit in 160 characters. A report whose write-up leads is described by its first sentences, cut at the
+last sentence end within 160 characters; a write-up with no sentence end by then is described like the first kind.
+No description stops mid-sentence.
+
 | Page | Share image |
 | --- | --- |
 | a trip's own page: a single-day report on either layout, a multi-day trip, the PCT, a goal page | the trip's cover (section 3), whether or not it leads the page; none when the trip has no photo |
@@ -1138,12 +1154,16 @@ and one image. Nothing in this section needs a new field.
   under `photos:`: `w`, `h` and an `alt` that describes the picture.
 - A page without a share image is shared as title and description only. The route tile is never a share image.
 - With `{"featured_slugs": []}` the home page, About, Map, Trips and Tick list have none.
-- A cover change needs a build, not a `render.py` run. To see what a page will share, build and read its head:
+- A cover change needs a build, not a `render.py` run. To see what every page will share, build and list the cards:
 
 ```bash
 python3 tools/build.py --check
-grep -o '<meta property="og:image[^>]*>' "_site/trips/<slug>/index.html"
+python3 tools/share_preview.py
 ```
+
+It prints one line per indexable page (title, description, image, its size and type) under a count of the pages
+that have no image, a description ending in '…', a title over 60 characters, an image that is not JPEG or PNG (some
+previewers draw no WebP) or a portrait image (a 1.91:1 card crops it). It only reads `_site/` (or `--site DIR`).
 
 **Structured data.** A report's page also carries one `BlogPosting` block, which search engines read, when both of
 these hold:
@@ -1157,6 +1177,23 @@ address and description, the language (`en`), the author (Eric Sichak, linked to
 size in pixels (left out when the cover's entry has no `w` and `h`), and `datePublished` / `dateModified` only when
 the lines of section 8 are set. It holds no rating, and never the trip date as a publication date. There is nothing to
 set, and `build.py --check` verifies the block on every page that has one (the `META` lines in 5.4).
+
+Every page that shows crumbs (a trip's page, an activity page, a region page) also carries a `BreadcrumbList`: the
+same crumbs, with their addresses. A report page names its author, its activity and its region and summits (`map:
+peaks:`) in `article:` tags. Nothing to set for either.
+
+**Contact and profiles.** An optional `content/author.json` holds the address readers may write to and the profiles
+to link:
+
+```json
+{"email": "<an alias you are willing to keep public>", "links": [{"label": "Strava", "url": "https://..."}]}
+```
+
+With an `email`, About's Follow section becomes 'Follow & contact' with an Email button and the address written out,
+the footer shows the address, and every report shows 'Ask about this trip' (a message whose subject is the trip's
+title and date). `links` (https only, at most six) show on About only. Without the file none of it appears. The file is
+strict: a misspelt key, a non-https link or a label written twice stops the build and `validate.py` names it. An
+address committed here stays in the repository's history for good (docs/PRIVACY_NOTES.md).
 
 ## 10. What not to do
 

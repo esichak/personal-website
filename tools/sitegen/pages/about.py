@@ -181,6 +181,10 @@ def method(site):
         '©&nbsp;OpenStreetMap contributors.',
         'The maps are static and north-up. They are not for navigation.',
         'Reports describe past conditions, not advice. Check the current avalanche forecast before you go.',
+        # gap5-02: the repository is public and the site's address already names its owner
+        'The site is built from a public repository on GitHub. To report a broken link or a wrong name, '
+        '<a href="%s/issues/new">open an issue</a> there. It needs a GitHub account, and it is for problems with the site, '
+        'not for private questions.' % core.REPO_URL,
     ]
     lis = ''.join('<li><span class="abo-ol-n" aria-hidden="true">%02d</span><span>%s</span></li>' % (i + 1, s) for i, s in enumerate(items))
     return ('<section class="abo-sec" aria-labelledby="abo-how-h"><h2 class="t-h3" id="abo-how-h">How these reports are made</h2>'
@@ -201,15 +205,33 @@ def units_block():
             '</p>%s</div></section>' % ctl)
 
 
-def follow(here):
+def follow(here, author=None):
+    """'Follow' (#follow, where the footer's Follow link lands, gap5-05): what to do with the feed, its address to copy
+    (written out too, for a page without scripting), the raw feed and a line on RSS-to-email (gap5-07). With
+    content/author.json (sitegen.author) it is 'Follow & contact': the address as a mailto button and as text (gap5-01)
+    and the profiles Eric names, each rel="me" (gap5-03)."""
     feed = core.SITE_URL + 'feed.xml'
     shown = feed.split('://', 1)[-1]
-    return ('<section class="abo-follow" aria-labelledby="abo-follow-h"><div class="abo-follow-t">'
-            '<h2 class="t-label" id="abo-follow-h">Follow</h2>'
-            '<p class="abo-follow-p">New reports go out on the RSS feed.</p>'
-            '<p class="abo-follow-u">%s</p></div>'
-            '<a class="btn abo-follow-b" href="%s">%sRSS feed</a></section>'
-            % (esc(shown), link(here, 'feed.xml'), icon('rss', 18)))
+    email = (author or {}).get('email')
+    links = (author or {}).get('links') or []
+    contact = ''
+    if email:
+        contact += ('<div class="abo-follow-row"><a class="btn" href="mailto:%s">Email</a><p class="abo-follow-u">%s</p></div>'
+                    % (esc(email), esc(email)))
+    if links:
+        contact += ('<ul class="abo-follow-links">%s</ul>'
+                    % ''.join('<li><a class="btn" href="%s" rel="me noopener">%s%s</a></li>' % (esc(x['url']), esc(x['label']), icon('arrow-right', 18))
+                              for x in links))
+    return ('<section class="abo-follow" id="follow" aria-labelledby="abo-follow-h"><div class="abo-follow-t">'
+            '<h2 class="t-label" id="abo-follow-h">%s</h2>'
+            '<p class="abo-follow-p">New reports go out on the RSS feed. Paste this address into a feed reader, such as '
+            'NetNewsWire or Feedly, to see each one as it is published.</p>'
+            '<p class="abo-follow-u">%s</p>'
+            '<p class="abo-follow-p">Prefer email? An RSS-to-email service can turn this feed into messages.</p></div>'
+            '<div class="abo-follow-row">%s<a class="btn abo-follow-b" href="%s" type="application/rss+xml">%sOpen feed.xml</a></div>%s'
+            '</section>'
+            % ('Follow &amp; contact' if (email or links) else 'Follow', esc(shown),
+               core.copy_link(feed, 'Copy feed address', cls='btn', share=False), link(here, 'feed.xml'), icon('rss', 18), contact))
 
 
 def page(site):
@@ -217,7 +239,7 @@ def page(site):
     body = ('<div class="abo wrap">'
             '<header class="abo-title"><h1 class="t-d1">About</h1></header>'
             '<div class="abo-grid">%s%s<div class="abo-more">%s%s%s</div></div></div>'
-            % (intro(site, here), numbers(site, here), method(site), units_block(), follow(here)))
+            % (intro(site, here), numbers(site, here), method(site), units_block(), follow(here, site.get('author'))))
     desc = ('About Eric Sichak\'s trip reports: where the tracks, maps and stats come from, '
             'how many reports there are, and how to follow new ones.')
     return core.Page(here, core.document(here, 'About', body, desc, active='about', body_cls='p-about', image=core.site_share()), 'About')

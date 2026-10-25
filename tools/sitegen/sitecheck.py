@@ -15,7 +15,8 @@ srcset is split, a folder standing for its index.html, the decoding of a fragmen
 The newer rules cover what a link check cannot see, one line each, starting with the family:
 
     META       per page: one <title>, one description, one canonical that is the page's own URL and an og:url equal to
-               it (the 404 page: neither, and noindex), a share image that exists, at most one BlogPosting block
+               it (the 404 page: neither, and noindex), a share image that exists, at most one BlogPosting and one
+               BreadcrumbList block
     SITEMAP    sitemap.xml lists every indexable page once and nothing else
     FEED       every feed.xml item links to a page of the build
     INDEX      trips/search.json and trips/journal.json name built pages, and journal days name ids on them
@@ -411,6 +412,9 @@ class _Head(HTMLParser):
         return 'noindex' in words or 'none' in words
 
 
+LD_TYPES = ('BlogPosting', 'BreadcrumbList')   # the structured data a page may carry, one block of each at most
+
+
 def structured_blocks(text):
     """The text of every <script type="application/ld+json"> on a page, head or body."""
     blocks, pos = [], 0
@@ -478,18 +482,20 @@ def _page_metadata(out, rel):
             found.append('og:image:width without og:image:height')
         if h and not w:
             found.append('og:image:height without og:image:width')
-    blocks = structured_blocks(out.text(rel))
-    if len(blocks) > 1:
-        found.append(_count(len(blocks), 'application/ld+json blocks', 'at most 1'))
-    for block in blocks:
+    kinds = []
+    for block in structured_blocks(out.text(rel)):
         try:
             data = json.loads(block)
         except (ValueError, RecursionError) as ex:
             found.append('application/ld+json is not valid JSON (%s)' % (ex if isinstance(ex, ValueError) else 'nested too deeply'))
             continue
         kind = data.get('@type') if isinstance(data, dict) else None
-        if kind != 'BlogPosting':
-            found.append('application/ld+json @type is %s (expected BlogPosting)' % json.dumps(kind))
+        if kind not in LD_TYPES:
+            found.append('application/ld+json @type is %s (expected %s)' % (json.dumps(kind), ' or '.join(LD_TYPES)))
+        kinds.append(kind)
+    for kind in LD_TYPES:
+        if kinds.count(kind) > 1:
+            found.append(_count(kinds.count(kind), '%s blocks' % kind, 'at most 1'))
     return found
 
 
@@ -501,7 +507,8 @@ def metadata(out, page=None):
       and exactly one og:url equal to it. The 404 page stands for no URL: it has neither, and it is noindex;
     - at most one og:image, an absolute URL under the site URL whose file is in the build;
     - og:image:width and og:image:height both or neither;
-    - at most one <script type="application/ld+json"> anywhere on the page, and it is JSON whose @type is BlogPosting.
+    - every <script type="application/ld+json"> anywhere on the page is JSON whose @type is BlogPosting or
+      BreadcrumbList (seo-06), at most one of each.
 
     Everything else in a head is left alone (og:image:type and :alt, twitter:image:alt, article:published_time and
     article:modified_time, inline scripts)."""

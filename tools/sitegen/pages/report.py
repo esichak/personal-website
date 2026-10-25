@@ -9,6 +9,7 @@ compact map-first order with its cover leading (when lead_photo() allows); every
 All end with related reports and the pager, and all keep the ids #title #stats #map #profile #beta #report #photos.
 One label table (LABELS) names the sections in the section row, the phone bottom bar and multiday's bar."""
 from datetime import date
+from urllib.parse import quote
 
 import markdown
 import goals
@@ -81,10 +82,28 @@ def published_line(t):
     return '<p class="wrap rep-pub t-mono-s">%s</p>' % ' · '.join(bits)
 
 
-def share_row(here):
+def share_row(here, ask=''):
     """Phones hide the title block's actions (the bottom bar carries the sections and the GPX), so the copy-link control
-    sits at the end of the page there, before what to read next. Hidden from 760 up, where the title actions hold it."""
-    return '<div class="wrap rep-share">%s</div>' % core.copy_link(core.SITE_URL + here, 'Copy link to this page', cls='alink')
+    sits at the end of the page there, before what to read next. Hidden from 760 up, where the title actions hold it.
+    ask: 'Ask about this trip' (ask_link) beside it, outside the copy control, so it stays without scripting."""
+    return ('<div class="wrap rep-share%s">%s%s</div>'
+            % (' rep-share--ask' if ask else '', core.copy_link(core.SITE_URL + here, 'Copy link to this page', cls='alink'), ask))
+
+
+def ask_link(t):
+    """'Ask about this trip' (gap5-08): a mailto to the address content/author.json gives, its subject the trip's own
+    title and date, '<title> (<date>)' (a planned route: '<name> (PLANNED)'), since titles repeat. '' without an address."""
+    email = core.author_email()
+    if not email:
+        return ''
+    if t['kind'] == 'planned':
+        when = 'PLANNED'
+    elif not t['date']:
+        when = ''
+    else:
+        when = core.fdate(t['date'], 'short') if t['kind'] == 'trip' else core.frange(t['date'], t.get('end_date'))
+    subject = t['title'] + ((' (%s)' % when) if when else '')
+    return '<a class="alink rep-ask" href="mailto:%s?subject=%s">Ask about this trip</a>' % (esc(email), esc(quote(subject, safe='')))
 
 
 # one name per section, wherever a list leads to it: the section row, the phone bottom bar, multiday's bar (copy-09)
@@ -120,22 +139,41 @@ def date_slot(t):
     return core.trip_date(t)
 
 
-def title_block(t, here, actions, strip_follows=False):
+def crumb_items(t, here):
+    """The title block's crumbs as (name, href): Reports / the activity / the region, or Tick list / the region on a goal.
+    The region's own page when it has one (a region with a region map), else its place on map/."""
+    if t['kind'] == 'planned':
+        items = [('Tick list', link(here, 'tick-list/'))]
+    else:
+        items = [('Reports', link(here, '')), (core.ACT[t['activity']][0], link(here, core.section_url(t['activity'])))]
+    reg = core.region_page_href(here, t.get('region')) or core.region_map_href(here, t.get('region'))
+    if reg:
+        items.append((t['region'], reg))
+    return items
+
+
+def crumbs_ld(t, here):
+    """The BreadcrumbList of a trip page: the title block's crumbs (seo-06)."""
+    return [core.crumbs(here, crumb_items(t, here))[1]]
+
+
+def dup_title(t, site):
+    """True when another published report carries this title ('Morning Ride'): its <title> then takes the date."""
+    return bool(t['date']) and title_counts(site).get(t['title'].casefold(), 0) > 1
+
+
+def title_block(t, here, actions, strip_follows=False, ask=''):
     """Shared by single-day, planned, multi-day and series pages. Phones (< 760) drop the crumbs and the date slot; the date
     then leads the place line (Phone-Report-A). strip_follows: a goal page whose strip states the ≈ distance, which the
-    date slot then leaves out (said once, visual-19)."""
+    date slot then leaves out (said once, visual-19). ask: 'Ask about this trip' (ask_link), under the place line, not
+    among the buttons, whose row would take it from the title's width (report.css hides it on phones where the share
+    row carries it)."""
     act = t['activity']
     sec = link(here, core.section_url(act))
     if t['kind'] == 'planned':
-        crumbs = ['<a href="%s">Tick list</a>' % link(here, 'tick-list/')]
         tags = core.tag('Planned route') + core.goal_tags(t['goal'])
     else:
-        crumbs = ['<a href="%s">Reports</a>' % link(here, ''), '<a href="%s">%s</a>' % (sec, esc(core.ACT[act][0]))]
         tags = core.trip_tags(t)
-    # the region's own page when it has one (a region with a region map), else its place on map/
-    reg = core.region_page_href(here, t.get('region')) or core.region_map_href(here, t.get('region'))
-    if reg:
-        crumbs.append('<a href="%s">%s</a>' % (reg, esc(t['region'])))
     long_ = len(t['title']) > 28
     date_ = '' if (strip_follows and t['kind'] == 'planned') else date_slot(t)
     # one meta line: the date item leads it on phones only (>= 760 the date sits in the chip row)
@@ -144,10 +182,11 @@ def title_block(t, here, actions, strip_follows=False):
             '<nav class="crumbs" aria-label="Breadcrumb">%s</nav>'
             '<div class="chips rep-chips">%s%s%s</div>'
             '<div class="rep-head"><div class="rep-head-t"><h1 id="title" class="t-d1%s">%s</h1>'
-            '<p class="t-mono-s rep-place">%s</p></div><div class="rep-actions">%s</div></div></section>'
-            % ('<span aria-hidden="true">/</span>'.join(crumbs), core.chip(t, href=sec), tags,
+            '<p class="t-mono-s rep-place">%s</p>%s</div><div class="rep-actions">%s</div></div></section>'
+            % (core.crumbs(here, crumb_items(t, here))[0], core.chip(t, href=sec), tags,
                ('<span class="t-mono-s">%s</span>' % date_) if date_ else '',
-               ' t-d1--long' if long_ else '', core.title_html(t['title']), place, actions))
+               ' t-d1--long' if long_ else '', core.title_html(t['title']), place,
+               ('<p class="rep-ask-p">%s</p>' % ask) if ask else '', actions))
 
 
 def key_items(t, meta, phone=False):
@@ -585,14 +624,15 @@ def goal_page(t, site):
         actions += '<a class="btn btn--ink" href="%s" download>%sDownload planned GPX</a>' % (t['slug'] + '.gpx', icon('download', 18))
     actions += core.copy_link(core.SITE_URL + here)
     strip_ = goal_strip(t)
-    body = [title_block(t, here, actions, strip_follows=bool(strip_)), strip_, goal_map_section(t, here, meta),
-            goal_sections(t, here, site), share_row(here), goal_pager(t, here)]
-    desc = core.clip_words(core.summary(t) + ((' ' + t['goal']['why']) if t['goal']['why'] else ''), 155)
+    body = [title_block(t, here, actions, strip_follows=bool(strip_), ask=ask_link(t)), strip_, goal_map_section(t, here, meta),
+            goal_sections(t, here, site), share_row(here, ask_link(t)), goal_pager(t, here)]
+    desc = core.describe(t, facts=True)
     head = core.map_preloads(t, here, [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')], t['url'] + 'map/',
                              nowide='map-wide' not in meta['maps']) if meta['maps'] else ''
     return core.Page(here, core.document(here, t['title'], ''.join(body), desc, active='goal', image=core.share_photo(t),
-                                         body_cls='p-report p-goal',
-                                         bottom=goal_bottom_bar(t, has_notes), extra_head=head, trip=t), t['title'])
+                                         body_cls='p-report p-goal', full_title=core.page_title(t),
+                                         bottom=goal_bottom_bar(t, has_notes), extra_head=head, trip=t,
+                                         ld=crumbs_ld(t, here)), t['title'])
 
 
 def tick_backlink(t, here, site):
@@ -633,7 +673,7 @@ def page(t, site):
     if gpx_href:
         actions += '<a class="btn btn--ink" href="%s" download>%sDownload GPX</a>' % (gpx_href, icon('download', 18))
     actions += core.copy_link(core.SITE_URL + here)
-    body = [title_block(t, here, actions), tick_backlink(t, here, site)]
+    body = [title_block(t, here, actions, ask=ask_link(t)), tick_backlink(t, here, site)]
     # a recorded report has stats (tools/add_trip.py writes them from the track). One without a track may have none:
     # then there is no strip, rather than an empty list under a "Stats" label with links leading to it
     cells = core.strip_cells(t)
@@ -676,18 +716,16 @@ def page(t, site):
     if has_gallery:
         body.append(gallery(t, here, photos, lead=1 if show_hero else 0))
     body.append(published_line(t))
-    body.append(share_row(here))
+    body.append(share_row(here, ask_link(t)))
     body.append(core.related_block(t, here, site, skip=neighbours(t, site)))
     body.append(pager(t, here, site))
-    # a title shared by several reports ('Morning Ride') gets its date in the <title> / og:title (the H1 stays
-    # verbatim) and a description that leads with the factual summary, as does a report with little or no write-up
-    dup = t['date'] and title_counts(site).get(t['title'].casefold(), 0) > 1
-    full_title = ('%s, %s · %s' % (t['title'], core.fdate(t['date'], 'short'), core.SITE_NAME)) if dup else None
-    # 'little': under 100 characters of writing in all (excerpt() cuts at a sentence end, so its 155-character excerpt
-    # can be shorter than that while the write-up is not; its 400-character one is whole below 400)
-    desc, ex = core.excerpt(t, 155), core.excerpt(t, 400)
-    if dup or len(ex) < 100:
-        desc = core.clip_words(core.summary(t) + ((' ' + ex) if ex else ''), 155)
+    # the <title> / og:title names the activity and the place (core.page_title), and the date when the title is shared
+    # by several reports ('Morning Ride'); the H1 stays verbatim. Such a report, and one with little or no write-up,
+    # leads its description with the factual summary ('little': under 100 characters of writing in all; excerpt()'s
+    # 400-character cut is whole below 400)
+    dup = dup_title(t, site)
+    full_title = core.page_title(t, dup)
+    desc = core.describe(t, facts=dup or len(core.excerpt(t, 400)) < 100)
     # the share image is the cover the trip's cards show, whether or not it leads the page (a portrait cover does not)
     img = core.share_photo(t)
     if show_hero:
@@ -698,7 +736,8 @@ def page(t, site):
                                          body_cls='p-report' + (' p-report--story' if story else (' p-report--written' if written else '')),
                                          bottom=bottom_bar(t, here, gpx_href, bool(beta), has_report, has_gallery, has_chart(meta), story=story or written,
                                                            has_map=has_map, has_stats=has_stats),
-                                         extra_head=head, og_type='article', trip=t, full_title=full_title, report=t), t['title'])
+                                         extra_head=head, og_type='article', trip=t, full_title=full_title, report=t,
+                                         ld=crumbs_ld(t, here)), t['title'])
 
 
 _TITLE_COUNTS = {}

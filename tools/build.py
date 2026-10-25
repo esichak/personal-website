@@ -9,6 +9,7 @@
 """
 import argparse
 import glob
+import hashlib
 import html
 import importlib
 import os
@@ -17,6 +18,7 @@ import shutil
 import sys
 import time
 from datetime import datetime, timezone
+from urllib.parse import urljoin
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -24,10 +26,12 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 import mapkit  # noqa: E402
 from sitegen import core  # noqa: E402
+from sitegen import author  # noqa: E402
 from sitegen import curation  # noqa: E402
 from sitegen import sitecheck  # noqa: E402
 import checks  # noqa: E402
 import goals  # noqa: E402
+import markdown  # noqa: E402
 
 OUT = os.path.join(ROOT, '_site')
 PAGE_MODULES = ['home', 'trips', 'ticklist', 'section', 'report', 'multiday', 'series', 'archive', 'region', 'about', 'notfound']
@@ -79,7 +83,9 @@ def conflict_copy(path):
 
 
 def css_bundle():
-    parts = [_text(os.path.join(ROOT, 'assets', 'css', 'base.css'))]
+    # the site's own fonts first, when tools/fonts.py has written them (perf-02)
+    fonts = os.path.join(ROOT, 'assets', 'css', 'fonts.css')
+    parts = (['/* fonts.css */\n' + _text(fonts)] if os.path.exists(fonts) else []) + [_text(os.path.join(ROOT, 'assets', 'css', 'base.css'))]
     parts.append('/* map + profile internals (from tools/lib/mapkit.py) */\n' + mapkit.MAP_CSS.strip()
                  .replace("'Geist Mono', ui-monospace, 'SF Mono', monospace", 'var(--mono)')
                  .replace("Archivo, 'Helvetica Neue', system-ui, sans-serif", 'var(--sans)')
@@ -250,10 +256,35 @@ def pub_moment(t):
     return datetime(d.year, d.month, d.day, 12, tzinfo=timezone.utc) if d else None
 
 
+def feed_content(t):
+    """An item's <content:encoded> (seo-09), for a trip with a write-up of its own: the write-up as the page shows it, a
+    multi-day trip's written days each under its 'Day N' heading with that day's photos, the trip's photos (their .sm
+    copies, with their alt text) and links to the page and its GPX. Eric's own words and files only, verbatim."""
+    url = core.SITE_URL + t['url']
+    # a write-up's own links are written relative to its page ('../other-trip/'); a feed reader would resolve them
+    # against feed.xml, so each href and src is made absolute against the page
+    full = lambda h: re.sub(r'\b(href|src)="([^"]*)"', lambda m: '%s="%s"' % (m.group(1), html.escape(urljoin(url, html.unescape(m.group(2))))), h)  # noqa: E731
+    img = lambda p: '<p><img src="%s" alt="%s"></p>' % (url + (p.get('sm') or p['file']), html.escape(p.get('alt') or ''))  # noqa: E731
+    parts = [full(markdown.to_html(t['body_md'], heading_shift=1))] + [img(p) for p in t.get('photos') or []]
+    if t['kind'] == 'multi-day':
+        for d in t['days']:
+            if d['body_md']:
+                name = (d.get('title') or '').strip()
+                parts.append('<h2>Day %d%s</h2>' % (d['n'], (': ' + html.escape(name)) if name else ''))
+                parts.append(full(markdown.to_html(d['body_md'], heading_shift=2)))
+                parts += [img(p) for p in d.get('photos') or []]
+    gpx = (t['slug'] + '.gpx') if (t['track'] if t['kind'] == 'trip' else
+                                   (t['kind'] == 'multi-day' and any(d['track'] for d in t['days']))) else ''
+    parts.append('<p><a href="%s">Open the report</a>%s</p>'
+                 % (url, (' · <a href="%s">Download GPX</a>' % (url + gpx)) if gpx else ''))
+    return ''.join(parts)
+
+
 def feed(trips):
     """RSS 2.0: each item is the factual summary (content fields only) followed by the start of Eric's write-up. A trip
-    with days and no trip-level write-up gets the summary alone (a day's excerpt would read as the whole trip's). The
-    30 newest by pubDate (pub_moment), undated last; a stable sort, so trips without published_at keep the loader's
+    with days and no trip-level write-up gets the summary alone (a day's excerpt would read as the whole trip's). A trip
+    with a write-up of its own also carries all of it, with its photos, as <content:encoded> (feed_content). The 30
+    newest by pubDate (pub_moment), undated last; a stable sort, so trips without published_at keep the loader's
     trip-date order."""
     pub = [(pub_moment(x), x) for x in trips if x['kind'] != 'planned']
     pub.sort(key=lambda mt: (mt[0] is not None, mt[0] or _EPOCH), reverse=True)
@@ -261,10 +292,12 @@ def feed(trips):
     for d, t in pub[:30]:
         url = core.SITE_URL + t['url']
         ex = core.excerpt(t, 400) if t['body_md'] else ''
-        items.append('<item><title>%s</title><link>%s</link><guid>%s</guid>%s<category>%s</category><description>%s</description></item>'
+        items.append('<item><title>%s</title><link>%s</link><guid>%s</guid>%s<category>%s</category><description>%s</description>%s</item>'
                      % (html.escape(t['title']), url, url, ('<pubDate>%s</pubDate>' % d.strftime('%a, %d %b %Y %H:%M:%S +0000')) if d else '',
-                        html.escape(core.ACT[t['activity']][0]), html.escape(core.summary(t) + ((' ' + ex) if ex else ''))))
-    return ('<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>'
+                        html.escape(core.ACT[t['activity']][0]), html.escape(core.summary(t) + ((' ' + ex) if ex else '')),
+                        ('<content:encoded>%s</content:encoded>' % html.escape(feed_content(t))) if t['body_md'] else ''))
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" '
+            'xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>'
             '<title>%s — trip reports</title><link>%s</link>'
             '<atom:link href="%sfeed.xml" rel="self" type="application/rss+xml"/>'
             '<description>%s</description><language>en-us</language>%s</channel></rss>\n'
@@ -310,7 +343,27 @@ def build(verbose=True, only=None):
     # introduction); read here, beside content/home.json, not in site_of, which the tests call on synthetic trips
     site['about'] = content.load_about()
     site['region_intros'] = content.load_region_intros()
+    # how a reader reaches Eric: content/author.json, optional; an invalid file stops the build here (sitegen.author)
+    site['author'] = author.load()
     core.register_site(site, meta)
+    # the bundles before the pages, which name them with their hashes (perf-01); and the fonts are the site's own once
+    # tools/fonts.py has written assets/css/fonts.css (perf-02)
+    css, js = css_bundle(), js_bundle()
+    core._ASSET_VERSION.update(css=asset_hash(css), js=asset_hash(js))
+    core._SELF_FONTS[0] = os.path.exists(os.path.join(ROOT, 'assets', 'css', 'fonts.css'))
+    try:
+        return _build(trips, site, css, js, t0, verbose, only)
+    finally:
+        core._ASSET_VERSION.clear()
+        core._SELF_FONTS[0] = False
+
+
+def asset_hash(text):
+    """The first 8 hex digits of the SHA-1 of a bundle: its version in the pages' addresses (assets/site.css?v=...)."""
+    return hashlib.sha1(text.encode('utf-8')).hexdigest()[:8]
+
+
+def _build(trips, site, css, js, t0, verbose, only):
     if os.path.exists(OUT):
         shutil.rmtree(OUT)
     os.makedirs(OUT)
@@ -336,13 +389,14 @@ def build(verbose=True, only=None):
             fh.write(p.html)
     os.makedirs(os.path.join(OUT, 'assets', 'maps'), exist_ok=True)
     with open(os.path.join(OUT, 'assets', 'site.css'), 'w', encoding='utf-8') as fh:
-        fh.write(css_bundle())
+        fh.write(css)
     with open(os.path.join(OUT, 'assets', 'site.js'), 'w', encoding='utf-8') as fh:
-        fh.write(js_bundle())
-    for f in glob.glob(os.path.join(ROOT, 'assets', '*.*')):
+        fh.write(js)
+    # assets/*.* and the fonts' folder (the woff2 files and their licences, tools/fonts.py)
+    for f in glob.glob(os.path.join(ROOT, 'assets', '*.*')) + glob.glob(os.path.join(ROOT, 'assets', 'fonts', '*.*')):
         if conflict_copy(f):
             continue
-        copy(f, os.path.join(OUT, 'assets', os.path.basename(f)))
+        copy(f, os.path.join(OUT, os.path.relpath(f, ROOT)))
     for f in glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.png')) + glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.webp')) + glob.glob(os.path.join(ROOT, 'rendered', 'site', '*.base.svg')):
         if not conflict_copy(f):
             copy(f, os.path.join(OUT, 'assets', 'maps', os.path.basename(f)))

@@ -91,6 +91,12 @@ WRITTEN = ['synm-story', 'synm-words', 'synm-nosize', 'synm-tour', 'synm-journal
 SECTIONS = ['ski/', 'climbing/', 'hiking/', 'mountain-biking/', 'other/']
 SITE_PAGES = ['about/', 'map/', 'trips/', 'tick-list/']      # the pages that stand for the whole site (core.site_share)
 HELPERS = ['trips/%s/map/' % s for s in REPORTS + ['synm-goal']]   # synm-idea has no rendered map, so no helper page
+
+
+def crumbed(url):
+    """The pages that show crumbs, and so carry one BreadcrumbList (seo-06): a trip's page (report, multi-day, journal,
+    goal), an activity section and a region page; never home, the site pages, a map helper or the 404 page."""
+    return (url.startswith('trips/') and url.count('/') == 2) or url in SECTIONS or url.startswith('regions/')
 JSON_PAGES = ['trips/search.json', 'trips/journal.json']
 # slug -> its cover as content records it: (site-relative path, w, h, alt)
 COVER = {
@@ -231,16 +237,28 @@ def expected_share(path, w, h, alt, kind='image/webp'):
 
 
 NO_SHARE = [('twitter:card', 'summary')]
+# a report's article tags (Phase 14, seo-03): its author, its activity's label, one tag per region and summit
+ARTICLE = ['article:author', 'article:section', 'article:tag']
 _LD_OPEN = re.compile(r'<script\b[^>]*\btype\s*=\s*["\']?application/ld\+json["\']?[^>]*>', re.I)
 
 
-def ld_raw(html_):
+def ld_raw(html_, crumbs=False):
     """The text of every <script type="application/ld+json"> block of a page, up to the first </script> after it (what
-    a browser takes as the block)."""
+    a browser takes as the block). Since Phase 14 a crumbed page also carries a BreadcrumbList (seo-06, CrumbsLdTests);
+    the tests here are about the BlogPosting, so that block is left out unless crumbs."""
     out = []
     for m in _LD_OPEN.finditer(html_):
-        out.append(html_[m.end():html_.index('</script>', m.end())])
+        raw = html_[m.end():html_.index('</script>', m.end())]
+        if crumbs or not _is_crumbs(raw):
+            out.append(raw)
     return out
+
+
+def _is_crumbs(raw):
+    try:
+        return json.loads(raw).get('@type') == 'BreadcrumbList'
+    except (ValueError, AttributeError):
+        return False
 
 
 def ld_blocks(html_):
@@ -949,13 +967,13 @@ class DocumentHeadTests(TempCase):
     def test_the_share_tags_follow_og_url_and_nothing_comes_between_them(self):
         html_ = self.document(image=self.IMAGE)
         keys = [k for k, _v in metas(Doc(html_).find('head'))]
-        self.assertEqual(keys, ['viewport', 'description', 'og:type', 'og:title', 'og:description', 'og:url', 'og:image',
-                                'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt', 'twitter:card',
-                                'twitter:image:alt', 'theme-color'])
+        self.assertEqual(keys, ['viewport', 'description', 'og:type', 'og:title', 'og:description', 'og:site_name', 'og:locale',
+                                'og:url', 'og:image', 'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt',
+                                'twitter:card', 'twitter:image:alt', 'theme-color'])
         self.assertIn(core._share_tags(self.IMAGE), html_)
 
     def test_a_page_without_an_image_keeps_the_tags_it_had(self):
-        # contract 4.2: byte-identical to before in these tags
+        # contract 4.2: byte-identical to before in these tags, but for the site's name and locale (Phase 14, seo-03)
         canon = U + self.HERE
         for kw in ({}, {'image': None}, {'image': ''}):
             with self.subTest(kw=kw):
@@ -963,6 +981,7 @@ class DocumentHeadTests(TempCase):
                 self.assertIn('<link rel="canonical" href="%s">'
                               '<meta property="og:type" content="website"><meta property="og:title" content="Synthetic Title · %s">'
                               '<meta property="og:description" content="Synthetic description.">'
+                              '<meta property="og:site_name" content="Eric Sichak"><meta property="og:locale" content="en_US">'
                               '<meta property="og:url" content="%s"><meta name="twitter:card" content="summary">'
                               '<meta name="theme-color" content="#F2F1EC">' % (canon, core.SITE_NAME, canon), html_)
                 self.assertNotIn('og:image', html_)
@@ -1300,9 +1319,9 @@ class ShareImageTests(FixtureCase):
 
     def test_the_share_tags_sit_between_og_url_and_theme_color(self):
         keys = [k for k, _v in self.feat.metas('trips/synm-compact/')]
-        self.assertEqual(keys, ['viewport', 'description', 'og:type', 'og:title', 'og:description', 'og:url', 'og:image',
-                                'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt', 'twitter:card',
-                                'twitter:image:alt', 'theme-color'])
+        self.assertEqual(keys, ['viewport', 'description', 'og:type', 'og:title', 'og:description', 'og:site_name', 'og:locale',
+                                'og:url', 'og:image', 'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt',
+                                'twitter:card', 'twitter:image:alt'] + ARTICLE + ['theme-color'])
 
     def test_the_alt_survives_as_an_attribute_value(self):
         html_ = self.feat.html('trips/synm-story/')
@@ -1438,20 +1457,25 @@ class StructuredDataTests(FixtureCase):
                     html_ = built.html(url)
                     want = 1 if url in with_block else 0
                     self.assertEqual(len(ld_raw(html_)), want)
-                    self.assertEqual(html_.lower().count('application/ld+json'), want)
+                    # beside it, a crumbed page's BreadcrumbList (Phase 14): every block in the head
+                    every = want + (1 if crumbed(url) else 0)
+                    self.assertEqual(len(ld_raw(html_, crumbs=True)), every)
+                    self.assertEqual(html_.lower().count('application/ld+json'), every)
                     scripts = [s for s in built.doc(url).find_all('script') if (s['type'] or '').lower() == 'application/ld+json']
-                    self.assertEqual(len(scripts), want)
-                    if want:
-                        self.assertIs(scripts[0].parent, built.head(url))
+                    self.assertEqual(len(scripts), every)
+                    for sc in scripts:
+                        self.assertIs(sc.parent, built.head(url))
 
     def test_the_pages_without_a_block_are_the_ones_the_contract_lists(self):
         none = (['trips/synm-short/', 'trips/synm-newest/', 'trips/synm-compact/', 'trips/synm-flag/', 'trips/synm-ski/',
                  'trips/synm-goal/', 'trips/synm-idea/', '', '404.html'] + HELPERS + SECTIONS + SITE_PAGES)
         for url in none:
             with self.subTest(page=url or '(home)'):
-                self.assertNotIn('ld+json', self.feat.html(url))
-                self.assertNotIn('schema.org', self.feat.html(url))
                 self.assertNotIn('BlogPosting', self.feat.html(url))
+                self.assertEqual(ld_raw(self.feat.html(url)), [])
+                if not crumbed(url):                  # a crumbed page's one block is its BreadcrumbList (Phase 14)
+                    self.assertNotIn('ld+json', self.feat.html(url))
+                    self.assertNotIn('schema.org', self.feat.html(url))
 
     def test_the_block_of_a_story_is_exactly_this(self):
         url = 'trips/synm-story/'
@@ -1638,9 +1662,9 @@ class HostileTitleTests(TempCase):
                 self.assertNotIn('<script>alert(1)', html_)
                 self.assertNotIn('alert(1)</script>', html_)
                 doc = self.built.doc(url)
-                ld = [s for s in doc.find_all('script') if s['type'] == 'application/ld+json']
-                self.assertEqual(len(ld), 1)
-                self.assertEqual(json.loads(ld[0].text(clean=False))['headline'], self.titles[url])
+                ld = [json.loads(s.text(clean=False)) for s in doc.find_all('script') if s['type'] == 'application/ld+json']
+                self.assertEqual([d['@type'] for d in ld], ['BlogPosting', 'BreadcrumbList'])   # the crumbs: Phase 14
+                self.assertEqual(ld[0]['headline'], self.titles[url])
                 # the first </script> after the block's opening tag is the block's own: the head goes on behind it
                 after = html_[html_.index('</script>', _LD_OPEN.search(html_).end()):]
                 self.assertTrue(after.startswith('</script><meta name="theme-color"'))
@@ -1650,8 +1674,11 @@ class HostileTitleTests(TempCase):
     def test_the_title_tag_and_og_title_are_escaped(self):
         for url in self.urls:
             with self.subTest(page=url):
-                self.assertEqual(self.built.head(url).find('title').text(clean=False), '%s · %s' % (self.titles[url], core.SITE_NAME))
-                self.assertEqual(self.built.meta(url, 'og:title'), ['%s · %s' % (self.titles[url], core.SITE_NAME)])
+                # the title as written, then its activity and region (Phase 14, seo-01)
+                act = core.ACT[self.built.by[url.split('/')[1]]['activity']][0]
+                want = '%s · %s, %s · %s' % (self.titles[url], act, REGION, core.SITE_NAME)
+                self.assertEqual(self.built.head(url).find('title').text(clean=False), want)
+                self.assertEqual(self.built.meta(url, 'og:title'), [want])
                 self.assertEqual(len(self.built.head(url).find_all('title')), 1)
 
     def test_two_reports_with_one_title_get_dated_titles_and_the_verbatim_headline(self):
@@ -1661,7 +1688,8 @@ class HostileTitleTests(TempCase):
             s.add(slug, title='Synthetic Twin', date=day, region=REGION, track=True, body=LONG)
         built = s.build(only=('report',))
         titles = [built.head('trips/%s/' % x).find('title').text() for x in ('synm-twin-a', 'synm-twin-b')]
-        self.assertEqual(titles, ['Synthetic Twin, Jun 1, 2026 · Eric Sichak', 'Synthetic Twin, Jun 8, 2026 · Eric Sichak'])
+        self.assertEqual(titles, ['Synthetic Twin · Hiking, %s, Jun 1, 2026 · Eric Sichak' % REGION,
+                                  'Synthetic Twin · Hiking, %s, Jun 8, 2026 · Eric Sichak' % REGION])
         for slug in ('synm-twin-a', 'synm-twin-b'):
             url = 'trips/%s/' % slug
             self.assertEqual(built.ld(url)[0]['headline'], 'Synthetic Twin')
@@ -1752,9 +1780,10 @@ class PublicationSurfaceTests(TempCase):
         built = self.one(['published_at: ' + PUB, 'updated_at: ' + UPD])
         url = 'trips/synm-dated/'
         keys = [k for k, _v in built.metas(url)]
-        self.assertEqual(keys, ['viewport', 'description', 'og:type', 'og:title', 'og:description', 'og:url', 'og:image',
-                                'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt', 'twitter:card',
-                                'twitter:image:alt', 'article:published_time', 'article:modified_time', 'theme-color'])
+        self.assertEqual(keys, ['viewport', 'description', 'og:type', 'og:title', 'og:description', 'og:site_name', 'og:locale',
+                                'og:url', 'og:image', 'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt',
+                                'twitter:card', 'twitter:image:alt'] + ARTICLE
+                         + ['article:published_time', 'article:modified_time', 'theme-color'])
         html_ = built.html(url)
         self.assertIn('<meta property="article:published_time" content="%s"><meta property="article:modified_time" content="%s">'
                       '<script type="application/ld+json">' % (PUB, UPD), html_)
@@ -1815,7 +1844,7 @@ class PublicationSurfaceTests(TempCase):
                 built = self.one(kind=kind, name='k-%s' % kind)
                 url = 'trips/synm-dated/'
                 html_ = built.html(url)
-                for needle in ('rep-pub', 'article:published_time', 'article:modified_time', 'article:', 'datePublished',
+                for needle in ('rep-pub', 'article:published_time', 'article:modified_time', 'datePublished',
                                'dateModified', 'dateCreated', '>Published', 'Updated <time'):
                     self.assertNotIn(needle, html_, needle)
                 self.assertEqual(self.pub_line(built), [])
@@ -1831,7 +1860,7 @@ class PublicationSurfaceTests(TempCase):
                 for iso in ('2026-06-01', '2026-06-02'):
                     self.assertNotIn(iso, raw)
                     self.assertNotIn(iso, [v for k, v in built.metas(url) if k not in ('description', 'og:description')])
-                self.assertEqual([k for k, _v in built.metas(url) if k.startswith('article:')], [])
+                self.assertEqual([k for k, _v in built.metas(url) if k.startswith('article:') and k.endswith('_time')], [])
                 text = built.doc(url).by_id('main').text()
                 self.assertNotIn('Published', text)
                 self.assertNotIn('Updated', text)
@@ -1856,7 +1885,7 @@ class PublicationSurfaceTests(TempCase):
               days=[{'date': '2026-06-01', 'body': LONG, 'published_at': '2026-10-03', 'updated_at': '2026-10-04'}, {'date': '2026-06-02'}])
         built = s.build(only=('multiday',))
         html_ = built.html('trips/synm-dated/')
-        for needle in ('rep-pub', 'article:', 'datePublished', 'dateModified', '2026-10-03', '2026-10-04'):
+        for needle in ('rep-pub', 'article:published', 'article:modified', 'datePublished', 'dateModified', '2026-10-03', '2026-10-04'):
             self.assertNotIn(needle, html_, needle)
 
     # ------------------------------------------------------------ nothing else changes
@@ -1957,7 +1986,9 @@ class FeedTests(FixtureCase):
     def test_every_item_has_these_children_in_this_order(self):
         for item, t in zip(self.items, self.published):
             with self.subTest(slug=t['slug']):
-                self.assertEqual([c.tag for c in item], ['title', 'link', 'guid', 'pubDate', 'category', 'description'])
+                # and the whole write-up when the trip has one of its own (Phase 14, seo-09; tests/test_phase14.py)
+                self.assertEqual([c.tag for c in item], ['title', 'link', 'guid', 'pubDate', 'category', 'description']
+                                 + (['{http://purl.org/rss/1.0/modules/content/}encoded'] if t['body_md'] else []))
                 self.assertEqual(item.findtext('title'), t['title'])
                 self.assertEqual(item.findtext('category'), core.ACT[t['activity']][0])
 
@@ -2047,7 +2078,7 @@ class FeedShapeTests(TempCase):
             text = module('build').feed(site['published'])
         self.assertEqual(text, (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>'
+            '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>'
             '<title>Eric Sichak — trip reports</title><link>https://esichak.github.io/personal-website/</link>'
             '<atom:link href="https://esichak.github.io/personal-website/feed.xml" rel="self" type="application/rss+xml"/>'
             '<description>%s</description><language>en-us</language>'

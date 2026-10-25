@@ -42,6 +42,10 @@ tools/lib/photos.py               photo copies without EXIF/GPS: web_copies() (f
                                   collect(), import_photos(), next_number() (add_trip.py, trip_photos.py, about_photo.py)
 tools/thumbs.py                   makes the missing card-size (.th) copies of cover photos (needs cwebp); only adds files beside the photos
 tools/privacy_audit.py            the author's offline, read-only report on the published tracks and photos; never run by the build or CI
+tools/share_preview.py            what each indexable page's share card is made of, read from a built site, with flags (Phase 14)
+tools/fonts.py                    makes the three typefaces the site's own files: assets/fonts/ and assets/css/fonts.css (needs the
+                                  internet, run once with Eric's go-ahead; --check is offline)
+tools/sitegen/author.py           content/author.json -> site['author'] (strict; no file, no contact): the address and profile links
 tools/sitegen/core.py             shared layout + components (header, footer, units, chips, maps, rows, …)
 tools/sitegen/curation.py         content/home.json -> site['featured'] (strict: unknown, draft, planned, duplicate slugs fail the build)
                                   and site['region_maps'] (resolve_region_maps: one or two names with a region map, or None)
@@ -60,6 +64,8 @@ tools/sitegen/pages/region.py     the region pages (regions/<slug>/): one per re
                                   of counts, years and places
 assets/css/base.css               tokens, type scale, layout, shared components
 assets/css/pages/<module>.css     page CSS (bundled after base.css into assets/site.css)
+assets/css/fonts.css              written by tools/fonts.py, when it exists bundled first (the @font-face rules of the site's own
+                                  fonts); without it every page loads Google Fonts' stylesheet as before
 assets/css/print.css              the print sheet, appended after the page sheets (Phase 13B): no header, footer, bottom bar,
                                   menu, actions, section row, More like this, pager, copy control, day or month bar, GPX or
                                   map buttons; the column map and chart; photos at most a third of a page tall, maps, photo
@@ -124,10 +130,18 @@ with 40 px to spare).
   undated trip), and lists the 30 newest by that moment; `build.sitemap` writes a report's `<lastmod>` from
   `updated_at`, else `published_at`, as written, and no other page gets one. `add_trip.py` writes an empty
   `published_at:` line for Eric to fill on the day he publishes. tests/test_metadata.py pins all of it.
-- Structured data: the only JSON-LD on the site is the one `BlogPosting` block that `core.document(report=t)` writes
-  from `core.blog_posting`, and only when `core.written_report(t)`, because marking up a bare track as an article, or
+- Structured data: the JSON-LD on the site is the one `BlogPosting` block that `core.document(report=t)` writes from
+  `core.blog_posting`, and only when `core.written_report(t)`, because marking up a bare track as an article, or
   adding a rating, a publisher logo or a date the content lacks, would tell a search engine something the page does
-  not say.
+  not say; and, since Phase 14 (seo-06), one `BreadcrumbList` on every page that shows crumbs (report, multi-day,
+  journal, goal, section and region pages), built by `core.crumbs` from the same list as the visible crumbs. No
+  WebSite, SearchAction or Person block.
+- Indexing (seo-08): a report without a write-up or a photo is indexed like any other (its map, mile table and GPX
+  are its own); `noindex` and `Page(index=False)` are for helper pages such as trips/<slug>/map/ and the 404 page only.
+- Titles and descriptions (seo-01, seo-02): a trip page's `<title>` and og:title add the activity and the place to the
+  title as written (`core.page_title`); the H1 and the BlogPosting headline stay the title alone. Its meta description
+  never cuts the facts: `core.describe` writes the factual summary whole when the facts lead and cuts a leading
+  write-up only at a sentence end within 160 characters (from 40 on); with no sentence end there, the facts lead.
 
 ### Units, links and maps
 
@@ -1112,8 +1126,10 @@ with 40 px to spare).
     string still works as `image` and gives `og:image`, its type and the card. Nothing is measured or worded here.
   - `core.document(..., canonical=True, report=None)`: `canonical=False` leaves out the canonical link and `og:url` (the
     404 page, which stands for no URL). `report=t`, passed by single-day, multi-day and journal pages, adds after the
-    share tags `article:published_time` / `article:modified_time` when index.md states them, and the `BlogPosting` block
-    when `core.written_report(t)`. A goal page passes no `report`.
+    share tags `article:author` (the About page), `article:section` (the activity's label) and one `article:tag` per
+    region and per summit of `map: peaks:` (Phase 14, seo-03), `article:published_time` / `article:modified_time` when
+    index.md states them, and the `BlogPosting` block when `core.written_report(t)`. A goal page passes no `report`.
+    Every page also names `og:site_name` (Eric Sichak) and `og:locale` (en_US) after og:description.
   - `core.written_report(t)`: a trip that is not planned whose own write-ups (the `body_md` of index.md and of every
     day, as `markdown.plain` text joined with spaces) come to at least `core.STRUCTURED_MIN_CHARS` (100) characters.
   - `core.blog_posting(t, canon, description, image=None)` returns the dict: `@context`, `@type` `BlogPosting`,
@@ -1247,7 +1263,8 @@ with 40 px to spare).
   - `META <page>: …`: exactly one `<title>` and one meta description in the head; exactly one canonical equal to the
     page's own URL and one `og:url` equal to it (the 404 page: neither, and it must be noindex); at most one
     `og:image`, absolute under the site URL, its file in the build; `og:image:width` and `og:image:height` both or
-    neither; at most one `application/ld+json` block, valid JSON whose `@type` is `BlogPosting`.
+    neither; every `application/ld+json` block valid JSON whose `@type` is `BlogPosting` or `BreadcrumbList`
+    (`sitecheck.LD_TYPES`), at most one of each (Phase 14).
   - `SITEMAP`: sitemap.xml parses and lists every indexable page (not noindex, not 404.html) exactly once, and nothing
     else. `FEED`: feed.xml parses and every item's `<link>` and `<guid>` is the address of a built page. `INDEX`: every
     `s` in trips/search.json and trips/journal.json is a built `trips/<s>/` page, and every journal `a` is an id on it.
@@ -1322,6 +1339,68 @@ with 40 px to spare).
     `build.sitemap` (every page whose `core.Page.index` is not False, except 404.html: the two search indexes and the
     full-screen map pages are `index=False`, and those map pages and the 404 page carry `noindex`) and robots.txt
     (`User-agent: *`, `Allow: /`, `Sitemap: <core.SITE_URL>sitemap.xml`).
+
+### Metadata, loading, following and contact (Phase 14)
+
+- `core.page_title(t, dup=False)`: '{title} · {activity}, {place or region}', then ', {short date}' when another
+  published report has the same title (`report.dup_title(t, site)`, on single-day, multi-day and journal pages), then
+  ' · Eric Sichak'. A place whose words all stand in the title already gives way to the region, and the region the same
+  way; with neither left the title keeps the old form. Goal pages use it too (never a date). About 120 titles are now
+  over 60 characters, which tools/share_preview.py lists.
+- `core.describe(t, facts, limit=160)`: `facts` (a goal, a multi-day trip, a report with under 100 characters of
+  writing or a repeated title) writes `core.summary(t)` whole, then the writing (a goal's why, a multi-day trip's first
+  written day as 'Day N: ...', else the write-up) only in whole sentences that fit in what is left (`markdown.
+  plain_sentences(..., floor=0)`, dropped when it would end in '…'). Otherwise the write-up leads, cut at its last
+  sentence end within the limit from `core.DESC_FLOOR` (40) characters on; a write-up with no sentence end there falls
+  back to the facts-led form, so no description ends mid-sentence (the prompt's 80 left eight pages cut mid-sentence:
+  their first sentences are 56 to 75 characters long). `core.summary()` is unchanged (the feed's description uses it).
+  The journal page keeps its own description.
+- `core.crumbs(here, items)` -> (html, ld): items are (name, href relative to the page) or (name, None) for the page
+  itself (aria-current, no `item` in the list); the list's `item`s are the hrefs made absolute against the page's URL.
+  `report.crumb_items`, `section.crumb_items` and `region.crumb_items` give each page's list; `core.document(ld=[...])`
+  writes the blocks (`core.ld_script`) at the end of the head.
+- `build.build()` makes the two bundles before the pages and, for the length of the build, sets
+  `core._ASSET_VERSION` to their `build.asset_hash` (the first 8 hex digits of the SHA-1): every page names
+  `assets/site.css?v=<hash>` and `assets/site.js?v=<hash>` (perf-01), so a browser that cached the old stylesheet for
+  GitHub Pages' ten minutes never pairs it with a new page. The file names do not change, so a cached old page still
+  finds them; the site check drops the query. Outside a build (a test calling `document()`) the names are bare.
+- Fonts (perf-02): while assets/css/fonts.css does not exist, every page loads Google Fonts' stylesheet as before. Once
+  `tools/fonts.py` has written it (with the four Latin woff2 files, fetched from fonts.gstatic.com only and at most
+  2 MB each, and the three SIL OFL texts in assets/fonts/),
+  `build.css_bundle` puts it first, the build copies assets/fonts/, `core._SELF_FONTS` is true for the build, and each
+  page drops the Google stylesheet and its preconnects. No face is preloaded (`core.FONT_PRELOADS` is empty): measured
+  2026-10-25, the site's own fonts moved desktop first paint from 316 to 56 ms on home and 312 to 48 ms on the
+  Matterhorn report (medians of 25 cold runs), and preloading two faces gained nothing there while holding the phone
+  profile's largest paint 780 ms behind the lead image. Deleting fonts.css goes back to Google Fonts.
+- The Ski page preloads its first panel region map's hillshade and base layer like the other section pages' featured
+  maps (perf-07), each pair under the media where section.css shows it (`section.SKI_MEDIA`: the desktop render at
+  560-759 px and from 1200 px in a window at least 760 px tall, the phone render elsewhere; `core.map_preloads(media=)`);
+  both stay `loading="lazy"`. tests/test_phase14.py holds SKI_MEDIA against the cascade. `core.photo(..., thumb=True)` lists a photo's
+  `.th` copy first in its srcset, for slots up to about 213 px at 2x: the Hiking page's journal squares (perf-14).
+- `build.feed_content(t)` (seo-09): for an item whose trip has a write-up of its own, `<content:encoded>` holds the
+  write-up as HTML (`markdown.to_html`, its headings from h2, every href and src made absolute against the page, since a
+  reader resolves them against feed.xml), each written day of a multi-day trip under 'Day N[: title]' (h2, its own
+  headings from h3) with that day's photos, the trip's photos (their .sm copies with their alt text) and links to the page and its GPX. The description
+  stays the summary and the 400-character excerpt; one feed, no enclosure, no dc:creator.
+- `core.touch_icon(p)`: the home-screen icon (assets/apple-touch-icon.png, 180 px, from favicon.svg with its `rx="4"`
+  taken out, so the square is opaque and iOS rounds it, by `sips -s format png -z 180 180`), linked when the file
+  exists (phone-16). No manifest.
+- `core.VERIFY_TAGS`: search engines' verification tags, (name, content) pairs written into every head after
+  theme-color; empty until Eric sets one (README.md 'Search Console').
+- Contact (gap5-01, gap5-03, gap5-08): `sitegen.author.load()` reads content/author.json (`email`, `links`), strict
+  like content/home.json; `checks._author_findings` reports what the build would refuse. With an address, About's
+  section is 'Follow & contact' (an 'Email' button and the address as text), the footer's brand block gains one 44 px
+  row (`.f-mail`), and every title block gets 'Ask about this trip' (`report.ask_link`: a mailto whose subject is the
+  title and the date, or 'PLANNED', URL-encoded) under the place line (`title_block(ask=)`, `.rep-ask-p`; not in the
+  button row, which would take its width from the title). On phones the share row of single-day, goal and multi-day
+  pages carries it instead (`report.share_row(here, ask)`: `.rep-share--ask` stays shown without scripting, the copy
+  control does not); the journal keeps it under its title. The address may hold only letters, digits, `. _ + -`, an
+  `@` and a host, so nothing in it is read as part of the mailto. Profile links show on About only, rel="me noopener".
+  With no file none of it exists.
+- Following (gap5-05, gap5-07): About's section is `#follow`: the feed's address as text, a 'Copy feed address'
+  control, 'Open feed.xml' (type application/rss+xml) and one sentence on RSS-to-email (no service named until Eric
+  approves one). The footer's last two Site links are 'Follow' (about/#follow, the RSS icon) and 'Source on GitHub'
+  (`core.REPO_URL`, gap5-02); About's method list ends with the issue path.
 
 ### Region pages
 
@@ -2059,7 +2138,10 @@ CLS), and four seconds after `load` the navigation and resource timing entries g
 and of every request (a run in which a resource came from the cache is not cold and is repeated). The scripts that drove
 the browser, served the build and summarised the runs were scratch files and are not in the repository. The results
 are in docs/IMPLEMENTATION_REPORT.md (the comment above `core.PHONE_SLOT` cites it for the lead photo's figures). They
-were lab measurements, not field data.
+were lab measurements, not field data. Serve the build with `Cache-Control: max-age=600`, as GitHub Pages does: under
+`no-store` (what the scratch server of Phases 12 to 14 sent) Chrome does not hand a preloaded image to its `<img>` and
+fetches it a second time, so the byte totals count every preloaded map twice (Phase 14 found it; the LCP figures
+stand).
 
 The tablet profile (Phase 13C, gap1-08) is for looking, not timing: 768 x 1024 and 1024 x 768 (an iPad either way
 round) and 1180 x 820 (an iPad Air in landscape), at 2x with touch emulation on and no CPU slowdown. At each size,
