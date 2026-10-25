@@ -36,30 +36,20 @@ It refuses a second spelling of an existing region, and `--force` over a trip so
 2. Preview: `python3 tools/build.py --serve --open <slug> --watch` builds in a few seconds, opens the new report in the
    browser (http://localhost:8000/trips/<slug>/) and builds again whenever you save a file; Ctrl+C stops it. The build
    checks the content first and stops with `ERROR` lines that name the file.
-3. Publish, staging by path. First check, stage and list:
+3. Publish with one command, from `main`:
 
    ```bash
-   python3 tools/build.py --check
-   git add "content/trips/<slug>" "rendered/trips/<slug>" rendered/site
-   git status --short
+   python3 tools/publish.py <slug> --dry-run   # check the site and list what would be staged; writes nothing
+   python3 tools/publish.py <slug> --push      # check, stage the trip's files, commit, push and watch the deploy
    ```
 
-   Read what these printed: the commands run one after the other whatever each one answers. Go on only when the
-   check ended with `link check: OK` and every staged name is a file of this trip or a map under `rendered/site/`.
-   A `WARNING` line that says `no rendered map` for the trip means its maps were not drawn: run
-   `python3 tools/render.py <slug>` first. Then:
-
-   ```bash
-   git commit -m "Add <trip>" && git push
-   ```
-
-   `rendered/site` holds the region maps, which a render redraws too. Never `git add -A` or `git add .`: iCloud Drive
-   leaves conflict copies in this folder (`meta 3.json`, `index 2.md`). `.gitignore` hides the ones under `rendered/`
-   and `assets/`, and the content check names one inside a trip's folder, but a copy can appear anywhere, which is
-   why the list is read before the commit (ADDING-TRIPS.md, step 5, says what to do with one). Only a push to `main`
-   is published: GitHub runs the unit tests and `build.py --check`, and the site updates a few minutes later. A push to
-   any other branch runs nothing, and on a branch that was never pushed `git push` stops with
-   `fatal: The current branch <name> has no upstream branch`. `git branch --show-current` names the branch you are on.
+   It stops at the first thing that is wrong and says what to do: not on `main`, something unrelated already staged,
+   maps not drawn yet (`python3 tools/render.py <slug>`), a failed site check, an iCloud conflict copy among the files.
+   It stages `content/trips/<slug>`, `rendered/trips/<slug>`, `rendered/site` when the region maps changed and
+   `content/home.json` when it changed, never the whole tree, and commits `Add <title>` (or `Update <title>`). With
+   `--push` it waits for GitHub's run and prints the trip's live address, or the failed step and that the old site is
+   still up. Without `--push` it prints the `git push` line instead. The commands it runs are in
+   [ADDING-TRIPS.md](ADDING-TRIPS.md), step 5, to type by hand if it ever fails. Only a push to `main` is published.
 
 Useful front-matter fields (see any existing trip for the format):
 
@@ -76,7 +66,7 @@ Useful front-matter fields (see any existing trip for the format):
 | `region_days` | PCT only: which days of the journal lie in which region, by the day numbers the page shows, so that region's map draws them and its list names them. A region's days can be named parts (`Lake Tahoe:` with `Pacific Crest Trail: 67-76` and `Tahoe Rim Trail: 147-153` under it): each part is one line on the map and one row in the list. `146/2` takes only the second stretch of day 146, for a day recorded before and after a drive; needs `render.py --site`. See `docs/CONTENT_GUIDE.md`, 11.7 |
 | `journal_highlights` | PCT only: the entries the journal points to, as an inline list of day-file ids (`[001, 059]`), in display order; absent means no Highlights section |
 | `published_at`, `updated_at` | Optional publication dates; see `docs/CONTENT_GUIDE.md` |
-| `draft: true` | Keep it off the site (once pushed, its files are still in the public repository). `render.py` leaves drafts out, so run `python3 tools/render.py <slug>` after removing the line. For a trip that is already published the line is not enough: the region maps still draw the trip, and `build.py --check` can fail on them, until `render.py` is run again (ADDING-TRIPS.md, "Taking a trip off the site") |
+| `draft: true` | Keep it off the site (once pushed, its files are still in the public repository). `render.py` leaves drafts out, so run `python3 tools/render.py <slug>` after removing the line. For a trip that is already published the line is enough too, from anywhere (even a web edit on github.com): the build leaves the trip's own pin and line out of the region maps; a numbered cluster keeps counting it until `render.py --site` is run when online (ADDING-TRIPS.md, "Taking a trip off the site") |
 | `kind: multi-day`, `end_date` | A trip of several days, each a `days/NN.md` with its `NN.gpx` (see ADDING-TRIPS.md). `date` and `end_date` are its first and last day; when absent they come from the day files. `kind: series` is the PCT journal |
 | `kind: planned` | A tick-list goal, not a report: planned route, approximate stats, `goal.json` beside it (see `docs/TICK_LIST_GUIDE.md`) |
 | `beta` | List of `label` / `value` rows shown beside the report |
@@ -116,14 +106,22 @@ field and the research prompt are in **[docs/TICK_LIST_GUIDE.md](docs/TICK_LIST_
 ## Check, build and re-render
 
 ```bash
+python3 tools/doctor.py              # one read-only look at this Mac and checkout: disk, git, conflict copies, tools
 python3 tools/validate.py            # check content/ without building: ERROR and WARNING lines, then a summary
-python3 tools/build.py --check       # validate the content, build _site/, then check the built site
+python3 tools/build.py --out ~/Library/Caches/personal-website/site --link --check   # build and check, outside iCloud
+python3 tools/build.py --out ~/Library/Caches/personal-website/site --serve          # ... and serve it on localhost:8000
+python3 tools/check.py               # before pushing a change to tools/, tests/ or assets/: validate, both Pythons, build check
+python3 tools/tidy.py                # list iCloud conflict copies (--delete removes those of rendered/ and _site/)
 python3 tools/thumbs.py              # make the card-size (.th) copies of cover photos that are missing (needs cwebp)
 python3 tools/render.py --status     # what a render would draw and why (offline; exit 1 when something is to draw)
 python3 tools/render.py              # render anything whose track or map settings changed (needs internet)
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)
 python3 -m unittest discover -s tests   # the generator's unit tests (see docs/DEVELOPING.md)
+python3 tools/smoke.py ~/Library/Caches/personal-website/site   # a few pages in headless Chrome (CI runs it too)
 ```
+
+A plain `python3 tools/build.py --check` writes the published build into `_site/` (about 240 MB of copies; CI uses
+it); the `--out ... --link` form above links the photos, maps and GPX instead and takes a few seconds.
 
 `render.py` keeps the terrain tiles and OpenStreetMap answers it downloads in `~/Library/Caches/personal-website/`
 (outside iCloud Drive; `docs/DEVELOPING.md`, "Render caches", has the one-time move of the old `.cache/` folders). An
@@ -134,9 +132,62 @@ good maps and ends with exit status 1.
 
 Every `build.py` run validates the content first and builds nothing when `validate.py` would report an error.
 `--check` then goes over the built site: links, images, anchors, each page's metadata, the sitemap, the feed, the
-search indexes and the GPX copies. GitHub runs the unit tests and `build.py --check` on each push to `main`.
+search indexes, the GPX copies, ARIA references and heading order. On each push to `main` GitHub runs
+`build.py --check`, and the unit tests too when the push changes `tools/`, `tests/`, `assets/`, `.github/` or
+`docs/PRIVACY_NOTES.md`: a push of content alone is live in about a minute, one with code in about three. A push of
+only Markdown the build never reads (this file, the log, the plans) starts no run.
 `docs/CONTENT_GUIDE.md`, section 5, lists the lines both commands print and what to do about each; among the warnings
 are maps drawn from older inputs than the trip has now (`maps were drawn from other inputs ...`).
+
+## Setting up a new Mac
+
+1. `xcode-select --install` (git and `/usr/bin/python3`), then install [Homebrew](https://brew.sh).
+2. `brew install webp gh node python@3.12`: `cwebp` for photos; `gh` to watch deploys (`publish.py --push`); `node`
+   runs the JavaScript tests (they are skipped without it); `python@3.12` is what CI tests with.
+3. `gh auth login`, and `git config --global user.name "..."` and `user.email "..."`.
+4. `git clone https://github.com/esichak/personal-website.git ~/Code/personal-website` (any folder outside iCloud
+   Drive; never a Finder copy of an old checkout, which carries its conflict copies).
+5. In it: `python3 tools/doctor.py`, `python3 -m unittest discover -s tests`, `python3 tools/build.py --check`.
+
+The first `render.py` downloads about 360 MB of terrain tiles and OpenStreetMap answers into
+`~/Library/Caches/personal-website/`; until a track, a title or a map setting changes nothing is redrawn, and
+`render.py --site --force` redraws every region map from current OpenStreetMap data. What a clone does not bring is
+listed below.
+
+## Moving the checkout out of iCloud Drive
+
+The checkout used to live in `~/Documents`, which iCloud Drive syncs: it leaves conflict copies (`meta 3.json`,
+`.git/index 2`), offloads files a build then waits for, and once removed `.git/index`. First commit (or set aside)
+everything in the old folder: `git status --short` there must list nothing but untracked files you mean to leave, since
+only commits move. Then, with the old folder still in place:
+
+```bash
+OLD="$HOME/Documents/Claude Code/personal-website"        # the old folder
+git clone https://github.com/esichak/personal-website.git ~/Code/personal-website && cd ~/Code/personal-website
+git remote add old "$OLD" && git fetch old           # the branches of the old folder, as old/<name>
+git log --oneline origin/main..old/main              # commits on the old main that GitHub does not have yet
+git merge --ff-only old/main                         # ... brought onto this main (nothing to do when the list was empty)
+git branch --no-track phase-8-publishing-loop old/phase-8-publishing-loop   # once for each other branch not on GitHub
+git remote remove old
+mkdir -p .cache/p4 && cp "$OLD/.cache/p4/PRIVACY_AUTHOR_ONLY.md" .cache/p4/
+mkdir -p ~/Library/Caches/personal-website && mv "$OLD/.cache/tiles" "$OLD/.cache/osm" ~/Library/Caches/personal-website/
+python3 tools/doctor.py
+```
+
+`git branch -r` lists the old folder's branches between the fetch and the `remote remove`; only commits come along,
+no working files. Copy any untracked file you want to keep by hand (`git status --short` in the old folder lists
+them). The two cache folders are the render caches (skip that line if they are already there). Once the new folder
+works, delete the old one. Until then, in the old folder, `python3 tools/tidy.py --delete` removes the conflict copies
+of generated files (`rendered/`, `_site/`); copies under `content/` and `assets/` and the stray index copies are listed
+for you to compare and delete by hand (`python3 tools/doctor.py` prints the `rm` line for the index copies).
+
+## What is and is not in the repository
+
+Everything published is on GitHub: `content/` (every trip, track and web photo copy) and `rendered/` (every map). A
+clone has the site whole. Not in it: the original photos and track files you hand to `add_trip.py` (it writes the
+1600 px, 800 px and card-size WebP copies without EXIF and a simplified `track.gpx`, never the originals), so keep
+those wherever you keep them; the render caches, which are fetched again; and `.cache/p4/PRIVACY_AUTHOR_ONLY.md`, the
+one file in the checkout that is neither on GitHub nor fetched again: back it up yourself.
 
 ## Privacy
 

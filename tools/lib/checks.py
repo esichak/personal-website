@@ -841,6 +841,11 @@ def _trip_findings(t, rec, today, rendered_dir, out):
         _warn(out, file, 'none of the %s has a GPX (days/NN.gpx): the page shows an empty map and offers no downloads'
               % _plural(len(t['days']), 'day'))
     _photo_warnings(t, rec, out)
+    # a heading of a write-up that skips a level is a gap on the page (the site check's HEADING line): stop here instead
+    for where, body in [(file, t['body_md'])] + [(_day_file(slug, d['id']), d['body_md']) for d in t['days']]:
+        for lvl, before in markdown.heading_jumps(body or ''):
+            _err(out, where, 'a heading of the write-up skips a level (%s after %s): go one level at a time, %s after %s'
+                 % ('#' * lvl, '#' * before, '#' * (before + 1), '#' * before))
     if kind == 'planned':
         _goal_findings(t, rec, today, out)
     if kind == 'multi-day':
@@ -1094,10 +1099,10 @@ def _region_findings(live, rendered_dir, out):
 
 def _site_map_findings(live, by_slug, drafts, rendered_dir, out):
     """A trip the rendered site maps still draw although it no longer has a page with a track: a draft, a folder that was
-    removed, or a report whose track.gpx is gone. The region maps (on the home page, the Map page and the Ski page) are drawn by
-    tools/render.py and committed; a build cannot take a line out of them. The build passes meanwhile; its check fails
-    when such a map still has a pin of the trip's own, which links to a page that is no longer built.
-    rendered/site/meta.json lists the trips each map draws."""
+    removed, or a report whose track.gpx is gone. The region maps (on the home page, the Map page and the Ski page) are
+    drawn by tools/render.py and committed. Since Phase 8 the build leaves such a trip's own pin and line out of them
+    (core.gone_keys, core.drop_keys), so the site and its check pass; a numbered cluster the trip was merged into keeps
+    its count and its title until the maps are drawn again. rendered/site/meta.json lists the trips each map draws."""
     try:
         with open(os.path.join(rendered_dir, 'site', 'meta.json'), encoding='utf-8') as fh:
             maps = json.load(fh).get('maps')
@@ -1121,9 +1126,9 @@ def _site_map_findings(live, by_slug, drafts, rendered_dir, out):
             continue              # a folder that does not load: its own error says so, and it may well have a track
         else:
             why = 'has no folder under content/trips any more'
-        _warn(out, _index(slug), 'the site maps under rendered/site/ still draw this trip, which %s: its line and title '
-                                 'stay on the pages that show those maps (the home page, the Map page, an activity '
-                                 'page) until python3 tools/render.py has been run and rendered/site/ committed' % why)
+        _warn(out, _index(slug), 'the site maps under rendered/site/ still draw this trip, which %s: the build leaves '
+                                 'its own pin and line out of them; run python3 tools/render.py --site when online (and '
+                                 'commit rendered/site/) to redraw the maps, their merged pins and counts' % why)
 
 
 def _journal_region_findings(live, rendered_dir, out):

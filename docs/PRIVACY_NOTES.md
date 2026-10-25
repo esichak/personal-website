@@ -175,15 +175,14 @@ Each of these changes what is published. None was made for you, and nothing here
      removed. (Read from the code for a single-day report; a day of a multi-day trip or of the journal was not
      looked at for this note.)
 
-   In all three cases the region maps are a separate matter. The maps on the home page, on the Map page and on the
-   Ski page are drawn by `tools/render.py` on your Mac and committed under `rendered/site/`; a build only places
-   them. They keep the trip's line and, on its pin, its title, until `python3 tools/render.py` has been run and
-   `rendered/site/` committed. The build passes in the meantime. Its check passes too when only `track.gpx` was
-   removed. For a draft or a deleted folder with a pin of its own on one of those maps the check fails on the pin's
-   link, and GitHub deploys nothing until `render.py` has been run, so the page and its downloads stay online until
-   then. `python3 tools/validate.py` prints a
-   warning for each such trip ("the site maps under rendered/site/ still draw this trip ..."), and a build prints
-   the first few of its warnings as it starts.
+   In all three cases the region maps are a separate matter. The maps on the home page, on the Map page, the region
+   pages and the Ski page are drawn by `tools/render.py` on your Mac and committed under `rendered/site/`; a build only
+   places them. Since Phase 8 the build leaves the trip's own pin and line out of them, so the check passes and the
+   trip leaves those maps at the same build as its page. A numbered cluster the trip was merged into keeps counting
+   it, with its title in the cluster's tooltip, and the committed map files under `rendered/site/` still hold the
+   line, until `python3 tools/render.py --site` has been run and `rendered/site/` committed. `python3 tools/validate.py`
+   prints a warning for each such trip ("the site maps under rendered/site/ still draw this trip ..."), and a build
+   prints the first few of its warnings as it starts.
 
    Three things stop the build when a report is made a draft or deleted: a place among the featured trips in
    `content/home.json`, a tick-list goal whose outing names it, and a link to it from another report's write-up.

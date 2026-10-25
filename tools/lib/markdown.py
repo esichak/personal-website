@@ -47,8 +47,29 @@ def _emph(s):
     return _ITAL.sub(r'<em>\1</em>', s)
 
 
-def to_html(text, heading_shift=2):
+_HEADING = re.compile(r'^(#{1,4})\s+(.*)$')
+
+
+def heading_levels(text):
+    """The levels of a write-up's headings (the number of #s), in order: the lines to_html makes headings of, quotes left
+    out."""
+    return [len(m.group(1)) for m in (_HEADING.match(ln.strip()) for ln in text.replace('\r\n', '\n').split('\n')) if m]
+
+
+def heading_jumps(text):
+    """[(level, the level before it)] for each heading of a write-up more than one level below the heading before it
+    ('### Gear' straight after '# Approach'): on the page that is a skipped level (the content check's error)."""
+    levels = heading_levels(text)
+    return [(b, a) for a, b in zip(levels, levels[1:]) if b > a + 1]
+
+
+def to_html(text, heading_shift=2, top=None):
+    """A write-up as HTML. A heading takes the level of its #s counted from the write-up's own top level (top: the fewest
+    #s any of its headings has), plus one, plus heading_shift: a write-up's first level is h3 under a page's h2 section
+    whether it is written '#' or '##', so no level is skipped on the page."""
     lines = text.replace('\r\n', '\n').split('\n')
+    if top is None:
+        top = min(heading_levels(text) or [1])
     out, para, i = [], [], 0
 
     def flush():
@@ -62,10 +83,10 @@ def to_html(text, heading_shift=2):
             flush()
             i += 1
             continue
-        m = re.match(r'^(#{1,4})\s+(.*)$', st)
+        m = _HEADING.match(st)
         if m:
             flush()
-            lvl = min(6, len(m.group(1)) + heading_shift)
+            lvl = min(6, max(1, len(m.group(1)) - top + 1) + heading_shift)
             out.append('<h%d>%s</h%d>' % (lvl, inline(m.group(2)), lvl))
             i += 1
             continue

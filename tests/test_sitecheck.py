@@ -592,6 +592,46 @@ class DuplicateIdTests(Fixture):
         self.assertEqual(self.lines('<div id="a" uuid="a" grid="a" data-uid="a"></div>'), [])
 
 
+# ---------------------------------------------------------------- ARIA-REF and HEADING (Phase 8)
+
+class AriaTests(Fixture):
+
+    def lines(self, body, rel='index.html', head=''):
+        return self.sc.aria(self.built({rel: page(rel, body, head=head)}))
+
+    def test_every_aria_reference_names_an_id_of_the_page(self):
+        self.assertEqual(self.lines('<h1 id="t">T</h1><p id="m">M</p><a aria-describedby="m" aria-labelledby="t m">x</a>'
+                                    '<button aria-controls="panel">Show</button><div id="panel" hidden></div>'), [])
+        self.assertEqual(self.lines('<h1>T</h1><button aria-controls="nopanel">Show</button>'
+                                    '<a aria-labelledby="t gone" aria-describedby="">x</a><h2 id="t">t</h2>'),
+                         ['ARIA-REF index.html: aria-controls="nopanel" names no id on the page',
+                          'ARIA-REF index.html: aria-labelledby="gone" names no id on the page'])
+
+    def test_a_tab_whose_panel_becomes_a_tabpanel_only_with_the_script_is_sound(self):
+        # map/'s region tabs: the panel is a plain section with the id until archive.js gives it role="tabpanel"
+        self.assertEqual(self.lines('<h1>Map</h1><div role="tablist"><button role="tab" id="t-a" aria-controls="region-a">A</button></div>'
+                                    '<section id="region-a"><h2>A</h2></section>'), [])
+
+    def test_a_heading_level_may_go_up_one_and_down_any_number(self):
+        self.assertEqual(self.lines('<h1>A</h1><h2>B</h2><h3>C</h3><h4>D</h4><h2>E</h2><h3>F</h3><h2>G</h2>'), [])
+
+    def test_a_skipped_level_inside_main_is_one_line_with_its_words(self):
+        self.assertEqual(self.lines('<h1>Trip</h1><h2>Photos</h2><h4 class="t-h3">The <b>ridge</b>  at dawn</h4>'),
+                         ['HEADING index.html: h4 after h2 ("The ridge at dawn")'])
+        self.assertEqual(self.lines('<h2>Opens the page</h2>'), ['HEADING index.html: h2 is the first heading ("Opens the page")'])
+
+    def test_headings_above_main_set_where_main_starts(self):
+        # the title above <main> (a site header's own h1 would be one): <main> may then open with an h2
+        html_ = page('index.html', '<h2>In main</h2>').replace('<main id="main">', '<h1>Above</h1><main id="main">')
+        self.assertEqual(self.sc.aria(self.built({'index.html': html_})), [])
+        # headings outside <main> are never judged themselves
+        html_ = page('index.html', '<h1>In main</h1>').replace('</main>', '</main><footer><h4>Footer</h4></footer>')
+        self.assertEqual(self.sc.aria(self.built({'index.html': html_})), [])
+
+    def test_the_sound_build_has_neither(self):
+        self.assertEqual(self.sc.aria(self.built(tiny())), [])
+
+
 # ---------------------------------------------------------------- META
 
 class MetadataTests(Fixture):
@@ -1166,7 +1206,7 @@ class CheckTests(Fixture):
     def test_lines_come_page_by_page_then_family_by_family(self):
         files = tiny()
         body_add(files, 'trips/index.html', '<a href="zz/">1</a><a href="#gone">2</a><a href="journal/#day-9">3</a><i id="main"></i>'
-                                            '<i id="search"></i>')
+                                            '<i id="search"></i><button aria-controls="nopanel">x</button><h3>Deep</h3>')
         body_add(files, '404.html', '<a href="nope/">x</a>')
         body_add(files, 'about/index.html', '<a href="#nowhere">x</a><a href="../trips/alpha/photos/02.webp">y</a>')
         head_add(files, 'about/index.html', '<title>Second</title>')
@@ -1183,6 +1223,8 @@ class CheckTests(Fixture):
             'BROKEN ANCHOR trips/index.html -> journal/#day-9',
             'BROKEN ANCHOR trips/index.html -> #gone',
             'DUPLICATE IDS trips/index.html: main, search',
+            'ARIA-REF trips/index.html: aria-controls="nopanel" names no id on the page',
+            'HEADING trips/index.html: h3 is the first heading ("Deep")',
             'META about/index.html: 2 <title> elements in the head (expected 1)',
             'META index.html: og:image file is not in the build: %strips/alpha/photos/09.webp' % SITE,
             'SITEMAP sitemap.xml: %s404.html is the 404 page' % SITE,

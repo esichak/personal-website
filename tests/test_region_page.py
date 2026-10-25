@@ -42,7 +42,9 @@ legend the Map page shows for the same map. When the map's entry names no trip o
 archive.region_panel takes those trips as `drawn`, in page mode only: without page=True it is still the function of
 fb425ab and its one link.
 """
+import contextlib
 import importlib
+import io
 import json
 import os
 import re
@@ -201,6 +203,11 @@ class RegionFixture(unittest.TestCase):
 
     def setUp(self):
         helpers.keep_state(self)          # first: whatever a test registers with core is undone last
+        # a fixture's map entry may name a trip its fragment does not draw, which the build reports on stderr once per
+        # map (core.drop_keys); that line is kept out of the test run's own output (use() keeps it for a test to read)
+        for ctx in (mock.patch.object(core, '_DROP_WARNED', set()), contextlib.redirect_stderr(io.StringIO())):
+            ctx.__enter__()
+            self.addCleanup(ctx.__exit__, None, None, None)
         self.archive = load_module(self, 'sitegen.pages.archive')
         self.region = load_module(self, 'sitegen.pages.region')
         self.build_mod = load_module(self, 'build')
@@ -314,7 +321,11 @@ class RegionFixture(unittest.TestCase):
         if register:
             core.register_site(self.site, self.meta)
         self.regs = self.region.regions(self.site, self.meta)
-        self.built = self.region.build(self.site)
+        # a map entry may name a trip the fixture's fragment does not draw: the build then says so once per map
+        # (core.drop_keys), on stderr, kept here instead of in the test run's output
+        with mock.patch.object(core, '_DROP_WARNED', set()), contextlib.redirect_stderr(io.StringIO()) as err:
+            self.built = self.region.build(self.site)
+        self.stderr = err.getvalue()
         self.pages = {p.url: p for p in self.built}
         self._docs = {}
 
@@ -1951,6 +1962,9 @@ class LegendTests(RegionFixture):
                 self.draw(named)
                 group = self.region.map_trips(RANGE, self.site, self.meta)
                 self.assertEqual(self.legend_html(self.html(RANGE)), self.archive.legend(group, self.entry()))
+                # the page's rows name the report without a track, which no map draws: the build has nothing of it
+                # to leave out, and says so for each of the Range's two maps
+                self.assertEqual(self.stderr.count('no pin or line to leave out for syn-r-paddle'), 2 if 'syn-r-paddle' in named else 0)
         self.draw()
         self.assertNotEqual(self.archive.legend(self.trips(*self.DRAWN), self.entry()), self.archive.legend(self.group(RANGE), self.entry()))
 

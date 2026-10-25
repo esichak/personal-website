@@ -1352,10 +1352,11 @@ class VerbatimTests(JournalFixture):
         # the same rule, in terms a reader would notice
         wu = self.main.by_id('day-5-2').find('div', cls='ser-wu')
         self.assertIn('prose', wu.classes)                 # set as running text, like a report's write-up
-        self.assertEqual([el.tag for el in wu.elements()], ['p', 'h6', 'p', 'ul', 'p'])
+        self.assertEqual([el.tag for el in wu.elements()], ['p', 'h5', 'p', 'ul', 'p'])
         self.assertEqual(len(wu.find_all('p')), 3)
-        self.assertEqual(wu.find('h6').text(), 'Synthetic heading')       # '##' under the day's h4: shifted by 4, capped at h6
-        for tag in ('h1', 'h2', 'h3', 'h4', 'h5'):
+        # the write-up's one heading, '##', is its top level: one under the day's h4 (it was h6 before Phase 8: a gap)
+        self.assertEqual(wu.find('h5').text(), 'Synthetic heading')
+        for tag in ('h1', 'h2', 'h3', 'h4', 'h6'):
             self.assertEqual(wu.find_all(tag), [], tag)
         link = wu.find('a')
         self.assertEqual((link['href'], link.text()), ('https://example.com/synthetic?a=1&b=2', 'synthetic link'))
@@ -1398,9 +1399,10 @@ class VerbatimTests(JournalFixture):
         intro = self.main.find(cls='ser-intro-t')
         prose = next((el for el in intro.find_all('div') if 'prose' in el.classes), None)
         self.assertIsNotNone(prose, 'the introduction has no prose block')
-        self.assertEqual([el.tag for el in prose.elements()], ['p', 'h4', 'p', 'ol', 'p'])
+        self.assertEqual([el.tag for el in prose.elements()], ['p', 'h3', 'p', 'ol', 'p'])
         self.assertEqual(len(prose.find_all('p')), 3)
-        self.assertEqual(prose.find('h4').text(), 'Synthetic journal heading')   # '##' at the default shift of 2
+        # '##' is the write-up's top level: h3 at the default shift of 2 (h4 before Phase 8)
+        self.assertEqual(prose.find('h3').text(), 'Synthetic journal heading')
         self.assertEqual(prose.find_all('h6'), [])
         link = prose.find('a')
         self.assertEqual((link['href'], link.text()), ('https://example.com/journal', 'journal link'))

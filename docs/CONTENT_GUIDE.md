@@ -261,6 +261,7 @@ the row says otherwise:
 | Message | Cause | Fix |
 | --- | --- | --- |
 | `title is missing or empty (write the trip's name after title:)` | no `title:` line, or nothing after it | Add the trip's name. |
+| `a heading of the write-up skips a level (#### after ##): go one level at a time, ### after ##` | a heading in the write-up (or a day's) is two or more levels below the one before it; on the page that is a gap screen readers announce | Use the level it names. The first heading may have any number of `#`: it is shown one level under its section either way. |
 | `activity must be one of ski, climb, hike, mtb, other, got 'skiing'` | an activity the site does not have | Use one of the five words. |
 | `kind must be one of multi-day, series, planned (leave the line out for a single-day report), got 'multiday'` | a misspelt `kind:` | `multi-day`, `series` (the PCT) or `planned` (a tick-list goal). A single-day report has no `kind:` line. |
 | `days/ holds 1 day file but there is no kind: line; add kind: multi-day (or kind: series for a journal)` | a day was added with `add_trip.py --day-of` to a trip whose `index.md` does not say it has days | Add `kind: multi-day` to `index.md`. An `end_date:` line is optional: without one the page ends on the last day file's date. Not when the folder also holds a `track.gpx`: the trip is then a single-day report, and a multi-day page draws and offers only the day files, so that track would drop off the page with only the `is not used: …` warning (5.3) to say so. In that case delete the `days/` folder when the day was added by mistake, or rebuild the trip as a multi-day folder ([ADDING-TRIPS.md](../ADDING-TRIPS.md), "Multi-day trips": "If the trip is already on the site as a single-day report"). |
@@ -331,7 +332,7 @@ A warning line reads `WARNING <file>: <message>`. A warning never stops a build.
 | `route_shape 'lollipop' is not one of loop, out-and-back, point-to-point; it is shown as written` | a `route_shape:` the site has no word for. `subtype:` is held to its own list in the same words: `subtype 'Scrambling' is not one of SUP, Rafting, Kayaking, Mountaineering; it is shown as written` | Use one of the listed words. |
 | `region 'Lake Taho' is not in rendered/site/meta.json, so the map page does not list it yet; run python3 tools/render.py --site --force` | a region the site maps do not know: a misspelling, a new region, or a region that was renamed. When several trips are filed under it, the line names one of them and counts the others: `region 'Lake Taho' (and 2 more trips) is not in …` | Correct the spelling. When the warning of the next row is printed as well, the name is a second spelling of a region that is on the site: bring the trips to one spelling and do not run the command while two are in use, because after that render `build.py --check` fails (next row). For a new region run the command as printed (needs the internet) and commit `rendered/site/`. Without `--force` the run can end before it rewrites the list of regions. For a renamed region the same command draws the region map under the new name, which takes three trips with a track; until it has, the region's reports are on no region page (11.4). |
 | `region 'nowhere range' is written 'Nowhere Range' on 1 other trip; the two are listed as different regions but share one filter value and one map anchor (nowhere-range)` | two spellings of one region that give one address (the slug rule is in section 11: capitals, accents, apostrophes and other punctuation do not count). Once the region maps have been drawn with both spellings, the Map page has two blocks with one address, and the check fails with a `DUPLICATE IDS map/index.html: …` line that lists ids of the region, `region-nowhere-range` among them. Where the region has a map on the Ski page and ski reports are filed under both spellings, that page fails in the same way (`DUPLICATE IDS ski/index.html: …`), even before a render (11.4) | Use one spelling on every trip. A build is then enough for the check to pass, except where each spelling had a region map: there the maps have to be drawn again as well (`python3 tools/render.py`, needs the internet). |
-| `the site maps under rendered/site/ still draw this trip, which is a draft: its line and title stay on the pages that show those maps (the home page, the Map page, an activity page) until python3 tools/render.py has been run and rendered/site/ committed` | a trip the region maps were drawn with has since become a draft. Those maps are on the home page, the Map page, the region pages (section 11) and the Ski page, and a build cannot redraw them (7.10); the message does not name the region pages. The same line reads `which has no track any more` after its `track.gpx` was deleted, and `which has no folder under content/trips any more` after its folder was removed; the file named is that trip's `index.md` even then. The build passes meanwhile. `--check` passes too for a report that only lost its `track.gpx`. For a draft or a removed trip that has a pin of its own on one of those maps it fails, with lines such as `BROKEN map/index.html -> ../trips/<slug>/` and `BROKEN regions/<region>/index.html -> ../../trips/<slug>/` (7.10) | Run `python3 tools/render.py` (needs the internet), then stage `rendered` as step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md) gives for a run with no trip name. |
+| `the site maps under rendered/site/ still draw this trip, which is a draft: the build leaves its own pin and line out of them; run python3 tools/render.py --site when online (and commit rendered/site/) to redraw the maps, their merged pins and counts` | a trip the region maps were drawn with has since become a draft. Those maps are on the home page, the Map page, the region pages (section 11) and the Ski page. The build cannot redraw them, but it leaves the trip's own pin and route line out, so the trip is off the site at the next build and `--check` passes; a numbered cluster the trip was merged into still counts it and names it in its tooltip (7.10). The same line reads `which has no track any more` after its `track.gpx` was deleted, and `which has no folder under content/trips any more` after its folder was removed; the file named is that trip's `index.md` even then. | Nothing is needed to take the trip off. When online, run `python3 tools/render.py --site`, then stage `rendered/site` (step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md)) to redraw the clusters and the maps' frames. |
 | `date 2026-09-04 is before the day ahead of it (days/01.md, 2026-09-05); days are shown in file order` | the file named is a `days/NN.md` whose date is earlier than the day before it | Fix the date. |
 | `date 2026-09-20 is after the last day's date 2026-09-13 (days/02.md), so the page would end the trip before it starts` | `date:` in the `index.md` of a multi-day trip or a journal is later than the date of its last day file, and there is no `end_date:` line | Correct `date:`, or delete the line: the page then starts on the first day's date. |
 | `date 2026-09-03 is after the trip's end_date 2026-09-02 (index.md), so the page's dates end before this day` | the file named is a `days/NN.md` dated later than the `end_date:` in the trip's `index.md` | Correct `end_date:`, or the day's date. |
@@ -354,15 +355,16 @@ then `... N more`). It ends with `link check: OK`, or with `link check: N proble
 | `BROKEN <page> -> <link>` | the page links to a file or a page that is not in the build | Fix the link in the write-up. `[the photo](photos/nope.webp)` in a trip's `index.md` gives `BROKEN trips/<slug>/index.html -> photos/nope.webp`. |
 | `BROKEN ANCHOR <page> -> <link>` | the link reaches its page, but nothing there has the id after the `#` | Fix the part after the `#`. A PCT day is `#day-…` (7.7). |
 | `DUPLICATE IDS <page>: …` | the page uses one id twice (the ids are listed) | See below. |
+| `ARIA-REF <page>: aria-controls="x" names no id on the page` | a control or a label points (by `aria-controls`, `aria-labelledby` or `aria-describedby`) at an element the page does not have | It comes from the generator, never from a write-up: it is a bug to report. |
+| `HEADING <page>: h4 after h2 ("…")` | inside the page's main part a heading skips a level, which screen readers announce as a gap; the words in quotes are the heading's | It comes from the generator: a bug to report. A write-up's headings cannot cause it: whatever number of `#` the first one has, it is shown one level under its section, and a write-up whose own headings skip a level stops at the content check (5.2). |
 | `META <page>: …` | the page's head is wrong: its title, description, own address, share image or structured data | See below. |
 | `SITEMAP sitemap.xml: …` | the sitemap leaves out a page, or lists something that is not one | See below. |
 | `FEED feed.xml: …` | an RSS item points at a page that is not in the build | See below. |
 | `INDEX trips/search.json: …` (or `trips/journal.json`) | the search data names a trip without a page, or a PCT day without its anchor | See below. |
 | `GPX <file>: …` | a published GPX file is not, byte for byte, its source file in `content/`, or a multi-day trip's "Download all GPX" file does not hold its days' tracks as they are, holds no track at all, or is not well-formed XML | See below. |
 
-The two `BROKEN` lines are the ones a write-up usually causes. A `BROKEN` line on `index.html`, `map/index.html`,
-`regions/<region>/index.html` or `ski/index.html` that points at `trips/<slug>/` has another cause: the trip was made
-a draft or deleted, and a region map still has a pin that links to its page. Run `python3 tools/render.py` (7.10). A
+The two `BROKEN` lines are the ones a write-up usually causes. A drafted or deleted trip's own pin on a region map no
+longer causes one: the build leaves it out (7.10). A
 photo missing from `photos/`, a misspelt `kind:`, an iCloud conflict copy of a day file (`days/02 2.md` beside
 `days/02.md`) and a multi-day trip whose day files all hold a route and no recorded track used to end here as well;
 all four are now errors (5.2).
@@ -862,18 +864,13 @@ A draft or a deleted trip also leaves the lists and the counts of its region's p
 report out of a region takes the page with it (section 11). A report that only lost its `track.gpx` stays on that
 page.
 
-A build cannot take the trip off the region maps. The maps on the home page, the Map page, the region pages and the
-Ski page are drawn by `render.py` and committed under `rendered/site/`, so they keep the trip's line and its title
-until `python3 tools/render.py` has been run (needs the internet) and `rendered/site/` committed. Until then
-`validate.py` and every build warn `the site maps under rendered/site/ still draw this trip, …` (5.3, which also says
-what to stage). The build passes all the same. `--check` does not always. Where a draft or a deleted trip has a pin
-of its own on one of those maps, the pin links to a page that is no longer built, and the check ends with lines such
-as `BROKEN map/index.html -> ../trips/<slug>/`, the same for its region's page
-(`BROKEN regions/<region>/index.html -> ../../trips/<slug>/`), and exit status 1. GitHub then publishes nothing, so
-the page and its downloads stay online. Where the pin is merged with others, and for a report that only lost its
-`track.gpx`, the check passes. It also passes when the trip was the last report of its region and no tick-list goal
-is filed under the region: no page shows that region's map any more, unless it is one of the two on the home page
-(11.4 has the other cases). So run `render.py` before the check, and stage `rendered` with the change.
+The maps on the home page, the Map page, the region pages and the Ski page are drawn by `render.py` and committed
+under `rendered/site/`; a build cannot redraw them, but it leaves the trip's own pin and route line out of them (since
+Phase 8). So a draft, a deleted folder or a lost `track.gpx` is off those maps at the next build too, and `--check`
+passes without a render: the change can be published from anywhere, a web edit on github.com included. What stays
+until `python3 tools/render.py --site` has been run (needs the internet) and `rendered/site/` committed is a numbered
+cluster the trip was merged into, which keeps counting it and names it in its tooltip. Until then `validate.py` and
+every build warn `the site maps under rendered/site/ still draw this trip, …` (5.3).
 
 That run can take more than the trip's line off the maps. It draws a region map only for a region with three trips
 with a track, so a region that the change leaves with fewer gets no map, and without the map it has no page: its
@@ -1178,7 +1175,7 @@ page at all, follow `rendered/site/meta.json`, which only `render.py` rewrites (
     `BROKEN ANCHOR <page> -> …map/#region-<slug>`. `validate.py` goes on warning
     `the site maps under rendered/site/ still draw this trip, …` (5.3) either way.
   - A tick-list goal that the map draws keeps the panel, which then lists the goal alone. A drafted or deleted
-    trip's own pin on that map fails the check there as it does anywhere else (7.10).
+    trip's own pin on that map is left out there as it is anywhere else (7.10).
 
   `python3 tools/render.py` (needs the internet), with `rendered` staged afterwards, brings the maps and the lists
   back in step in each case.

@@ -447,11 +447,53 @@ def read_json(path, default=None):
         return json.load(fh)
 
 
-def frag(path, here, ns=None):
-    """Inline a rendered .svg.html fragment: route colour -> CSS var, ids namespaced, @@ROOT@@ -> relative root."""
+# a site map's own pin of a trip, and a journal's line link (mapkit: neither nests its own tag), and a trip's or goal's
+# line group (g.mk-cat, g.mk-cat.mk-planned: no <g> inside); each carries the trip's key in data-key
+_DROP_OPEN = (('<a class="mk-pin" ', '</a>'), ('<a class="mk-line" ', '</a>'), ('<g class="mk-cat', '</g>'))
+_DROP_WARNED = set()
+
+
+def drop_keys(s, keys, where=''):
+    """s without the pins, line links and line groups whose data-key is one of keys; clusters are left as drawn. A key
+    with nothing to leave out is reported once per map file on stderr: mapkit's markup has changed, or the map does not
+    draw that trip the way its meta.json says."""
+    missing = []
+    for key in keys:
+        attr = ' data-key="%s"' % key.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')   # mapkit.esc
+        found = False
+        while True:
+            starts = []
+            for opening, close in _DROP_OPEN:
+                j = s.find(opening)
+                while j >= 0 and attr not in s[j:s.find('>', j) + 1]:
+                    j = s.find(opening, j + 1)
+                if j >= 0:
+                    starts.append((j, close))
+            if not starts:
+                break
+            j, close = min(starts)
+            end = s.find(close, j)
+            if end < 0:
+                break
+            s = s[:j] + s[end + len(close):]
+            found = True
+        if not found:
+            missing.append(key)
+    if missing and where not in _DROP_WARNED:
+        _DROP_WARNED.add(where)
+        print('WARNING %s: no pin or line to leave out for %s (has mapkit\'s markup changed?)'
+              % (where or 'a site map', ', '.join(missing)), file=sys.stderr)
+    return s
+
+
+def frag(path, here, ns=None, drop=None):
+    """Inline a rendered .svg.html fragment: route colour -> CSS var, ids namespaced, @@ROOT@@ -> relative root. drop:
+    keys whose own pins and lines are left out (drop_keys; a site map's trips that are gone, map_block)."""
     if not os.path.exists(path):
         return '<!-- missing %s -->' % os.path.relpath(path, ROOT)
     s = _read(path)
+    if drop:
+        s = drop_keys(s, drop, os.path.relpath(path, ROOT))
     s = s.replace('{{route}}', 'var(--route)')
     s = s.replace('@@ROOT@@', prefix(here) if prefix(here) != './' else '')
     if ns:
@@ -517,7 +559,8 @@ def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=F
             # static contours, water and roads: a cached image shared by every page that shows this map
             img += ('<img class="mv-base" src="%s%s" alt="" width="%d" height="%d" decoding="async"%s%s>'
                     % (link(here, asset_dir), m['base'], m['w'], m['h'], lazy, ' fetchpriority="high"' if eager else ''))
-        svg = _strip_size(frag(os.path.join(base, name + '.svg.html'), here, '%s-%s-%s' % (ns, name, sizes[0])))
+        svg = _strip_size(frag(os.path.join(base, name + '.svg.html'), here, '%s-%s-%s' % (ns, name, sizes[0]),
+                               drop=gone_keys(m) if site_maps else None))
         tagx = '<span class="mv-attrib">© OSM · Not for navigation</span>' if (attrib and 'phone' in sizes) else ''
         fs = ''
         if fullscreen_href and 'phone' in sizes:
@@ -1564,6 +1607,7 @@ def units_control():
 
 
 _TRIPS_BY_URL = {}
+_ON_MAPS = [None]     # the slugs a site map may still draw (gone_keys); None until a site is registered
 _OTHER_SUBS = []
 _HAS_PCT = [False]
 
@@ -1693,6 +1737,22 @@ def register_site(site, meta=None):
     _REGION_PAGES.clear()
     if meta is not None:
         _REGION_PAGES.update({name: slug for name, slug, _ts in region_pages(site, meta)})
+    _ON_MAPS[0] = {t['slug'] for t in listed_trips(site) if t['kind'] == 'planned' or has_track(t)}
+
+
+def gone_keys(m):
+    """The keys of a site map (an entry of rendered/site/meta.json's maps) whose trip is gone since the render: no longer
+    a published trip with a track or an active goal (a draft, a removed folder, a lost track, a goal completed or
+    archived); for a journal, the key of each of its lines when the journal is gone. The build leaves their own pins
+    and lines out (frag's drop), so drafting a trip takes it off without a render; a numbered cluster keeps its count
+    and its titles until render.py --site draws the map again. () until a site is registered."""
+    live = _ON_MAPS[0]
+    if live is None or not isinstance(m, dict):
+        return ()
+    keys = [k for k in (m.get('trips') or []) if isinstance(k, str) and k not in live]
+    keys += [j['key'] for j in (m.get('journals') or []) if isinstance(j, dict) and isinstance(j.get('key'), str)
+             and j.get('slug') not in live]
+    return keys
 
 
 def main_nav():

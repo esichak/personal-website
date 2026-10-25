@@ -2,8 +2,9 @@
 
 The Map page's region maps (and an activity page's map) are drawn by tools/render.py and committed under
 rendered/site/; rendered/site/meta.json lists the trips each map draws. Drafting a trip, deleting its folder or removing
-its track.gpx takes its page, its download and its own map off the site at the next build, but its line stays on those
-shared maps until they are rendered again, and the build and its check pass meanwhile. The validator says so.
+its track.gpx takes its page, its download and its own map off the site at the next build, and since Phase 8 its own pin
+and line off those shared maps too (core.drop_keys); a cluster it was merged into keeps it in its count and title until
+the maps are rendered again. The validator says so.
 Everything here is synthetic and lives in a temp dir.
 
 Phase 6 (RenderHashTests, SiteHashTests): render.py stores in rendered/trips/<slug>/meta.json and rendered/site/meta.json
@@ -30,9 +31,9 @@ TODAY = datetime.date(2026, 10, 10)
 GPX = ('<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="t" xmlns="http://www.topografix.com/GPX/1/1">\n'
        '<trk><name>Synthetic</name><trkseg><trkpt lat="10.001" lon="10.0"><ele>1</ele></trkpt>'
        '<trkpt lat="10.002" lon="10.01"><ele>2</ele></trkpt></trkseg></trk>\n</gpx>\n')
-STILL = ('content/trips/%s/index.md: the site maps under rendered/site/ still draw this trip, which %s: its line and title '
-         'stay on the pages that show those maps (the home page, the Map page, an activity page) until python3 '
-         'tools/render.py has been run and rendered/site/ committed')
+STILL = ('content/trips/%s/index.md: the site maps under rendered/site/ still draw this trip, which %s: the build leaves '
+         'its own pin and line out of them; run python3 tools/render.py --site when online (and commit rendered/site/) '
+         'to redraw the maps, their merged pins and counts')
 
 
 class SiteMapTests(unittest.TestCase):

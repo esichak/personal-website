@@ -1,17 +1,33 @@
 # Build the static site with tools/build.py and publish it to GitHub Pages.
 # Maps and profiles are pre-rendered into rendered/ on Eric's Mac (tools/render.py), so this job needs no network
-# access beyond checkout. Most of its time is expected to be the unit tests (about a minute locally).
+# access beyond checkout. The unit tests run when tools/, tests/, assets/, .github/ or docs/PRIVACY_NOTES.md changed
+# since the last push whose run succeeded (and on every manual run): a push of content alone skips them and is live in
+# about a minute, while code that failed or never finished its tests is tested again by the next push, whatever it
+# holds. A push of only the Markdown the build never reads starts no run at all.
 name: Deploy site
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/IMPLEMENTATION_REPORT.md'
+      - 'docs/WEBSITE_IMPLEMENTATION_LOG.md'
+      - 'docs/personal-website-improvement-plan.md'
+      - 'docs/personal-website-improvement-plan-2.md'
+      - 'docs/claude-code-website-prompt.md'
+      - 'docs/claude-code-website-prompt-2.md'
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'commit to build and deploy (empty: this branch)'
+        required: false
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read          # the changed step asks for the last successful run
 
 concurrency:
   group: pages
@@ -22,10 +38,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Did code change since the last successful run?
+        id: changed
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          code=false
+          base=""
+          if [ "$EVENT" = "push" ]; then
+            base=$(gh run list --workflow pages.yml --branch main --event push --status success --limit 1 \
+                   --json headSha --jq '.[0].headSha // ""' 2>/dev/null || true)
+          fi
+          if [ "$EVENT" != "push" ] || ! printf '%s' "$base" | grep -Eq '^[0-9a-f]{40}$'; then
+            code=true
+          elif ! git fetch --no-tags --depth=1 origin "$base"; then
+            code=true
+          elif ! files=$(git diff --name-only "$base" "$SHA"); then
+            code=true
+          elif printf '%s\n' "$files" | grep -E '^(tools/|tests/|assets/|\.github/|docs/PRIVACY_NOTES\.md$)' > /dev/null; then
+            code=true
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "unit tests: $code (compared with ${base:-no successful push run})"
       - name: Unit tests
+        if: steps.changed.outputs.code == 'true'
         run: python3 -m unittest discover -s tests
       - name: Build
         run: python3 tools/build.py --check
@@ -33,6 +81,29 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+
+  # Headless Chrome on the built site (tools/smoke.py): it reports, and never holds back the deploy, which needs only
+  # the build job.
+  smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+      - name: Smoke test in Chrome
+        run: |
+          mkdir -p _site
+          tar -xf artifact.tar -C _site
+          python3 tools/smoke.py _site
 
   deploy:
     needs: build

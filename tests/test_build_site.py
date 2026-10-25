@@ -52,6 +52,7 @@ Every sentence in a fixture is synthetic.
 """
 import contextlib
 import hashlib
+import importlib
 import json
 import os
 import re
@@ -1565,6 +1566,40 @@ class RegionSiteTests(BuiltCase):
 
 RG_WRAITH, RG_WRAITH_SLUG = 'Synthetic Wraith', 'synthetic-wraith'
 RG_WRAITH_MAP = ['synb-rg-wraith', 'synb-rg-vanished']        # what the map was drawn with: a report that is a draft now, one that is gone
+
+
+class DraftedPinTests(unittest.TestCase):
+    """gap7-03 (Phase 8, decision 12.8) on a built site: a report with a pin of its own on a region map is made a draft,
+    and nothing is rendered. The build leaves its pin and its line out of the maps on the home page, the Map page and the
+    region page, so the site passes the checks build.py --check runs (it failed with BROKEN links to trips/<slug>/
+    before); the cluster it was merged into is as rendered; and the validator's warning says how to redraw the maps."""
+
+    def test_a_drafted_trip_with_a_pin_of_its_own_passes_the_check_without_a_render(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = tmp.name
+        write_region_site(root)
+        index = os.path.join(root, 'content', 'trips', 'synb-rg-lap', 'index.md')
+        write(index, read(index).replace('\n---\n', '\ndraft: true\n---\n', 1))
+        with mock.patch.object(home_page, 'HOME_REGIONS', (RG_RANGE,)):
+            out, _pages = run_build(root)
+        trips_dir = os.path.join(root, 'content', 'trips')
+        self.assertEqual(sitecheck.check(out, trips_dir), [])
+        self.assertFalse(os.path.exists(os.path.join(out, 'trips', 'synb-rg-lap')))
+        for page in ('index.html', 'map/index.html', 'regions/synthetic-reach/index.html'):
+            with self.subTest(page=page):
+                html_ = read(os.path.join(out, page))
+                self.assertIn('data-key="synb-rg-words"', html_)                 # the map is there, its other pins too
+                self.assertNotIn('data-key="synb-rg-lap"', html_)
+                self.assertNotIn('trips/synb-rg-lap/', html_)
+                self.assertIn('data-keys="synb-rg-words synb-rg-lap"', html_)      # the cluster as rendered
+        with redirected(root):
+            checks = importlib.import_module('checks')
+            lines = [checks.line(f) for f in checks.run()]
+        warned = [ln for ln in lines if 'synb-rg-lap' in ln and 'still draw this trip' in ln]
+        self.assertEqual(len(warned), 1, lines)
+        self.assertIn('which is a draft: the build leaves its own pin and line out of them', warned[0])
+        self.assertIn('render.py --site when online', warned[0])
 
 
 def write_wraith_site(root):

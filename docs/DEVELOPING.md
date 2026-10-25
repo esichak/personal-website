@@ -20,9 +20,14 @@ tools/lib/renderkey.py            the input hashes render.py stores in meta.json
 tools/build.py                    checks content/, then builds _site/ from content/ + rendered/ + assets/ (what the GitHub Action runs);
                                   --check then checks the built site; --serve [--open SLUG] [--watch] previews it, linked
 tools/validate.py                 the content checks without a build: one line per finding, then a summary; --site DIR adds the site checks
+tools/publish.py                  publish trips from main: the linked site check, stage exactly their paths, commit, --push and watch the run
+tools/check.py                    before a push that changes code: validate.py, the suite on both Pythons (-W error), the linked build check
+tools/doctor.py                   one read-only look at the Mac and the checkout: disk, .git/index, git state, conflict copies, offloads, tools
+tools/tidy.py                     lists iCloud conflict copies; --delete removes those of generated files (rendered/, _site/)
+tools/smoke.py                    a few built pages in headless Chrome (dumped DOM, console errors); CI runs it as a job that never gates
 tools/lib/checks.py               the content rules: run() -> findings (error | warning | note) for every broken file in one pass
-tools/sitegen/sitecheck.py        the built-site rules behind build.py --check: links, anchors, ids, head metadata, sitemap, feed, search
-                                  indexes, published GPX bytes
+tools/sitegen/sitecheck.py        the built-site rules behind build.py --check: links, anchors, ids, ARIA references, heading order, head
+                                  metadata, sitemap, feed, search indexes, published GPX bytes
 tools/lib/photos.py               photo copies without EXIF/GPS: web_copies() (full, .sm, .th), thumb_size(), thumb_copy()
 tools/thumbs.py                   makes the missing card-size (.th) copies of cover photos (needs cwebp); only adds files beside the photos
 tools/privacy_audit.py            the author's offline, read-only report on the published tracks and photos; never run by the build or CI
@@ -53,7 +58,8 @@ assets/js/pages/series.js         the journal's behaviour: month scrollspy, writ
 assets/css/pages/region.css       the region pages' own rules (head, Featured grid, the links into trips/); archive.css draws the rest
 assets/js/pages/archive.js        map/'s region tabs, "Show all" and the table's activity filter; the last two also run on a region page
 docs/TICK_LIST_GUIDE.md           how to save, import, review, publish, update and complete a goal; the research prompt
-tests/                            stdlib unit tests: python3 -m unittest discover -s tests (CI runs them before the build)
+tests/                            stdlib unit tests: python3 -m unittest discover -s tests (CI runs them before the build when a push
+                                  changes tools/, tests/, assets/, .github/ or docs/PRIVACY_NOTES.md)
 docs/CONTENT_GUIDE.md             how to feature trips, choose covers and lead photos, write card summaries, add search aliases, list PCT highlights;
                                   what a region page shows and when it changes (section 11)
 docs/PRIVACY_NOTES.md             what the site and its public repository disclose, as counts only, and the decisions that are the author's
@@ -74,6 +80,9 @@ Layout: `.wrap` (1248 max, page margins 16/40/48px), `.bleed` (full width up to 
 menu button below 1140px.
 
 ## Rules
+
+### Facts, dates and structured data
+
 - Facts only from the content files. Never invent stats, grades, conditions, bios or captions. Hide empty fields.
 - Eric's write-ups are verbatim (`markdown.to_html(t['body_md'])`).
 - Dates: a trip's `date` is the day of the trip and is never shown or marked up as the day its report was published, and
@@ -86,6 +95,9 @@ menu button below 1140px.
   from `core.blog_posting`, and only when `core.written_report(t)`, because marking up a bare track as an article, or
   adding a rating, a publisher logo or a date the content lacks, would tell a search engine something the page does
   not say.
+
+### Units, links and maps
+
 - Units: every distance/elevation goes through `core.U` / `core.distance` / `core.elev` so the MI|KM toggle works.
   Rendered fragments carry both units too: profile grid lines, y labels and distance ticks, map scale bars and GPS-max
   labels sit in `<g class="u-mi">` / `<g class="u-km">` (or `<tspan>`s), which base.css shows one at a time. Mile discs
@@ -97,6 +109,9 @@ menu button below 1140px.
   Charts: `core.chart_block`. Every inline fragment needs a unique `ns` (ids are namespaced with it).
 - Key rows decode symbols only, never values (`core.key_row(['skin','ski','start_end','gps','mile'])`).
 - Mono-S meta lines are ALL CAPS with units (`SAT, JAN 17, 2026 · 12.8 MI`).
+
+### Accessibility and copy
+
 - Accessibility: landmarks, one h1 per page, headings in order, `aria-current` on the active nav (`page` on the link whose page
   this is, `true` on Trips inside a section or report and on Tick list inside a goal page; the keys are under Trips
   explorer below); filters are `role="radiogroup"` / `role="radio"` with `aria-checked` (base.js gives every radio group
@@ -179,6 +194,9 @@ menu button below 1140px.
   goal's caption reads `Planned route, not a recorded track · North up`. The menu's Other row names only the sub-types
   that have reports (`core.other_subtypes()`); flat water is `core.is_flat()` (SUP / Kayaking, or under 30 m of relief
   — render.py uses the same rule).
+
+### Cards, lists and what a page offers
+
 - Cards: a trip's photo comes from `t['cover']` (`content.resolve_cover`: the explicit `cover_photo`; else the first
   trip photo at least `content.LEAD_MIN_AR` (1.2, so 6:5) wide, else the first at least as wide as tall, else the
   first trip photo; else the same three steps over the day photos, days in order; `core.cover_img` /
@@ -245,12 +263,18 @@ menu button below 1140px.
   `PHONE_FULL`, because the 800 px copy is too small for those shapes (a 1200 x 1600 portrait's is 600 px wide).
   `core.photo`, `core.cover_img` and `core.cover_preload` all pass their `sizes` through it, so the image and its
   preload get the same string. Details are under Photos below.
+
+### JavaScript and no JavaScript
+
 - Controls that only work with JavaScript ship `hidden`, and one that sits above content is shown by `core.reveal(id)`,
   an inline script placed right after the element, not by the deferred bundle, so that it is in place at first paint
   and nothing under it moves when site.js arrives. Today that is `form#search` on trips/ and tick-list/ (their scripts
   still set `form.hidden = false`, which by then changes nothing); map/'s tab row, filter and `Show all N` buttons
   (`.arc-tabs`, `.arc-filt`, `.arc-all-btn`) are still shown by archive.js (a region page has no tab row, and the
   other two where its region calls for them), and the journal's write-ups toggle (`.ser-only`) by series.js.
+
+### Conflict copies and privacy
+
 - iCloud conflict copies under `rendered/` and `assets/` are never part of the site, because nothing the site is made
   from has such a name and CI's checkout has none, so a local build must not differ from the published one. The name is
   one that ends in a space and a number, before the extension when there is one (`meta 3.json`, `map-wide 4.webp`,
@@ -287,6 +311,8 @@ menu button below 1140px.
   docs/PRIVACY_NOTES.md, goes into a tracked file, a commit message, an issue, a pull request or a CI log, because the
   repository is public and such a list would itself be the disclosure. For the same reason no tool imports or runs it
   and the CI workflow does not mention it (tests/test_privacy_audit.py keeps both true).
+
+### The Trips explorer and the tick list
 
 - Trips explorer (`trips/`, `tools/sitegen/pages/trips.py`): one page lists every published trip exactly once, grouped by
   year, with a static browse block, a search box and filters; `trips/search.json` and `trips/journal.json` beside it are
@@ -546,6 +572,9 @@ menu button below 1140px.
     meta.json after the run. When it published a track and no map was drawn, it first prints `  no map was drawn
     (render.py leaves drafts out): once "draft: true" is removed, run python3 tools/render.py <slug> and add
     "rendered/trips/<slug>" as well`: render.py loads no draft, and a new goal is one.
+
+### Report pages, related reports and the journal
+
 - Report pages (`tools/sitegen/pages/report.py`, `kind: trip`): `report.narrative(t)` is True for a single-day trip with
   a write-up (`t['body_md']`) and a cover (`t['cover']`, so any photo). `page()` then builds the story layout
   (`body_cls='p-report p-report--story'`), else the compact one (`p-report`). Both keep `#title #stats #map #profile
@@ -698,6 +727,9 @@ menu button below 1140px.
     as text, `0` included, else its position among the day files.
   - The toggle (`#ser-only`, rendered when some but not all days are written) carries `data-default="wu"`; its markup is
     otherwise unchanged.
+
+### Scripts, styles and icons
+
 - base.js additions:
   - Copy: one delegated click handler on `.copy-btn` calls `navigator.clipboard.writeText` with `data-copy` (the page
     URL when the attribute is missing). On success `.copy-msg` says 'Link copied' for 4 s. When the promise rejects,
@@ -775,6 +807,9 @@ menu button below 1140px.
   know `:has()` keeps the 72 px), an ellipsis for a search placeholder longer than its box to trips.css (`.trx-q`), and
   the rules listed under Accessibility above.
 - Icons: `link` in `tools/lib/icons.py` (`PATHS`), drawn by `core.copy_link`.
+
+### Photos and share metadata
+
 - Photos: a published photo has up to three files beside each other: the full file (long edge 1600 px), the `.sm` copy
   (800 px) and the `.th` copy (card size: `core.THUMB_EDGE`, 320 px, on the short edge). `content._photos` records `sm`
   and `th` on the photo dict only when the file exists, so a missing copy is never linked.
@@ -855,6 +890,9 @@ menu button below 1140px.
     `core.reveal(el_id)` (returns `<script>document.getElementById("<id>").hidden=false</script>`) and
     `core.read_json(path, default=None)` (a JSON file's value with the handle closed, `default` when the file does not
     exist; the page modules read rendered/site/meta.json through it).
+
+### Content checks, site checks and the build
+
 - Content checks (`tools/lib/checks.py`; `tools/validate.py` is its command line and build.py runs it first;
   tests/test_checks.py and tests/test_validate_cli.py):
   - `checks.run(trips_dir=None, home_json=None, rendered_dir=None, today=None)` returns every finding about the content,
@@ -878,12 +916,18 @@ menu button below 1140px.
     rendered/site/meta.json, so the map page does not list it yet; run python3 tools/render.py --site --force`.
     `checks._site_map_findings` names a trip that one of the file's `maps` still lists under `trips` although it is a
     draft, has no track any more (`core.has_track`) or has no folder under content/trips any more: `the site maps under
-    rendered/site/ still draw this trip, which is a draft: its line and title stay on the pages that show those maps
-    (the home page, the Map page, an activity page) until python3 tools/render.py has been run and rendered/site/
-    committed`. Of the activity pages only the Ski page shows such a map (`section.ski_panel`). Since Phase 5 the
-    region pages show the region maps as well; the message, which the author guides quote, does not name them. The
-    build passes meanwhile, and so does `--check` for a report that only lost its track. For a draft or a removed
-    folder that has a pin of its own on a map the check fails, because the pin still links to `trips/<slug>/`
+    rendered/site/ still draw this trip, which is a draft: the build leaves its own pin and line out of them; run
+    python3 tools/render.py --site when online (and commit rendered/site/) to redraw the maps, their merged pins and
+    counts` (reworded in Phase 8, when the build began to leave them out). The build does that in `core.map_block`
+    (`site_maps=True`): `core.gone_keys(entry)` names the keys of the map's `trips` that are no longer a published trip
+    with a track or an active goal (`register_site` records which are, `_ON_MAPS`), and a journal's line keys when the
+    journal is gone; `core.frag(..., drop=keys)` hands them to `core.drop_keys`, which removes each `a.mk-pin`,
+    `a.mk-line` and `g.mk-cat` (also `g.mk-cat.mk-planned`) carrying `data-key="<key>"`, none of which nests its own
+    tag, and leaves `g.mk-cluster` as drawn (its count and title keep the trip until a render). A key with nothing to
+    remove is said once per map file on stderr, so a change to mapkit's markup is noticed. With no site registered
+    nothing is dropped. So a draft, a removed folder or a lost track passes `--check` without a render; the rest of
+    this paragraph is how it was before Phase 8: the check failed for a draft or a removed folder with a pin of its
+    own on a map, because the pin still linked to `trips/<slug>/`
     (`BROKEN map/index.html -> ../trips/<slug>/`, and for the region's own page `BROKEN regions/<region-slug>/index.html
     -> ../../trips/<slug>/`); a pin merged into a `.mk-cluster` carries no link. Drafts are checked too, because a
     broken draft stops a build as well.
@@ -941,10 +985,16 @@ menu button below 1140px.
 - Built-site checks (`tools/sitegen/sitecheck.py`; `build.check()` wraps it; tests/test_sitecheck.py):
   - `sitecheck.check(out_dir, content_trips_dir=None, site_url=None)` reads a built folder and returns one line per
     problem, in a stable order: page by page (sorted by path) the links, then the same-page anchors, then the duplicate
-    ids; then `META` page by page, `SITEMAP`, `FEED`, `INDEX`, and `GPX` when `content_trips_dir` is given. It prints
-    and writes nothing. Each rule is also a function of its own (`links`, `anchors`, `duplicate_ids`, `metadata`,
-    `sitemap`, `feed`, `indexes`, `gpx`) over an `Output` made by `sitecheck.read(out_dir)` or, for pages held in
-    memory, `sitecheck.of({path: html})`.
+    ids, then `ARIA-REF` and `HEADING`; then `META` page by page, `SITEMAP`, `FEED`, `INDEX`, and `GPX` when
+    `content_trips_dir` is given. It prints and writes nothing. Each rule is also a function of its own (`links`,
+    `anchors`, `duplicate_ids`, `aria`, `metadata`, `sitemap`, `feed`, `indexes`, `gpx`) over an `Output` made by
+    `sitecheck.read(out_dir)` or, for pages held in memory, `sitecheck.of({path: html})`.
+  - `sitecheck.aria` (Phase 8): `ARIA-REF <page>: aria-controls="x" names no id on the page` for every token of an
+    `aria-labelledby`, `aria-describedby` or `aria-controls` that is no id of that page (map/'s tabs point at panels
+    that become `tabpanel`s only with the script: the id is what counts), and `HEADING <page>: h4 after h2 ("<words>")`
+    for a heading inside `<main>` more than one level below the heading before it (the first one in `<main>` is
+    compared with the last heading above it, or with none: `HEADING <page>: h2 is the first heading (...)`). On
+    2026-10-24 both found nothing on the 355 pages of today's build.
   - The three lines the link check always printed keep their exact form: `BROKEN <page> -> <ref>` (an href, src or
     srcset that names no file of the build), `BROKEN ANCHOR <page> -> <ref>` (a link to an id the page it lands on
     lacks) and `DUPLICATE IDS <page>: a, b, c`. Two things are stricter than before: an address under `core.SITE_URL`
@@ -1032,6 +1082,9 @@ menu button below 1140px.
     `build.sitemap` (every page whose `core.Page.index` is not False, except 404.html: the two search indexes and the
     full-screen map pages are `index=False`, and those map pages and the 404 page carry `noindex`) and robots.txt
     (`User-agent: *`, `Allow: /`, `Sitemap: <core.SITE_URL>sitemap.xml`).
+
+### Region pages
+
 - Region pages (`regions/<slug>/`, `tools/sitegen/pages/region.py`, `body_cls='p-region'`; Phase 5): one page for each
   region that has a region map and at least one published report filed under it. It is map/'s panel and table for
   that region under a head of counts, years and places, with a Featured row between them, and it lists what the
@@ -1377,10 +1430,34 @@ Run these from the repository root. None of them needs the internet.
 python3 tools/validate.py                # the content checks alone: every error and warning, then a summary line
 python3 -m unittest discover -s tests    # the unit tests
 python3 tools/build.py --check           # the content checks, the build into _site/, then the built-site checks
+python3 tools/check.py                   # all of it before a push that changes tools/, tests/ or assets/ (below)
 ```
 
-CI (`.github/workflows/pages.yml`, Python 3.12) runs the second and the third on every push to `main`, tests first, and
-publishes only when both pass. A push to another branch runs and publishes nothing.
+`python3 tools/check.py` is the command to run before such a push: `validate.py`, then the suite on `/usr/bin/python3`
+and on `python3.12` with `-W error` (without python3.12 one line says `brew install python@3.12` and the run goes on;
+`--quick` skips it), then `build.py --check --out .cache/check --link`; every step runs, one summary line each with its
+wall time, the end of a failed step's output, and exit status 1 when any failed. No git hook runs it: the first
+deploy failed on a patch release of Python the Mac does not have, which no local hook would have caught.
+
+CI (`.github/workflows/pages.yml`, Python 3.12, Node 22 through `actions/setup-node@v4`) builds with `build.py --check`
+on every push to `main` and publishes only when it passes. It runs the unit tests first when `tools/`, `tests/`,
+`assets/`, `.github/` or `docs/PRIVACY_NOTES.md` changed since the last push run on `main` that succeeded, and on every
+manual run: the step `changed` (`shell: bash`, so `-eo pipefail`) asks `gh run list --workflow pages.yml --branch main
+--event push --status success --limit 1` for that run's commit (the workflow holds `actions: read` for it), fetches it
+at depth 1 and diffs it with the new commit; no such run, an answer that is no full commit id, or a commit that cannot
+be fetched counts as code. Comparing with the last success, not with the commit before the push, means code whose
+tests failed, or whose run a newer push cancelled, is tested by the next push whatever that push holds (the Phase 8
+review found the first form let such code out with a content push). The tests build synthetic trips and never depend on `content/`
+(`tests/test_fixture_text.py` reads it to check that no test quotes a write-up, which only a change to tests can
+break), so a push of content alone skips them and is live in about a minute. A push of only Markdown the build never
+reads (the root `*.md`, the log, the report, the plans) starts no run (`paths-ignore`). A manual run takes a `ref`
+input, the commit to build and deploy (`gh workflow run pages.yml -f ref=$(git rev-parse <sha>)`: the full 40-character
+id, since actions/checkout reads anything shorter as a branch or tag name; the run itself stays on `main`, which the
+`github-pages` environment requires). After the build a `smoke` job (`continue-on-error`, `timeout-minutes: 10`, and
+the deploy job does not wait for it) unpacks the Pages artifact and runs `tools/smoke.py` on it. A push to another branch runs and
+publishes nothing. tests/test_workflow.py pins these lines and runs the `changed` step's script under bash with
+`-eo pipefail` in a temporary repository, with a stand-in `gh` on the path. Going back after a bad push is in ADDING-TRIPS.md, "When something goes wrong" (a `git revert` and a push, or a
+re-run of the last good run; never a force-push).
 
 `python3 tools/build.py --check` stops before the output folder is touched when the content has an error (one `ERROR
 content/trips/<slug>/index.md: …` line each on stderr, exit status 1). Otherwise it prints the first warnings, builds,
@@ -1402,6 +1479,15 @@ While working on the generator:
   `python3 tools/build.py --check`, which copies, took 3 to 4 s there (wall time, three runs of each). Those runs were
   before the region pages, which add one page per region with a region map: eight today, so a build prints `built 357
   pages, 168 trips`.
+- Outside iCloud Drive: `python3 tools/build.py --out ~/Library/Caches/personal-website/site --link --check`, and the
+  same with `--serve` to preview it (`unsafe_out` accepts a folder there). `_site/` stays the folder CI builds into; a
+  plain `build.py --check` copies about 240 MB into it, which iCloud uploads again after every build.
+- Which pages did this change? Build before the change with `python3 tools/build.py --out .cache/base --link`, after it
+  with `--out .cache/new --link`, then `diff -rq .cache/base .cache/new` lists the files that differ and
+  `diff -u .cache/base/trips/<slug>/index.html .cache/new/trips/<slug>/index.html` shows one page. Both folders are
+  git-ignored. `--link` symlinks the photos, maps and GPX, so only pages, `feed.xml`, `sitemap.xml`, the search indexes
+  and the two bundles can differ; builds are otherwise byte for byte the same, but for the footer's © year, which
+  changes by itself at the new year.
 - `python3 tools/build.py --out DIR --only report,home --link` builds only the named page modules (the names are the
   files in `tools/sitegen/pages/`). Do not add `--check` to a partial build: every link into a page that was left out is
   counted as broken, so the check prints its first 40 lines, `... N more` and `link check: N problems` with N in the
@@ -1432,12 +1518,23 @@ goes in:
 python3.12 -W error -m unittest discover -s tests          # 3.12, the version CI uses
 ```
 
-On 2026-10-12 the suite (2,459 tests in 41 files) passed with both commands, on 3.9.6 and 3.12.11 in this checkout,
-in about 75 s each, with no test skipped and none marked as an expected failure. CI runs the plain command, without
-`-W error`, on the patch release of Python 3.12 that the runner installs (3.12.15 on 2026-10-12, when two tests that
-relied on how 3.12.11 parses a malformed declaration failed there; a test must not depend on the patch release).
-GitHub's runner image has Node.js, so the tests that run a Node harness run there too, and passed there; they skip
-only where `node` is not installed (53 tests then).
+One module alone: `python3 -m unittest discover -s tests -p test_report_page.py`. The form
+`python3 -m unittest tests.test_report_page` fails with `ModuleNotFoundError: No module named 'helpers'`: `tests/` is
+not a package, and `helpers` is found only because `discover -s tests` puts that folder on the path.
+
+The suite takes about 80 s on this Mac and about 100 s on the runner, half of it the tests that start Node harnesses.
+CI runs the plain command, without `-W error`, on the patch release of Python 3.12 that the runner installs (3.12.15 on
+2026-10-12, when two tests that relied on how 3.12.11 parses a malformed declaration failed there; a test must not
+depend on the patch release), and on Node 22 (`actions/setup-node@v4`, `node-version: '22'`; before Phase 8 the runner
+image's own Node). The tests that run a Node harness skip only where `node` is not installed, which is also why
+`tests/test_js_bundle.py` (`node --check` on `build.js_bundle()` and on each page script) is skipped there.
+
+`python3 tools/smoke.py [SITE]` (default `_site/`) serves a build under `/personal-website/`, opens five pages in
+headless Chrome (`--dump-dom`) and fails a page whose dumped DOM lacks the live region base.js adds (the bundle did not
+run), lacks its own sign (`CASES`: the explorer's count for a search, the Oregon tab selected, a ski season's filter
+on, the photo viewer, the journal's written days), or whose Chrome log has an `Uncaught` error on a `CONSOLE` line. It
+exits 0 with a notice where Chrome is not installed. `CASES` name today's content: change them when it changes. It is
+Chrome only: Safari, Firefox, a real phone and screen readers are not exercised by anything that runs on its own.
 
 render.py (Phase 6; tests/test_render_goals.py, with the drawing and fetching stubbed): `render_trip` and `render_site`
 draw into `<folder>.tmp-<pid>` (`render.drawing_into`; `t['rendered']` points there while the trip is drawn) and swap
@@ -1520,6 +1617,14 @@ What the test files cover:
   the 404 page's box and notfound.js in `tests/test_notfound_page.py`; the first tier of More like this in
   `tests/test_related.py` (`SameNameTests`); `markdown.plain_sentences` in `tests/test_summary.py`; the recent cards'
   excerpt and repeated titles in `tests/test_home.py`.
+- Phase 8 (publishing loop, CI and recovery), on synthetic fixtures only: `tests/test_publish_cli.py` (publish.py
+  against a temporary git repository: the refusals, exactly the paths it stages, the commit message, `--dry-run`,
+  `--push` to a bare origin, the deploy watch with gh replaced), `tests/test_check_cli.py`, `tests/test_doctor.py` (a
+  synthetic repository; read-only to the byte, under 2 s), `tests/test_tidy.py`, `tests/test_smoke.py` (Chrome
+  replaced), `tests/test_js_bundle.py` (node --check), `tests/test_workflow.py` (pages.yml, and its `changed` step run
+  under bash), `AriaTests` in `tests/test_sitecheck.py`, `tests/test_site_map_prune.py` (`core.drop_keys` on mapkit's
+  own markup, `core.gone_keys`) and `DraftedPinTests` in `tests/test_build_site.py` (a drafted trip with a pin of its
+  own passes `--check` without a render).
 - Phase 4:
   - `tests/test_checks.py`: `checks.run` on a small valid synthetic site that each test breaks in one way, asserting
     the exact errors and warnings; a table of malformed inputs (`CASES`), none of which may raise; and the loading
@@ -1626,6 +1731,10 @@ mkdir -p ~/Library/Caches/personal-website && mv .cache/tiles .cache/osm ~/Libra
 
 iCloud Drive downloads each offloaded file before it moves (about 1.3 GB on 2026-10-13, when 206 of the 220 answers and
 1,806 of the 2,524 tiles were offloaded), and the two folders then take about 1.4 GB of local disk.
+
+Once they are moved, `.cache/` (git-ignored) holds scratch builds and review evidence that can be deleted, and one file
+that must be kept: `.cache/p4/PRIVACY_AUTHOR_ONLY.md`, the author-only privacy listing (`docs/PRIVACY_NOTES.md`). It is
+in no clone, so a new checkout gets it by hand (README.md, "Moving the checkout out of iCloud Drive").
 
 ## Measuring page loads
 This is the method the Phase 4 loading measurements used, written down so that a later change can be measured the same

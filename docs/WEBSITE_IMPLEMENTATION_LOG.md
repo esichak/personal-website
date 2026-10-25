@@ -1449,3 +1449,140 @@ Firefox (Chrome only); a screen reader (the landmark names and the screen-reader
 - **The month menu** on a phone sits behind Filters with the others; on desktop the controls now take two rows at
   1280 px (search, chips and Region and Year, then Month, Format, the boxes, Sort and the view).
 - **Not built here:** `strava_id` writing stays Eric's decision (`docs/PRIVACY_NOTES.md`, decision 4).
+
+## Phase 8 - Publishing loop, CI and recovery (2026-10-24)
+
+The third phase of the second plan (`docs/personal-website-improvement-plan-2.md`, section 8, and the Phase 8 prompt of
+`docs/claude-code-website-prompt-2.md`), built on branch `phase-8-publishing-loop` from `phase-7-search-explorer` at
+`9877edb`. Eric's answers to its decisions: (a) the checkout moves out of iCloud Drive (he moves it by hand; this phase
+wrote the recipe and changed the documents that named the old path); (b) yes, the build leaves a drafted or deleted
+trip's own pin and line out of the region maps (decision 12.8, item 22). He chose to leave the two pushes the phase
+plans (the rollback rehearsal and the dispatch test) pending until the first publication of Phases 6 to 8: main is
+still at `1cb9cf2`, so a push now would put commits on main that the phase branches lack. The disk had about 21 to 22
+GB free throughout, under the plan's 30 GB line: builds were linked into the session's scratch folder, and no worktree
+or copy of the checkout was made.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/publish.py` (new) | `publish.py SLUG [SLUG ...] [--message] [--dry-run] [--push] [--allow-unrendered]`: refuses off `main`, with `--push` when main holds earlier commits not on GitHub, with something unrelated staged (renames split into both names), for a slug with no folder and no history, for a trip `render.pending_reason` would draw, when the linked check (`build.main(['--out', '.cache/publish-site', '--link', '--check'])`) fails, for a conflict copy among the files to stage (`git status --porcelain -z --no-renames`), and when what it would commit names a trip that is here but not committed (`content/home.json`, `rendered/site/meta.json`, a link in the write-up: `crossings`); stages `content/trips/<slug>`, `rendered/trips/<slug>`, `rendered/site` and `content/home.json` when they changed; commits `Add <title>`, `Update <title>` or `Remove <slug>`; `--push` pushes `main` and `watch` finds the run (`gh run list --commit`, 15 tries 2 s apart), `gh run watch --exit-status`, prints each trip's live address, that a newer push cancelled the run, or the end of `gh run view --log-failed` and that the old site is still up; gh runs in the checkout; without gh, or signed out, the Actions page and exit 0. |
+| `tools/check.py` (new) | validate.py, the suite on `/usr/bin/python3` and `python3.12` with `-W error` (`--quick` skips the second; a missing python3.12 is one SKIP line), `build.py --check --out .cache/check --link`; every step runs, one summary line each with its time, exit 1 on any failure. |
+| `tools/doctor.py` (new) | Read-only (`git --no-optional-locks`), offline: disk under 30 GB, `.git/index` present (else `git read-tree HEAD`), stray `.git/index N` copies with the `rm` line, branch, staged or changed tracked files, ahead/behind `origin/main`, identity, conflict copies by top folder (those under `content/` and staged ones named), offloaded tracked files under `rendered/` and `content/` (macOS `SF_DATALESS`), cwebp, node, python3.12, gh. Exit 1 only off main, without `.git/index`, or with a conflict copy staged. |
+| `tools/tidy.py` (new) | Lists every conflict copy under `rendered/`, `assets/`, `content/` and `_site/` and the `.git/index N` files; a copy under `content/` or `assets/` (hand-written sources) is marked `identical`, `older` or `DIFFERS` and only listed; `--delete` removes only the copies under `rendered/` and `_site/`, and prints the by-hand lines for the rest. |
+| `tools/smoke.py` (new) | Serves a build under `/personal-website/`, dumps five pages from headless Chrome and fails a page without base.js's live region, without its own sign (`CASES`) or with an `Uncaught` error on a Chrome `CONSOLE` line; exit 0 without Chrome. |
+| `.github/workflows/pages.yml` | `paths-ignore` for the Markdown the build never reads; `workflow_dispatch` input `ref` used by both checkouts; `actions/setup-node@v4` at Node 22; `actions: read`; a `changed` step (`shell: bash`) that diffs the new commit with the commit of the last push run on `main` that succeeded (`gh run list ... --status success`), `code=true` for a manual run, no such run, an answer that is no commit id or a commit that cannot be fetched, and gates the Unit tests step on it; a `smoke` job after the build (`continue-on-error`, `timeout-minutes: 10`; the deploy job needs only the build) that unpacks the Pages artifact and runs smoke.py; the header comment's "about a minute" for the tests replaced. |
+| `tools/sitegen/sitecheck.py` | `aria(out, page)`: `ARIA-REF` for an `aria-labelledby` / `aria-describedby` / `aria-controls` token naming no id of its page, `HEADING` for a level jump of more than one inside `<main>`; run per page in `check()` after the duplicate ids. |
+| `tools/sitegen/core.py` | `_ON_MAPS` set by `register_site` (published trips with a track and active goals); `gone_keys(entry)`; `drop_keys(s, keys, where)` removes `a.mk-pin`, `a.mk-line` and `g.mk-cat` (also `.mk-planned`) carrying a gone key, leaves `g.mk-cluster` as drawn, and says once per map file on stderr when a key has nothing to remove; `frag(..., drop=)`; `map_block(site_maps=True)` passes the gone keys. |
+| `tools/lib/markdown.py` | `heading_levels`, `heading_jumps`; `to_html(text, heading_shift, top=None)` counts a heading's level from the write-up's own top level, so a write-up led by `##` starts one level under its section as one led by `#` does (no write-up has a heading today). |
+| `tools/lib/checks.py` | An error for a write-up (or a day's) whose headings skip a level. The site-map warning now ends `the build leaves its own pin and line out of them; run python3 tools/render.py --site when online (and commit rendered/site/) to redraw the maps, their merged pins and counts`. |
+| `README.md`, `ADDING-TRIPS.md`, `docs/DEVELOPING.md`, `docs/CONTENT_GUIDE.md`, `docs/TICK_LIST_GUIDE.md`, `docs/PRIVACY_NOTES.md`, `CLAUDE.md` (new) | The one publish command with the manual steps kept under "What it does"; "When something goes wrong" in three parts (Before the push, After the push, The Mac); the web-edit warning and drafting from anywhere; Setting up a new Mac, Moving the checkout out of iCloud Drive, What is and is not in the repository; the `~/Library/Caches/personal-website/site` build commands; `###` headings in DEVELOPING's Rules (no bullet moved or reworded), check.py, the CI rules, Node 22, the one-module command, one timing, the two-builds diff, smoke.py, the Phase 8 tests; the two new site-check rows; the reworded warning wherever it was quoted; the iCloud path in ADDING-TRIPS.md and TICK_LIST_GUIDE.md replaced; a repository `CLAUDE.md`. |
+| `tests/` | New: `test_publish_cli.py`, `test_check_cli.py`, `test_doctor.py`, `test_tidy.py`, `test_smoke.py`, `test_js_bundle.py`, `test_workflow.py`, `test_site_map_prune.py`. Extended: `test_sitecheck.py` (`AriaTests`, and the two lines in the order test), `test_build_site.py` (`DraftedPinTests`), `test_checks_site_maps.py` (the new wording), `test_region_page.py` (the drop warning kept out of the run's output, and asserted where the fixture lists a trip without a track), `test_markdown_headings.py` (new), `test_series_page.py` (a journal write-up's lone `##` heading is one level under its day now). |
+
+### Behaviour
+
+- **Publishing.** `python3 tools/publish.py <slug> --push` replaces the 14 hand steps from the check to the live
+  address. On a synthetic trip in a temporary repository `--dry-run` ran the real check (3.6 s), listed the trip's four
+  files and wrote nothing.
+- **A drafted trip leaves from anywhere.** `draft: true`, committed from a phone, takes the trip's own pin and line
+  off the region maps at the next build; `--check` passes without a render (on a fixture it failed with six `BROKEN`
+  lines before). A cluster it was merged into keeps its count and tooltip until `render.py --site`.
+- **CI.** A push of content alone skips the unit tests (live in about a minute instead of three); a push of only the
+  log, the report, the plans or a root `*.md` starts no run; Node is pinned at 22; a smoke job reports and never holds
+  the deploy. A manual run can build a past commit (`gh workflow run pages.yml -f ref=<sha>`).
+- **The site check** reads ARIA references and heading order: 0 findings on today's 355 pages.
+- **Write-up headings.** A write-up's first heading is shown one level under its section whatever number of `#` it
+  has, and one that skips a level stops at the content check, naming the file, before the site check's HEADING line.
+- **The Mac.** `doctor.py` (0.28 s) and `tidy.py` (0.14 s) say what the checkout holds: today 6,138 conflict copies
+  (6,136 under `rendered/`, 2 empty folders under `_site/`), eight stray `.git/index N` files, about 22 GB free, no
+  tracked file offloaded.
+- **No page changed.** Two `--link` builds of today's content, before the phase and after it, differ in no file.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **The `changed` step compares with the last successful push run**, not with `github.event.before` as the prompt
+  had it: with the prompt's form, a content push after a code push whose tests failed (or whose run a newer push
+  cancelled) skipped the tests and deployed that code (the review found it and confirmed it with the step's own
+  script). It needs `actions: read` and the runner's `gh`.
+- **doctor.py does not stop on a changed tree** (the prompt's 'exit 1 on a dirty tree'): publish.py exists to commit
+  such files and refuses only what is unrelated and staged, so doctor warns and says so.
+- **tidy.py --delete leaves `assets/` alone**: its files are written by hand, and a copy may hold the newer edit; the
+  copies there are compared and listed as under `content/`.
+- **The `changed` step reads the diff into a variable** and greps it without `-q`: under Actions' `bash -eo pipefail`,
+  `git diff | grep -q` ends the pipe early on a long list and the condition reads false, so a large push with code in
+  it would have skipped the tests (shown with `seq 1 300000 | grep -Eq '^1$'`, and pinned by a test with 3,000 files).
+- **paths-ignore** also lists the two plan-2 documents and the prompt packs, which the build never reads.
+- **smoke.py** matches `CONSOLE:` as well as `CONSOLE(`: Chrome 155 writes `INFO:CONSOLE:2070] "Uncaught ..."`.
+- **Completed and archived goals** count as gone from the region maps (the prompt's rule: not an active goal), which
+  is what render.py draws anyway.
+- **Rules changed.** `docs/DEVELOPING.md` "Existing messages are never reworded": the site-map warning was reworded,
+  because its old text sent the author to render before a check that no longer fails; every guide that quoted it was
+  changed with it. The plan's "the tests never read content/" holds with one exception, `tests/test_fixture_text.py`,
+  which only a change to the tests can make fail, so skipping the tests on content pushes stays safe; DEVELOPING.md
+  says so.
+
+### Review
+
+An agent reviewed the whole change read-only (both suites, a scratch build, the tools on the checkout, the step's
+script in a temporary repository). Its findings, all fixed with tests: the `changed` step let code whose tests had
+failed out with the next content push (now compared with the last successful run); publish.py missed a staged rename
+out of another trip and committed it (`--no-renames`), checked the whole working tree but committed part of it (now
+refuses a `home.json`, a `rendered/site` or a write-up that names a trip here but not committed), could not publish a
+report whose render folder an earlier commit removed (paths kept only when on disk or in the index), would push
+earlier unpushed commits unannounced (refused, listed), asked gh outside the checkout and reported a cancelled run as
+a failure; tidy.py `--delete` removed hand-written copies under `assets/` (now compared and listed only); doctor.py
+blocked the normal publish of changed files (now a warning, without the advice to restore them); a write-up led by
+`##` would have failed the new HEADING rule on three page types (headings are now counted from the write-up's top,
+and a skipped level is a content error); the dispatch recipe needs the full 40-character id; the README move recipe
+lacked the `OLD=` line, a clean tree first and the local commits on `main`; the smoke job had no timeout; two
+sentences of DEVELOPING.md about the step were inaccurate.
+
+### Checks actually run
+
+All on the working tree of 2026-10-24 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 2,886 tests, OK, none skipped, 87 s (2,790 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 2,886 tests, OK, none skipped, 114 s |
+| `python3 tests/run_orders.py --reverse` | OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 14, series 49, ticklist 103, trips 167 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 357 pages, 168 trips, link check OK (ARIA-REF and HEADING: 0 findings), about 2 s |
+| `diff -rq` of that build against a `--link` build of `9877edb` made before any edit | no file differs |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 468 notes |
+| `python3 tools/check.py` (before the review's fixes) | validate 0.4 s, tests on 3.9 88.4 s, on 3.12 112.4 s, build check 3.6 s: all passed |
+| `publish.py synp-ridge-walk --dry-run` in a temporary repository, the real check | the check built this checkout in 1.8 s; it listed the trip's four files, `would commit: Add Synthetic Ridge Walk`, wrote nothing; 3.6 s in all |
+| `publish.watch` with `gh`, on the finished run of `1cb9cf2` (nothing pushed) | found run 38429837834, read its success, printed the live address, exit 0 |
+| `gh run list --workflow pages.yml --branch main --event push --status success --limit 1 --json headSha --jq '.[0].headSha // ""'` | `1cb9cf2ec5c19b339147e9df88fc260e5f27bb6d`; an unknown branch gives an empty line |
+| `python3 tools/doctor.py`, twice | 0.28 s; `.git/index` size, time and hash and `git status` unchanged |
+| `python3 tools/tidy.py` (listing) | 6,138 copies (`_site` 2, `rendered` 6,136) and the eight index copies, 0.14 s |
+| `python3 tools/smoke.py <build>` (Chrome 155) | all 5 pages OK, 12 s; with a syntax error appended to the bundle, all 5 fail with the `Uncaught SyntaxError` line |
+| `DraftedPinTests` with `core.gone_keys` stubbed to nothing | fails with six `BROKEN` lines: the test sees the change |
+| `bash -c 'set -o pipefail; seq 1 300000 \| grep -Eq ^1$'` | not matched (exit 141): why the step greps without `-q` |
+
+Not run: the rollback rehearsal and the dispatch test (both push or deploy; left for the first publication); a
+content-only run on GitHub (needs a push); the smoke job and the `changed` step on a real runner (their scripts ran
+locally, the step under `bash -eo pipefail` with a stand-in `gh`); `tidy.py --delete` on the checkout (Eric's call);
+the suite with the deploy runner's `html.parser`.
+
+### Remaining issues and author inputs
+
+- **The move out of iCloud Drive** is Eric's to do: README.md "Moving the checkout out of iCloud Drive" has the
+  commands (clone, bring the unpushed branches over through a temporary remote, copy
+  `.cache/p4/PRIVACY_AUTHOR_ONLY.md`, move the render caches). Pending.
+- **Cleanup of the old folder**, if it stays a while: `python3 tools/tidy.py --delete` (the 6,138 git-ignored copies),
+  then by hand `rm ".git/index 2" ".git/index 3" ".git/index 4" ".git/index 5" ".git/index 6" ".git/index 7" ".git/index 8" ".git/index 9"`,
+  and `git gc` once free disk is well above 20 GB and nothing else writes (after the move a fresh clone needs none).
+  `.cache/review`, `p5`, `preview` and the rest of `p4` can go; keep `.cache/p4/PRIVACY_AUTHOR_ONLY.md`, and
+  `.cache/plan2` until the plan is accepted. Today `git count-objects -v` reports 4,913 loose objects. Pending.
+- **The rollback rehearsal** (a doc-only commit, `git revert`, push, time it) and **the dispatch test**
+  (`gh workflow run pages.yml -f ref=<HEAD sha>`) were not run: both push or deploy, and Eric left them for the first
+  publication. ADDING-TRIPS.md marks them as not yet rehearsed. The watch was tested with `gh` on the finished run of
+  `1cb9cf2` (it found run 38429837834, read its success and printed the live address).
+- **The first content-only run** after a push is to be checked with `gh run list` (the tests skipped, about a minute).
+- **The workspace `../CLAUDE.md`** (outside the repository) can shrink its site section to a pointer to the new
+  repository `CLAUDE.md`, and its path and iCloud notes change once the checkout moves.
+- **The upload desk stays deferred** (authoring-19): if it is ever built, the 2026-10-08 plan's terms hold: loopback
+  only, a per-session token, nothing in the deployed output.
+- **Interface copy:** none new on the site. New command output: publish.py's, doctor.py's and tidy.py's lines, and
+  one new content error (a write-up heading that skips a level).

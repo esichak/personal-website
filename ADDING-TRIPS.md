@@ -18,7 +18,7 @@ Put the photos you want in one folder, for example `~/Desktop/rose/`.
 In Terminal:
 
 ```bash
-cd ~/Documents/"Claude Code"/personal-website
+cd ~/Code/personal-website        # the folder you cloned the site into (README.md, "Setting up a new Mac")
 ```
 
 ```bash
@@ -38,7 +38,7 @@ python3 tools/add_trip.py ~/Downloads/Morning_Ski.fit --title "Rose Knob Peak" -
 | `--draft` | Keep the trip off the site until you remove `draft: true` from its file. A draft you push is still in the public repository. Its maps are not drawn while it is a draft: after you remove the line, run `python3 tools/render.py <trip-name>`. To push a draft, stage `"content/trips/<trip-name>"` alone in step 5. For a trip that is already on the site, see "Taking a trip off the site" below |
 | `--strip-times` | Write the GPX without timestamps. The page still shows the date and the start time (see `docs/PRIVACY_NOTES.md`) |
 | `--no-render` | Skip drawing the maps, so no internet is needed. Draw them later with `python3 tools/render.py <trip-name>` |
-| `--force` | Import again over a folder that is still an untouched import: the placeholder report, empty `alt:` lines and nothing you added. It is refused, and nothing is written, once the folder has a write-up, a photo description, a line such as `beta:`, `map:` or `cover_photo:`, day files or a `goal.json` ("If something goes wrong", below) |
+| `--force` | Import again over a folder that is still an untouched import: the placeholder report, empty `alt:` lines and nothing you added. It is refused, and nothing is written, once the folder has a write-up, a photo description, a line such as `beta:`, `map:` or `cover_photo:`, day files or a `goal.json` ("When something goes wrong", below) |
 
 Two more commands share the script; neither adds a trip:
 
@@ -214,30 +214,46 @@ python3 tools/validate.py
 
 ## 5. Publish
 
-Run the build check, stage this trip's files by path, and list what is staged:
+From `main`, one command checks the site, stages exactly this trip's files, commits and (with `--push`) publishes:
 
 ```bash
-python3 tools/build.py --check
-git add "content/trips/rose-knob-peak" "rendered/trips/rose-knob-peak" rendered/site
-git status --short
+python3 tools/publish.py rose-knob-peak --dry-run    # the check, and the list of what would be staged; writes nothing
+python3 tools/publish.py rose-knob-peak --push       # check, stage, commit, push, and watch GitHub publish it
 ```
 
-Put your trip's folder name in place of `rose-knob-peak`. Then read what the three commands printed before you go
-on. They run one after the other whatever each one answers, so a failed check does not stop the `git add`. Go on only
-when both of these are true:
+Put your trip's folder name in place of `rose-knob-peak` (several names publish several trips in one commit). It stops
+at the first thing that is wrong, with one line that says what to do:
 
-- The check ended with `link check: OK`. When it stops with `ERROR` lines, or ends with `link check: N problems`, fix
-  what the lines name and run the three commands again.
-- Every staged name in the list is a file of this trip or a map under `rendered/site/`. How to read the list, and
-  what to do with a name that does not belong, comes after the table below.
+- not on `main` (`git switch main`), or something unrelated already staged (`git restore --staged <path>`);
+- with `--push`, `main` already holds commits that are not on GitHub: it lists them, so you push them yourself once
+  you have read them (`git push origin main`), or publish without `--push`;
+- the trip's maps not drawn yet (no internet at the time, or `--no-render`): `python3 tools/render.py <trip-name>`,
+  or `--allow-unrendered` to publish without them;
+- the site check fails: the `ERROR` or `BROKEN` lines above it name the file; fix it and run the command again;
+- an iCloud conflict copy among the trip's files (`index 2.md`): compare it with the original, delete it, run again;
+- what it would commit names a trip that is in this folder but not committed (`content/home.json` features it, the
+  region maps were drawn with it, or the write-up links to it): GitHub's check would not have that trip, so publish
+  the two together (`publish.py one-trip other-trip`), or the other first.
 
-If the check prints a `WARNING` line for your trip that says `no rendered map`, its maps were not drawn (no internet
-at the time, or `--no-render`): run `python3 tools/render.py <trip-name>`, then the three commands again. `git add`
-does not always catch this.
+It then stages `content/trips/<trip-name>`, `rendered/trips/<trip-name>` (when it exists, or existed), `rendered/site`
+when the region maps changed and `content/home.json` when it changed, prints the list, and commits `Add <title>`
+(`Update <title>` for a trip already published, `Remove <trip-name>` for a folder you deleted; `--message` gives your
+own). With `--push` it pushes and waits for GitHub's run: about a minute for a push of content alone, about three
+when it changes code. Then it prints `live: https://esichak.github.io/personal-website/trips/<trip-name>/`, or that the
+deploy failed, the old site is still up, and the end of the failed step's log (When something goes wrong, below).
+Without `gh` it prints the Actions page to watch instead. `gh run list -L 3` shows the last three runs any time.
 
-Then commit and push:
+`add_trip.py` never copies your original photos or track file into the site (it writes resized WebP copies without
+EXIF and a simplified `track.gpx`), so keep the originals wherever you keep them; the one file in this folder that is
+neither on GitHub nor fetched again is `.cache/p4/PRIVACY_AUTHOR_ONLY.md`, which you back up yourself.
+
+**What it does, by hand.** If `publish.py` itself ever fails, these are its steps (read each answer before the next):
 
 ```bash
+git branch --show-current            # must say main
+python3 tools/build.py --out ~/Library/Caches/personal-website/site --link --check    # must end with link check: OK
+git add "content/trips/rose-knob-peak" "rendered/trips/rose-knob-peak" rendered/site
+git status --short                   # every staged name a file of this trip or a map under rendered/site/
 git commit -m "Add Rose Knob Peak"
 git push
 ```
@@ -254,82 +270,48 @@ Which paths to give `git add`:
 | Changed the home page's features | `content/home.json` |
 
 A folder path stages what is new, changed or deleted inside it. `rendered/site` holds the region maps, which a render
-redraws along with the trip's own; naming it when nothing changed there does no harm. The trip is in the lists of its
-region's page (`regions/<region>/`) without it; `rendered/site` is what puts the trip's line and pin on the map there,
-as on the Map page.
-
-Never use `git add -A` or `git add .`. This folder syncs through iCloud Drive, which sometimes leaves a conflict copy
-of a file: the same name with a space and a number added, such as `meta 3.json` or `index 2.md`. `.gitignore` hides
-the copies under `rendered/` and `assets/`, but one can appear in any folder, and `git add` on a folder takes
-everything in it. The content check names a copy that sits in a trip's folder or in its `days/`. For most that is a
-`WARNING`. A copy of a day file stops the build, because it would go out as one more day of the trip:
-
-```
-ERROR content/trips/rose-knob-peak/days/02 2.md: looks like an iCloud conflict copy (the name ends in a space and a number): it would be published as one more day; delete it
-```
-
-A warning stops nothing, so still read the `git status --short` list before you commit. A letter in its first column
-marks a staged file (`A` new, `M` changed, `D` deleted, `R` moved), and each of those should be a file of this trip
-or a map under `rendered/site/`. If a staged path has a name with a space and a number added, as in `index 2.md` (git
-shows such a path in double quotes), unstage it with `git restore --staged "<path>"`. For a copy of a file you write
-yourself (`index.md`, a `days/NN.md`), compare it with the original first, because the copy may be the one with your
-newer text. Then delete the copy.
-
-Only the `main` branch is published. On every push to `main` GitHub runs the unit tests and `build.py --check`, and
-deploys when both pass; the trip is live a few minutes later. A push to any other branch runs nothing and the site
-stays as it was. `git branch --show-current` says which branch you are on. If it is not `main`, the push publishes
-nothing, and on a branch that was never pushed `git push` stops with
-`fatal: The current branch <name> has no upstream branch`. The trip goes live only when its commit is on `main` and
-`main` is pushed.
+redraws along with the trip's own; naming it when nothing changed there does no harm. Never use `git add -A` or
+`git add .`: a checkout in an iCloud Drive folder collects conflict copies (`meta 3.json`, `index 2.md`) that would go
+out with them (`python3 tools/tidy.py` lists them). Only the `main` branch is published; a push to any other branch
+runs nothing.
 
 ## Quick fixes from anywhere
 
 For small text changes (a typo, a better title, a photo description), you can edit the trip's `index.md` directly on
-github.com: open the file on the `main` branch, click the pencil, and commit. The site redeploys on its own. Run
-`git pull` in this folder before your next local change so the two stay in step. That brings the edit only when this
-folder is on `main`: on another branch `git pull` leaves it out, and on a branch that was never pushed it answers
-`There is no tracking information for the current branch`.
+github.com: open the file on the `main` branch, click the pencil, and commit. The site redeploys on its own, in about
+a minute. Run `git pull` in this folder before your next local change so the two stay in step (on `main`; another
+branch leaves the edit out).
+
+A web edit gets no check before it is published: one that breaks a line of the front matter, or links to a report
+that does not exist, fails GitHub's check, and the site stays as it was. Look at the Actions page (or
+`gh run list --limit 1`) after a web edit; a red X is explained under When something goes wrong.
 
 ## Taking a trip off the site
 
-Put `draft: true` among the lines above the closing `---` of the trip's `index.md`, or remove its folder from
-`content/trips/`. A build then leaves out the trip's page, its photos, its GPX download and its own map. The trip
-also leaves the lists and the counts on its region's page at that build, and a region left without a report loses its
-page. A region left with no report and no tick-list goal also leaves the Map page's region maps and the home page's
-`ALSO` row at that build; with a goal still filed under it, see `docs/CONTENT_GUIDE.md`, 11.4. Two things stand
-between that build and the site:
+Put `draft: true` among the lines above the closing `---` of the trip's `index.md` (or remove its folder from
+`content/trips/`), then publish: `python3 tools/publish.py <trip-name> --push`, or the same edit on github.com from a
+phone. The next build leaves out the trip's page, its photos, its GPX download and its own map, takes it out of the
+lists and counts of its region's page and the Map page, and leaves its own pin and route line out of the region maps
+on the home page, the Map page, the region pages and the Ski page. No render is needed for that.
 
-- **The region maps still draw the trip.** The maps on the home page, the Map page, the region pages and the Ski
-  page are drawn by `render.py` and committed under `rendered/site/`; a build only places them. They keep the trip's
-  line and title until you run `python3 tools/render.py` (internet needed). Where the trip has a pin of its own on a
-  map, the pin links to the page that is gone, and `build.py --check` fails on it with lines such as
-  `BROKEN map/index.html -> ../trips/<trip-name>/` and, for its region's page,
-  `BROKEN regions/<region>/index.html -> ../../trips/<trip-name>/`. Where its pin is merged with others, the check
-  passes and the line stays on the map. So run `render.py` before the check of step 5, and stage `rendered` with the
-  trip's folder, as the table there gives for a run with no trip name. Until the maps are drawn again the content
-  check prints a `WARNING` for the trip that begins `the site maps under rendered/site/ still draw this trip`. That
-  run can take more than the trip's line away: a region left with fewer than three trips with a track gets no region
-  map from it, and without the map the region has no page. Its remaining reports are then listed on the Map page
-  under "Not on a region map", and their links to the region lead there.
+- **A numbered cluster still counts the trip.** Where its pin was merged with others, the cluster keeps its number
+  and the trip's title in its tooltip until the region maps are drawn again: `python3 tools/render.py --site` when
+  online, then publish `rendered/site`. Until then the content check prints a `WARNING` for the trip that begins
+  `the site maps under rendered/site/ still draw this trip`. That render can change more than the cluster: a region
+  left with fewer than three trips with a track gets no region map from it, and without the map the region has no
+  page; its remaining reports are then listed on the Map page under "Not on a region map".
 - **The build stops while something else names the trip:** `content/home.json`, a tick-list goal's outing
   (`report_slug` in its `goal.json`), or a link in another trip's write-up. Each `ERROR` line names the file to
-  change.
-
-GitHub publishes nothing when the build stops or the check fails, so the page and its download stay on the site until
-both pass.
+  change. GitHub publishes nothing when the build stops or the check fails, so the page stays on the site until both
+  pass.
 
 Deleting only `track.gpx` from a single-day report keeps its page, with the write-up, the photos and the stats. The
 page loses its map, its elevation profile or speed chart, its links to the route and its GPX download, other pages
-no longer draw the small route beside its name, and the check prints a `WARNING`:
-`no track.gpx: the page has no map, no profile and no GPX download`. The region maps keep the trip's line until
-`render.py` has been run; its pin still leads to a page, so `--check` passes meanwhile. That run also deletes the
+no longer draw the small route beside its name, the region maps leave out its pin and line, and the check prints a
+`WARNING`: `no track.gpx: the page has no map, no profile and no GPX download`. The next `render.py` run deletes the
 report's `rendered/trips/<trip-name>/` folder, which the site no longer uses, so stage `rendered` after it. A report
-without a track is drawn on no region map, so after that run the Map page no longer names it in its region's list. It
-stays on the Trips page, in the Map page's table of all reports and, as long as the region still has a region map, in
-the lists and the counts of its region's page (`docs/CONTENT_GUIDE.md`, section 11.4). A report without a track does
-not count towards the three trips a region map takes, so the same run draws no map for a region that is left with
-fewer than three trips with a track. The region's page goes with the map, and the Map page then lists the region's
-reports, this one included, under "Not on a region map".
+without a track is drawn on no region map and does not count towards the three trips a region map takes; it stays on
+the Trips page, in the Map page's table of all reports and in its region page's lists (`docs/CONTENT_GUIDE.md`, 11.4).
 
 None of this takes a file out of the repository's history (`docs/PRIVACY_NOTES.md`, section 6).
 
@@ -339,25 +321,19 @@ Open Claude Code in this folder and say something like: *"Add this trip: ~/Downl
 ~/Desktop/rose, ski tour on Rose Knob Peak with Adam."* Claude runs the steps above, writes the photo descriptions,
 previews the page and publishes it as in step 5.
 
-## If something goes wrong
+## When something goes wrong
+
+### Before the push
 
 - **`cwebp` not found:** run `brew install webp` (photos fall back to larger JPEGs without it).
-- **A map is missing its roads or lake names:** OpenStreetMap was busy. The check says so (`maps were drawn without
-  OpenStreetMap data ...`). Run `python3 tools/render.py` again later; it retries anything that didn't finish. Then
-  stage what the table in step 5 gives for a run with no trip name.
 - **A render stops with `! <trip-name>: ...`:** that trip's drawing failed (a terrain tile that would not download, a
   file it could not read). Its last good maps stay where they were, the run goes on with the other trips, and it ends
   with `1 failed, their last good maps kept: <trip-name>`. Run the same command again later. A render you stop with
   Ctrl+C also leaves the maps as they were.
 - **Changed a trip's title or map settings:** run `python3 tools/render.py <trip-name>` to redraw its maps, then
-  stage `rendered/trips/<trip-name>` and `rendered/site` with the trip's folder (step 5). The check reminds you
+  publish the trip (step 5 stages `rendered/trips/<trip-name>` and `rendered/site` with it). The check reminds you
   (`maps were drawn from other inputs ...`). `python3 tools/render.py --status` lists, without the internet, every
   trip a render would draw and why, and whether the region maps are up to date.
-- **Newer OpenStreetMap data (a new trail, a renamed lake):** a downloaded answer is kept and used for ever. Delete the
-  cache's `osm/` folder (`~/Library/Caches/personal-website/osm/`, or `.cache/osm/` in this folder until the caches
-  have been moved: `docs/DEVELOPING.md`, "Render caches"), or one answer in it, then run
-  `python3 tools/render.py --site --force`. That downloads every answer again (one is about 200 MB) and can change
-  roads and labels on every map, which the change check does not notice; stage `rendered` after it.
 - **`add_trip.py --force` stops with `... --force would erase them`:** the folder is not an untouched import any more
   (a write-up, photo descriptions, lines you added, day files or a `goal.json`), and nothing was written. To import the
   recording again, move the folder out of `content/trips/` first; git keeps the committed version, and
@@ -374,4 +350,49 @@ previews the page and publishes it as in step 5.
   folder, because it was added with `--no-render` or with `--draft`. Nothing was staged. Run
   `python3 tools/render.py <trip-name>`, then `git add` again. For a draft, remove `draft: true` before the render, or
   stage `"content/trips/<trip-name>"` alone to push it as a draft.
-- More detail on how the site works: `README.md`, `docs/CONTENT_GUIDE.md` and `docs/DEVELOPING.md`.
+
+### After the push
+
+- **The Actions run shows a red X:** the old site stays up; nothing was published. Open the run (the link
+  `publish.py` printed, or `gh run view --web`) and see which step of the build job stopped. *Unit tests:* the log's
+  first `FAIL:` or `ERROR:` line names the test; fix it here, run `python3 tools/check.py`, push again. *Build:* the
+  first `ERROR` or `BROKEN` line, or `link check: N problems`, names the file; fix it, run `python3 tools/build.py
+  --out ~/Library/Caches/personal-website/site --link --check`, push again. *actions/configure-pages* with
+  `Get Pages site failed`: the repository's Pages setting on GitHub is off (Settings > Pages > Source: GitHub Actions);
+  nothing to fix here. The *smoke* job never holds a deploy back: a red mark there means a page script misbehaved in
+  Chrome (its log names the page), and the site went out all the same.
+- **The site is wrong after a push:** undo the commit with a new one, which is published like any push:
+  `git revert --no-edit <sha>` and then `git push` (for several commits, revert each, newest first, then push once).
+  The deploy takes about three minutes, and a push cancels a run still in progress, so do not wait for a bad deploy to
+  finish. Never force-push and never rewrite history: the old commits stay public either way
+  (`docs/PRIVACY_NOTES.md`, section 6). Watch it with `gh run watch` or the Actions page. (Not rehearsed yet: the first
+  rehearsal, on a commit that changes only a document, is due at the next publication and its minutes go here.)
+- **I need an old version back for a moment:** `gh run list` shows the last runs; `gh run rerun <id>` with the id of
+  the last good one deploys that commit again with no commit of yours, is offered for 30 days after the run, and is
+  undone by the next push. `gh workflow run pages.yml -f ref=$(git rev-parse <sha>)` builds and deploys any commit on
+  `main` (give it the full 40-character id, which `git rev-parse` prints for a short one; it runs
+  that commit's tests and check first; only someone with write access can start it); it too lasts until the next push,
+  so follow it with a revert. (The `ref` input exists once this phase's `pages.yml` is on `main`; it has not been
+  tried yet.)
+- **A trip I drafted is still on the site:** look at the run (`gh run list --limit 1`). A red X means the build or the
+  check stopped, often on something that still names the trip (Taking a trip off the site, above). A green run with
+  the trip's number still in a cluster is expected until `render.py --site` (same section).
+
+### The Mac
+
+- **The build takes minutes instead of seconds:** iCloud Drive has offloaded files under `rendered/` and each one
+  downloads as the build reads it. In Finder choose Keep Downloaded on the folder, or move the checkout out of iCloud
+  Drive (README.md); `python3 tools/doctor.py` counts the offloaded files.
+- **git says the index is missing or unreadable:** run `git read-tree HEAD`, then `git status --short`. Nothing is lost
+  but the list of what was staged, so `git add` again what you had staged. Then free disk space: iCloud removed
+  `.git/index` once when the disk was nearly full. `python3 tools/doctor.py` checks for this, and lists stray
+  `.git/index 2`, `index 3`, ... copies with the line to delete them once `git status` works.
+- **A map has no roads or lake names after a render:** OpenStreetMap was busy. The check says so (`maps were drawn
+  without OpenStreetMap data ...`); run `python3 tools/render.py` again later, it retries anything that did not finish.
+  For newer OpenStreetMap data (a new trail, a renamed lake), delete the cache's `osm/` folder
+  (`~/Library/Caches/personal-website/osm/`, or `.cache/osm/` in this folder until the caches have been moved:
+  `docs/DEVELOPING.md`, "Render caches"), or one answer in it, then run `python3 tools/render.py --site --force`. That
+  downloads every answer again (one is about 200 MB) and can change roads and labels on every map; stage `rendered`
+  after it.
+
+More detail on how the site works: `README.md`, `docs/CONTENT_GUIDE.md` and `docs/DEVELOPING.md`.

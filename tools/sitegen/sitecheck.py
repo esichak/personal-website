@@ -21,6 +21,8 @@ The newer rules cover what a link check cannot see, one line each, starting with
     INDEX      trips/search.json and trips/journal.json name built pages, and journal days name ids on them
     GPX        (with content_trips_dir) every download is its source file byte for byte, and a multi-day trip's
                combined file holds each day's track unchanged, in day order
+    ARIA-REF   per page: every id an aria-labelledby, aria-describedby or aria-controls names is on that page
+    HEADING    per page: inside <main> no heading level jumps by more than one (an h2 followed by an h4)
 
 A local checkout sits in iCloud Drive, which leaves conflict copies beside the real files ('meta 3.json',
 'map-wide 4.webp', a folder 'first-tallac-lap 2'). They are never part of the published site (CI builds from git), so
@@ -288,6 +290,41 @@ def anchors(out, page=None):
         for fragment in _SELF.findall(out.text(rel)):
             if fragment not in ids:
                 problems.append('BROKEN ANCHOR %s -> #%s' % (rel, fragment))
+    return problems
+
+
+_ARIA = re.compile(r'\b(aria-labelledby|aria-describedby|aria-controls)="([^"]*)"')
+_MAIN = re.compile(r'<main\b[^>]*>(.*?)</main\s*>', re.S | re.I)
+_HEADING = re.compile(r'<h([1-6])\b[^>]*>(.*?)</h\1\s*>', re.S | re.I)
+_TAGS = re.compile(r'<[^>]+>')
+
+
+def aria(out, page=None):
+    """ARIA-REF lines for an aria-labelledby / aria-describedby / aria-controls token that names no id on its page (a
+    tab may point at a panel that only becomes a tabpanel when the script runs: the id is what is looked for), and
+    HEADING lines for a heading inside <main> whose level is more than one below the heading before it (the first
+    heading in <main> is compared with the last one above it, or with none: an h2 that opens the page is a jump)."""
+    out = _output(out)
+    problems = []
+    for rel in _pages(out, page):
+        text = out.text(rel)
+        ids = out.ids(rel)
+        for attr, value in _ARIA.findall(text):
+            for token in value.split():
+                if token not in ids:
+                    problems.append('ARIA-REF %s: %s="%s" names no id on the page' % (rel, attr, token))
+        m = _MAIN.search(text)
+        if not m:
+            continue
+        before = [int(lvl) for lvl, _t in _HEADING.findall(text[:m.start()])]
+        last = before[-1] if before else 0
+        for lvl, inner in _HEADING.findall(m.group(1)):
+            lvl = int(lvl)
+            if lvl > last + 1:
+                words = ' '.join(_TAGS.sub(' ', inner).split())[:60]
+                problems.append('HEADING %s: h%d after h%d ("%s")' % (rel, lvl, last, words) if last else
+                                'HEADING %s: h%d is the first heading ("%s")' % (rel, lvl, words))
+            last = lvl
     return problems
 
 
@@ -697,13 +734,14 @@ def gpx(out, content_trips_dir):
 
 def check(out_dir, content_trips_dir=None, site_url=None):
     """Every problem of a built folder, as lines. First the link, anchor and id lines page by page (pages sorted by
-    path; within a page: links in page order, then same-page anchors, then the DUPLICATE IDS line), which is what
+    path; within a page: links in page order, then same-page anchors, then the DUPLICATE IDS line, then ARIA-REF and
+    HEADING), which is what
     build.check() printed; then META page by page, SITEMAP, FEED, INDEX, and GPX when content_trips_dir is given.
     site_url: the site's public address (default core.SITE_URL). [] means the build is sound."""
     out = read(out_dir, site_url)
     problems, meta = [], []
     for rel in out.pages:
-        problems += links(out, rel) + anchors(out, rel) + duplicate_ids(out, rel)
+        problems += links(out, rel) + anchors(out, rel) + duplicate_ids(out, rel) + aria(out, rel)
         meta += metadata(out, rel)
     problems += meta + sitemap(out) + feed(out) + indexes(out)
     if content_trips_dir:

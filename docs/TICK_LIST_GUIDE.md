@@ -136,7 +136,7 @@ Run everything from the site folder. Every subcommand takes `--dry-run`: it prin
 nothing. Use it first, every time.
 
 ```bash
-cd ~/Documents/"Claude Code"/personal-website
+cd ~/Code/personal-website        # the folder you cloned the site into (README.md, "Setting up a new Mac")
 ```
 
 ### 4.1 Save an idea
@@ -360,7 +360,9 @@ so `export > file.json` stays clean JSON): that is the list to review and `updat
    archived). With fewer, `/tick-list/` simply lists the active goals, and an address such as `?status=shortlisted` or
    `?scope=completed` changes nothing; completed and archived goals keep their own pages.
 4. **Stage by explicit path, and read `git status --short` before committing. Never `git add -A` or `git add .`.**
-   It is the rule of step 5 in ADDING-TRIPS.md, which gives the reasons. For a goal:
+   It is the rule of step 5 in ADDING-TRIPS.md, which gives the reasons. `python3 tools/publish.py <slug> --push`
+   does all of it for a goal as for a trip, from `main` (`--dry-run` first lists what it would stage; a goal whose map
+   is not drawn yet is refused until `render.py <slug>` has run). By hand, for a goal:
 
    ```bash
    git add "content/trips/<slug>" "rendered/trips/<slug>" rendered/site
@@ -380,17 +382,17 @@ so `export > file.json` stays clean JSON): that is the list to review and `updat
      `content/trips/<slug>` alone.
    - For an intent change or an outing, the only file is `content/trips/<slug>/goal.json`.
 
-5. GitHub runs the tests and the same check on every push to the `main` branch, and publishes a few minutes later.
+5. GitHub runs the same check on every push to the `main` branch (and the tests when the push changes code), and
+   publishes about a minute later.
    A push to any other branch runs nothing. A bad field fails the deploy instead of publishing a broken list; the
    site just does not update until it is fixed. A warning does not hold a deploy back.
 
-To take a goal off the site again, put `draft: true` back: a build then leaves out the page and its GPX. A region
-map that was drawn with the goal (on the home page, the Map page and the Ski page) keeps its dashed line and its
-title until `python3 tools/render.py` has been run again (needs internet). Where the goal has a pin of its own on
-such a map, the pin links to the page that is gone, and `build.py --check` fails on it with lines such as
-`BROKEN map/index.html -> ../trips/<slug>/`. So run the render before the checks of step 3, and stage `rendered`
-with the goal's folder. Until the maps are drawn again the content validator prints the `site maps` warning of
-section 9. The build also stops while another trip's write-up links to the goal's page. All of this is a publication
+To take a goal off the site again, put `draft: true` back: a build then leaves out the page and its GPX, and the
+goal's own dashed line and pin on the region maps (the home page, the Map page and the Ski page), so `build.py
+--check` passes without a render. A numbered cluster the goal was merged into keeps counting it until
+`python3 tools/render.py --site` has been run (needs internet) and `rendered/site` staged with the goal's folder;
+until then the content validator prints the `site maps` warning of section 9. A goal that is completed or archived
+leaves the maps the same way. The build also stops while another trip's write-up links to the goal's page. All of this is a publication
 choice, not a privacy measure; the files are still in the repository's history (section 7).
 
 ## 6. What the importer does with a GPX
@@ -569,7 +571,7 @@ the goal's folder name; the dates and `your-report-slug` are examples.
 | `WARNING`, `goal.json` | `outings[1].report_slug 'your-report-slug' is already named by outings[0]` | Two outings of one goal name the same report, for example an attempt and a completion logged with one `--report-slug` | If that is not what happened, set `report_slug` to `null` on one of them. |
 | `WARNING`, `index.md` | `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug> (until then the page shows "Map not rendered yet")` | A published goal has a `track.gpx` whose map has not been drawn; its page shows "Map not rendered yet". A new goal with a track is in this state once `draft: true` is removed, because no map is drawn for a draft | Run the command it gives (needs internet), then stage `rendered/trips/<slug>` and `rendered/site` with the goal (section 5, step 4). |
 | `WARNING`, the copy itself | `looks like an iCloud conflict copy (the name ends in a space and a number): nothing reads it, but git add of the folder would stage it; delete it` | The file named, such as `content/trips/<slug>/goal 2.json`, is an iCloud conflict copy of a file in the goal's folder | Delete it (section 5, step 4). For a copy of `index.md` or `goal.json`, compare it with the original first: the copy may hold your newer text. |
-| `WARNING`, `index.md` | `the site maps under rendered/site/ still draw this trip, which is a draft: its line and title stay on the pages that show those maps (the home page, the Map page, an activity page) until python3 tools/render.py has been run and rendered/site/ committed` | A goal that a region map was drawn with is a draft again (section 5). After the goal's folder was removed the line reads `which has no folder under content/trips any more` and still names its `index.md`; after its `track.gpx` was removed, `which has no track any more`. While the goal has no page, `build.py --check` can fail as well (section 5, last paragraph) | Run `python3 tools/render.py` (needs internet), then stage `rendered` with the goal's folder, as step 5 of ADDING-TRIPS.md gives for a run with no trip name. |
+| `WARNING`, `index.md` | `the site maps under rendered/site/ still draw this trip, which is a draft: the build leaves its own pin and line out of them; run python3 tools/render.py --site when online (and commit rendered/site/) to redraw the maps, their merged pins and counts` | A goal that a region map was drawn with is a draft again (section 5), or was completed or archived. After the goal's folder was removed the line reads `which has no folder under content/trips any more` and still names its `index.md`; after its `track.gpx` was removed, `which has no track any more`. The build leaves the goal's own line and pin out of the maps, so `build.py --check` passes | When online, run `python3 tools/render.py --site`, then stage `rendered/site` with the goal's folder, as step 5 of ADDING-TRIPS.md gives. |
 
 From `tools/ticklist.py`:
 
