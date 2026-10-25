@@ -1508,6 +1508,27 @@ def stats_note(t, cls='', here=None):
 def stats_cells(t):
     """List-row stats at Data-M, in the data strip's activity order (no sub-lines): climbing Pitches (from the beta, when
     present) · Dist · GPS max · Moving; flat water Dist · Moving · Avg pace; everything else Dist · Gain · GPS max · Moving."""
+    return ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % c for c in stats_items(t))
+
+
+def stats_labels(t):
+    """The labels of a list row's stat cells, in order (stats_cells)."""
+    return [lab for lab, _v in stats_items(t)]
+
+
+def group_stat_labels(ts):
+    """The stat labels a group of list rows can show once, in its header (visual-11): the longest row's labels, when every
+    row's labels are a start of them (a planned route's lone Dist lines up under Dist); None when the rows disagree (a
+    climb with Pitches beside climbs without, flat water beside the rest) or have none."""
+    labs = [stats_labels(t) for t in ts]
+    top = max(labs, key=len) if labs else []
+    if not top or any(lab != top[:len(lab)] for lab in labs):
+        return None
+    return top
+
+
+def stats_items(t):
+    """[(label, value html)] of a list row's stat cells (stats_cells)."""
     st = t['stats']
     a = approx(t)
     hi = 'High point' if a else 'GPS max'   # a plan was never recorded by a GPS: its top is the highest point of the file
@@ -1528,7 +1549,7 @@ def stats_cells(t):
         cells = [dist, moving, pace]
     else:
         cells = [dist, elev_cell('Gain', st.get('gain_m')), elev_cell(hi, st.get('high_m')), moving]
-    return ''.join('<div class="sc"><dt class="t-label">%s</dt><dd class="t-data-m">%s</dd></div>' % c for c in cells if c)
+    return [c for c in cells if c]
 
 
 def excerpt_parts(t, limit=180):
@@ -1683,18 +1704,6 @@ def table_row(t, here, cls='', tags='', attrs=''):
                num('Distance', (mi, km) if mi else None, 'miles', 'kilometers'),
                num('Gain', g(st.get('gain_m')), 'feet', 'meters'),
                num('High point' if a else 'GPS max', g(st.get('high_m')), 'feet', 'meters')))
-
-
-def phone_row(t, here):
-    st = t['stats']
-    mi, km = dist_vals(st.get('distance_km'))
-    bits = [trip_date(t, short=True)]
-    if mi:
-        bits.append(U(nb(mi + ' MI'), nb(km + ' KM')))
-    return ('<li class="prow"><a href="%s">%s<span class="prow-b"><span class="prow-t">%s</span>'
-            '<span class="t-mono-s prow-m">%s%s</span></span>%s</a></li>'
-            % (link(here, t['url']), glyph(t, here, 'g64', 'pg-' + t['slug']), esc(t['title']), icon(act_icon(t), 14),
-               meta_items(bits), icon('chevron-right', 20)))
 
 
 def repeated_titles(ts):

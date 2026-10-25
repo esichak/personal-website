@@ -3174,6 +3174,156 @@ class Phase12ReviewCssTests(unittest.TestCase):
         self.assertEqual(self.one(rules, '.arc-legend ul.arc-lg-ul', ['(max-width: 999.98px)']).decls['gap'][0], '24px')
 
 
+class Phase13bCssTests(SiteFixture):
+    """Phase 13B: legibility, touch and the stylesheet, read from the published bundle."""
+
+    def font_px(self, node, e):
+        """The element's font size in px from its font-size or font shorthand (None when neither applies)."""
+        size = computed(node, 'font-size', self.rules, e)
+        if size:
+            return px(size)
+        m = re.search(r'(\d+(?:\.\d+)?)px\s*/', computed(node, 'font', self.rules, e) or '')
+        return float(m.group(1)) if m else None
+
+    def test_no_text_rule_under_12_px_applies_on_a_phone_but_the_maps_own_and_two_kept(self):
+        # phone-15: 12/16 is the floor of every label, key row, tag, credit tag, day ruler and table head
+        e = env(390)
+        small = sorted({r.selector for r in self.rules if all(media_matches(q, e) for q in r.media)
+                        and any(re.search(r'(^|\s)(1[01]|[0-9])(\.\d+)?px', r.decls.get(p, ('',))[0]) for p in ('font', 'font-size'))})
+        # SVG text drawn on a map or a chart (mapkit's .mk-* and .pf-ax, the full-screen scale, the hut numbers), the
+        # journal's column heads (not shown on a phone), and the day bar's photo count, which an 80 px chip already cuts
+        # off at 11 px (listed in the log)
+        self.assertEqual([x for x in small if not x.startswith(('.mk-', '.pf-'))], ['.fs-sc-t', '.mul-dn-c', '.mul-hut text', '.ser-cols'])
+        for url, cls in (('', 't-label'), (trip_url('story'), 'keyrow'), (trip_url('story'), 'eltab')):
+            for n in page_doc(url).find_all(cls=cls)[:3]:
+                self.assertGreaterEqual(self.font_px(n, e) or 12, 12, (url, cls))
+
+    def test_every_hover_rule_waits_for_a_pointer_that_hovers(self):
+        # gap1-06: a touch screen keeps :hover after a tap; every :hover rule is inside @media (hover: hover), and the
+        # states it used to share a selector list with (.is-map-hl, aria-checked / aria-current) stand outside it
+        hov = [r for r in self.rules if ':hover' in r.selector]
+        self.assertGreater(len(hov), 50)
+        self.assertEqual([r.selector for r in hov if '(hover: hover)' not in r.media], [])
+        outside = {r.selector for r in self.rules if '(hover: hover)' not in r.media}
+        self.assertIn('.arc-row.is-map-hl a', outside)
+        self.assertIn('.sec-seg-a:is([aria-checked="true"], [aria-current="true"])', outside)
+        touch = dict(env(390), hover='none')
+        seg = Doc('<nav class="sec-seg"><a class="sec-seg-a" href="#x">x</a></nav>').find('a')
+        self.assertIsNone(self.hovered_value(seg, 'background', touch))
+
+    def hovered_value(self, node, prop, e):
+        for r in self.rules.declaring(prop):
+            if ':hover' not in r.selector or r.parts is None or not all(media_matches(q, e) for q in r.media):
+                continue
+            parts = [(comb, [x for x in simples if x[:2] != ('pc', 'hover')]) for comb, simples in r.parts]
+            if matches(node, parts):
+                return r.decls[prop][0]
+        return None
+
+    def test_route_red_stays_on_the_route(self):
+        # visual-09: no hover turns a link route red; plain text links hover in ink with a 1 px underline 3 px down
+        self.assertEqual([r.selector for r in self.rules if ':hover' in r.selector
+                          and any('route-ink' in v for v, _imp in r.decls.values())], [])
+        plain = [r for r in self.rules if r.selector.startswith(':is(.prose, .hom-also') and r.selector.endswith(' a:hover')]
+        self.assertEqual(len(plain), 1)
+        self.assertEqual({k: v[0] for k, v in plain[0].decls.items()},
+                         {'color': 'var(--ink)', 'text-decoration': 'underline', 'text-decoration-thickness': '1px', 'text-underline-offset': '3px'})
+
+    def test_chips_and_tags_grow_with_their_words(self):
+        # a11y-10: min-height, never a fixed height, so a text-only zoom does not spill the words
+        for sel in ('.chip--title', '.tag', '.tcard-act .tag', '.gcard-tags .tag', '.arc-table .tag', '.trx-chip'):
+            stated = [r for r in self.rules if r.selector == sel]
+            with self.subTest(sel):
+                self.assertTrue(stated)
+                self.assertEqual([r.decls['height'][0] for r in stated if 'height' in r.decls], [])
+                self.assertTrue(any('min-height' in r.decls for r in stated))
+
+    def test_the_year_heads_of_trips_and_the_map_page_are_heads_and_the_tick_lists_stay_labels(self):
+        # visual-04
+        year = page_doc('trips/').find('section', cls='trx-yr').find('h2')
+        for w, size in ((390, '22px/28px'), (800, '24px')):
+            e = env(w)
+            got = computed(year, 'font', self.rules, e) if w < 760 else computed(year, 'font-size', self.rules, e)
+            self.assertIn(size, got)
+            self.assertEqual(computed(year, 'text-transform', self.rules, e), 'none')
+        tick = page_doc('tick-list/').find('div', cls='trx-yr-h').find('h2')
+        self.assertEqual(computed(tick, 'font', self.rules, env(390)), '600 12px/16px var(--sans)')
+        self.assertEqual(computed(tick, 'text-transform', self.rules, env(390)), 'uppercase')
+        arc = page_doc('map/').find('div', cls='arc-yr-h').find('h3')
+        self.assertIn('22px/28px', computed(arc, 'font', self.rules, env(390)))
+
+    def test_a_card_without_a_photo_fills_its_slot_with_its_tile(self):
+        # visual-01, step 1
+        tiles = [a for url in ('trips/', '') for a in page_doc(url).find_all('a', cls='tcard-img--tile')]
+        e = env(1280)
+        if tiles:
+            a = tiles[0]
+            self.assertEqual((computed(a, 'background', self.rules, e), computed(a, 'border', self.rules, e)), ('var(--map-paper)', '0'))
+            gl = a.find('img')
+            self.assertEqual([computed(gl, p, self.rules, e) for p in ('width', 'height', 'object-fit')], ['100%', '100%', 'contain'])
+        stated = {r.selector: r.decls for r in self.rules if r.selector in ('.tcard-img--tile', '.hom-card-img--tile')}
+        self.assertEqual(stated['.tcard-img--tile']['background'][0], 'var(--map-paper)')
+        self.assertEqual(stated['.hom-card-img--tile']['background'][0], 'var(--map-paper)')
+
+    def test_the_dead_rules_are_gone_and_about_uses_the_leader_list(self):
+        # visual-10
+        self.assertEqual([r.selector for r in self.rules if re.search(r'\.(t-h4|photos|prow|abo-dl)\b', r.selector)], [])
+        self.assertIsNone(getattr(core, 'phone_row', None))
+        self.assertEqual(len(page_doc('about/').find_all('dl', cls='dl-leader')), 1)
+        lede = [r for r in self.rules if r.selector == '.t-lede']
+        self.assertEqual(lede[0].decls['font'][0], '400 17px/27px var(--serif)')
+
+    def test_the_print_sheet_comes_last_and_hides_the_chrome(self):
+        # visual-13
+        css = importlib.import_module('build').css_bundle()
+        self.assertTrue(css.rstrip().endswith('.prose a[href^="http"]::after { content: " (" attr(href) ")"; }\n}'), css[-200:])
+        printed = [r for r in self.rules if r.media and 'print' in r.media[0]]
+        hidden = {r.selector for r in printed if r.decls.get('display', ('',))[0] == 'none'}
+        for sel in ('.site-h', '.site-f', '.bbar', '.menu', '.skip', '.rep-actions', '.rep-toc', '.rep-share', '.rep-related', '.pager', '.copy'):
+            self.assertIn(sel, hidden)
+        self.assertEqual(max(r.order for r in self.rules), max(r.order for r in printed))
+
+    def test_links_in_ink_keep_a_hover_and_the_viewers_file_link_stays_light(self):
+        # the review of Phase 13B: an .alink, the site's name and a title chip had only the route-red hover; the
+        # viewer's 'Open the file' would have turned ink on its dark backdrop
+        hov = {r.selector: {k: v[0] for k, v in r.decls.items()} for r in self.rules if ':hover' in r.selector}
+        self.assertEqual(hov['.alink:hover']['text-decoration'], 'underline')
+        self.assertEqual(hov['.site-h .brand:hover .brand-n']['text-decoration'], 'underline')
+        self.assertEqual(hov['a.chip--title:hover']['border-color'], 'var(--ink)')
+        self.assertEqual(hov['.lb-file:hover']['color'], '#fff')
+
+    def test_under_360_px_the_credit_tag_wraps_clear_of_the_scale(self):
+        tag = Doc('<div class="mv mv--phone"><span class="mv-attrib">© OSM · Not for navigation</span></div>').find('span')
+        self.assertEqual(computed(tag, 'max-width', self.rules, env(320)), '150px')
+        self.assertEqual(computed(tag, 'white-space', self.rules, env(320)), 'normal')
+        self.assertEqual(computed(tag, 'height', self.rules, env(360)), '20px')
+
+    def test_the_print_sheet_leaves_out_the_controls_and_keeps_a_day_whole(self):
+        printed = {}
+        for r in self.rules:
+            if r.media and 'print' in r.media[0]:
+                printed.setdefault(r.selector, {}).update({k: v[0] for k, v in r.decls.items()})
+        for sel in ('.mul-dnav', '.mul-dgpx', '.ser-mnav', '.map-full', '.mv-fs'):
+            self.assertEqual(printed[sel]['display'], 'none', sel)
+        for sel in ('.mul-rail', '.mul-ds', '.jrow', '.map'):
+            self.assertEqual(printed[sel]['break-inside'], 'avoid', sel)
+        self.assertEqual(printed['.jph img']['max-height'], '3.4in')
+        self.assertEqual(printed['h2']['break-after'], 'avoid')
+
+    def test_a_filter_band_fades_at_its_edge_and_scrolls_its_choice_into_the_row(self):
+        # qa-10
+        def decl(sel, prop):
+            return [r.decls[prop][0] for r in self.rules if r.selector == sel and prop in r.decls]
+        self.assertEqual(decl('.sec-band', 'position'), ['relative'])
+        self.assertEqual(decl('.sec-band.is-scroll:not(.is-end)::after', 'opacity'), ['1'])
+        self.assertEqual(decl('.sec-band-in', 'scroll-snap-type'), ['x proximity'])
+        js = source('js', 'pages', 'section.js')
+        self.assertNotIn('scrollIntoView', Script(js).text)             # the code, its comments aside
+        # a segment cut at an edge or under the fade goes to the row's start, the snap point the row holds it to
+        self.assertIn('if (l < row.scrollLeft + 16 || r > row.scrollLeft + row.clientWidth - 32) row.scrollLeft = l - 16;', js)
+        self.assertIn("band.classList.toggle('is-end'", js)
+
+
 class TargetSizeTests(SiteFixture):
 
     def assertTargets(self, url, nodes, block=True, inline=False, widths=WIDTHS):
@@ -3459,14 +3609,13 @@ class TargetSizeTests(SiteFixture):
             return any(comb == '>' and ({'img', 'cover-img', 'picture'} & set(names(simples))) for comb, simples in rule.parts or [])
 
         found = sorted({r.selector for r in self.rules if direct(r)})
-        # the one there is: the track glyph of a phone row (core.glyph, never a cover, never in a <picture>)
-        self.assertEqual(found, ['.prow a > :is(svg, img):first-child'])
+        # none since Phase 13B removed the phone row (.prow, core.phone_row), which no page wrote
+        self.assertEqual(found, [])
         self.assertEqual([r.selector for r in self.rules if re.search(r'cover-img\s*[+~]|[+~]\s*\.?(?:cover-img|img)\b', r.selector)], [])
         for url in sorted(self.pages):
             for pic in page_doc(url).find_all('picture'):
                 self.assertEqual(pic['class'], 'cover-pic', url)
                 self.assertEqual([n.tag for n in pic.elements()][-1], 'img')
-                self.assertFalse(inside(pic, 'prow'))
 
     def test_the_other_footer_and_header_links_were_44_px_already(self):
         foot = page_doc('').find('footer', cls='site-f')
@@ -3771,8 +3920,10 @@ class TargetSizeTests(SiteFixture):
                 self.assertIsNone(computed_pseudo(a, 'before', 'z-index', self.rules, e))            # the area is inside the link's own layer
                 self.assertEqual(computed(a, 'color', self.rules, e), 'inherit')         # the heading's colour, not a link's
                 self.assertEqual(computed(a, 'text-decoration', self.rules, e), 'none')  # the reset every link has: underlined on hover only
-                # under the pointer it keeps that colour (base.css gives every other link the route colour) and is underlined
-                self.assertEqual(self.hovered(a, 'color', e), ('inherit', '.hom-reg-n a'))
+                # under the pointer it is ink, the heading's colour, and underlined: since Phase 13B (visual-09) the one hover
+                # of a plain text link (before, base.css gave every other link the route colour, and this one kept its own)
+                self.assertEqual(self.hovered(a, 'color', e), ('var(--ink)', ':is(.prose, .hom-also, .hom-reg-n, .f-nav, .menu-list, .crumbs, '
+                                                               '.c-day, .mul-di, .mul-st-r, .ser-mnav, .goal-refs) a:hover'))
                 self.assertEqual(self.hovered(a, 'text-decoration', e), ('underline', '.hom-reg-n a:hover'))
                 self.assertEqual(self.hovered(open_map, 'color', e)[1], 'a:hover')        # the link beside it is as it was
                 # the heading keeps the type it had

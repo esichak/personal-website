@@ -88,6 +88,10 @@ def css_bundle():
         if conflict_copy(f):   # 'trips 2.css': its rules would be in the bundle twice
             continue
         parts.append('/* %s */\n' % os.path.basename(f) + _text(f))
+    # the print sheet last, so its rules win at equal weight (visual-13); a test's temp tree may have none
+    prt = os.path.join(ROOT, 'assets', 'css', 'print.css')
+    if os.path.exists(prt):
+        parts.append('/* print.css */\n' + _text(prt))
     return strip_css_comments('\n'.join(parts))
 
 

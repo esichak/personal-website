@@ -60,6 +60,11 @@ tools/sitegen/pages/region.py     the region pages (regions/<slug>/): one per re
                                   of counts, years and places
 assets/css/base.css               tokens, type scale, layout, shared components
 assets/css/pages/<module>.css     page CSS (bundled after base.css into assets/site.css)
+assets/css/print.css              the print sheet, appended after the page sheets (Phase 13B): no header, footer, bottom bar,
+                                  menu, actions, section row, More like this, pager, copy control, day or month bar, GPX or
+                                  map buttons; the column map and chart; photos at most a third of a page tall, maps, photo
+                                  rows and a day's rail kept whole, headings kept with what follows; a write-up's outside
+                                  links print their address. Checked in Chrome only (Safari's preview not run yet)
 assets/js/base.js (+ pages/*.js)  bundled into assets/site.js
 assets/css/pages/trips.css        the explorer: head, browse block, form, chips, year groups, .trx-grid and .trx--list
 assets/js/pages/explore.js        the pure helpers of the two lists (norm, tokens, parseState, serialize, match, score, snippet, chipLabel, historyStep): window.Explore
@@ -80,12 +85,21 @@ docs/PRIVACY_NOTES.md             what the site and its public repository disclo
 
 ## Design: "Datum"
 Warm paper `#F2F1EC`, ink `#16171A`, one route red `#D2381A` used only for the GPX line (and 3px active bars).
+Since Phase 13B (visual-09) no hover turns a link route red: a plain text link hovers in ink with a 1 px underline
+3 px down (the `.prose a` idiom; base.css's `:is(.prose, .hom-also, …) a:hover`, and `.alink` and the site's name the
+same way), cards, rows and tiles keep their own hover (ink, an underlined title, a surface fill), a title chip's border
+turns ink, and `--route-ink` stays as a token only for the maps' label red (mapkit.py `ROUTE_INK`); a linked cluster
+on a map keeps its route-red ring under the pointer, as a marker of the route. Text is 12/16 at least on a phone
+(phone-15): labels, key rows, tags, the map's credit tag (on two lines under 360 px, clear of the scale), the day ruler
+and table heads. The exceptions are SVG text drawn on a map or a chart (mapkit's own, the full-screen scale
+`.fs-sc-t`, the hut numbers `.mul-hut text`) and the day bar's photo count (`.mul-dn-c`), which its 80 px chip already
+cuts off at 11 px.
 Archivo (display/UI, wdth 112 for headings) · Source Serif 4 (Eric's words) · Geist Mono (anything measured).
 Activity colours: ski `#4A8CCD`, climb `#70355E`, hike `#69883C`, mtb `#845011`, other `#1C7D78` — never the only cue
 (always with icon + word). Radii 0 for maps/cards/photos, 2px for chips/buttons. Touch targets ≥ 44px.
 
 Type classes (phone → tablet ≥760 → desktop ≥1200 sizes are built in): `t-d1` (`t-d1--long` for titles > 28 chars),
-`t-d2`, `t-h2`, `t-h3`, `t-h4`, `t-dek`, `t-body` (write-ups, max 620px via `.prose`), `t-excerpt`, `t-small`,
+`t-d2`, `t-h2`, `t-h3`, `t-dek`, `t-lede` (the serif lead under a page's title), `t-body` (write-ups, max 620px via `.prose`), `t-excerpt`, `t-small`,
 `t-label` (caps overline), `t-data-xl`, `t-data-m`, `t-mono-s` (dates/meta; write Mono-S text in CAPS).
 
 Layout: `.wrap` (1248 max, page margins 16/40/48px), `.bleed` (full width up to 1440), `.sec` (section gap
@@ -163,7 +177,18 @@ with 40 px to spare).
   explorer below); filters are `role="radiogroup"` / `role="radio"` with `aria-checked` (base.js gives every radio group
   one tab stop, arrow / Home / End keys and Space / Enter); tab rows sit in `.tabs-x` (base.css + base.js: they scroll
   sideways, never widen the page); visible focus (base.css), alt text from front matter, `role="img"` + aria-label on
-  maps (already in fragments). Phase 4 added the rules below; tests/test_a11y_static.py checks them statically, in the
+  maps (already in fragments). Hover styling lives under `@media (hover: hover)` (Phase 13B, gap1-06: a touch screen
+  keeps `:hover` after a tap), and a state that shares a look with a hover (`.is-map-hl`, `aria-checked`) is stated
+  outside it; the chips and tags that hold words (`.chip--title`, `.tag` and its card and table forms, `.trx-chip`,
+  `.mul-tag`) take `min-height`, never `height`, so a text-only zoom grows them (a11y-10).
+  Phase 13B also: a section list names its stat columns once per group from 760 px (visual-11: `section.stat_cols`,
+  `core.group_stat_labels`, the labels of the longest row when every row's labels start the same; a line under a ski
+  season's or a year's heading, `.sec-colrow` under a flat list's head; the rows' `dt` go to screen readers only, and
+  come back on the Ski list at 960-1099 px, where its cells are two by two; Other keeps each row's labels); the years
+  of Trips, map/ and the region pages are 22/28 heads (24/30 from 760), the tick list's region heads stay labels
+  (visual-04); a card without a photo fills its slot with its route tile on `--map-paper` (visual-01, step 1); About's
+  At a glance is `.dl-leader`; `.t-lede` is the serif lead of home and the sections; the filter bands fade at their
+  right edge and section.js brings the chosen segment into the row by `scrollLeft` (qa-10). Phase 4 added the rules below; tests/test_a11y_static.py checks them statically, in the
   sources and in a generated fixture site.
   - Targets: the Design rule is 44 px to press, and Phase 4 brought these up to it. Only the filter chips grew as
     boxes (`.fchip`, with `min-width: 44px` for the short `All` radio, which moves the chips after it by about 6 px on
@@ -1674,6 +1699,10 @@ python3 -m unittest discover -s tests    # the unit tests
 python3 tools/build.py --check           # the content checks, the build into _site/, then the built-site checks
 python3 tools/check.py                   # all of it before a push that changes tools/, tests/ or assets/ (below)
 ```
+
+By hand before a publication, beside the checks: the pages at 320, 390 and 1280 px; a report, map/ and a region page
+at 200 % text-only zoom in Firefox (View > Zoom > Zoom Text Only); Chrome's touch emulation on the multi-day day bar
+and the journal's month bar (nothing stays highlighted after a tap); and a report's print preview (Phase 13B).
 
 `python3 tools/check.py` is the command to run before such a push: `validate.py`, then the suite on `/usr/bin/python3`
 and on `python3.12` with `-W error` (without python3.12 one line says `brew install python@3.12` and the run goes on;

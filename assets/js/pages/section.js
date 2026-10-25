@@ -35,6 +35,32 @@
 
     function visible(el) { return !el.classList.contains('is-off') && !el.closest('.is-off'); }
 
+    // On a phone the band scrolls sideways (qa-10): .is-scroll / .is-end on the band switch its fade at the right edge,
+    // and the chosen segment is brought into the row after a press, an arrow key (base.js clicks it) or a deep link, by
+    // the row's scrollLeft as base.js does for a tab row: never scrollIntoView, so the page itself never moves
+    var band = nav.closest('.sec-band'), row = nav.closest('.sec-band-in');
+    function edges() {
+      band.classList.toggle('is-scroll', row.scrollWidth > row.clientWidth + 1);
+      band.classList.toggle('is-end', row.scrollLeft + row.clientWidth >= row.scrollWidth - 1);
+    }
+    function reveal() {
+      if (!band || !row) return;
+      window.requestAnimationFrame(function () {
+        var a = nav.querySelector('[aria-checked="true"]');
+        if (a && row.scrollWidth > row.clientWidth + 1) {
+          // a segment cut at either edge, or under the 32 px fade, goes to the row's start: the snap point the row's
+          // scroll-snap and its 16 px scroll padding hold it to (a position between two snap points would be moved)
+          var l = a.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft, r = l + a.offsetWidth;
+          if (l < row.scrollLeft + 16 || r > row.scrollLeft + row.clientWidth - 32) row.scrollLeft = l - 16;
+        }
+        edges();
+      });
+    }
+    if (band && row) {
+      if ('ResizeObserver' in window) new ResizeObserver(edges).observe(row);
+      row.addEventListener('scroll', edges, { passive: true });
+    }
+
     function apply(key, announce) {
       links.forEach(function (a) {
         var on = a.dataset.filter === key;
@@ -67,6 +93,7 @@
       if (!a) return;
       e.preventDefault();
       apply(a.dataset.filter, true);
+      reveal();
       try {
         var h = a.dataset.filter === 'all' ? location.pathname + location.search : a.getAttribute('href');
         history.replaceState(null, '', h);
@@ -83,6 +110,7 @@
       });
     }
     apply(key, false);
+    reveal();
     if (had) had.focus({ preventScroll: true });   // nothing scrolls: the page is where the visitor has it
   });
 

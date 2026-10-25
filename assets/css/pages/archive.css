@@ -12,7 +12,7 @@
 .arc-tabs { display: flex; gap: 24px; padding-inline: var(--m); scroll-padding-inline: var(--m); box-shadow: inset 0 -1px 0 var(--rule); }
 .arc-tabs [role="tab"] { position: relative; flex-shrink: 0; height: 44px; display: inline-flex; align-items: center; gap: 6px;
   font: 500 15px/20px var(--sans); color: var(--ink-2); white-space: nowrap; }
-.arc-tabs [role="tab"]:hover { color: var(--ink); }
+@media (hover: hover) { .arc-tabs [role="tab"]:hover { color: var(--ink); } }
 .arc-tabs [role="tab"][aria-selected="true"] { color: var(--ink); }
 .arc-tabs [role="tab"][aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--route); }
 .arc-tabs [role="tab"]:focus-visible { outline-offset: -2px; }
@@ -90,8 +90,10 @@
 .arc-inreg-h .t-mono-s { text-transform: uppercase; margin-left: auto; text-align: right; }
 .arc-row { border-bottom: 1px solid var(--rule); }
 .arc-row a { min-height: 60px; padding: 8px 0; display: flex; align-items: center; gap: 16px; color: var(--ink); }
-.arc-row a:hover, .arc-row.is-map-hl a { color: var(--ink); background: var(--surface); }  /* is-map-hl: its pin or line on the map has the pointer (base.js) */
-.arc-row a:hover .arc-row-t, .arc-row.is-map-hl .arc-row-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.arc-row.is-map-hl a { color: var(--ink); background: var(--surface); }  /* is-map-hl: its pin or line on the map has the pointer (base.js) */
+@media (hover: hover) { .arc-row a:hover { color: var(--ink); background: var(--surface); } }
+.arc-row.is-map-hl .arc-row-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+@media (hover: hover) { .arc-row a:hover .arc-row-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; } }
 .arc-row-g { width: 64px; height: 48px; flex-shrink: 0; }
 .arc-row-b { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .arc-row-t { font: 500 15px/20px var(--sans); }
@@ -121,8 +123,8 @@
 .arc-series-w { margin-top: 16px; }
 .arc-series { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: start; column-gap: 16px;
   padding: 16px 16px 4px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); }
-.arc-series:hover { color: var(--ink); border-color: var(--rule-strong); }
-.arc-series:hover .arc-series-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+@media (hover: hover) { .arc-series:hover { color: var(--ink); border-color: var(--rule-strong); } }
+@media (hover: hover) { .arc-series:hover .arc-series-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; } }
 .arc-series-g { display: block; width: 64px; margin-top: 2px; }
 .arc-series-g :is(svg, img) { width: 100%; height: auto; aspect-ratio: 200 / 152; }
 .arc-series-b { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -162,7 +164,7 @@
 .arc-years { margin-top: 16px; }
 .arc-years ul { display: flex; flex-wrap: wrap; column-gap: 20px; }
 .arc-years a { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font: 500 15px/20px var(--sans); color: var(--ink); }
-.arc-years a:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+@media (hover: hover) { .arc-years a:hover { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; } }
 .arc-years-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 .arc-table { border-bottom: 0; margin-top: 16px; }
 .arc-table .rtab-h { border-bottom: 0; }
@@ -170,6 +172,9 @@
 .arc-yr + .arc-yr { margin-top: 48px; }
 .arc-yr-h { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 .arc-yr-h .t-label { color: var(--ink); }
+/* the years of 'All reports' as heads (visual-04), on map/ and on the region pages, which share the table */
+.p-archive .arc-yr-h h3, .p-region .arc-yr-h h3 { font: 650 22px/28px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; text-transform: none; }
+@media (min-width: 760px) { .p-archive .arc-yr-h h3, .p-region .arc-yr-h h3 { font-size: 24px; line-height: 30px; } }
 /* phones: a folded year (archive.js, phone-03): its list hidden under the 'Show N reports' button */
 .arc-rows2.arc-collapsed { display: none; }
 .arc-yr-btn { margin-top: 4px; }
@@ -178,7 +183,7 @@
 /* rows: core.table_row (li > a.rtab-r). Title cell = title / status tag + place on one line. */
 .arc-rows2 > li > .rtab-r { border-top: 0; border-bottom: 1px solid var(--rule); }
 .arc-rows2 .rtab-tt { font-weight: 500; }
-.arc-table .tag { height: 22px; padding: 0 6px; font-size: 11px; flex-shrink: 0; }
+.arc-table .tag { min-height: 22px; padding: 0 6px; font-size: 12px; flex-shrink: 0; }
 .arc-table .rtab-date { white-space: nowrap; }
 .arc-table .rtab-act .chip-word { font-size: 13px; line-height: 16px; }
 
@@ -243,7 +248,7 @@
   .arc-table .rtab-loc { flex: 1 1 0; min-width: 0; }
   .arc-table .rtab-date { color: var(--ink-2); }
   .arc-rows2 .rtab-tt { font-size: 15px; line-height: 20px; }
-  .arc-table .tag { height: 28px; padding: 0 10px; font-size: 12px; }  /* the Datum 28px status tag, as on the canvas */
+  .arc-table .tag { min-height: 28px; padding: 0 10px; font-size: 12px; }  /* the Datum 28px status tag, as on the canvas */
 }
 
 /* phone rows (Phone-Home-B, as Home's compact rows): the activity icon at 16px in its activity colour (the climbing glyph

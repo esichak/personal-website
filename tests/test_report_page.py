@@ -3197,7 +3197,6 @@ class NoTrackTests(ReportFixture):
                    'card': drawings(Doc(core.trip_card(t, 'trips/', core.RELATED_SIZES)), slug),
                    'row': drawings(Doc(core.trip_row(t, 'hiking/')), slug),
                    'table row': drawings(Doc('<table>%s</table>' % core.table_row(t, 'map/')), slug),
-                   'phone row': drawings(Doc(core.phone_row(t, 'map/')), slug),
                    'section page': drawings(Doc(section.page('hike', self.site).html), slug)}
             related = [x['slug'] for x in self.site['published']
                        if x is not t and slug in [c['slug'] for c in core.related(x, self.site, skip=self.report.neighbours(x, self.site))]]
@@ -3209,7 +3208,7 @@ class NoTrackTests(ReportFixture):
         self.render(slug, chart='profile', drawn=True)
         want = {'own page': [(slug, 'g64')], 'pager, newer': [(slug, 'g112')], 'pager, older': [(slug, 'g112')],
                 'newer page': [(slug, 'g112')], 'card': [(slug, 'tile')], 'row': [(slug, 'tile')], 'table row': [(slug, 'g112')],
-                'phone row': [(slug, 'g64')], 'section page': [(slug, 'tile')], 'related card': [(slug, 'tile')]}
+                'section page': [(slug, 'tile')], 'related card': [(slug, 'tile')]}
         self.assertEqual(seen(), want)
         os.remove(track)
         self.load_site()

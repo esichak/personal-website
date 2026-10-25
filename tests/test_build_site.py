@@ -124,6 +124,7 @@ BASE_CSS = ('/* synthetic base stylesheet: no comment of it may be published */\
             '.synb-base { color: var(--synb-ink); }\n')
 ALPHA_CSS = '/* alpha page */\n.synb-alpha { margin: 0 auto; }\n\n\n.synb-alpha-two { padding: 0; }\n'
 BETA_CSS = '.synb-beta { display: none; } /* why it is hidden */\n'
+PRINT_CSS = '/* the print sheet */\n@media print { .synb-print { display: none; } }\n'   # appended after the page sheets (Phase 13B)
 BASE_JS = '/* synthetic base script */\nwindow.SYNB = {base: true};\n'
 ALPHA_JS = 'window.SYNB.alpha = true;\n'
 BETA_JS = 'window.SYNB.beta = true;\n'
@@ -244,6 +245,7 @@ def write_assets(root):
     write(os.path.join(root, 'assets', 'css', 'base.css'), BASE_CSS)
     write(os.path.join(root, 'assets', 'css', 'pages', 'alpha.css'), ALPHA_CSS)
     write(os.path.join(root, 'assets', 'css', 'pages', 'beta.css'), BETA_CSS)
+    write(os.path.join(root, 'assets', 'css', 'print.css'), PRINT_CSS)
     write(os.path.join(root, 'assets', 'js', 'base.js'), BASE_JS)
     write(os.path.join(root, 'assets', 'js', 'pages', 'alpha.js'), ALPHA_JS)
     write(os.path.join(root, 'assets', 'js', 'pages', 'beta.js'), BETA_JS)
@@ -612,11 +614,12 @@ class StylesheetAndScriptTests(BuiltCase):
         map_rules = [ln.strip() for ln in mapkit.MAP_CSS.strip().splitlines() if ln.strip() in lines]
         self.assertGreater(len(map_rules), 10)          # the map styles of tools/lib/mapkit.py are in the bundle
         rules = [':root { --synb-ink: #111; }', '.synb-base { color: var(--synb-ink); }', map_rules[0], map_rules[-1],
-                 '.synb-alpha { margin: 0 auto; }', '.synb-alpha-two { padding: 0; }', '.synb-beta { display: none; }']
+                 '.synb-alpha { margin: 0 auto; }', '.synb-alpha-two { padding: 0; }', '.synb-beta { display: none; }',
+                 '@media print { .synb-print { display: none; } }']
         for rule in rules:
             self.assertEqual(lines.count(rule), 1, rule)
         at = [lines.index(r) for r in rules]
-        self.assertEqual(at, sorted(at))          # base.css, the map styles, then pages/*.css by file name
+        self.assertEqual(at, sorted(at))          # base.css, the map styles, pages/*.css by file name, then print.css
 
     def test_site_css_has_no_blank_line_no_trailing_space_and_one_final_newline(self):
         self.assertTrue(self.css.endswith('}\n'))

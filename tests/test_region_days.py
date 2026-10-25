@@ -817,8 +817,11 @@ class ListRowTests(MapPageFixture):
         # base.js marks the row of a pin or line under the pointer (is-map-hl); the list's stylesheet shows it
         with open(os.path.join(ROOT, 'assets', 'css', 'pages', 'archive.css'), encoding='utf-8') as fh:
             css = fh.read()
-        self.assertIn('.arc-row a:hover, .arc-row.is-map-hl a {', css)
-        self.assertIn('.arc-row a:hover .arc-row-t, .arc-row.is-map-hl .arc-row-t {', css)
+        # the same look as a hovered row; since Phase 13B the hover itself is under (hover: hover), the mark is not
+        self.assertIn('.arc-row.is-map-hl a { color: var(--ink); background: var(--surface); }', css)
+        self.assertIn('@media (hover: hover) { .arc-row a:hover { color: var(--ink); background: var(--surface); } }', css)
+        self.assertIn('.arc-row.is-map-hl .arc-row-t { text-decoration: underline;', css)
+        self.assertIn('@media (hover: hover) { .arc-row a:hover .arc-row-t { text-decoration: underline;', css)
 
     def test_they_are_no_reports_of_the_region(self):
         panel = self.panel(RANGE)

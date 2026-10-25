@@ -15,7 +15,7 @@
    neighbouring years end 4 to 6 px short of each other; a link of 44 px or more gets nothing added */
 .trx-bgroup a { position: relative; }
 .trx-bgroup a::before { content: ""; position: absolute; inset: 0 min(0px, (100% - 44px) / 2); }
-.trx-bgroup a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .trx-bgroup a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .trx-bn { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 @media (min-width: 760px) { .trx-browse { margin-top: 24px; } .trx-bgroup a, .trx-bgroup li > span { font-size: 15px; } }
 
@@ -32,7 +32,7 @@
 .trx-sel select { height: 44px; padding: 0 32px 0 12px; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper)
   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2316171A' stroke-width='1.5'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E")
   no-repeat right 10px center; -webkit-appearance: none; appearance: none; font: 500 15px/20px var(--sans); color: var(--ink); max-width: 100%; }
-.trx-sel select:hover { border-color: var(--ink); }
+@media (hover: hover) { .trx-sel select:hover { border-color: var(--ink); } }
 /* phones: iOS Safari zooms the page into a control under 16 px when it takes the focus (phone-09); a touch screen at
    any width, as a phone on its side is wider than 760 px */
 @media (max-width: 759.98px), (hover: none) and (pointer: coarse) { .trx-sel select { font-size: 16px; padding-right: 34px; } }
@@ -55,14 +55,14 @@
 .trx-status { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-height: 32px; }
 .trx-count { text-transform: uppercase; }
 .trx-count a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.trx-count a:hover { color: var(--route-ink); }
+@media (hover: hover) { .trx-count a:hover { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
 .trx-chips { display: flex; flex-wrap: wrap; gap: 12px 8px; }
 .trx-chips:empty { display: none; }
-.trx-chip { position: relative; height: 32px; padding: 0 8px 0 10px; display: inline-flex; align-items: center; gap: 6px; border-radius: 2px; background: var(--sunk);
+.trx-chip { position: relative; min-height: 32px; padding: 0 8px 0 10px; display: inline-flex; align-items: center; gap: 6px; border-radius: 2px; background: var(--sunk);
   font: 500 13px/16px var(--sans); color: var(--ink); white-space: nowrap; }
 .trx-chip::before { content: ""; position: absolute; inset: -6px 0; }  /* a 44px hit area on a 32px chip (as a.chip--title) */
 .trx-chip .ic { width: 14px; height: 14px; color: var(--ink-3); }
-.trx-chip:hover .ic { color: var(--route-ink); }
+@media (hover: hover) { .trx-chip:hover .ic { color: var(--ink); } }
 #trx-clear { margin-left: auto; }
 #trx-clear .ic { width: 14px; height: 14px; }
 .trx-noscript { margin-top: 24px; }
@@ -76,6 +76,10 @@
 .trx-yr-h { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 .trx-yr-h .t-label { color: var(--ink); }
 .trx-yr-n { text-transform: uppercase; }
+/* a year is a head, not a caps label (visual-04): the one landmark between dozens of cards. Scoped to the Trips page:
+   the tick list's region heads share the markup and stay labels ('Journal days' and the hidden 'Results' follow) */
+.p-trips .trx-yr-h h2 { font: 650 22px/28px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; text-transform: none; }
+@media (min-width: 760px) { .p-trips .trx-yr-h h2 { font-size: 24px; line-height: 30px; } }
 .trx-grid { margin-top: 16px; display: grid; row-gap: 20px; }
 #trx-sorted { margin-top: 24px; }
 @media (min-width: 560px) { .trx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
@@ -88,7 +92,7 @@
 .trx-day-a { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-height: 44px; color: var(--ink); }
 .trx-day-m { text-transform: uppercase; }
 .trx-day-t { font: 600 17px/22px var(--sans); }
-.trx-day-a:hover .trx-day-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .trx-day-a:hover .trx-day-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .trx-day-x { margin-top: 6px; max-width: 720px; }   /* the words around the hit, whole: a clamp would cut the hit off on a phone */
 .trx-days-more { margin-top: 4px; }
 @media (min-width: 760px) { .trx-days { margin-top: 40px; } .trx-day-t { font-size: 19px; line-height: 25px; } }

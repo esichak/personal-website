@@ -28,8 +28,8 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-pst { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; }
 .mul-pst-a { display: flex; flex-direction: column; gap: 6px; width: 96px; color: var(--ink-2); }
 .mul-pst-a img { display: block; width: 96px; height: 96px; object-fit: cover; background: var(--sunk); }
-.mul-pst-a:hover { color: var(--ink); }
-.mul-pst-a:hover img { filter: brightness(1.04); }
+@media (hover: hover) { .mul-pst-a:hover { color: var(--ink); } }
+@media (hover: hover) { .mul-pst-a:hover img { filter: brightness(1.04); } }
 @media (min-width: 760px) { .mul-pst-a { width: 120px; } .mul-pst-a img { width: 120px; height: 120px; } }
 
 /* ---------------------------------------------------------------- sticky day nav */
@@ -46,7 +46,7 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-dn-i { position: relative; min-width: 0; padding: 0 16px; display: flex; flex-direction: column; justify-content: center;
   gap: 2px; color: var(--ink); }
 .mul-dn-i + .mul-dn-i { border-left: 1px solid var(--rule); }
-.mul-dn-i:hover { color: var(--ink); background: var(--paper); }
+@media (hover: hover) { .mul-dn-i:hover { color: var(--ink); background: var(--paper); } }
 .mul-dn-i:focus-visible { outline-offset: -2px; }
 .mul-dn-ov { flex: 0 0 208px; }
 .mul-dn-day { flex: 1 1 0; }
@@ -124,15 +124,15 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-st .mul-st-r a { display: inline-flex; align-items: center; min-height: 44px; text-wrap: balance; }
 .mul-st .c-date--link a { color: var(--ink); }
 .mul-st-sub { display: none; text-transform: uppercase; }
-.mul-tag { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 2px; background: var(--sunk);
-  font: 500 11px/14px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.mul-tag { display: inline-flex; align-items: center; min-height: 20px; padding: 0 6px; border-radius: 2px; background: var(--sunk);
+  font: 500 12px/16px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
 .mul-dl-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 2px; color: var(--ink-2); }
-.mul-dl-btn:hover { color: var(--ink); background: var(--sunk); }
+@media (hover: hover) { .mul-dl-btn:hover { color: var(--ink); background: var(--sunk); } }
 .mul-st tfoot th, .mul-st tfoot td { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
 .mul-st tfoot th { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
 .mul-st tfoot .num { font-weight: 600; color: var(--ink); }
 @media (min-width: 760px) { .mul-st { display: table; } .mul-di { display: none; } }
-.mul-st tbody tr:hover { background: var(--surface); }
+@media (hover: hover) { .mul-st tbody tr:hover { background: var(--surface); } }
 @media (min-width: 760px) and (max-width: 1199.98px) {
   .mul-st:not(.mul-st--noroute) .c-date, .mul-st:not(.mul-st--noroute) .c-loss { display: none; }
   .mul-st:not(.mul-st--noroute) .mul-st-sub { display: block; margin-top: 2px; }
@@ -247,7 +247,6 @@ body.p-multiday { --dnav-h: 48px; }
 /* phone: full-bleed day map, 2×2 stats (loss lives in the profile line) */
 @media (max-width: 559.98px) {
   .mul-dmap { margin-inline: calc(-1 * var(--m)); }
-  .mul-dmap-w .keyrow { font-size: 11px; line-height: 14px; }
 }
 @media (min-width: 760px) {
   .mul-day-in { padding-top: 40px; }

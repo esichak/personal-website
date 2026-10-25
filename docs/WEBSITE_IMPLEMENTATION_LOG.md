@@ -2395,3 +2395,132 @@ Lighthouse; a phone-load measurement (the header grew by a row of markup and not
 - **Carried:** the gap1-01 and qa-04 sheets (Phase 12), the hero frame and the mile table's last row (Phase 10), the
   real-phone look (Phase 11), the checkout and cache moves, `strava_id`, the rehearsal push (Phase 8), the place
   names, retitles and merges (Phase 9).
+
+## Phase 13B - Legibility and the stylesheet (2026-10-25)
+
+The second of Phase 13's three sessions (`docs/personal-website-improvement-plan-2.md`, section 13, and Prompt 13B of
+`docs/claude-code-website-prompt-2.md`), built on branch `phase-13b-legibility` from `phase-13a-header-menu` at
+`c31ab1f`. No decision from Eric was needed. Nothing under `content/` or `rendered/` changed and `render.py` was not
+run. The disk had 16 GB free, under the plan's 30 GB line: builds were linked into the session's scratch folder, and no
+worktree or copy of the checkout was made.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `assets/css/base.css` | 12/16 for `.t-label`, `.keyrow`, `.mv-attrib`, `.trow-dr` and `.rtab-h` at every width (the 760 px step-ups gone), the credit tag on two lines under 360 px; `min-height` on `.chip--title`, `.tag`, `.tcard-act .tag`; every `:hover` rule inside `@media (hover: hover)`; `a:hover` and `.crumbs a:hover` in ink (underlined), the shared `:is(.prose, .hom-also, …) a:hover`, `.alink`, the site's name and the title chip's hover, the viewer's file link kept light; `--route-ink` kept as the maps' token with a comment; the photo-less card tile on `--map-paper`, filling its slot; `.t-lede`; `.t-h4`, `.photos` and `.prow` deleted. |
+| `assets/css/pages/*.css` | archive, home, multiday, report, section, series, ticklist, trips, about, region: the hover guard (two mixed lists split: archive's `.is-map-hl` row and section's checked segment stay unconditional); 12 px for `.arc-table .tag`, `.mul-tag`, `.gcard-tags .tag`, the tick list's no-map note and `.eltab th`; the 11 px day-map key under 560 deleted; `min-height` on the tags, `.trx-chip` and `.mul-tag`; the year heads (trips.css, archive.css); the section lists' column header and the filter band's fade (section.css); route-ink hovers in ink (section, trips, home); `.hom-lead` and `.sec-intro` on `.t-lede`; about.css's `.abo-dl` deleted. |
+| `assets/css/print.css` | New: the print sheet. |
+| `tools/build.py` | `css_bundle` appends `print.css` after the page sheets. |
+| `tools/sitegen/core.py` | `stats_items`, `stats_labels`, `group_stat_labels` (`stats_cells` builds on them); `phone_row` deleted. |
+| `tools/sitegen/pages/section.py` | `stat_cols`; the column header on each ski season and year, and on a flat list (`.sec-colrow`), not on Other; `.t-lede` on the intro. |
+| `tools/sitegen/pages/home.py`, `about.py` | `.t-lede` on the lead; At a glance as `.dl-leader`. |
+| `assets/js/pages/section.js` | The band's `.is-scroll` / `.is-end` and the chosen segment brought into the row by `scrollLeft`. |
+| Docs | DEVELOPING.md: the hover idiom and the 12 px floor (Datum), the hover and `min-height` rules (Accessibility), the section headers, year heads, tiles, leader list, `.t-lede` and the bands, `print.css` in the file table, the hand checks before a publication, `t-lede` in the type classes. |
+| Tests | New: test_section_page (the label rule, the headers on ski, climbing, hiking's planned routes and none on Other, the cascade at seven widths), `Phase13bCssTests` in test_a11y_static (no text under 12 px on a phone but the maps' own and two kept, every hover guarded, no route-ink hover and the one idiom, `min-height`, the year heads and the tick list's labels, the tiles, the dead rules, the print sheet last, the band). Changed: test_a11y_static, test_build_site (the fixture's print sheet, the bundle order), test_region_days, test_report_page. |
+
+### Behaviour
+
+- **Which pages changed.** A `--link` build against one of `c31ab1f` made before any edit differs in the five section
+  pages, home, About and the two bundles; every other page differs only through the stylesheet.
+- **Phones (phone-15).** Labels, key rows, tags, the map's credit tag, the day ruler and table heads are 12/16 instead
+  of 11/14. The review found no key row on a third line at 320 or 360 px across 186 pages, no overflow and no tag
+  spilling; at 320 px the credit tag would have reached the scale label by up to 3 px, so under 360 it wraps to two
+  lines (54 px clear on the pages checked).
+- **Touch (gap1-06).** Tapped in Chrome's touch emulation (hover: none), the Haute Route's second day chip stayed paper
+  coloured before and does not now; the same for a PCT month tab.
+- **Text zoom (a11y-10).** The title chip, tags and the explorer's chips grow with their words.
+- **Year heads (visual-04).** Trips, map/ and the region pages show each year as a 22/28 head (24/30 from 760 px)
+  above its count; the tick list's region heads are labels as before.
+- **Card tiles (visual-01, step 1).** 61 photo-less cards on trips/ (the review's count) and the home featured
+  fallback show their route tile filling the slot on the map's paper instead of a framed 64 % tile.
+- **Section lists (visual-11).** Each ski season, each year of Hiking and Mountain biking, Climbing's list and Hiking's
+  planned routes name their stat columns once from 760 px; the labels sit exactly over the row cells at every width
+  checked (760 to 1600 px, brief and multi-day rows included); each row is 16-20 px shorter. Other keeps its labels.
+- **Hovers (visual-09).** Plain text links hover in ink with a thin underline; nothing turns route red but a map's
+  cluster ring.
+- **Print (visual-13).** Chrome's print of the Matterhorn report is 4 Letter pages (8 before) and the Haute Route 14
+  (17 before the sheet's photo cap): no header, footer, bars or buttons, the column map, photos at most a third of a
+  page, a day's heading and stats together. Chrome fetched the lazy photos.
+- **Filter bands (qa-10).** On a phone the band fades at its right edge while more segments lie beyond; a press, an
+  arrow key or a deep link (`ski/#season-2022-23`, `hiking/#year-2021`) brings the chosen segment fully into view,
+  and the page itself never moves.
+- **validate.py**: 0 errors, 1 warning, 346 notes, as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **The region pages' year heads follow map/'s.** The prompt scopes the heads to `.p-trips` and `.p-archive` and asks to
+  say whether the region pages follow; they share map/'s table, so `.p-region` is in the rule. One selector to take
+  out if Eric wants the labels back there.
+- **The column header is a line under the group's heading**, not on its right: on the Ski list beside its panel the
+  heading, the four columns and the count do not fit one line at 1100-1199 px, and a line of its own lines up with
+  the cells at every width. Flat lists (Climbing, Hiking's planned routes) get it under their section head.
+- **Links already in ink keep a hover** (the review): `.alink` and the site's name underline, a title chip's border
+  turns ink; the prompt's plain swap to ink would have left them with none.
+- **The print sheet goes past the proposal**: photos capped at 3.4 in, headings kept with what follows, a day's rail
+  and stats whole, the day and month bars and the GPX and map buttons hidden, the photo backgrounds off. The proposal's
+  `.jrow` rule repeated a phone rule that already holds at a page's 740 px and is left out.
+- **The band's reveal** puts a cut segment at the row's start, the snap point, rather than at the nearest edge: with
+  `scroll-snap-type: x proximity` an in-between position was moved back under the fade (the review's finding 5).
+- **Kept at 11 px:** the day bar's photo count (`.mul-dn-c`), which its chip already cuts off at 11 px, and SVG text on
+  maps (the full-screen scale, hut numbers, mapkit's).
+- **Documented rules changed:** DEVELOPING.md's Datum section (route red, the 12 px floor), Accessibility (hover under
+  `(hover: hover)`, `min-height`), the type classes (`t-h4` out, `t-lede` in), the file table (`print.css`), the
+  section, year, tile and band notes, and the hand checks before a publication.
+
+### Review
+
+One independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It rebuilt the site (byte for byte the same), compared the bundles rule by rule, measured 186 pages at 320 and
+360 px and printed pages in Chrome. It confirmed: no declaration lost by the hover wrapping, every `:hover` guarded,
+the split lists cascading as before, the one nested `@media (hover: hover)` valid; the column headers pixel-aligned at
+ten widths with every group's header matching its rows; no third key-row line, no overflow; tiles, About's list and
+the print sheet's chrome hiding; no privacy problem; no test weakened. Its findings, all fixed:
+
+1. `.alink`, the title chip and the site's name had no hover left (their text is already ink). They underline or
+   take an ink border now.
+2. The viewer's 'Open the file' turned ink on its dark backdrop under the pointer. It stays light.
+3. At 320 px the 12 px credit tag covered the end of the scale label on 9 pages. It wraps to two lines under 360 px.
+4. Print: photos one per row with rows taller than a page left blank pages (9 pages for one report), day headings
+   split from their stats, the day bar and GPX buttons printed. The sheet caps photos, keeps headings and a day's rail
+   together and hides the controls (above).
+5. The band could leave the chosen segment under its fade. It goes to the row's start now (above).
+6. The region pages' year heads go past the prompt's scope: kept and listed for Eric (above).
+7. DEVELOPING.md overstated three things (no route red at all, no text under 12 px, no `height` on chips). Corrected,
+   with the exceptions named; `.mul-tag` takes `min-height` too.
+8. Clean-ups: a comment the hover script had moved onto the wrong rule, an orphan comment, a redundant `.eltab th`
+   step-up, blank lines left by `phone_row`.
+9. Test gaps: the hover colour's rule, a list keeping its header at 960-1099 px, the band's fade clearance. Added;
+   the band's scrolling itself is checked in a browser only.
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 3,092 tests, OK, 104 s (3,076 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 3,092 tests, OK, 95 s |
+| `python3 tests/run_orders.py --reverse` | OK; no region page left registered |
+| `node tests/*_harness.js` (node 25.8.2) | maplist 45, profile 35, series 58, ticklist 103, trips 167, viewer 50 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `diff -rq` against a `--link` build of `c31ab1f` | the section pages, home, About and the two bundles |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| Headless Chrome (scratch `p13tools/`) | column labels against row cells on ski and climbing at 800, 1100, 1280, 1440 px (equal x); a tapped day chip and month tab under touch emulation, before and after; the credit tag against the scale label at 360 and 320 px; the band's reveal after presses and deep links on hiking/ and ski/ at 390 px |
+| Chrome's print to PDF (`--print-to-pdf`, Letter) | the Matterhorn report (4 pages), the Haute Route (14), another report (6); a contact sheet of the pages |
+| Screenshots | `.cache/plan2/phase13b/`: trips/ and ski/ at 1280 before and after, the ski band, the ski list and a report's key row at 390 before and after, the printed pages (`print-sheet.png`, the PDFs) |
+
+Not run: Safari's print preview (whether it fetches the lazy photos before printing is unknown); Firefox at 200 %
+text-only zoom (no Firefox here; the hand check is in DEVELOPING.md now); a real phone; `render.py`; Lighthouse.
+
+### Remaining issues and author inputs
+
+- **The region pages' year heads** follow map/'s (above); say if they should stay labels.
+- **Interface copy, new on the site:** the column labels ("DIST", "GAIN", "GPS MAX", "MOVING", the row cells' own
+  words, shown once per group). Nothing else is new text.
+- **Safari's print preview and Firefox's text zoom** are listed in DEVELOPING.md's hand checks; neither could run here.
+- **The day bar's photo count** stays at 11 px (its chip cuts it off already); a wider chip or a shorter text is a
+  later layout change.
+- **Carried:** the gap1-01 and qa-04 sheets (Phase 12), the hero frame and the mile table's last row (Phase 10), the
+  real-phone look (Phases 11 to 13A), the checkout and cache moves, `strava_id`, the rehearsal push (Phase 8), the
+  place names, retitles and merges (Phase 9).

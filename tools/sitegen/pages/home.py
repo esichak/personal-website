@@ -59,7 +59,7 @@ def hero():
     return ('<div class="hom-hero">'
             '<p class="t-label hom-kicker">%s</p>'
             '<h1 class="t-d2 hom-h1">%s</h1>'
-            '<div class="hom-hero-b"><p class="hom-lead">%s</p>'
+            '<div class="hom-hero-b"><p class="hom-lead t-lede">%s</p>'
             '<div class="hom-cta">'
             '<a class="btn btn--ink" href="%s">Browse all trips%s</a>'
             '<a class="btn" href="%s">%sExplore the map</a></div></div></div>'

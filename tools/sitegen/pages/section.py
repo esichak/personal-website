@@ -129,7 +129,7 @@ def header(act, here, ts, intro='', planned=()):
             '<div class="sec-h1row">%s<h1 id="sec-title" class="t-d1">%s</h1></div>'
             '<p class="sec-stats">%s</p>%s</section>'
             % (crumbs, core.disc(act, 48), esc(lab), totals_line(ts, act, planned, here),
-               ('<p class="sec-intro">%s</p>' % esc(intro)) if intro else ''))
+               ('<p class="sec-intro t-lede">%s</p>' % esc(intro)) if intro else ''))
 
 
 def band(label, segs, scope_id):
@@ -260,8 +260,20 @@ def years_of(t):
     return [year_key(t)] if year_key(t) else []
 
 
-def year_groups(rows_ts, here):
-    """The Ski season markup one level down (H3 under the 'More <x>' head), newest year first; undated rows last."""
+def stat_cols(ts):
+    """(class, markup) of a group's column header (visual-11): from 760 px its rows' stat labels stand once, under the
+    group's heading and aligned with the rows' stat columns (section.css), and the rows keep theirs for screen readers
+    only. ('', '') when the rows do not share their labels (core.group_stat_labels). Hidden from assistive technology:
+    every row still speaks its own labels."""
+    labels = core.group_stat_labels(ts)
+    if not labels:
+        return '', ''
+    return (' sec--cols', '<div class="sec-cols t-label" aria-hidden="true">%s</div>' % ''.join('<span>%s</span>' % esc(lab) for lab in labels))
+
+
+def year_groups(rows_ts, here, cols=True):
+    """The Ski season markup one level down (H3 under the 'More <x>' head), newest year first; undated rows last. cols:
+    each year's column header (stat_cols)."""
     years = sorted({year_key(t) for t in rows_ts if year_key(t)}, reverse=True)
     if any(not year_key(t) for t in rows_ts):
         years.append('')
@@ -269,24 +281,31 @@ def year_groups(rows_ts, here):
     for y in years:
         rs = [t for t in rows_ts if year_key(t) == y]
         yid = 'year-' + (y or 'undated')
-        out.append('<section class="sec-season sec-year" id="%s" aria-labelledby="%s-h" data-f="%s">'
-                   '<div class="sec-div"><h3 class="sec-div-t" id="%s-h">%s</h3><span class="t-mono-s">%s</span></div>'
+        ccls, chead = stat_cols(rs) if cols else ('', '')
+        out.append('<section class="sec-season sec-year%s" id="%s" aria-labelledby="%s-h" data-f="%s">'
+                   '<div class="sec-div"><h3 class="sec-div-t" id="%s-h">%s</h3><span class="t-mono-s">%s</span>%s</div>'
                    '<ol class="tlist sec-tlist">%s</ol></section>'
-                   % (yid, yid, y, yid, esc(y or 'Undated'), plural(len(rs), 'REPORT'),
+                   % (ccls, yid, yid, y, yid, esc(y or 'Undated'), plural(len(rs), 'REPORT'), chead,
                       ''.join(row(t, here, year_key) for t in rs)))
     return ''.join(out)
 
 
-def more_list(title, rows_ts, here, id_='more', meta=None, extra='', fkey=None, by_year=False, sec_f=None):
+def more_list(title, rows_ts, here, id_='more', meta=None, extra='', fkey=None, by_year=False, sec_f=None, cols=True):
     """'More <x>': H2 section head with the count, then one list, or year groups (by_year). sec_f: a filter key for the
-    whole block (the Planned block's 'planned' shows under All only)."""
+    whole block (the Planned block's 'planned' shows under All only). cols: the column header (stat_cols), each year's
+    or, for one list, the list's own under the head (False on Other, whose rows mix flat water with the rest)."""
     if not rows_ts:
         return ''
     meta = meta if meta is not None else plural(len(rows_ts), 'REPORT')
-    body = (year_groups(rows_ts, here) if by_year
-            else '<ol class="tlist sec-tlist">%s</ol>' % ''.join(row(t, here, fkey) for t in rows_ts))
-    return ('<section class="sec-more wrap" aria-labelledby="%s-h"%s>%s%s%s</section>'
-            % (id_, (' data-f="%s"' % esc(sec_f)) if sec_f else '', core.section_head(title, meta, id_=id_ + '-h'), body, extra))
+    ccls = ''
+    if by_year:
+        body = year_groups(rows_ts, here, cols)
+    else:
+        ccls, chead = stat_cols(rows_ts) if cols else ('', '')
+        body = (('<div class="sec-colrow" aria-hidden="true">%s</div>' % chead) if chead else '') + \
+            '<ol class="tlist sec-tlist">%s</ol>' % ''.join(row(t, here, fkey) for t in rows_ts)
+    return ('<section class="sec-more wrap%s" aria-labelledby="%s-h"%s>%s%s%s</section>'
+            % (ccls, id_, (' data-f="%s"' % esc(sec_f)) if sec_f else '', core.section_head(title, meta, id_=id_ + '-h'), body, extra))
 
 
 # ---------------------------------------------------------------- hiking: series section (HikingIndex artboard)
@@ -402,10 +421,11 @@ def ski_body(ts, here):
     for s in seasons:
         rows = [t for t in ts if t['season'] == s]
         sid = 'season-' + slug(s)
-        groups.append('<section class="sec-season" id="%s" aria-labelledby="%s-h" data-f="%s">'
-                      '<div class="sec-div"><h2 class="sec-div-t" id="%s-h">%s season</h2><span class="t-mono-s">%s</span></div>'
+        ccls, chead = stat_cols(rows)
+        groups.append('<section class="sec-season%s" id="%s" aria-labelledby="%s-h" data-f="%s">'
+                      '<div class="sec-div"><h2 class="sec-div-t" id="%s-h">%s season</h2><span class="t-mono-s">%s</span>%s</div>'
                       '<ol class="tlist sec-tlist">%s</ol></section>'
-                      % (sid, sid, slug(s), sid, esc(s), plural(len(rows), 'REPORT'), ''.join(row(t, here) for t in rows)))
+                      % (ccls, sid, sid, slug(s), sid, esc(s), plural(len(rows), 'REPORT'), chead, ''.join(row(t, here) for t in rows)))
     avy = ('<div class="sec-avy"><p class="t-label">Current avalanche forecasts</p><ul>%s</ul></div>'
            % ''.join('<li>%s</li>' % arrow_link(u, esc(nm)) for nm, u in AVY))
     # the panel comes first in reading order, as it shows below 960 (tabs + map above the seasons, as on map/); from 960
@@ -537,7 +557,7 @@ def page(act, site):
                                            nowide=True)
         if ser:
             body.append(series_block(ser, here, fkey=' '.join(years_of(ser)) if by_year else None))
-        body.append(more_list(MORE[act], rest, here, fkey=sub_key if act == 'other' else None, by_year=by_year))
+        body.append(more_list(MORE[act], rest, here, fkey=sub_key if act == 'other' else None, by_year=by_year, cols=act != 'other'))
         if act == 'hike' and planned:
             body.append(more_list('Planned', planned, here, id_='planned', meta=plural(len(planned), 'PLANNED ROUTE'),
                                   sec_f='planned' if by_year else None))

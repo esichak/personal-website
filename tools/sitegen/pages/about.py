@@ -125,7 +125,7 @@ def intro(site, here=URL):
         lead = '<div class="prose abo-words">%s</div>' % markdown.to_html(about['body_md'], heading_shift=1)
     return ('<div class="abo-intro">%s%s'
             '<section class="abo-sec abo-glance" aria-labelledby="abo-glance-h"><h2 class="t-h3" id="abo-glance-h">At a glance</h2>'
-            '<dl class="abo-dl">%s</dl></section></div>'
+            '<dl class="dl-leader">%s</dl></section></div>'
             # a photo is shown only with the alt text that describes it (the content check requires one)
             % (portrait(about, here) if about.get('photo') and about['photo']['alt'].strip() else '', lead, dl))
 

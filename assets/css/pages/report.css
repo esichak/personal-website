@@ -71,9 +71,8 @@
 .eltab summary::-webkit-details-marker { display: none; }
 .eltab[open] summary .ic { transform: rotate(180deg); }
 .eltab table { border-collapse: collapse; margin-top: 8px; min-width: 260px; font: 400 14px/20px var(--mono); font-variant-numeric: tabular-nums; }
-.eltab th { font: 600 11px/14px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); text-align: left; padding: 8px 24px 8px 0; border-bottom: 1px solid var(--ink); }
+.eltab th { font: 600 12px/16px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); text-align: left; padding: 8px 24px 8px 0; border-bottom: 1px solid var(--ink); }
 .eltab td { padding: 6px 24px 6px 0; border-bottom: 1px solid var(--rule); }
-@media (min-width: 760px) { .eltab th { font-size: 12px; line-height: 16px; } }
 @media (min-width: 1200px) { .eltab { display: flex; flex-direction: column; align-items: flex-end; } }
 
 .rep-body { display: grid; gap: 32px; }
@@ -129,7 +128,7 @@
 .rep-anchor { display: block; height: 0; }   /* the old #photos target on a report whose one photo is the lead photo */
 .rep-hero-a { display: block; background: var(--sunk); }
 .rep-hero .cover-img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
-.rep-hero-a:hover .cover-img { filter: brightness(1.04); }
+@media (hover: hover) { .rep-hero-a:hover .cover-img { filter: brightness(1.04); } }
 .rep-hero-a:focus-visible { outline-offset: 3px; }
 .rep-hero figcaption { padding-top: 12px; }
 @media (max-width: 559.98px) {
@@ -145,7 +144,7 @@
 .rep-toc ul { display: flex; flex-wrap: wrap; column-gap: 28px; }
 /* no current-section marker here: the row scrolls away with the header, so it is on screen only above what it lists */
 .rep-toc-a { display: inline-flex; align-items: center; min-width: 44px; min-height: 48px; font: 500 15px/20px var(--sans); color: var(--ink-2); }
-.rep-toc-a:hover { color: var(--ink); }
+@media (hover: hover) { .rep-toc-a:hover { color: var(--ink); } }
 .p-report--story .rep-toc + .rep-body, .p-report--written .rep-toc + .rep-body { margin-top: 40px; }
 .p-report--story .rep-map, .p-report--written .rep-map { margin-top: var(--sec); }
 @media (max-width: 759.98px) { .p-report--story .rep-strip, .rep-hero + .rep-strip { margin-top: 16px; } }
@@ -193,7 +192,7 @@
   padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--rule); }
 .bbar a { position: relative; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   font: 500 12px/16px var(--sans); color: var(--ink-2); }
-.bbar a:hover { color: var(--ink); }
+@media (hover: hover) { .bbar a:hover { color: var(--ink); } }
 .bbar a[aria-current] { color: var(--ink); }
 .bbar a[aria-current]::before { content: ""; position: absolute; top: -4px; left: 50%; width: 64px; margin-left: -32px; height: 3px; background: var(--route); }
 body.p-report .site-f { padding-bottom: 72px; }

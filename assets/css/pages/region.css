@@ -13,7 +13,7 @@
 .reg-act-n { color: var(--ink-3); }
 /* each item is a 44 px link: the separator dot sits on its middle, not on the top of the item */
 .reg-acts .mi::before { top: 50%; transform: translateY(-50%); }
-.reg-act:hover span:not(.disc):not(.reg-act-n) { text-decoration: underline; text-underline-offset: 3px; }
+@media (hover: hover) { .reg-act:hover span:not(.disc):not(.reg-act-n) { text-decoration: underline; text-underline-offset: 3px; } }
 /* content/regions/<slug>.md: Eric's introduction to the region, under the counts */
 .reg-intro { margin-top: 20px; }
 .reg-intro h2, .reg-intro h3 { font: 600 22px/28px var(--sans); font-stretch: 104%; margin-top: 40px; }

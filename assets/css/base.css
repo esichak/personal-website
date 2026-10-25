@@ -5,7 +5,7 @@
   --paper: #F2F1EC; --surface: #FAFAF7; --sunk: #E8E6DF;
   --ink: #16171A; --ink-2: #45474C; --ink-3: #66686D;
   --rule: #D6D4CC; --rule-strong: #8C8A83;
-  --route: #D2381A; --route-ink: #B8300F;
+  --route: #D2381A; --route-ink: #B8300F;  /* --route-ink has no CSS user since Phase 13B: it is the maps' label red (mapkit.py ROUTE_INK) */
   --map-paper: #EEECE6; --profile-fill: #E2DFD6; --water-ink: #3F6272;
   --ski: #4A8CCD; --clm: #70355E; --hik: #69883C; --mtb: #845011; --oth: #1C7D78;
   --sans: Archivo, 'Helvetica Neue', system-ui, sans-serif;
@@ -30,7 +30,7 @@ img, svg { display: block; max-width: 100%; }
 img { height: auto; }
 img.gl { display: block; }  /* track glyphs and tiles (core.glyph / core.tile): cached SVG images */
 a { color: inherit; text-decoration: none; }
-a:hover { color: var(--route-ink); }
+@media (hover: hover) { a:hover { color: var(--ink); } }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
 h1, h2, h3, h4, p, figure, dl, dd { margin: 0; }
 ul, ol { margin: 0; padding: 0; list-style: none; }
@@ -55,12 +55,14 @@ html.km .u-mi { display: none; }
 .t-d2 { font: 700 32px/36px var(--sans); font-stretch: 112%; letter-spacing: -0.025em; }
 .t-h2 { font: 650 24px/30px var(--sans); font-stretch: 108%; letter-spacing: -0.015em; }
 .t-h3 { font: 600 20px/26px var(--sans); font-stretch: 104%; letter-spacing: -0.01em; }
-.t-h4 { font: 600 18px/24px var(--sans); }
+/* the serif lead under a page's title (home's .hom-lead, a section's .sec-intro): one base, their own measure and margin */
+.t-lede { font: 400 17px/27px var(--serif); color: var(--ink-2); text-wrap: pretty; }
+@media (min-width: 760px) { .t-lede { font-size: 19px; line-height: 30px; } }
 .t-dek { font: italic 400 19px/28px var(--serif); color: var(--ink-2); }
 .t-body { font: 400 18px/30px var(--serif); font-optical-sizing: auto; }
 .t-excerpt { font: 400 16px/25px var(--serif); color: var(--ink-2); }
 .t-small { font: 400 14px/20px var(--sans); color: var(--ink-3); }
-.t-label { font: 600 11px/14px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.t-label { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .t-data-xl { font: 500 22px/26px var(--mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .t-data-m { font: 500 17px/22px var(--mono); font-variant-numeric: tabular-nums; }
 .t-mono-s { font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); }
@@ -73,7 +75,6 @@ html.km .u-mi { display: none; }
   .t-dek { font-size: 21px; line-height: 30px; }
   .t-body { font-size: 19px; line-height: 31px; }
   .t-excerpt { font-size: 17px; line-height: 26px; }
-  .t-label { font-size: 12px; line-height: 16px; }
   .t-data-xl { font-size: 30px; line-height: 34px; }
   .t-data-m { font-size: 18px; line-height: 24px; }
   .t-mono-s { font-size: 13px; line-height: 18px; }
@@ -116,6 +117,15 @@ html.km .u-mi { display: none; }
 .prose > * + * { margin-top: 20px; }
 .prose h3, .prose h4 { font: 600 22px/28px var(--sans); font-stretch: 104%; margin-top: 40px; }
 .prose a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+/* one hover for the plain text links (visual-09): ink and a 1 px underline 3 px down, as .prose a; route red is the
+   route's and the active bars' alone. Block links (cards, rows, tiles) keep their own hover */
+@media (hover: hover) { :is(.prose, .hom-also, .hom-reg-n, .f-nav, .menu-list, .crumbs, .c-day, .mul-di, .mul-st-r, .ser-mnav, .goal-refs) a:hover {
+  color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+/* links already in ink, for which the old route-red hover was the only feedback: the arrow links, the site's name */
+@media (hover: hover) {
+  .alink:hover, .site-h .brand:hover .brand-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a.chip--title:hover { border-color: var(--ink); }
+} }
 .prose blockquote { margin-left: 0; padding-left: 20px; border-left: 3px solid var(--rule); color: var(--ink-2); }
 .prose ul, .prose ol { padding-left: 1.2em; }
 .prose ul { list-style: disc; }
@@ -145,12 +155,12 @@ html.km .u-mi { display: none; }
    (a.chip--title), and where two areas overlap the later link takes the press. Above the crumbs there are 24 px or
    more of padding (.rep-title, .sec-head). 4 px each side is half the 8 px gap, so two crumbs' areas only touch */
 .crumbs a::before { content: ""; position: absolute; inset: -21px -4px -7px; }
-.crumbs a:hover { color: var(--route-ink); }
+@media (hover: hover) { .crumbs a:hover { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
 /* a link inside a Mono-S meta line (the place line's region, a section head's region names; ia-09, ia-12): underlined,
    with a 44 px hit area drawn by ::before so the item's box and the line do not change */
 .mi-a { position: relative; color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .mi-a::before { content: ""; position: absolute; inset: -14px -4px; }
-.mi-a:hover { color: var(--route-ink); }
+@media (hover: hover) { .mi-a:hover { color: var(--ink); } }
 @media (min-width: 760px) { .crumbs { font-size: 13px; line-height: 18px; } }
 
 /* ---------------------------------------------------------------- header */
@@ -164,7 +174,7 @@ html.km .u-mi { display: none; }
 .nav { display: none; align-items: center; gap: 28px; }
 .nav-l { display: flex; align-items: center; gap: 28px; }
 .nav a { position: relative; height: 44px; display: flex; align-items: center; font: 500 15px/20px var(--sans); color: var(--ink-2); white-space: nowrap; }
-.nav a:hover { color: var(--ink); }
+@media (hover: hover) { .nav a:hover { color: var(--ink); } }
 .nav a[aria-current] { color: var(--ink); }
 .nav a[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 3px; background: var(--route); }
 .nav-sep { width: 1px; height: 20px; background: var(--rule); }
@@ -181,7 +191,7 @@ form.nav-search { position: relative; display: flex; align-items: center; gap: 0
 .nav-q::-webkit-search-cancel-button { display: none; }
 .nav-go { position: absolute; right: -4px; top: 50%; width: 44px; height: 44px; margin-top: -22px; display: flex;
   align-items: center; justify-content: center; color: var(--ink-2); }
-.nav-go:hover { color: var(--ink); }
+@media (hover: hover) { .nav-go:hover { color: var(--ink); } }
 /* in the menu: a full-width row, 48 px high */
 .menu-search { padding: 12px 0; }
 .menu-search .nav-q { width: 100%; height: 48px; font-size: 16px; padding-right: 48px; }
@@ -312,7 +322,8 @@ body.menu-open { overflow: hidden; }
 /* ---------------------------------------------------------------- chips, tags, discs, icons */
 .ic { flex-shrink: 0; }
 .chip { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; color: var(--ink); }
-.chip--title { height: 28px; padding: 0 10px 0 8px; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper); }
+/* min-height, not height: a text-only zoom (Firefox, Android's font size) grows the box with its words (a11y-10) */
+.chip--title { min-height: 28px; padding: 0 10px 0 8px; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper); }
 .chip--title .chip-word { font: 500 13px/16px var(--sans); }
 .chip--inline { gap: 6px; }
 .chip--inline .ic { color: var(--ink-2); }
@@ -321,7 +332,7 @@ body.menu-open { overflow: hidden; }
 .chip--inline .chip-sw { width: 8px; height: 8px; }
 a.chip--title { position: relative; }
 a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
-.tag { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 2px; background: var(--sunk);
+.tag { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 2px; background: var(--sunk);
   font: 500 12px/16px var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
 .disc { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; flex-shrink: 0; }
 .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -332,7 +343,7 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
    widens the page. */
 .fchip { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; min-width: 44px; padding: 0 14px;
   border: 1px solid var(--rule-strong); border-radius: 2px; font: 500 15px/20px var(--sans); color: var(--ink); white-space: nowrap; }
-.fchip:hover { border-color: var(--ink); }
+@media (hover: hover) { .fchip:hover { border-color: var(--ink); } }
 .fchip .chip-sw { width: 10px; height: 10px; }
 .fchip-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 .fchip[aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
@@ -353,16 +364,19 @@ a.chip--title::before { content: ""; position: absolute; inset: -9px 0; }
 /* a card cover may come inside <picture class="cover-pic"> (core.cover_img: a phone-only source): the picture has no box */
 picture.cover-pic { display: contents; }
 .tcard-img .cover-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.tcard-img:hover .cover-img { filter: brightness(1.04); }
+@media (hover: hover) { .tcard-img:hover :is(.cover-img, .gl) { filter: brightness(1.04); } }
 .tcard-img--tile, .tcard-img--none { display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--rule); }
-.tcard-img--tile .gl { width: 64%; height: auto; }
+/* a card without a photo shows its route tile filling the slot, on the tile's own paper (visual-01, step 1): the tile
+   carries a viewBox, so it scales; until Phase 15 draws a card-sized tile the 200 px one is shown up to about 1.8x */
+.tcard-img--tile { background: var(--map-paper); border: 0; }
+.tcard-img--tile .gl { width: 100%; height: 100%; object-fit: contain; }
 .tcard-b { display: flex; flex-direction: column; min-width: 0; }
 .tcard-meta { text-transform: uppercase; }
 .tcard-t { margin-top: 4px; font: 600 17px/22px var(--sans); text-wrap: balance; }
 .tcard-t a { color: var(--ink); }
-.tcard-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .tcard-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .tcard-act { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 4px; }
-.tcard-act .tag { height: 22px; padding: 0 6px; font-size: 11px; }
+.tcard-act .tag { min-height: 22px; padding: 0 6px; font-size: 12px; }
 .tcard-ps { text-transform: uppercase; }
 .tcard-exl { margin-top: 8px; }
 .tcard-ex { margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -377,9 +391,9 @@ picture.cover-pic { display: contents; }
 /* ---------------------------------------------------------------- buttons */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px;
   border: 1px solid var(--rule-strong); border-radius: 2px; font: 500 15px/20px var(--sans); color: var(--ink); background: transparent; white-space: nowrap; }
-.btn:hover { border-color: var(--ink); color: var(--ink); }
+@media (hover: hover) { .btn:hover { border-color: var(--ink); color: var(--ink); } }
 .btn--ink { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.btn--ink:hover { color: var(--paper); background: #000; }
+@media (hover: hover) { .btn--ink:hover { color: var(--paper); background: #000; } }
 .alink { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font: 500 15px/20px var(--sans); color: var(--ink); }
 .alink .ic { width: 16px; height: 16px; }
 
@@ -399,11 +413,14 @@ picture.cover-pic { display: contents; }
 @media (max-width: 559.98px) { .mv--phone, .cv--phone { display: block; } }
 .mv--fs { display: block; }
 .mv-attrib { position: absolute; right: 8px; bottom: 8px; height: 20px; padding: 0 6px; display: inline-flex; align-items: center;
-  background: var(--paper); font: 400 11px/14px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); }
+  background: var(--paper); font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); }
+/* under 360 px the 12 px tag would reach the scale bar's label (at 320 px by up to 3 px): it wraps to two lines inside
+   the corner render.py keeps free (208 x 36) */
+@media (max-width: 359.98px) { .mv-attrib { height: auto; max-width: 150px; padding: 2px 6px; white-space: normal; text-align: right; } }
 /* phone map: full-screen button top-left (scale bar bottom-left, attribution bottom-right) — the outline-button spec at 44×44 */
 .mv-fs { position: absolute; left: 8px; top: 8px; z-index: 1; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
   background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--ink); }
-.mv-fs:hover { border-color: var(--ink); color: var(--ink); }
+@media (hover: hover) { .mv-fs:hover { border-color: var(--ink); color: var(--ink); } }
 .mv-fs .ic { width: 20px; height: 20px; }
 /* from 560 the map caption carries the attribution, and the full-screen button belongs to phones only */
 @media (min-width: 560px) { .mv-attrib, .mv-fs { display: none; } }
@@ -424,8 +441,8 @@ picture.cover-pic { display: contents; }
 .map.is-hl .mk-pin, .map.is-hl .mk-cluster { opacity: .25; transition: opacity .12s; }
 .map.is-hl .mk-pin.hl { opacity: 1; }
 .map.is-hl .mk-cluster.hl { opacity: .2; }  /* lets the highlighted track under a cluster show through */
-.mk-cluster.is-linked:hover { opacity: 1; }
-.mk-cluster.is-linked:hover circle:nth-of-type(2) { stroke: var(--route); stroke-width: 3px; }
+@media (hover: hover) { .mk-cluster.is-linked:hover { opacity: 1; } }
+@media (hover: hover) { .mk-cluster.is-linked:hover circle:nth-of-type(2) { stroke: var(--route); stroke-width: 3px; } }
 /* a linked cluster is a button (base.js, qa-02): its ring when it has the keyboard focus or holds the selection */
 .mk-cluster.is-linked:focus { outline: none; }
 .mk-cluster.is-linked:focus-visible circle:nth-of-type(2), .mk-cluster.is-linked[aria-pressed="true"] circle:nth-of-type(2) {
@@ -476,10 +493,9 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 .p-fsmap .fs-foot .keyrow { padding-top: 12px; }
 
 .keyrow { display: flex; flex-wrap: wrap; align-items: center; column-gap: 24px; row-gap: 6px; min-height: 32px;
-  font: 500 11px/14px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); }
+  font: 500 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-2); }
 .keyrow li { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .keyrow svg { width: 16px; height: 10px; overflow: visible; }
-@media (min-width: 760px) { .keyrow { font-size: 12px; line-height: 16px; } }
 @media (min-width: 560px) and (max-width: 799.98px) { .keyrow { column-gap: 16px; } }
 /* a map whose phone render draws fewer symbols gets its own key row (core.key_rows) */
 /* a compact key row under a featured map (core.feature_key; the home region maps): no rule line, 8px above */
@@ -554,16 +570,13 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 /* ---------------------------------------------------------------- photos */
 .photo img { width: 100%; background: var(--sunk); }
 .photo figcaption { padding-top: 12px; }
-.photos { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.photos .photo img { aspect-ratio: 3 / 4; object-fit: cover; }
-@media (min-width: 760px) { .photos { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; } }
 /* justified photo rows (core.photo_rows): each row fills the column at one height, clamped 280–624 (1248: a landscape
    alone 1248×624, four portraits 294×392); phones: a 2-column grid, landscapes and unpaired portraits full width */
 .jrows { --jgap: 24px; --jmax: 624px; --jmin: 280px; container-type: inline-size; display: flex; flex-direction: column; gap: var(--jgap); }
 .jrow { display: flex; gap: var(--jgap); height: clamp(var(--jmin), (100cqw - (var(--n) - 1) * var(--jgap)) / var(--sum), var(--jmax)); }
 .jph { flex: var(--fg) 1 0; min-width: 0; display: block; }
 .jph .photo, .jph img { width: 100%; height: 100%; object-fit: cover; }
-.jph:hover img { filter: brightness(1.04); }
+@media (hover: hover) { .jph:hover img { filter: brightness(1.04); } }
 .jph:focus-visible { outline-offset: 3px; }
 .jrow--one { height: auto; width: min(100%, var(--ar) * var(--jmax)); }
 .jrow--one img { aspect-ratio: var(--ar); height: auto; }
@@ -586,8 +599,8 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 .tlist { border-top: 1px solid var(--rule); }
 .trow { border-bottom: 1px solid var(--rule); }
 .trow-a { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 20px 0; color: var(--ink); }
-.trow-a:hover { color: var(--ink); background: var(--surface); }
-.trow-a:hover .trow-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+@media (hover: hover) { .trow-a:hover { color: var(--ink); background: var(--surface); } }
+@media (hover: hover) { .trow-a:hover .trow-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; } }
 .trow-tile :is(svg, img) { width: 100%; height: auto; aspect-ratio: 200 / 152; }
 .trow-body { display: flex; flex-direction: column; min-width: 0; }
 .trow-meta { text-transform: uppercase; }
@@ -603,7 +616,7 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 /* multi-day day ruler: one bar per day, width ∝ distance */
 .trow-dr { display: flex; gap: 3px; max-width: 480px; margin-top: 14px; }
 .trow-dr span { flex: 1 1 0; min-width: 26px; padding-top: 5px; border-top: 5px solid var(--ink-2);
-  font: 400 11px/14px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); }
+  font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); }
 .trow-exl { margin-top: 16px; }
 .trow-ex { margin-top: 16px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .trow-exl + .trow-ex { margin-top: 4px; }
@@ -648,27 +661,17 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
   .trow-dr { max-width: none; }
 }
 
-/* phone rows */
-.prow { border-bottom: 1px solid var(--rule); }
-.prow a { min-height: 72px; padding: 10px 0; display: flex; align-items: center; gap: 12px; color: var(--ink); }
-.prow a > :is(svg, img):first-child { width: 64px; height: 48px; background: var(--surface); }
-.prow-b { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.prow-t { font: 600 16px/21px var(--sans); }
-.prow-m { display: flex; align-items: center; gap: 6px; text-transform: uppercase; }
-.prow-m .ic { color: var(--ink-2); }
-.prow a > .ic:last-child { color: var(--ink-3); }
-
 /* ---------------------------------------------------------------- report table */
 .rtab { border-bottom: 1px solid var(--rule); }
 .rtab-h, .rtab-r { display: grid; align-items: center; column-gap: 16px; grid-template-columns: 64px minmax(0, 1fr) auto; }
-.rtab-h { min-height: 32px; border-bottom: 1px solid var(--rule); font: 600 11px/14px var(--sans); letter-spacing: 0.08em;
+.rtab-h { min-height: 32px; border-bottom: 1px solid var(--rule); font: 600 12px/16px var(--sans); letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--ink-3); }
 .rtab-h > :nth-child(2), .rtab-h > :nth-child(4), .rtab-h > :nth-child(6), .rtab-h > :nth-child(7) { display: none; }
 .rtab-rows { list-style: none; margin: 0; padding: 0; }
 .rtab > li { list-style: none; }
 .rtab-r { min-height: 72px; padding: 8px 0; color: var(--ink); }
 .rtab-r + .rtab-r, .rtab > li + li > .rtab-r:first-child, .rtab .rtab-rows > li + li > .rtab-r { border-top: 1px solid var(--rule); }
-.rtab-r:hover { color: var(--ink); background: var(--surface); }
+@media (hover: hover) { .rtab-r:hover { color: var(--ink); background: var(--surface); } }
 .rtab-r > :nth-child(2), .rtab-r > :nth-child(4), .rtab-r > :nth-child(6), .rtab-r > :nth-child(7) { display: none; }
 .rtab-g :is(svg, img) { width: 64px; height: auto; aspect-ratio: 112 / 64; background: none; }
 .rtab-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -676,7 +679,6 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 .rtab-loc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rtab .num { text-align: right; font: 500 15px/20px var(--mono); font-variant-numeric: tabular-nums; }
 .rtab-h .num { font: inherit; }
-@media (min-width: 760px) { .rtab-h { font-size: 12px; line-height: 16px; } }
 @media (min-width: 900px) {
   /* no Activity column until 1200: track · title · date · dist · gain · gps max */
   .rtab-h, .rtab-r { grid-template-columns: 112px minmax(0, 1fr) 128px 80px 80px 96px; column-gap: 20px; }
@@ -829,7 +831,7 @@ html:has(dialog.lb[open]) { overflow: hidden; }   /* the page behind the open vi
 .lb-img { max-width: 100vw; max-height: calc(100svh - 96px); min-width: 0; min-height: 0; margin: 0; object-fit: contain; }
 .lb-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px; padding: 12px var(--m); color: var(--paper); }
 .lb-bar button { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--paper); }
-.lb-bar button:hover { color: #fff; }
+@media (hover: hover) { .lb-bar button:hover { color: #fff; } }
 .lb-bar button:focus-visible { outline-color: var(--paper); }
 .lb-n { color: #B9B6AD; margin-right: auto; white-space: nowrap; }
 .lb-cap { color: #D6D4CC; min-width: 0; }
@@ -837,6 +839,7 @@ html:has(dialog.lb[open]) { overflow: hidden; }   /* the page behind the open vi
 .lb-file { flex-shrink: 0; min-height: 44px; display: inline-flex; align-items: center; color: var(--paper); text-decoration: underline;
   text-underline-offset: 3px; }
 .lb-file:focus-visible { outline-color: var(--paper); }
+@media (hover: hover) { .lb-file:hover { color: #fff; } }   /* a:hover's ink would vanish on the viewer's backdrop */
 .lb--error .lb-img { visibility: hidden; }
 .lb[open] { animation: ab-in .12s ease-out; }
 

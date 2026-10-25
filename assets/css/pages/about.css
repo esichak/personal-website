@@ -31,13 +31,9 @@
 .abo-more { display: flex; flex-direction: column; gap: 48px; }
 .abo-p { font: 400 15px/24px var(--sans); color: var(--ink); max-width: 612px; text-wrap: pretty; }
 
-.abo-dl { display: flex; flex-direction: column; gap: 6px; font: 400 15px/24px var(--sans); }
-.abo-dl div { display: flex; align-items: baseline; gap: 8px; }
-.abo-dl dt { flex: 1; display: flex; align-items: baseline; gap: 8px; color: var(--ink-2); white-space: nowrap; }
-.abo-dl dt::after { content: ""; flex: 1; min-width: 16px; border-bottom: 1px dotted var(--rule-strong); transform: translateY(-5px); }
-.abo-dl dd { color: var(--ink); text-align: right; }
-/* below the two-column layout the list would span the whole measure (688px at 760): cap it like the report's Beta rail */
-@media (max-width: 999.98px) { .abo-dl { max-width: 480px; } }
+/* At a glance is base.css's .dl-leader (the report's Beta list; Phase 13B, visual-10). Below the two-column layout the
+   list would span the whole measure (688px at 760): cap it like the report's Beta rail */
+@media (max-width: 999.98px) { .abo-glance .dl-leader { max-width: 480px; } }
 
 .abo-ol { display: flex; flex-direction: column; gap: 12px; }
 .abo-ol li { display: flex; align-items: baseline; gap: 16px; font: 400 15px/24px var(--sans); color: var(--ink); max-width: 612px; text-wrap: pretty; }
@@ -80,8 +76,8 @@
 .abo-act { border-top: 1px solid var(--ink); }
 .abo-act li { border-bottom: 1px solid var(--rule); }
 .abo-act-a { min-height: 64px; padding: 10px 0; display: flex; align-items: center; gap: 12px; color: var(--ink); }
-.abo-act-a:hover { color: var(--ink); background: var(--surface); }
-.abo-act-a:hover .abo-act-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .abo-act-a:hover { color: var(--ink); background: var(--surface); } }
+@media (hover: hover) { .abo-act-a:hover .abo-act-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .abo-act-w { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .abo-act-n { font: 600 17px/22px var(--sans); }
 .abo-act-m { text-transform: uppercase; }

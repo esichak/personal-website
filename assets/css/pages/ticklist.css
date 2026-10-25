@@ -14,15 +14,15 @@
 .gcard-map { display: block; aspect-ratio: 200 / 152; background: var(--surface); border: 1px solid var(--rule); overflow: hidden; }
 .gcard-map .gl { width: 100%; height: 100%; }
 .gcard-map--none { display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; background: var(--sunk); }
-.gcard-map--none .t-mono-s { font-size: 11px; line-height: 14px; color: var(--ink-2); }   /* 7:1 on --sunk (ink-3 is 4.47:1) */
+.gcard-map--none .t-mono-s { font-size: 12px; line-height: 16px; color: var(--ink-2); }   /* 7:1 on --sunk (ink-3 is 4.47:1) */
 .gcard-b { display: flex; flex-direction: column; min-width: 0; }
 .gcard-meta { text-transform: uppercase; }
 .gcard-t { margin-top: 4px; font: 600 17px/22px var(--sans); text-wrap: balance; }
 .gcard-t a { color: var(--ink); }
-.gcard-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .gcard-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 /* the trip card's tag metrics (base.css .tcard-act .tag), so the two card types read as one family */
 .gcard-tags { margin-top: 6px; column-gap: 8px; row-gap: 4px; }
-.gcard-tags .tag { height: 22px; padding: 0 6px; font-size: 11px; }
+.gcard-tags .tag { min-height: 22px; padding: 0 6px; font-size: 12px; }
 .gcard-stats { margin-top: 8px; text-transform: uppercase; }
 .gcard-go { margin-top: 2px; align-self: flex-start; }
 @media (min-width: 560px) {

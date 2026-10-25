@@ -1,0 +1,19 @@
+/* A printed page (visual-13): the report and its map, without the site's chrome. build.css_bundle appends this sheet
+   after the page sheets, so its rules win at equal weight. A Letter or A4 page in portrait is about 740 px wide, so the
+   phone and tablet rules below 760 px already hold there (the photos in two columns, a landscape across both). */
+@media print {
+  .site-h, .site-f, .bbar, .menu, .skip, .rep-actions, .rep-toc, .rep-share, .rep-related, .pager, .copy { display: none; }
+  /* the controls of a multi-day page and the journal, and the map buttons: nothing to press on paper */
+  .mul-dnav, .mul-dgpx, .mul-dl-btn, .ser-mnav, .map-full, .mv-fs, .lb { display: none; }
+  body { background: #fff; color: #000; }
+  /* the column map and chart (718 px wide), which fits Letter and A4 either way round */
+  .mv--wide, .mv--phone, .cv--wide, .cv--phone { display: none; }
+  .mv--col, .cv--col { display: block; }
+  .map, .chart, .strip, .photo, .jrow, .dl-leader div, .mul-rail, .mul-ds { break-inside: avoid; }
+  /* a photo is at most a third of a page tall, so a row of them is never pushed whole onto the next page and a page
+     left blank before it; a heading stays with what follows it */
+  .jph img { max-height: 3.4in; object-fit: contain; }
+  .photo, .jph img { background: none; }
+  h1, h2, h3, h4 { break-after: avoid; }
+  .prose a[href^="http"]::after { content: " (" attr(href) ")"; }
+}

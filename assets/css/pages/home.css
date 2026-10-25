@@ -8,13 +8,13 @@
 .hom-kicker { display: block; }
 .hom-h1 { margin-top: 8px; }
 @media (min-width: 360px) { .hom-l { display: block; } }
-.hom-lead { margin-top: 12px; max-width: 480px; font: 400 17px/27px var(--serif); color: var(--ink-2); text-wrap: pretty; }
+.hom-lead { margin-top: 12px; max-width: 480px; }   /* with .t-lede */
 /* both actions stay visible on every width; they wrap when the line is too narrow */
 .hom-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 @media (min-width: 760px) {
   .hom-top { padding-top: 40px; }
   .hom-h1 { margin-top: 20px; }
-  .hom-lead { margin-top: 20px; font-size: 19px; line-height: 30px; }
+  .hom-lead { margin-top: 20px; }
   .hom-cta { margin-top: 28px; }
 }
 /* ≥ 1000: the lead and the actions sit beside the headline, bottom-aligned with it */
@@ -37,15 +37,15 @@
 .hom-card { display: flex; flex-direction: column; min-width: 0; }
 .hom-card-img { display: block; position: relative; background: var(--sunk); overflow: hidden; }
 .hom-card-img .cover-img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
-.hom-card-img:hover .cover-img { filter: brightness(1.04); }
+@media (hover: hover) { .hom-card-img:hover :is(.cover-img, .gl) { filter: brightness(1.04); } }
 /* no photo: the route tile on the paper tone (a cached SVG), the same slot */
-.hom-card-img--tile { aspect-ratio: 3 / 2; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--rule); }
-.hom-card-img--tile .gl { width: 56%; height: auto; }
+.hom-card-img--tile { aspect-ratio: 3 / 2; display: flex; align-items: center; justify-content: center; background: var(--map-paper); border: 0; }
+.hom-card-img--tile .gl { width: 100%; height: 100%; object-fit: contain; }   /* the tile fills the slot (visual-01) */
 .hom-card-b { display: flex; flex-direction: column; padding-top: 14px; min-width: 0; }
 .hom-card-chips { row-gap: 8px; }
 .hom-card-t { margin-top: 10px; }
 .hom-card-t a { color: var(--ink); }
-.hom-card-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .hom-card-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .hom-card-meta { margin-top: 6px; text-transform: uppercase; }
 .hom-card-data { margin-top: 2px; text-transform: uppercase; color: var(--ink-2); }
 .hom-card-exl { margin-top: 12px; }
@@ -103,8 +103,8 @@
 
 /* ---------------------------------------------------------------- by activity */
 .hom-tile { min-height: 64px; padding: 12px 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--rule); color: var(--ink); }
-.hom-tile:hover { color: var(--ink); }
-.hom-tile:hover .hom-tile-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .hom-tile:hover { color: var(--ink); } }
+@media (hover: hover) { .hom-tile:hover .hom-tile-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .hom-tile-top { display: contents; }
 .hom-tile-top .hom-arr { display: none; }
 .hom-tile-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -138,7 +138,7 @@
   .hom-tile-c--none { font: 500 15px/20px var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink-2); white-space: normal; }
   .hom-tile-s { display: block; text-transform: uppercase; letter-spacing: 0; }
   .hom-tile-s:empty { display: none; }
-  .hom-tile:hover .hom-arr { color: var(--route-ink); }
+  @media (hover: hover) { .hom-tile:hover .hom-arr { color: var(--ink); } }
 }
 
 @media (min-width: 760px) and (max-width: 999.98px) {
@@ -172,7 +172,7 @@
    the name, which is positioned and would otherwise take the lower part */
 .hom-reg-n a { display: inline-block; position: relative; z-index: 1; color: inherit; }
 .hom-reg-n a::before { content: ""; position: absolute; inset: -14px 0; }
-.hom-reg-n a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+@media (hover: hover) { .hom-reg-n a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
 .hom-reg-c { grid-column: 1; text-transform: uppercase; }
 .hom-reg-a { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;
   font: 500 14px/20px var(--sans); color: var(--ink); white-space: nowrap; }

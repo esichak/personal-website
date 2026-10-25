@@ -51,8 +51,8 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-mi li { border-bottom: 1px solid var(--rule); }
 .ser-mi-a { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 16px; row-gap: 12px;
   min-height: 44px; padding: 14px 0 16px; color: var(--ink); }
-.ser-mi-a:hover { color: var(--ink); background: var(--surface); }
-.ser-mi-a:hover .ser-mi-m { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .ser-mi-a:hover { color: var(--ink); background: var(--surface); } }
+@media (hover: hover) { .ser-mi-a:hover .ser-mi-m { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .ser-mi-h { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 2px; min-width: 0; }
 .ser-mi-m { font: 600 18px/24px var(--sans); }
 .ser-mi-s { text-transform: uppercase; }
@@ -76,7 +76,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-high-l { margin-top: 16px; display: grid; row-gap: 24px; }
 .ser-high-a { display: flex; flex-direction: column; gap: 4px; min-height: 44px; color: var(--ink); }
 .ser-high-t { font: 600 19px/25px var(--sans); text-wrap: balance; }
-.ser-high-a:hover .ser-high-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+@media (hover: hover) { .ser-high-a:hover .ser-high-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .ser-high-l .t-mono-s { margin-top: 6px; text-transform: uppercase; }
 .ser-high-l .t-excerpt { margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 @media (min-width: 760px) { .ser-high-l { margin-top: 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
@@ -86,7 +86,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-wnav { max-width: 620px; margin-top: 24px; padding-top: 8px; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap;
   align-items: center; column-gap: 24px; row-gap: 4px; }
 .ser-wnav .alink { color: var(--ink-2); }
-.ser-wnav .alink:hover { color: var(--ink); }
+@media (hover: hover) { .ser-wnav .alink:hover { color: var(--ink); } }
 .ser-wnav .copy { margin-left: auto; }
 .ser-wnav-c { flex-basis: 100%; color: var(--ink-3); text-transform: uppercase; }
 /* under the overview map: the region maps that draw the journal's days (series.region_parts) */
@@ -106,7 +106,7 @@ body.p-series .rep-strip { margin-top: 24px; }
   transform: rotate(-45deg); opacity: 0; }
 .ser-only input:checked { background: var(--ink); border-color: var(--ink); }
 .ser-only input:checked::before { opacity: 1; }
-.ser-only-l:hover input { border-color: var(--ink); }
+@media (hover: hover) { .ser-only-l:hover input { border-color: var(--ink); } }
 .ser-only-short { display: none; }
 @media (max-width: 759.98px) { .ser-only-long { display: none; } .ser-only-short { display: inline; } }
 
@@ -117,7 +117,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-mnav li + li { border-left: 1px solid var(--rule); }
 .ser-mnav a { position: relative; height: var(--ser-nav-h); display: flex; flex-direction: column; justify-content: center; gap: 2px;
   padding: 0 16px; color: var(--ink-2); white-space: nowrap; }
-.ser-mnav a:hover { color: var(--ink); background: var(--paper); }
+@media (hover: hover) { .ser-mnav a:hover { color: var(--ink); background: var(--paper); } }
 .ser-mn-m { font: 500 15px/20px var(--sans); }
 .ser-mn-s { font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); }
 .ser-mnav a[aria-current] { color: var(--ink); }
@@ -182,7 +182,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-sp svg { width: 64px; height: 16px; }
 .ser-gpx { grid-area: x; width: 44px; height: 44px; margin-top: 2px; display: flex; align-items: center; justify-content: center;
   border-radius: 2px; color: var(--ink-2); }
-.ser-gpx:hover { color: var(--ink); background: var(--sunk); }
+@media (hover: hover) { .ser-gpx:hover { color: var(--ink); background: var(--sunk); } }
 
 .ser-body { padding: 6px 0 32px; }
 /* skipped day numbers (no recording) */
@@ -200,7 +200,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-phs li { min-width: 0; }
 .ser-ph { display: block; }
 .ser-ph img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; background: var(--sunk); }
-.ser-ph:hover img { filter: brightness(1.05); }
+@media (hover: hover) { .ser-ph:hover img { filter: brightness(1.05); } }
 @media (min-width: 760px) { .ser-phs { --ser-ph-n: 4; gap: 12px; } }
 @media (min-width: 1000px) { .ser-phs { --ser-ph-n: 5; } }
 @media (min-width: 1200px) { .ser-phs { --ser-ph-n: 6; } }
