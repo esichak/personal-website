@@ -5,6 +5,7 @@ strings (pin_svg, line_links, and the line groups as render_map writes them), an
 openings, so a change to its markup fails here before it lets a gone trip's pin through. Slugs start with 'synm-'."""
 import contextlib
 import importlib
+import inspect
 import io
 import json
 import os
@@ -199,7 +200,7 @@ class RelabelTests(unittest.TestCase):
         out = core.relabel(s)
         self.assertIn('data-key="synm-gone" aria-label="A Synthetic &amp; &quot;New&quot; Name"><title>A Synthetic &amp; '
                       '&quot;New&quot; Name</title>', out)
-        self.assertIn('<title>A Synthetic &amp; &quot;New&quot; Name; Synthetic Merged Again</title>', out)
+        self.assertIn('<title>2 reports start here: A Synthetic &amp; &quot;New&quot; Name; Synthetic Merged Again</title>', out)
         self.assertIn(pin('synm-kept', 'Synthetic Kept'), out)              # the same title: the same bytes
         self.assertEqual(core.relabel(out), out)
 
@@ -228,7 +229,8 @@ class RelabelTests(unittest.TestCase):
             src = fh.read()
         self.assertIn("'<a class=\"mk-pin\" href=\"%s\" data-key=\"%s\" aria-label=\"%s\"><title>%s</title>", src)
         self.assertIn("'<g class=\"mk-cluster\" aria-hidden=\"true\" data-keys=\"%s\"><title>%s</title>", src)
-        self.assertIn("esc('; '.join(i_.get('title', '') for i_ in c['items']))", src)
+        self.assertIn("esc(cluster_title([i_.get('title', '') for i_ in c['items']]))", src)
+        self.assertIn('mapkit.cluster_title(', inspect.getsource(core.relabel))     # the build writes the same form
 
 
 if __name__ == '__main__':

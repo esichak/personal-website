@@ -1,4 +1,5 @@
 """Geo toolkit (stdlib only): projection, AWS terrain tiles, PNG io, contours, OSM (Overpass), simplification."""
+import array
 import hashlib
 import json
 import math
@@ -8,6 +9,7 @@ import subprocess
 import time
 import urllib.parse
 import zlib
+from collections import OrderedDict
 
 SP = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(SP, '..', '..'))
@@ -199,7 +201,11 @@ def png_write_palette(path, w, h, indices, palette):
 
 # ---------------------------------------------------------------- terrain tiles
 TILE_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
-_tile_cache = {}
+# decoded tiles kept in memory, least recently used first: each is array('d') of 65,536 elevations (0.53 MB; a list of
+# floats would be 2.1 MB), and past TILE_CACHE_MAX the oldest is dropped, so a long render holds about 135 MB, not one
+# entry per tile it ever touched. 256 tiles cover a 1440 px frame at any zoom with room to spare.
+TILE_CACHE_MAX = 256
+_tile_cache = OrderedDict()
 
 
 def tile_xy(lat, lon, z):
@@ -212,8 +218,10 @@ def tile_xy(lat, lon, z):
 
 def get_tile(z, x, y):
     key = (z, x, y)
-    if key in _tile_cache:
-        return _tile_cache[key]
+    hit = _tile_cache.get(key)
+    if hit is not None:
+        _tile_cache.move_to_end(key)
+        return hit
     p = os.path.join(TILE_DIR, '%d_%d_%d.png' % (z, x, y))
 
     def fetch():
@@ -237,11 +245,13 @@ def get_tile(z, x, y):
     except Exception:  # noqa: BLE001 — a truncated cache file: fetch it again
         fetch()
         w, h, bpp, px = png_read(p)
-    elev = [0.0] * (w * h)
+    elev = array.array('d', [0.0]) * (w * h)   # C doubles, as Python floats are: the very values a list would hold
     for k in range(w * h):
         r, g, b = px[k * bpp], px[k * bpp + 1], px[k * bpp + 2]
         elev[k] = (r * 256 + g + b / 256.0) - 32768.0
     _tile_cache[key] = elev
+    while len(_tile_cache) > TILE_CACHE_MAX:
+        _tile_cache.popitem(last=False)
     return elev
 
 

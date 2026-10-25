@@ -1,0 +1,33 @@
+{
+ "base": "map-phone.base.svg",
+ "bbox_frame": [
+  38.87,
+  -120.11,
+  38.91,
+  -120.06
+ ],
+ "bytes": 2089,
+ "end_xy": [
+  268.84,
+  265.28
+ ],
+ "gpsmax_xy": [
+  127.16,
+  40.32
+ ],
+ "h": 336,
+ "interval_ft": 400,
+ "m_per_px": 11.65,
+ "name": "map-phone",
+ "osm": true,
+ "relief_m": [
+  1853.4,
+  2568.94
+ ],
+ "start_xy": [
+  256.84,
+  265.28
+ ],
+ "total_mi": null,
+ "w": 390
+}

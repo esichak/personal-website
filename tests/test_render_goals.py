@@ -19,6 +19,7 @@ import importlib
 import io
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -35,6 +36,7 @@ import gpx_fixtures as gf  # noqa: E402
 import helpers  # noqa: E402
 
 REGION = 'Synthetic Range'
+SYNTH_CWEBP = 'synthetic cwebp 0.0'
 
 
 class RenderGoalsFixture(unittest.TestCase):
@@ -60,8 +62,9 @@ class RenderGoalsFixture(unittest.TestCase):
         def fake_map(spec):
             self.maps.append(spec)
             return {'png': None, 'base': None}
+        # cwebp_version: what a run records and checks for (Phase 15); a stand-in, so CI without cwebp runs the same
         for name, fn in (('OUT', self.out), ('render_map', fake_map), ('fetch_osm', lambda *a, **k: {}),
-                         ('optimize_images', lambda *a, **k: None)):
+                         ('optimize_images', lambda *a, **k: None), ('cwebp_version', lambda: SYNTH_CWEBP)):
             p = mock.patch.object(self.render, name, fn)
             p.start()
             self.addCleanup(p.stop)
@@ -158,7 +161,9 @@ class RegionMapGoalTests(RenderGoalsFixture):
         for name in ('region-%s-desktop' % slug, 'region-%s-phone' % slug):
             self.assertIn(name, meta['maps'])
             self.assertEqual(sorted(meta['maps'][name]['trips']), ['gappy-goal', 'route-goal', 'walk-1', 'walk-2', 'walk-3'])
-        self.assertEqual(len(self.maps), 2)
+        # five hikes in the region (three walks, two planned routes with a line): its Hiking panel map too (maps-15)
+        self.assertEqual(sorted(spec['name'] for spec in self.maps),
+                         ['hike-%s-desktop' % slug, 'hike-%s-phone' % slug, 'region-%s-desktop' % slug, 'region-%s-phone' % slug])
         for spec in self.maps:
             pins = sorted(p['key'] for p in spec['pins'])
             self.assertEqual(pins, ['gappy-goal', 'route-goal', 'walk-1', 'walk-2', 'walk-3'])
@@ -461,9 +466,8 @@ class RunFixture(RenderGoalsFixture):
         write_text(self.meta_file(slug), json.dumps(meta))
 
 
-class MainTests(RunFixture):
-    """main(argv): a trip whose render raises is reported, keeps its last good maps, and the run goes on with the others
-    and ends with exit status 1; a clean run ends with 0."""
+class MainFixture(RunFixture):
+    """Two recorded trips, the newer one's render raising when drawn by draw_or_fail; main(argv) run with a stub drawing."""
 
     def setUp(self):
         super().setUp()
@@ -494,6 +498,12 @@ class MainTests(RunFixture):
 
     def failed_lines(self):
         return [line for line in self.lines() if 'failed, their last good maps kept' in line]
+
+
+
+class MainTests(MainFixture):
+    """main(argv): a trip whose render raises is reported, keeps its last good maps, and the run goes on with the others
+    and ends with exit status 1; a clean run ends with 0."""
 
     def test_a_failed_trip_is_reported_the_others_are_drawn_and_the_exit_status_is_1(self):
         old = os.path.join(self.out, 'trips', 'bad-walk')
@@ -549,6 +559,7 @@ class StrayEntryTests(MainTests):
         write_text(os.path.join(tdir, '.DS_Store'), 'finder')
         for name in ('other-walk.tmp-4242', 'other-walk.old'):     # a trip this run does not draw (its own swap would replace them)
             write_text(os.path.join(tdir, name, 'map-wide.webp'), 'another run at work')
+        write_text(os.path.join(tdir, 'good-walk 2', 'meta.json'), '{}')   # an iCloud conflict copy: tidy.py's to remove
         return tdir
 
     def test_render_folders_are_the_trip_folders_alone(self):
@@ -561,7 +572,8 @@ class StrayEntryTests(MainTests):
         tdir = self.strays()
         write_text(os.path.join(tdir, 'gone-walk', 'meta.json'), '{}')
         self.assertEqual(self.run_main(self.just_draw), 0)                   # no NotADirectoryError from .DS_Store
-        self.assertEqual(sorted(os.listdir(tdir)), ['.DS_Store', 'bad-walk', 'good-walk', 'other-walk.old', 'other-walk.tmp-4242'])
+        self.assertEqual(sorted(os.listdir(tdir)), ['.DS_Store', 'bad-walk', 'good-walk', 'good-walk 2', 'other-walk.old',
+                                                    'other-walk.tmp-4242'])
         self.assertIn('removed stale render gone-walk', self.lines())
 
     def test_status_does_not_count_strays_as_gone_trips(self):
@@ -778,8 +790,10 @@ class RenderKeyTests(RenderGoalsFixture):
                         with open(p, 'rb') as fh:
                             files.update(fh.read())
                 fields = json.dumps(keys, sort_keys=True, default=str)
+                # since renderer 8 a tall report frame joins it too, and only then (a wide frame hashes as before)
+                frame = '|frame=tall' if renderkey.report_frame(t) == 'tall' else ''
                 self.assertEqual(renderkey.trip_inputs(t),
-                                 hashlib.sha1((fields + files.hexdigest() + str(renderkey.VERSION)).encode()).hexdigest())
+                                 hashlib.sha1((fields + files.hexdigest() + str(renderkey.VERSION) + frame).encode()).hexdigest())
                 self.assertEqual(renderkey.input_parts(t), {'fields': hashlib.sha1(fields.encode()).hexdigest(),
                                                             'files': files.hexdigest(), 'version': renderkey.VERSION})
 
@@ -792,6 +806,234 @@ class RenderKeyTests(RenderGoalsFixture):
                 t = self.trip(slug, text, kind='planned')
                 self.assertIs(renderkey.goal_has_line(t), has_line)
                 self.assertIs(bool(self.render.goal_lines(t)), has_line)
+
+
+class JobsTests(MainFixture):
+    """main --jobs N: the recorded trips go to the pool (a thread pool here, so the stub drawing is seen), and the journal,
+    which the pool leaves out, is drawn after it by the one-at-a-time loop; before 2026-10-25 --jobs never drew it."""
+
+    def test_a_parallel_run_draws_the_journal_too(self):
+        from concurrent.futures import ThreadPoolExecutor
+        helpers.make_series(self.trips_dir, slug='syn-journal', title='Synthetic Journal', photos=False)
+        series = []
+        with mock.patch.object(self.render, 'render_series', side_effect=lambda t, meta: series.append(t['slug'])), \
+                mock.patch('concurrent.futures.ProcessPoolExecutor', lambda max_workers, mp_context: ThreadPoolExecutor(max_workers)):
+            self.assertEqual(self.run_main(self.just_draw, '--jobs', '2', '--no-site'), 0)
+        self.assertEqual(sorted(self.drawn), ['bad-walk', 'good-walk'])
+        self.assertEqual(series, ['syn-journal'])
+        self.assertTrue(os.path.exists(self.meta_file('syn-journal')))
+        # and a second run finds nothing left to draw, the journal included
+        series.clear()
+        self.drawn.clear()
+        with mock.patch.object(self.render, 'render_series', side_effect=lambda t, meta: series.append(t['slug'])):
+            self.assertEqual(self.run_main(self.just_draw, '--jobs', '2', '--no-site'), 0)
+        self.assertEqual((self.drawn, series), ([], []))
+
+
+class AccountingTests(MainFixture):
+    """The run's own counts (the Phase 15 review): a trip that failed before the budget ran out is counted once, as
+    failed, not again as left; the progress line prints once per tenth trip, however many unchanged trips the loop
+    passes after it; --status names a change of the frame alone."""
+
+    def test_a_budget_stop_counts_each_trip_once(self):
+        self.trip('late-walk', gf.SINGLE, date='2026-07-31')
+        clock = [1000.0]
+
+        def draw(trip, meta):
+            clock[0] += 10                                   # each drawing takes ten seconds of the fake clock
+            self.draw_or_fail(trip, meta)
+        with mock.patch.object(self.render.time, 'time', lambda: clock[0]):
+            self.assertEqual(self.run_main(draw, '--budget', '15', '--no-site'), 1)
+        self.assertEqual(self.drawn, ['bad-walk', 'good-walk'])          # the third would start after the budget
+        self.assertIn('budget used up; 1 trips left — run again to continue', self.lines())
+        summary = [line for line in self.lines() if line.startswith('summary:')]
+        self.assertEqual(len(summary), 1)
+        self.assertTrue(summary[0].startswith('summary: rendered 1, skipped 0 (unchanged), failed 1 (bad-walk), OSM missing 0, '
+                                              'left 1; site maps not drawn this run;'), summary[0])
+
+    def test_an_unchanged_trip_after_the_budget_does_not_stop_the_run(self):
+        self.draw(self.trip('late-walk', gf.SINGLE, date='2026-07-31'))   # up to date, last in the loop
+        clock = [1000.0]
+
+        def draw(trip, meta):
+            clock[0] += 10
+            self.just_draw(trip, meta)
+        with mock.patch.object(self.render.time, 'time', lambda: clock[0]):
+            self.assertEqual(self.run_main(draw, '--budget', '15', '--no-site'), 0)
+        self.assertEqual(self.drawn, ['bad-walk', 'good-walk'])
+        self.assertFalse([line for line in self.lines() if line.startswith('budget used up')])
+
+    def test_the_progress_line_prints_once_per_tenth_trip(self):
+        for i in range(8):
+            self.recorded('walk-%02d' % i, 10 + i)                         # with bad-walk and good-walk: ten to draw
+        for i in range(2):
+            self.draw(self.trip('old-walk-%d' % i, gf.SINGLE, date='2026-07-0%d' % (i + 1)))   # older, up to date
+        self.assertEqual(self.run_main(self.just_draw, '--no-site'), 0)
+        self.assertEqual(len(self.drawn), 10)
+        self.assertEqual(len([line for line in self.lines() if line.startswith('progress: 10 of 10 trips done')]), 1)
+
+    def test_status_names_a_change_of_the_frame_alone(self):
+        self.draw(self.good)
+        self.edit_meta('good-walk', hash='0' * 40)            # the recorded parts as they are now, a hash they do not make
+        self.assertEqual(self.render.pending_reason(self.good), 'map frame changed (renderkey.report_frame)')
+        self.edit_meta('good-walk', inputs=KeyError)          # no parts recorded: the general reason, as before
+        self.assertEqual(self.render.pending_reason(self.good), 'track, title, activity, kind, map: or stats changed')
+
+
+class RunRecordTests(MainFixture):
+    """Phase 15 (gap9-05, gap9-04): every meta.json says what drew it; a run stops without cwebp unless --allow-png;
+    --list is --status; a long run prints where it stands every 10 trips and ends with one summary line."""
+
+    def renderer(self, slug):
+        with open(self.meta_file(slug), encoding='utf-8') as fh:
+            return json.load(fh)['renderer']
+
+    def test_a_trip_folder_records_the_renderer_python_cwebp_day_and_osm(self):
+        import platform
+        from datetime import date
+        self.draw(self.good)
+        self.assertEqual(self.renderer('good-walk'), {'version': renderkey.VERSION, 'python': platform.python_version(),
+                                                      'cwebp': SYNTH_CWEBP, 'date': date.today().isoformat(), 'osm': 'cached'})
+        # OpenStreetMap fetched during the render, or missing
+        geo = self.render.geo
+
+        def fetched(trip, meta):
+            geo.CACHE['osm_miss'] += 1
+        with mock.patch.dict(geo.CACHE, osm_miss=geo.CACHE['osm_miss']), mock.patch.object(self.render, 'render_single', side_effect=fetched):
+            self.render.render_trip(self.good, force=True)
+        self.assertEqual(self.renderer('good-walk')['osm'], 'fetched')
+        with mock.patch.object(self.render, 'render_single', side_effect=lambda trip, meta: self.render.OSM_FAILED.append('x')):
+            self.render.render_trip(self.good, force=True)
+        self.assertEqual(self.renderer('good-walk')['osm'], 'missing')
+
+    def test_no_cwebp_no_drawing_unless_allowed(self):
+        with mock.patch.object(self.render, 'cwebp_version', lambda: None):
+            self.assertEqual(self.run_main(self.just_draw), 2)
+            self.assertEqual(self.drawn, [])
+            self.assertIn('cwebp is not installed', self.printed.getvalue())
+            self.assertEqual(self.run_main(self.just_draw, '--allow-png'), 0)
+        self.assertEqual(self.drawn, ['bad-walk', 'good-walk'])
+        self.assertIsNone(self.renderer('good-walk')['cwebp'])            # drawn without it, and the record says so
+
+    def test_list_is_status(self):
+        with mock.patch.object(self.render, 'status', side_effect=lambda slugs, force: 7) as st:
+            self.assertEqual(self.render.main(['--list']), 7)
+            self.assertEqual(self.render.main(['--status', 'good-walk']), 7)
+        self.assertEqual(st.call_args_list, [mock.call([], False), mock.call(['good-walk'], False)])
+
+    def test_force_without_names_says_how_a_full_re_render_resumes(self):
+        self.run_main(self.just_draw, '--force')
+        self.assertIn('a full re-render is a VERSION bump', self.printed.getvalue())
+        self.printed.truncate(0)
+        self.run_main(self.just_draw, '--force', 'good-walk')
+        self.assertNotIn('a full re-render is a VERSION bump', self.printed.getvalue())
+
+    def test_a_run_ends_with_its_summary(self):
+        self.assertEqual(self.run_main(self.draw_or_fail), 1)
+        (line,) = [x for x in self.lines() if x.startswith('summary:')]
+        self.assertTrue(line.startswith('summary: rendered 1, skipped 0 (unchanged), failed 1 (bad-walk), OSM missing 0, left 0; '
+                                        'site maps '), line)
+        # a second run: nothing pending, both skipped; the one that failed is drawn now
+        self.printed.truncate(0)
+        self.printed.seek(0)
+        self.assertEqual(self.run_main(self.just_draw), 0)
+        (line,) = [x for x in self.lines() if x.startswith('summary:')]
+        self.assertTrue(line.startswith('summary: rendered 1, skipped 1 (unchanged), failed 0, OSM missing 0, left 0;'), line)
+
+    def test_a_trip_drawn_without_osm_is_counted(self):
+        def no_osm(trip, meta):
+            self.render.OSM_FAILED.append('x')
+        self.run_main(no_osm)
+        (line,) = [x for x in self.lines() if x.startswith('summary:')]
+        self.assertIn('OSM missing 2 (bad-walk, good-walk)', line)
+
+    def test_every_tenth_trip_prints_where_the_run_stands(self):
+        for i in range(3, 13):
+            self.recorded('walk-%02d' % i, i)
+        self.run_main(self.just_draw)
+        progress = [x for x in self.lines() if x.startswith('progress:')]
+        self.assertEqual(len(progress), 1, self.lines())
+        self.assertTrue(progress[0].startswith('progress: 10 of 12 trips done, '), progress[0])
+        self.assertTrue(progress[0].endswith(' min left'), progress[0])
+
+
+EAST = gf.gpx(gf.trk([gf.line(38.900, -120.100, 12, dlat=0.0, dlon=0.001, eles=gf.ELES_A)], 'Synthetic traverse east'))
+
+
+class RendererChangeTests(RenderGoalsFixture):
+    """Phase 15's renderer changes, through the drawing functions' arguments (each stubbed and recorded): the tall frame
+    of a tall route (maps-03), the card drawing (visual-01 step 2), the phone overview's numbered day squares (maps-05)
+    and the journal's month labels (maps-06)."""
+
+    def setUp(self):
+        super().setUp()
+        self.calls = []
+        for name in ('render_tile', 'render_glyph', 'render_profile', 'render_sparkline', 'render_speed_chart'):
+            p = mock.patch.object(self.render, name, side_effect=lambda *a, _n=name, **k: self.calls.append((_n, a, k)) or {})
+            p.start()
+            self.addCleanup(p.stop)
+
+    def sizes(self):
+        return {spec['name']: (spec['w'], spec['h']) for spec in self.maps}
+
+    def test_a_tall_route_gets_the_tall_frame_and_the_hash_names_it(self):
+        tall = self.recorded('tall-walk', 1)                                # gf.SINGLE runs due north
+        wide = self.trip('wide-walk', EAST, date='2026-08-02')
+        self.assertEqual((renderkey.report_frame(tall), renderkey.report_frame(wide)), ('tall', None))
+        self.render.render_trip(tall, force=True)
+        self.assertEqual({k: v for k, v in self.sizes().items() if k.startswith('map-')},
+                         {'map-wide': (1440, 800), 'map-col': (718, 500), 'map-phone': (390, 336)})
+        del self.maps[:]
+        self.render.render_trip(wide, force=True)
+        self.assertEqual({k: v for k, v in self.sizes().items() if k.startswith('map-')},
+                         {'map-wide': (1440, 640), 'map-col': (718, 400), 'map-phone': (390, 336)})
+        # only the tall route's hash carries its frame; an older version's hash never did
+        plain = lambda t, v: hashlib.sha1((renderkey.input_fields(t) + renderkey.file_hash(renderkey.input_files(t)) + str(v)).encode()).hexdigest()  # noqa: E731
+        self.assertEqual(renderkey.trip_inputs(wide), plain(wide, renderkey.VERSION))
+        self.assertNotEqual(renderkey.trip_inputs(tall), plain(tall, renderkey.VERSION))
+        self.assertEqual(renderkey.trip_inputs(tall, version=7), plain(tall, 7))
+
+    def test_a_report_draws_its_card_beside_its_tile(self):
+        self.render.render_trip(self.trip('wide-walk', EAST, date='2026-08-02'), force=True)
+        tiles = [(a[0], a[2], a[3], k.get('width')) for n, a, k in self.calls if n == 'render_tile']
+        self.assertEqual(tiles, [('tile', 200, 152, None), ('card', 400, 267, self.render.CARD_LINE)])
+
+    def multi_day(self, huts):
+        days = [{'date': '2026-07-0%d' % (i + 1), 'hut': ('Synthetic Hut %d' % (i + 1)) if huts else None} for i in range(3)]
+        folder = helpers.make_trip(self.trips_dir, 'syn-tour', kind='multi-day', date='2026-07-01', region=REGION,
+                                   days=[{k: v for k, v in d.items() if v is not None} for d in days])
+        for i in range(3):
+            with open(os.path.join(folder, 'days', '%02d.gpx' % (i + 1)), 'w', encoding='utf-8') as fh:
+                fh.write(gf.gpx(gf.trk([gf.line(38.900 + 0.02 * i, -120.100, 12, eles=gf.ELES_A)], 'Day %d' % (i + 1))))
+        t = content.load_trip(folder)
+        t['rendered'] = os.path.join(self.out, 'trips', 'syn-tour')
+        return t
+
+    def test_the_phone_overview_numbers_each_days_end_without_the_hut_names(self):
+        for huts, ends in ((True, [1, 2, None]), (False, [1, 2, 3])):
+            with self.subTest(huts=huts):
+                del self.maps[:]
+                shutil.rmtree(os.path.join(self.trips_dir, 'syn-tour'), ignore_errors=True)
+                self.render.render_trip(self.multi_day(huts), force=True)
+                (ph,) = [spec for spec in self.maps if spec['name'] == 'overview-phone']
+                self.assertEqual([tr['hut_end'] for tr in ph['tracks']], [{'n': n} if n else None for n in ends])
+                (wide,) = [spec for spec in self.maps if spec['name'] == 'overview-wide']
+                self.assertEqual([bool((tr.get('hut_end') or {}).get('label')) for tr in wide['tracks']], [huts, huts, False])
+
+    def test_the_journal_overview_labels_each_new_month(self):
+        dates = ['2024-04-22', '2024-04-30', '2024-05-03', '2024-06-10']
+        folder = helpers.make_trip(self.trips_dir, 'syn-journal', kind='series', date='2024-04-22', end_date='2024-06-10',
+                                   region=REGION, days=[{'id': '%03d' % (i + 1), 'date': d} for i, d in enumerate(dates)])
+        for i in range(4):
+            with open(os.path.join(folder, 'days', '%03d.gpx' % (i + 1)), 'w', encoding='utf-8') as fh:
+                fh.write(gf.gpx(gf.trk([gf.line(38.9 + 0.05 * i, -120.1, 12, eles=gf.ELES_A)], 'Day %d' % (i + 1))))
+        t = content.load_trip(folder)
+        t['rendered'] = os.path.join(self.out, 'trips', 'syn-journal')
+        self.render.render_trip(t, force=True)
+        for name in ('overview-tall', 'overview-phone'):
+            (spec,) = [x for x in self.maps if x['name'] == name]
+            self.assertEqual(spec['point_labels'], [(38.9 + 0.05 * 2, -120.1, 'MAY'), (38.9 + 0.05 * 3, -120.1, 'JUN')])
+            self.assertEqual(spec['overall_labels'], ['APR 22', 'JUN 10'])
 
 
 if __name__ == '__main__':

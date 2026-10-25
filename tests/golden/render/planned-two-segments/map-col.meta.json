@@ -1,0 +1,29 @@
+{
+ "base": "map-col.base.svg",
+ "bbox_frame": [
+  38.9,
+  -120.14,
+  38.93,
+  -120.06
+ ],
+ "bytes": 3151,
+ "end_xy": [
+  359.0,
+  48.0
+ ],
+ "h": 400,
+ "interval_ft": 200,
+ "m_per_px": 8.73,
+ "name": "map-col",
+ "osm": true,
+ "relief_m": [
+  1778.36,
+  2569.04
+ ],
+ "start_xy": [
+  359.0,
+  98.67
+ ],
+ "total_mi": null,
+ "w": 718
+}

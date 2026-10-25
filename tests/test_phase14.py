@@ -301,14 +301,14 @@ class ImageTests(Fixture):
         site = helpers.make_site(list(self.by.values()))
         maps = {'ski-synthetic-range-%s' % v: {'png': 'ski-synthetic-range-%s.webp' % v, 'base': 'ski-synthetic-range-%s.base.svg' % v}
                 for v in ('desktop', 'phone')}
-        with mock.patch.object(section, 'ski_regions', lambda ts: ['Synthetic Range']), \
+        with mock.patch.object(section, 'ski_regions', lambda ts, act='ski': ['Synthetic Range']), \
                 mock.patch.object(core, 'site_meta', lambda: {'maps': maps}):
             head = Doc(section.page('ski', site).html).find('head')
         pre = [(ln['href'], ln['media']) for ln in head.find_all('link', attrs={'rel': 'preload'})]
         d, p = section.SKI_MEDIA['desktop'], section.SKI_MEDIA['phone']
         self.assertEqual(pre, [('../assets/maps/ski-synthetic-range-desktop.webp', d), ('../assets/maps/ski-synthetic-range-desktop.base.svg', d),
                                ('../assets/maps/ski-synthetic-range-phone.webp', p), ('../assets/maps/ski-synthetic-range-phone.base.svg', p)])
-        with mock.patch.object(section, 'ski_regions', lambda ts: []):
+        with mock.patch.object(section, 'ski_regions', lambda ts, act='ski': []):
             self.assertNotIn('rel="preload"', section.page('ski', site).html)        # no panel map, nothing to preload
 
     def test_each_ski_preload_holds_exactly_where_the_panel_shows_that_map(self):

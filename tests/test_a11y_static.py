@@ -2247,11 +2247,13 @@ class ScriptTests(unittest.TestCase):
     def test_a_focused_journal_line_shows_its_halo_without_a_script(self):
         # Phase 12: a.mk-line (a journal's days on a region map) has no outline of its own (.mk-line:focus-visible
         # { outline: none; }); its halo is the wide hit path under the lines, drawn by CSS alone, and in Highlight under
-        # forced colours. The legend's discs keep their colours there too (archive.js moves them into its buttons)
+        # forced colours. The legend's discs keep their colours there too (archive.js moves them into its buttons).
+        # Since Phase 15 the hit path's own stroke is MAP_CSS's '.mk-line .mk-hit' rule, not an inline style, so the halo
+        # wins on specificity and carries no !important
         rules, _unreadable = parse_css(source('css', 'base.css'))
         halo = {r.media: r.decls for r in rules if r.selector == '.mk-line:focus-visible .mk-hit'}
-        self.assertEqual(halo, {(): {'stroke': ('var(--ink)', True), 'stroke-opacity': ('.35', False)},
-                                ('(forced-colors: active)',): {'stroke': ('Highlight', True), 'stroke-opacity': ('1', False)}})
+        self.assertEqual(halo, {(): {'stroke': ('var(--ink)', False), 'stroke-opacity': ('.35', False)},
+                                ('(forced-colors: active)',): {'stroke': ('Highlight', False), 'stroke-opacity': ('1', False)}})
         rules, _unreadable = parse_css(source('css', 'pages', 'archive.css'))
         discs = [(r.media, r.decls) for r in rules if r.selector == '.arc-legend .disc']
         self.assertIn((('(forced-colors: active)',), {'forced-color-adjust': ('none', False)}), discs)

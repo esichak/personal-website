@@ -548,7 +548,7 @@ class RendererTests(RenderGoalsFixture):
         self.assertIs(self.render.render_site(self.walks() + [j], force=True), True)
         for entry in self.meta()['maps'].values():
             self.assertNotIn('journals', entry)
-            self.assertEqual(sorted(entry), ['base', 'clusters', 'h', 'png', 'region', 'trips', 'w'])
+            self.assertEqual(sorted(entry), ['base', 'base_gz_kb', 'clusters', 'h', 'png', 'region', 'trips', 'w'])   # base_gz_kb: Phase 15
         self.assertTrue(all(tr['key'] != JOURNAL for spec in self.maps for tr in spec['tracks']))
         self.assertTrue(all('href' not in tr for spec in self.maps for tr in spec['tracks']))
 
@@ -603,11 +603,9 @@ class LineLinkTests(unittest.TestCase):
         uses = a.find_all('use')
         self.assertEqual([u['href'] for u in uses], ['#tk-7', '#tk-8'])
         for u in uses:
-            self.assertEqual(u['class'], 'mk-hit')
-            self.assertIn('stroke: transparent', u['style'])
-            self.assertIn('stroke-width: %d' % self.mapkit.LINE_HIT, u['style'])
-            self.assertIn('pointer-events: stroke', u['style'])
-            self.assertIn('fill: none', u['style'])
+            self.assertEqual((u['class'], u['style']), ('mk-hit', None))     # MAP_CSS draws it (Phase 15: one rule, not a style on each use)
+        self.assertIn('.mk-line .mk-hit{fill:none;stroke:transparent;stroke-width:%dpx;pointer-events:stroke}' % self.mapkit.LINE_HIT,
+                      self.mapkit.MAP_CSS)
         self.assertEqual([u['href'] for u in b.find_all('use')], ['#tk-9'])
         self.assertGreaterEqual(self.mapkit.LINE_HIT, 12)        # wide enough to point at; the line itself is 2.5 px
         self.assertEqual(self.mapkit.line_links({}), [])

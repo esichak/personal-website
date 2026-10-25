@@ -17,7 +17,12 @@ import re
 import content
 import goals
 
-VERSION = 7  # bump after renderer changes to force a full re-render
+# bump once per render round, after the renderer changes (docs/DEVELOPING.md, "A render round"). A bump re-renders all
+# 3,393 files under rendered/; git keeps only the ones whose bytes change: 9.7 MB of packed history when only the SVG
+# changes (a9baab9, 2026-09-28), about 35 MB when the hillshade rasters change too. After a round,
+# `git diff --stat -- rendered | tail -1` is its cost: put it in the commit message.
+VERSION = 8
+PANEL_TRIPS = 5  # a region gets a Mountain biking or Hiking panel map from this many trips of the activity (maps-15)
 MIN_REGION_TRIPS = 3
 INPUT_KEYS = ('title', 'activity', 'kind', 'map', 'stats', 'route_shape')
 # what a site map is drawn from: a trip's own inputs less its title, which a site map shows only as the text of its pin
@@ -46,8 +51,57 @@ def input_fields(t, names=INPUT_KEYS):
     return json.dumps(keys, sort_keys=True, default=str)
 
 
-def trip_inputs(t):
-    return hashlib.sha1((input_fields(t) + file_hash(input_files(t)) + str(VERSION)).encode()).hexdigest()
+TALL = 1.4   # a report map's track box taller than this (ground height / width) gets the tall frame (maps-03)
+_SHAPES = {}
+_POINT = re.compile(r'<(?:trkpt|rtept)\b([^>]*)>')
+_LAT, _LON = re.compile(r'\blat\s*=\s*["\']([-0-9.]+)'), re.compile(r'\blon\s*=\s*["\']([-0-9.]+)')
+
+
+def track_aspect(path):
+    """A GPX file's track box, ground height over width, read with a regular expression (no parser: the content checks
+    hash every trip on every run), cached by the file's size and time. None without two points apart."""
+    try:
+        st = os.stat(path)
+    except (OSError, TypeError):
+        return None
+    key = (path, st.st_size, st.st_mtime)
+    if key not in _SHAPES:
+        lats, lons = [], []
+        with open(path, encoding='utf-8', errors='replace') as fh:
+            for m in _POINT.finditer(fh.read()):
+                a, o = _LAT.search(m.group(1)), _LON.search(m.group(1))
+                if a and o:
+                    lats.append(float(a.group(1)))
+                    lons.append(float(o.group(1)))
+        if len(lats) < 2:
+            _SHAPES[key] = None
+        else:
+            import math
+            dy = (max(lats) - min(lats)) * 111320.0
+            dx = (max(lons) - min(lons)) * 111320.0 * math.cos(math.radians((max(lats) + min(lats)) / 2))
+            _SHAPES[key] = (dy / dx) if dx > 1 else (float('inf') if dy > 1 else None)
+    return _SHAPES[key]
+
+
+def report_frame(t):
+    """'tall' when a single-day report's or a goal's map gets the 1440 x 800 / 718 x 500 frame (its track box is taller
+    than TALL to 1 across), else None: the 1440 x 640 / 718 x 400 one (maps-03). Multi-day and journal maps keep theirs."""
+    if t['kind'] not in ('trip', 'planned') or t['days'] or not t['track']:
+        return None
+    a = track_aspect(t['track'])
+    return 'tall' if a is not None and a > TALL else None
+
+
+FRAME_SINCE = 8   # the renderer version that drew tall routes in the tall frame (maps-03); before it, no frame in the hash
+
+
+def trip_inputs(t, version=None):
+    """The hash in rendered/trips/<slug>/meta.json. version: as an older renderer would have hashed the trip (render.py
+    --status tells a version bump from a changed track that way)."""
+    version = VERSION if version is None else version
+    # the frame enters the hash only when it is not the default, so a later change of the rule redraws only those trips
+    frame = report_frame(t) if version >= FRAME_SINCE else None
+    return hashlib.sha1((input_fields(t) + file_hash(input_files(t)) + str(version) + ('|frame=' + frame if frame else '')).encode()).hexdigest()
 
 
 def site_inputs(t):
@@ -124,9 +178,11 @@ def site_jobs(trips):
             # do not count towards MIN_REGION_TRIPS, and the ski maps do not take them
             jobs.append(('region-' + content.slugify(region), region, ts, [(718, 620, 'desktop'), (390, 480, 'phone')],
                          parts.get(region, [])))
-        ski = [t for t in ts if t['activity'] == 'ski']
-        if len(ski) >= 2:
-            jobs.append(('ski-' + content.slugify(region), region, ski, [(506, 680, 'desktop'), (390, 480, 'phone')], []))
+        # a section page's panel map (maps-15): ski from two trips of a region, rides and hikes from PANEL_TRIPS
+        for act, least in (('ski', 2), ('mtb', PANEL_TRIPS), ('hike', PANEL_TRIPS)):
+            some = [t for t in ts if t['activity'] == act]
+            if len(some) >= least:
+                jobs.append(('%s-%s' % (act, content.slugify(region)), region, some, [(506, 680, 'desktop'), (390, 480, 'phone')], []))
     return jobs, groups, mapped
 
 
@@ -155,6 +211,7 @@ def site_hash_with_titles(jobs, inputs=trip_inputs):
 # the labels mapkit writes on a site map (core.relabel rewrites the same two at build time)
 _PIN = re.compile(r'<a class="mk-pin" href="[^"]*" data-key="([^"]*)" aria-label="[^"]*"><title>([^<]*)</title>')
 _CLUSTER = re.compile(r'<g class="mk-cluster" aria-hidden="true" data-keys="([^"]*)"><title>([^<]*)</title>')
+_CLUSTER_HEAD = re.compile(r'\d+ reports? starts? here: ')   # mapkit.cluster_title's opening (copy-18, renderer 8)
 
 
 def drawn_paths(site_dir, maps):
@@ -164,8 +221,9 @@ def drawn_paths(site_dir, maps):
 
 def drawn_titles(paths):
     """{slug: title} as the site maps label each trip: a pin's <title>, or its place in a cluster's (the titles joined
-    with '; ' in the order of data-keys). A cluster whose title does not split into one title per key (a title that
-    holds '; ' itself) says nothing about its trips; neither does a file that is not there."""
+    with '; ' in the order of data-keys, after 'N reports start here: ' since renderer 8). A cluster whose title does not
+    split into one title per key (a title that holds '; ' itself, a repeated title, or 'and K more') says nothing about
+    its trips; neither does a file that is not there."""
     out = {}
     for p in paths:
         try:
@@ -176,7 +234,9 @@ def drawn_titles(paths):
         for key, title in _PIN.findall(s):
             out.setdefault(html.unescape(key), html.unescape(title))
         for keys, titles in _CLUSTER.findall(s):
-            ks, ts = html.unescape(keys).split(), html.unescape(titles).split('; ')
+            titles = html.unescape(titles)
+            head = _CLUSTER_HEAD.match(titles)
+            ks, ts = html.unescape(keys).split(), titles[head.end() if head else 0:].split('; ')
             if len(ks) == len(ts):
                 for k, t in zip(ks, ts):
                     out.setdefault(k, t)

@@ -145,6 +145,8 @@ python3 tools/render.py              # render anything whose track or map settin
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)
 python3 tools/share_preview.py       # what each page's share card is made of, with flags (reads _site/; --site DIR)
 python3 tools/fonts.py --check       # are the site's own fonts complete? (tools/fonts.py without --check downloads them)
+python3 tools/render_sheet.py --all  # after a render: every changed map beside its old self (.cache/render-sheet/)
+python3 tools/size_report.py         # what the repository and the site weigh, and how fast they grow
 python3 -m unittest discover -s tests   # the generator's unit tests (see docs/DEVELOPING.md)
 python3 tools/smoke.py ~/Library/Caches/personal-website/site   # a few pages in headless Chrome (CI runs it too)
 ```
@@ -152,11 +154,16 @@ python3 tools/smoke.py ~/Library/Caches/personal-website/site   # a few pages in
 A plain `python3 tools/build.py --check` writes the published build into `_site/` (about 240 MB of copies; CI uses
 it); the `--out ... --link` form above links the photos, maps and GPX instead and takes a few seconds.
 
+What the repository and the site weigh, and the rules that keep them well inside GitHub's limits, are in
+`docs/DEVELOPING.md`, "Storage budget"; "Yearly upkeep" there is the once-a-year list (sizes, the workflow's actions,
+GitHub's limits, the map and font sources).
+
 `render.py` keeps the terrain tiles and OpenStreetMap answers it downloads in `~/Library/Caches/personal-website/`
 (outside iCloud Drive; `docs/DEVELOPING.md`, "Render caches", has the one-time move of the old `.cache/` folders). An
 answer is used for ever: to pick up newer OpenStreetMap data (a new trail, a renamed lake), delete the cache's `osm/`
 folder (or one answer in it) and run `python3 tools/render.py --site --force`. That downloads every answer again and
-can change roads and labels on every map, which the change check does not notice. A render that fails keeps the last
+can change roads and labels on every map, which the change check does not notice; the best time is just before the
+year's render round (`docs/DEVELOPING.md`, "Yearly upkeep"), which redraws every map anyway. A render that fails keeps the last
 good maps and ends with exit status 1.
 
 Every `build.py` run validates the content first and builds nothing when `validate.py` would report an error.

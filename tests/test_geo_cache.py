@@ -209,10 +209,10 @@ class TileTests(GeoFixture):
         geo._tile_cache.pop((3, 1, 2), None)
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', ResourceWarning)             # geo.png_read leaves its file to the collector
-            self.assertEqual(geo.get_tile(3, 1, 2), [0.0])
+            self.assertEqual(list(geo.get_tile(3, 1, 2)), [0.0])      # an array('d') since Phase 15 (gap9-08)
             self.assertEqual(os.listdir(tiles), ['3_1_2.png'])
             del geo._tile_cache[(3, 1, 2)]
-            self.assertEqual(geo.get_tile(3, 1, 2), [0.0])
+            self.assertEqual(list(geo.get_tile(3, 1, 2)), [0.0])      # an array('d') since Phase 15 (gap9-08)
         self.assertEqual(len(curl.calls), 1)
         self.assertEqual((geo.CACHE['tile_miss'], geo.CACHE['tile_hit']), (1, 1))
 

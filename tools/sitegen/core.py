@@ -598,7 +598,7 @@ def relabel(s):
         keys = html.unescape(m.group(2)).split()
         if not keys or any(k not in titles for k in keys):
             return m.group(0)
-        return m.group(1) + _mk_esc('; '.join(titles[k] for k in keys)) + m.group(4)
+        return m.group(1) + _mk_esc(mapkit.cluster_title([titles[k] for k in keys])) + m.group(4)   # copy-18's form
     return _CLUSTER_TITLE.sub(cluster, _PIN_LABEL.sub(pin, s))
 
 
@@ -738,7 +738,8 @@ def fs_scale(t, name, width, site_maps=False):
     return '<svg class="fs-scale" width="160" height="24" viewBox="0 0 160 24" aria-hidden="true">%s</svg>' % ''.join(out)
 
 
-def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=False, attrib=True, fullscreen_href=None, id_=None):
+def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=False, attrib=True, fullscreen_href=None, id_=None,
+              site_dir=None):
     """Responsive static map: one <div class="mv mv--{size}"> per render, each a hillshade <img> under an SVG overlay.
 
     variants: [(name, size)] with size in wide|col|phone|desktop (CSS shows exactly one per breakpoint), or fs (the
@@ -746,13 +747,14 @@ def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=F
     mv--phone">), so its SVG is inlined once. asset_dir: site-relative folder the PNGs are copied to ('trips/slug/map/').
     eager=True marks the hero map: fetchpriority="high" on every variant (pair it with map_preloads() in the head).
     The fs map loads at once (it is the whole page), and marks the route's start with an empty #route-start span
-    (route_start) that the page's address names, so it opens on the route (fullscreen_link)."""
+    (route_start) that the page's address names, so it opens on the route (fullscreen_link). site_dir: the folder the site
+    maps are read from (default rendered/site; tools/render_sheet.py passes an older version taken out of git)."""
+    site_dir = site_dir or os.path.join(ROOT, 'rendered', 'site')
     if site_maps:
-        mp = os.path.join(ROOT, 'rendered', 'site', 'meta.json')
-        meta = read_json(mp, {'maps': {}})
+        meta = read_json(os.path.join(site_dir, 'meta.json'), {'maps': {}})
     else:
         meta = render_meta(t)
-    base = os.path.join(ROOT, 'rendered', 'site') if site_maps else t['rendered']
+    base = site_dir if site_maps else t['rendered']
     groups = []
     for name, size in variants:
         if groups and groups[-1][0] == name:
@@ -918,7 +920,9 @@ def profile_readout(tr, stats, k=READOUT_SAMPLES):
     return out, (stats.get('distance_km') or tr.total / 1000.0)
 
 
-GLYPH_SIZES = {'g112': (112, 64), 'g64': (64, 48), 'tile': (200, 152)}
+# 'card': the 400 x 267 (3:2, the shape of most card slots) route drawing a card shows without a photo (visual-01 step 2,
+# Phase 15's render); until a trip has one, card_tile() shows the 200 x 152 'tile'
+GLYPH_SIZES = {'g112': (112, 64), 'g64': (64, 48), 'tile': (200, 152), 'card': (400, 267)}
 
 
 def _drawing(t, here, name, cls):
@@ -940,8 +944,13 @@ def glyph(t, here, size='g112', ns=None, cls=''):
 
 
 def tile(t, here, ns=None, cls=''):
-    """200×152 map tile (list rows, cards) as an <img> (see _drawing)."""
+    """200×152 map tile (list rows) as an <img> (see _drawing)."""
     return _drawing(t, here, 'tile', cls)
+
+
+def card_tile(t, here, cls=''):
+    """A card's route drawing when the trip has no photo: the 400×267 'card' drawing, else the 200×152 tile."""
+    return _drawing(t, here, 'card', cls) or _drawing(t, here, 'tile', cls)
 
 
 KEY_SYMBOLS = {
@@ -954,6 +963,9 @@ KEY_SYMBOLS = {
     'gps': ('GPS max', '<path d="M8 0.5l5 9h-10z" style="fill:var(--route)"/>'),
     'mile': ('Mile', '<circle cx="8" cy="5" r="4.5" style="fill:#fff;stroke:#16171A;stroke-width:1"/>'),
     'mile_out': ('Mile, outbound', '<circle cx="8" cy="5" r="4.5" style="fill:#fff;stroke:#16171A;stroke-width:1"/>'),
+    # a map that also draws kilometre discs (Phase 15, maps-01): the KM view's key names them
+    'mile_km': ('Mile', '<circle cx="8" cy="5" r="4.5" style="fill:#fff;stroke:#16171A;stroke-width:1"/>'),
+    'mile_km_out': ('Mile, outbound', '<circle cx="8" cy="5" r="4.5" style="fill:#fff;stroke:#16171A;stroke-width:1"/>'),
     # the base layer's OSM paths and roads (mapkit .mk-trail; .mk-minorc / .mk-minor, which report maps mostly carry)
     'trail': ('Trail (OSM)', '<path d="M1 5H15" style="stroke:#8F8A7E;stroke-width:0.75;stroke-dasharray:3 2"/>'),
     'road': ('Road', '<path d="M1 5H15" style="stroke:#A6A298;stroke-width:2.2;stroke-linecap:round"/><path d="M1 5H15" style="stroke:#FFFFFF;stroke-width:1.4;stroke-linecap:round"/>'),
@@ -973,7 +985,15 @@ KEY_SYMBOLS = {
 
 
 # key labels written as HTML (not escaped): a mile disc marks a mile, which the KM view says in kilometres too
-KEY_HTML = {'mile': U('Mile', 'Mile (1.6%s)' % unit_word(' km')), 'mile_out': U('Mile, outbound', 'Mile (1.6%s), outbound' % unit_word(' km'))}
+KEY_HTML = {'mile': U('Mile', 'Mile (1.6%s)' % unit_word(' km')), 'mile_out': U('Mile, outbound', 'Mile (1.6%s), outbound' % unit_word(' km')),
+            'mile_km': U('Mile', 'Kilometer'), 'mile_km_out': U('Mile, outbound', 'Kilometer, outbound')}
+
+
+def mile_key(t, name, outbound=False):
+    """The key item for a map's distance discs: 'mile' / 'mile_out', or with kilometre discs drawn too (their own set,
+    shown in the KM view: class mk-km) 'mile_km' / 'mile_km_out', whose KM wording is 'Kilometer'."""
+    km = _draws(t, name, r'class="mk-mile mk-km"')
+    return ('mile_km' if km else 'mile') + ('_out' if outbound else '')
 
 
 def key_row(items, cls='', label='Map key'):
@@ -1040,7 +1060,7 @@ def feature_key(t, variants, miles=True, cls='keyrow--compact'):
         gps = not flat and _draws(t, name, r'class="mk-gps"|l6 10h-12z"[^>]*fill: \{\{route\}\}')  # label or red triangle
         row = (['skin', 'ski'] if skin else ['route']) + ends + (['gps'] if gps else [])
         if miles and _draws(t, name, r'class="mk-mile'):
-            row.append('mile_out' if (maps.get(name) or {}).get('outbound_only') else 'mile')
+            row.append(mile_key(t, name, (maps.get(name) or {}).get('outbound_only')))
         if _size != 'phone':
             row += base_keys(t, [name])
         rows.append(row)
@@ -1761,7 +1781,7 @@ def trip_card(t, here, sizes, ns='tc', cls='', summary=False, repeated=(), list_
     if img:
         media = '<a class="tcard-img" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, img)
     else:
-        tl = tile(t, here)
+        tl = card_tile(t, here)
         if tl:
             media = '<a class="tcard-img tcard-img--tile" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, tl)
         else:

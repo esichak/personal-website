@@ -1294,6 +1294,17 @@ class MapCaptionTests(ReportFixture):
         self.assertEqual(self.caption('syn-story')[3:],
                          ['Terrain: AWS Terrain Tiles', 'Map data © OpenStreetMap contributors', 'Not for navigation'])
 
+    def test_the_footer_and_the_in_map_tag_keep_their_credits(self):
+        # docs/DEVELOPING.md "Yearly upkeep" (gap10-06): the caption's credit above, the footer's two credits on every page
+        # and the tag over a phone map, which is all the credit a phone shows while the caption sits below the fold
+        self.render('syn-story')                                  # a placeholder render: the page draws its map
+        foot = self.doc('syn-story').find('footer', cls='site-f').text()
+        for credit in ('MAPS: AWS TERRAIN TILES', '© OPENSTREETMAP CONTRIBUTORS'):
+            self.assertIn(credit, foot)
+        tags = [s_.text() for s_ in self.doc('syn-story').find_all('span', cls='mv-attrib')]
+        self.assertTrue(tags)
+        self.assertEqual(set(tags), {'© OSM · Not for navigation'})
+
     def test_caption_no_longer_opens_with_track(self):
         # section 2.6: the first item reads 'As recorded on …' (it replaces 'Track: <date>')
         for slug in ('syn-story', 'syn-words'):
@@ -2458,7 +2469,7 @@ MAP_SECTION = re.compile(r'<section class="rep-map(?: rep-map--empty)?" id="map"
 NOT_RENDERED = 'Map not rendered yet. The GPX file is published: use the Download GPX button.'
 NOT_RENDERED_DAYS = 'Map not rendered yet. The GPX files of the days are published: use the Download all GPX button.'
 STRIP_SECTION = re.compile(r'<section class="wrap rep-strip" id="stats" aria-label="Stats">.*?</section>', re.S)
-DRAWING = re.compile(r'(?:^|/)trips/([^/]+)/(tile|g112|g64)\.svg$')                        # a trip's route drawing, as an <img> src
+DRAWING = re.compile(r'(?:^|/)trips/([^/]+)/(tile|card|g112|g64)\.svg$')                        # a trip's route drawing, as an <img> src
 BBAR = re.compile(r'<nav class="bbar" aria-label="Report sections" style="--n:(\d+)">(.*?)</nav>', re.S)
 # what a single-day report without a track neither says nor links (10.2): the two title actions, the map key's route
 # symbol, the map caption's 'Full track, not trimmed', and the two sentences of the stats note that speak of a recording
@@ -2496,7 +2507,7 @@ def strip_note(sentences, cls='', how=HOW):
 
 
 def drawings(node, slug=None):
-    """The route drawings (tile.svg / g112.svg / g64.svg) a page or fragment shows as <img>, as (slug, name), in order;
+    """The route drawings (tile.svg / card.svg / g112.svg / g64.svg) a page or fragment shows as <img>, as (slug, name), in order;
     with slug, only that trip's."""
     found = [DRAWING.search(i['src'] or '') for i in node.find_all('img')]
     return [m.groups() for m in found if m and (slug is None or m.group(1) == slug)]
@@ -3162,7 +3173,7 @@ class NoTrackTests(ReportFixture):
                 # ... the report without its track and without a render folder ...
                 os.remove(track)
                 reload()
-                self.assertEqual(self.rendered_files(slug)[:3], ['g112.svg.html', 'g64.svg.html', 'map-col.base.svg'])
+                self.assertEqual(self.rendered_files(slug)[:4], ['card.svg.html', 'g112.svg.html', 'g64.svg.html', 'map-col.base.svg'])
                 t = self.by[slug]
                 self.assertFalse(os.path.exists(t['rendered']))        # after a reload the trip points at no folder
                 bare = self.page(slug).html
@@ -3217,14 +3228,14 @@ class NoTrackTests(ReportFixture):
 
         self.render(slug, chart='profile', drawn=True)
         want = {'own page': [(slug, 'g64')], 'pager, newer': [(slug, 'g112')], 'pager, older': [(slug, 'g112')],
-                'newer page': [(slug, 'g112')], 'card': [(slug, 'tile')], 'row': [(slug, 'tile')], 'table row': [(slug, 'g112')],
-                'section page': [(slug, 'tile')], 'related card': [(slug, 'tile')]}
+                'newer page': [(slug, 'g112')], 'card': [(slug, 'card')], 'row': [(slug, 'tile')], 'table row': [(slug, 'g112')],
+                'section page': [(slug, 'tile')], 'related card': [(slug, 'card')]}       # a card: the 400 x 267 drawing (Phase 15)
         self.assertEqual(seen(), want)
         os.remove(track)
         self.load_site()
         self.render(slug, chart='profile', drawn=True)
         t = self.by[slug]
-        self.assertEqual(self.rendered_files(slug)[:2], ['g112.svg.html', 'g64.svg.html'])
+        self.assertEqual(self.rendered_files(slug)[:3], ['card.svg.html', 'g112.svg.html', 'g64.svg.html'])
         self.assertEqual(seen(), {k: [] for k in want})
         for name, size in (('tile', None), ('g112', 'g112'), ('g64', 'g64')):
             self.assertTrue(os.path.isfile(os.path.join(t['rendered'], name + '.svg.html')))
@@ -3256,13 +3267,13 @@ class NoTrackTests(ReportFixture):
 
         slug = 'syn-photos'
         photos = ['photos/01.webp', 'photos/02.webp', 'photos/03.webp']
-        renders = ['g112.svg', 'g64.svg'] + ['map/map-%s.%s' % (n, e) for n in ('col', 'phone', 'wide') for e in ('base.svg', 'webp')]
+        renders = ['card.svg', 'g112.svg', 'g64.svg'] + ['map/map-%s.%s' % (n, e) for n in ('col', 'phone', 'wide') for e in ('base.svg', 'webp')]
         self.render(slug, chart='speed', drawn=True)
         self.assertEqual(published(slug, 'with'), sorted(renders + photos + [slug + '.gpx', 'tile.svg']))
         os.remove(os.path.join(self.tmp, slug, 'track.gpx'))
         self.load_site()
         self.render(slug, chart='speed', drawn=True)
-        self.assertEqual(self.rendered_files(slug)[:2], ['g112.svg.html', 'g64.svg.html'])     # the folder is all there
+        self.assertEqual(self.rendered_files(slug)[:3], ['card.svg.html', 'g112.svg.html', 'g64.svg.html'])     # the folder is all there
         self.assertEqual(published(slug, 'without'), photos)
         self.assertFalse(os.path.exists(os.path.join(out, 'without', 'trips', slug, 'map')))
         helpers.touch(os.path.join(self.tmp, slug, 'track.gpx'))

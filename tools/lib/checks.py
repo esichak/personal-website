@@ -1000,6 +1000,46 @@ def _site_inputs(t):
     return _inputs(t, renderkey.site_inputs)
 
 
+def _rendered_version(path):
+    """The renderer VERSION a meta.json records (meta['renderer'], Phase 15), 0 for a folder drawn before it was
+    recorded, None when there is no readable meta.json."""
+    try:
+        with open(path, encoding='utf-8') as fh:
+            meta = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    r = meta.get('renderer') if isinstance(meta, dict) else None
+    v = r.get('version') if isinstance(r, dict) else None
+    return v if isinstance(v, int) and not isinstance(v, bool) else 0
+
+
+def _renderer_version_findings(live, rendered_dir, out):
+    """A re-render left half done (gap9-05): the trip folders drawn by different renderer versions (a folder without a
+    record counts as the oldest), or site maps older than the newest trip's. One warning each; versions only."""
+    vers = {}
+    for t in live:
+        v = _rendered_version(os.path.join(rendered_dir, 'trips', t['slug'], 'meta.json'))
+        if v is not None:
+            vers[t['slug']] = v
+    if not vers:
+        return
+    newest = max(vers.values())
+    word = lambda v: ('version %d' % v) if v else 'no recorded version'  # noqa: E731
+    if len(set(vers.values())) > 1:
+        counts = {}
+        for v in vers.values():
+            counts[v] = counts.get(v, 0) + 1
+        older = sorted(s for s, v in vers.items() if v < newest)
+        parts = [('%d of %d renders are at renderer %s' if i == 0 else '%d at %s')
+                 % ((counts[v], len(vers), word(v)) if i == 0 else (counts[v], word(v))) for i, v in enumerate(sorted(counts))]
+        _warn(out, 'rendered/trips', '%s: the re-render is unfinished; run python3 tools/render.py (still older: %s%s)'
+              % (' and '.join(parts), ', '.join(older[:5]), ', ...' if len(older) > 5 else ''))
+    site = _rendered_version(os.path.join(rendered_dir, 'site', 'meta.json'))
+    if site is not None and site < newest:
+        _warn(out, 'rendered/site/meta.json', 'the site maps are at renderer %s and the newest trip at %s: run python3 '
+              'tools/render.py --site' % (word(site), word(newest)))
+
+
 def _site_hash_findings(live, rendered_dir, out):
     """The region and ski maps under rendered/site/ drawn from other inputs than the trips have now (a title, a track or
     a region changed, a trip was added or taken out), or without OpenStreetMap data. One warning for the whole folder,
@@ -1193,7 +1233,8 @@ def _region_findings(live, rendered_dir, out):
 
 def _site_map_findings(live, by_slug, drafts, rendered_dir, out):
     """A trip the rendered site maps still draw although it no longer has a page with a track: a draft, a folder that was
-    removed, or a report whose track.gpx is gone. The region maps (on the home page, the Map page and the Ski page) are
+    removed, or a report whose track.gpx is gone. The region maps (on the home page, the Map page and the Ski, Hiking and
+    Mountain biking pages) are
     drawn by tools/render.py and committed. Since Phase 8 the build leaves such a trip's own pin and line out of them
     (core.gone_keys, core.drop_keys), so the site and its check pass; a numbered cluster the trip was merged into keeps
     its count and its title until the maps are drawn again. rendered/site/meta.json lists the trips each map draws."""
@@ -1410,6 +1451,7 @@ def survey(trips_dir=None, home_json=None, rendered_dir=None, today=None):
         site_wide.append(('content/trips', _site_map_findings, (live, by_slug, drafts, rendered_dir)))
         # last: it stays quiet when one of the lines above already named the site maps
         site_wide.append(('rendered/site/meta.json', _site_hash_findings, (live, rendered_dir)))
+        site_wide.append(('rendered/trips', _renderer_version_findings, (live, rendered_dir)))
     root = os.path.dirname(trips_dir)
     site_wide += [('content/about.md', _about_findings, (root,)),
                   (author.FILE, _author_findings, (os.path.join(root, 'author.json'),)),

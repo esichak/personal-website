@@ -455,11 +455,12 @@ picture.cover-pic { display: contents; }
 .map.is-hl .mk-cluster.is-linked[aria-pressed="true"], .map.is-hl .mk-cluster.is-linked:focus-visible { opacity: 1; }
 /* the legend's activity filter (archive.js, maps-07): markers of the other activities fall back */
 .map .is-out { opacity: .15 !important; }
-/* a journal line's focus without a script (a11y-06): its 14 px hit stroke (inline transparent in the render, hence
-   !important) drawn as a faint halo along the whole part; base.js's highlight layers on top */
-.mk-line:focus-visible .mk-hit { stroke: var(--ink) !important; stroke-opacity: .35; }
-/* touch screens (gap1-03): a journal line is tapped through a wider hit stroke; pins lie above lines and still answer first */
-@media (pointer: coarse) { .mk-line .mk-hit { stroke-width: 28px !important; } }
+/* a journal line's focus without a script (a11y-06): its 14 px hit stroke (mapkit's .mk-line .mk-hit, transparent) drawn
+   as a faint halo along the whole part; base.js's highlight layers on top */
+.mk-line:focus-visible .mk-hit { stroke: var(--ink); stroke-opacity: .35; }
+/* touch screens (gap1-03): a journal line is tapped through a wider hit stroke; pins lie above lines and still answer
+   first (.map: one class more than mapkit's rule, which the bundle puts after this sheet) */
+@media (pointer: coarse) { .map .mk-line .mk-hit { stroke-width: 28px; } }
 .trow.is-map-hl .trow-a, .rtab-r.is-map-hl { background: var(--surface); }
 .trow.is-map-hl .trow-t, .rtab-r.is-map-hl .rtab-tt { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 
@@ -864,7 +865,7 @@ html:has(dialog.lb[open]) { overflow: hidden; }   /* the page behind the open vi
   .site-h .units button:not([aria-checked="true"]) { border-block-color: Canvas; }
   .menu-list a[aria-current] { border-left: 3px solid Highlight; box-shadow: none; }
   .mk-pin:focus-visible > circle:nth-of-type(2) { stroke: Highlight; }
-  .mk-line:focus-visible .mk-hit { stroke: Highlight !important; stroke-opacity: 1; }
+  .mk-line:focus-visible .mk-hit { stroke: Highlight; stroke-opacity: 1; }
   .mk-cluster.is-linked:focus-visible circle:nth-of-type(2) { stroke: Highlight !important; }
   /* an activity colour that keys a map keeps it (a11y-04): the compact key rows under the region maps (home, a region
      panel on a phone, the full-size map) and the explorer's filter-chip swatches, as the maps beside them keep theirs.

@@ -1,0 +1,20 @@
+{
+ "bbox_frame": [
+  38.9,
+  -120.13,
+  38.93,
+  -120.07
+ ],
+ "bytes": 764,
+ "h": 152,
+ "interval_ft": 1000,
+ "m_per_px": 22.97,
+ "name": "tile",
+ "osm": true,
+ "relief_m": [
+  1779.04,
+  2567.97
+ ],
+ "total_mi": null,
+ "w": 200
+}

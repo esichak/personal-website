@@ -1,0 +1,27 @@
+{
+ "bbox_frame": [
+  38.88,
+  -120.12,
+  38.91,
+  -120.05
+ ],
+ "bytes": 2999,
+ "end_xy": [
+  267.32,
+  48.0
+ ],
+ "gpsmax_xy": [
+  280.32,
+  48.0
+ ],
+ "h": 400,
+ "m_per_px": 8.62,
+ "name": "map-chev-out",
+ "outbound_only": false,
+ "start_xy": [
+  450.68,
+  352.0
+ ],
+ "total_mi": 1.94,
+ "w": 718
+}

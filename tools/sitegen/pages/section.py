@@ -294,7 +294,7 @@ def year_groups(rows_ts, here, cols=True):
     return ''.join(out)
 
 
-def more_list(title, rows_ts, here, id_='more', meta=None, extra='', fkey=None, by_year=False, sec_f=None, cols=True):
+def more_list(title, rows_ts, here, id_='more', meta=None, extra='', fkey=None, by_year=False, sec_f=None, cols=True, wrap=True):
     """'More <x>': H2 section head with the count, then one list, or year groups (by_year). sec_f: a filter key for the
     whole block (the Planned block's 'planned' shows under All only). cols: the column header (stat_cols), each year's
     or, for one list, the list's own under the head (False on Other, whose rows mix flat water with the rest)."""
@@ -308,8 +308,8 @@ def more_list(title, rows_ts, here, id_='more', meta=None, extra='', fkey=None, 
         ccls, chead = stat_cols(rows_ts) if cols else ('', '')
         body = (('<div class="sec-colrow" aria-hidden="true">%s</div>' % chead) if chead else '') + \
             '<ol class="tlist sec-tlist">%s</ol>' % ''.join(row(t, here, fkey) for t in rows_ts)
-    return ('<section class="sec-more wrap%s" aria-labelledby="%s-h"%s>%s%s%s</section>'
-            % (ccls, id_, (' data-f="%s"' % esc(sec_f)) if sec_f else '', core.section_head(title, meta, id_=id_ + '-h'), body, extra))
+    return ('<section class="sec-more%s%s" aria-labelledby="%s-h"%s>%s%s%s</section>'
+            % (' wrap' if wrap else '', ccls, id_, (' data-f="%s"' % esc(sec_f)) if sec_f else '', core.section_head(title, meta, id_=id_ + '-h'), body, extra))
 
 
 # ---------------------------------------------------------------- hiking: series section (HikingIndex artboard)
@@ -376,9 +376,14 @@ def dedupe_roads(svg, ns):
     return re.sub(r'<path class="mk-roadc" d="([^"]+)"/><path class="mk-road" d="\1"/>', rep, svg)
 
 
-def ski_regions(ts):
+# a section page's map panel (maps-15): its map's id, the heading screen readers hear, and the site maps' key prefix
+# (renderkey.site_jobs draws '<prefix>-<region>-desktop|phone' for a region with enough trips of the activity)
+PANELS = {'ski': ('ski-map', 'Ski map by region'), 'mtb': ('mtb-map', 'Ride map by region'), 'hike': ('hike-map', 'Hike map by region')}
+
+
+def ski_regions(ts, act='ski'):
     """The panel's regions, biggest first (as on map/); the sort is stable, so ties keep the newest trip's region first.
-    Only regions with a rendered ski panel map."""
+    Only regions with a rendered panel map for the activity ('<act>-<region>-desktop')."""
     regions = []
     for t in ts:  # newest first
         if t.get('region') and t['region'] not in regions:
@@ -386,13 +391,16 @@ def ski_regions(ts):
     regions.sort(key=lambda r: -sum(1 for t in ts if t.get('region') == r))
     meta_p = os.path.join(core.ROOT, 'rendered', 'site', 'meta.json')
     have = core.read_json(meta_p, {'maps': {}})['maps']
-    return [r for r in regions if ('ski-%s-desktop' % slug(r)) in have]
+    return [r for r in regions if ('%s-%s-desktop' % (act, slug(r))) in have]
 
 
-def ski_panel(ts, here):
-    regions = ski_regions(ts)
+def ski_panel(ts, here, act='ski'):
+    """The map panel beside a section's list: one region's map per tab (a single region shows no tab row), each a site
+    map '<act>-<region>'; '' when the activity has none rendered."""
+    regions = ski_regions(ts, act)
     if not regions:
         return ''
+    map_id, heading = PANELS[act]
     tabs, panels = [], []
     for i, r in enumerate(regions):
         s = slug(r)
@@ -401,8 +409,8 @@ def ski_panel(ts, here):
         tabs.append('<button type="button" role="tab" id="rt-%s" aria-controls="rp-%s" aria-selected="%s" tabindex="%s">'
                     '<span>%s</span>%s</button>'
                     % (s, s, 'true' if sel else 'false', '0' if sel else '-1', esc(r), count_html(cnt, 'sec-tab-n')))
-        mb = core.map_block(None, here, [('ski-%s-desktop' % s, 'desktop'), ('ski-%s-phone' % s, 'phone')],
-                            'assets/maps/', 'rm-' + s, site_maps=True, eager=sel)
+        mb = core.map_block(None, here, [('%s-%s-desktop' % (act, s), 'desktop'), ('%s-%s-phone' % (act, s), 'phone')],
+                            'assets/maps/', 'rm-' + s, site_maps=True, eager=sel and act == 'ski')
         mb = dedupe_roads(mb, 'rm-' + s)
         panels.append('<div class="sec-rp" role="tabpanel" id="rp-%s" aria-labelledby="rt-%s"%s>'
                       '<p class="t-label sec-rp-l">%s</p>%s</div>'
@@ -410,11 +418,17 @@ def ski_panel(ts, here):
                          if core.region_link(here, r) else esc(r), mb))
     # the shared map caption; the hover hint is dropped on touch screens and without JS (.sec-pcap-h)
     cap = '<div class="sec-pcap">%s</div>' % core.map_caption([('Hover a report to highlight its track', 'sec-pcap-h'), 'North up'])
+    tablist = ('<div class="tabs-x sec-tabs-x"><div class="sec-tabs" role="tablist" aria-label="Region">%s</div></div>' % ''.join(tabs)
+               if len(regions) > 1 or act == 'ski' else '')
+    if len(regions) == 1 and act != 'ski':
+        # one region: its panel, shown, with no tab to name it; its label says the region, shown with scripting too
+        # (.sec-rp--one), as the heading is visually hidden from 960 px
+        panels = [p.replace('<div class="sec-rp" role="tabpanel"', '<div class="sec-rp sec-rp--one"')
+                  .replace(' aria-labelledby="rt-%s"' % slug(regions[0]), '') for p in panels]
     return ('<aside class="sec-panel" aria-labelledby="panel-h"><div class="sec-panel-in">'
-            '<h2 class="sec-panel-h" id="panel-h">Ski map by region</h2>'
-            '<div class="tabs-x sec-tabs-x"><div class="sec-tabs" role="tablist" aria-label="Region">%s</div></div>'
-            '<div class="map sec-maps" id="ski-map">%s</div>%s</div></aside>'
-            % (''.join(tabs), ''.join(panels), cap))
+            '<h2 class="sec-panel-h" id="panel-h">%s</h2>%s'
+            '<div class="map sec-maps" id="%s">%s</div>%s</div></aside>'
+            % (heading, tablist, map_id, ''.join(panels), cap))
 
 
 def ski_body(ts, here):
@@ -572,7 +586,15 @@ def page(act, site):
                                            nowide=True)
         if ser:
             body.append(series_block(ser, here, fkey=' '.join(years_of(ser)) if by_year else None))
-        body.append(more_list(MORE[act], rest, here, fkey=sub_key if act == 'other' else None, by_year=by_year, cols=act != 'other'))
+        # the panel's regions and counts from every report its map draws: the featured one too (the journal is no pin)
+        panel = ski_panel([t for t in ts if t['kind'] != 'series'], here, act) if act in PANELS else ''
+        if panel:
+            # as on Ski: the panel first in reading order (above the list below 960 px), beside it from 960 (maps-15)
+            body.append('<div class="sec-split sec-split--%s wrap">%s<div class="sec-list" data-map-target="%s">%s</div></div>'
+                        % (act, panel, PANELS[act][0], more_list(MORE[act], rest, here, by_year=by_year, cols=True, wrap=False)))
+            extra_head += NOSCRIPT
+        else:
+            body.append(more_list(MORE[act], rest, here, fkey=sub_key if act == 'other' else None, by_year=by_year, cols=act != 'other'))
         if act == 'hike' and planned:
             body.append(more_list('Planned', planned, here, id_='planned', meta=plural(len(planned), 'PLANNED ROUTE'),
                                   sec_f='planned' if by_year else None))

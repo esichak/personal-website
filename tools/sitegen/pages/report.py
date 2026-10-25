@@ -209,8 +209,8 @@ def key_items(t, meta, phone=False):
     items = (['skin', 'ski'] if t['activity'] == 'ski' else ['route']) + ends
     if not flat:
         items.append('gps')
-        m = meta['maps'].get('map-wide') or meta['maps'].get('map-col') or {}
-        items.append('mile_out' if m.get('outbound_only') else 'mile')
+        name = 'map-wide' if 'map-wide' in meta['maps'] else 'map-col'
+        items.append(core.mile_key(t, name, (meta['maps'].get(name) or {}).get('outbound_only')))
     # the base layer's trails and roads, when the desktop renders draw them (maps-02)
     return items + core.base_keys(t, [k for k in ('map-wide', 'map-col') if k in meta['maps']])
 

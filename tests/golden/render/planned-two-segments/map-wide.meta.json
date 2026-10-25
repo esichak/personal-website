@@ -1,0 +1,29 @@
+{
+ "base": "map-wide.base.svg",
+ "bbox_frame": [
+  38.9,
+  -120.15,
+  38.93,
+  -120.05
+ ],
+ "bytes": 3370,
+ "end_xy": [
+  720.0,
+  76.8
+ ],
+ "h": 640,
+ "interval_ft": 100,
+ "m_per_px": 5.46,
+ "name": "map-wide",
+ "osm": true,
+ "relief_m": [
+  1778.3,
+  2569.17
+ ],
+ "start_xy": [
+  720.0,
+  157.87
+ ],
+ "total_mi": null,
+ "w": 1440
+}

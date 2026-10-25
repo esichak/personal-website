@@ -123,7 +123,7 @@ def drawn(t, name):
             'transfer': '>TRANSFER<' in s, 'gps': ('class="mk-gps"' in s) or bool(_GPS.search(s)),
             'start': bool(re.search(r'<circle[^>]*r="[57]"[^>]*fill: #16171A', s)),
             'end': bool(re.search(r'<rect[^>]*width="1[04]"[^>]*fill: #16171A', s)),
-            'mile': 'class="mk-num"' in s,
+            'mile': 'class="mk-num"' in s, 'mile_km': 'class="mk-mile mk-km"' in s,
         }
     return _DRAWN[k]
 
@@ -154,7 +154,7 @@ def key_items(t, names, route_label=None):
     if f.get('gps'):
         items.append('gps')
     if f.get('mile'):
-        items.append('mile')
+        items.append('mile_km' if f.get('mile_km') else 'mile')
     return items + core.base_keys(t, [nm for nm in names if not nm.endswith('-phone')])
 
 

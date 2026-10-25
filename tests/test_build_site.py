@@ -1633,7 +1633,7 @@ class RetitleLabelTests(BuiltCase):
         html_ = self.html(RG_URLS[0])
         # (data-act and data-acts: each pin's and cluster's activities, which the build adds since Phase 12)
         self.assertIn('data-key="synb-rg-lap" data-act="ski" aria-label="Synthetic Reach Lap"><title>Synthetic Reach Lap</title>', html_)
-        self.assertIn('data-keys="synb-rg-words synb-rg-lap" data-acts="climb ski"><title>Synthetic Reach Words; Synthetic Reach Lap</title>', html_)
+        self.assertIn('data-keys="synb-rg-words synb-rg-lap" data-acts="climb ski"><title>2 reports start here: Synthetic Reach Words; Synthetic Reach Lap</title>', html_)
         self.assertNotIn('Synthetic pin', html_)
         self.assertNotIn('Synthetic cluster', html_)
         self.assertNotIn('Synthetic pin', self.html('map/'))

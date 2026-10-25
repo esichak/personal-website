@@ -43,6 +43,10 @@ tools/lib/photos.py               photo copies without EXIF/GPS: web_copies() (f
 tools/thumbs.py                   makes the missing card-size (.th) copies of cover photos (needs cwebp); only adds files beside the photos
 tools/privacy_audit.py            the author's offline, read-only report on the published tracks and photos; never run by the build or CI
 tools/share_preview.py            what each indexable page's share card is made of, read from a built site, with flags (Phase 14)
+tools/render_sheet.py             a before/after page of a fixed sample of maps, profiles and drawings, against a git revision
+                                  (--base HEAD): before each staging of a render round (Phase 15)
+tools/size_report.py              what the tracked tree, the history and a build weigh, by kind and by trip year, against
+                                  GitHub's limits (read-only; Storage budget, below)
 tools/fonts.py                    makes the three typefaces the site's own files: assets/fonts/ and assets/css/fonts.css (needs the
                                   internet, run once with Eric's go-ahead; --check is offline)
 tools/sitegen/author.py           content/author.json -> site['author'] (strict; no file, no contact): the address and profile links
@@ -151,8 +155,10 @@ with 40 px to spare).
   miles; without JavaScript it is miles. Only a press of the switch stores a choice (base.js; until Phase 13A every
   page load stored what it showed), so the language decides until the reader chooses. The menu's Units row is its first row (gap6-02), across both columns from 760 px.
   Rendered fragments carry both units too: profile grid lines, y labels and distance ticks, map scale bars and GPS-max
-  labels sit in `<g class="u-mi">` / `<g class="u-km">` (or `<tspan>`s), which base.css shows one at a time. Mile discs
-  and contour labels stay imperial.
+  labels sit in `<g class="u-mi">` / `<g class="u-km">` (or `<tspan>`s), which base.css shows one at a time. Since
+  Phase 15 (maps-01) contour labels carry both units too, and the distance discs come in two sets placed apart, miles
+  in `u-mi` and kilometres in `u-km` (`class="mk-mile mk-km"`); the map key's KM wording is then 'Kilometer'
+  (`core.mile_key`), 'Mile (1.6 km)' only on a map drawn before that.
 - Links are relative: build hrefs with `core.link(here, target)` where `here` is the page URL (`''`, `ski/`, `trips/`,
   `trips/<slug>/`, `regions/<slug>/`). Rendered fragments use `@@ROOT@@` which `core.frag` rewrites.
 - Maps are static: `core.map_block(t, here, [(name, size)…], asset_dir, ns)` shows exactly one variant per
@@ -1810,7 +1816,16 @@ python3 tools/validate.py                # the content checks alone: every error
 python3 -m unittest discover -s tests    # the unit tests
 python3 tools/build.py --check           # the content checks, the build into _site/, then the built-site checks
 python3 tools/check.py                   # all of it before a push that changes tools/, tests/ or assets/ (below)
+python3 -m unittest discover -s tests -p test_mapkit_golden.py    # the renderer against its goldens, offline, ~10 s
+RENDER_TESTS=1 python3 -m unittest discover -s tests -p test_render_contract.py   # render.py's output read by the pages
 ```
+
+The golden test (Phase 15, gap9-01) draws three synthetic routes over a synthetic hill (tests/render_fixtures.py) and
+compares every SVG, meta.json and PNG's pixels with `tests/golden/render/`. A renderer change ships with its goldens
+regenerated, `UPDATE_GOLDEN=1 python3 -m unittest discover -s tests -p test_mapkit_golden.py`, and the diff of
+`tests/golden/` read before the commit: that diff is what the change does to every map. The contract test (gap9-09)
+renders synthetic trips end to end with the network stubbed and builds their pages; it runs on CI (`CI=true`) and
+locally with `RENDER_TESTS=1`, and is skipped otherwise because it takes about a minute.
 
 By hand before a publication, beside the checks: the pages at 320, 390 and 1280 px; a report, map/ and a region page
 at 200 % text-only zoom in Firefox (View > Zoom > Zoom Text Only); Chrome's touch emulation on the multi-day day bar
@@ -1880,7 +1895,8 @@ While working on the generator:
   `--port N` moves it to another port, `--open [SLUG]` opens the page in the browser, and `--watch` builds again
   whenever a source file is saved (build.py, above).
 - `python3 tools/render.py --status [SLUG ...]` lists, offline, every trip a run would draw and why (`new: no maps drawn
-  yet`, `track changed`, `title/map/stats changed`, `renderer changed`, `OSM missing last time ...`, a goal or report
+  yet`, `track changed`, `title/map/stats changed`, `renderer changed`, `map frame changed (...)` when a change to
+  `renderkey.TALL` moves a trip between frames, `OSM missing last time ...`, a goal or report
   whose render is removed, `draft, skipped`), render folders left by trips that are gone, and `site maps: up to date |
   stale (...)`; exit status 1 when anything is to draw. It reads content/ and rendered/ only (render.py, below).
 - `python3 tools/add_trip.py … --no-render` skips the map render. The build still passes, the page shows the 'Map not
@@ -2110,7 +2126,8 @@ for ever; one that does not parse (cut short by a full disk or a killed run) is 
 (`geo.cached_answer`), as a truncated tile always was; one that cannot be read at all (an iCloud placeholder while
 offline: an `OSError`) is kept, and the answer is fetched as if it were not there. To pick up newer OpenStreetMap data, delete `osm/` (or one
 answer) and run `python3 tools/render.py --site --force`: every answer is fetched again (one is about 200 MB and once
-overran the 180 s limit) and roads and labels can change on every map, which the hash check does not see.
+overran the 180 s limit) and roads and labels can change on every map, which the hash check does not see. Once a year
+that belongs just before the render round (Yearly upkeep, item 6), so one redraw carries both.
 
 Until the old caches are moved, a checkout whose `.cache/tiles` or `.cache/osm` exists while the new folder does not
 keeps using the old one (`geo._cache_dir`), so no render downloads again what is already on disk, and render.py ends
@@ -2126,6 +2143,59 @@ iCloud Drive downloads each offloaded file before it moves (about 1.3 GB on 2026
 Once they are moved, `.cache/` (git-ignored) holds scratch builds and review evidence that can be deleted, and one file
 that must be kept: `.cache/p4/PRIVACY_AUTHOR_ONLY.md`, the author-only privacy listing (`docs/PRIVACY_NOTES.md`). It is
 in no clone, so a new checkout gets it by hand (README.md, "Moving the checkout out of iCloud Drive").
+
+## A render round
+
+A change to how maps are drawn reaches the site only through a full re-render, which rewrites most of `rendered/`
+and adds to the repository's history for good (Storage budget, below), so renderer changes are batched into one round
+a year (Phase 15 was 2026's). The round:
+
+1. Land the renderer changes with their goldens regenerated and the diff read: `UPDATE_GOLDEN=1 python3 -m unittest
+   discover -s tests -p test_mapkit_golden.py`, then `git diff tests/golden/` (Checking your work).
+2. Bump `VERSION` in `tools/lib/renderkey.py` once. Never use `--force` for a full run: it redraws every trip on every
+   run, while a VERSION bump makes every trip pending exactly once, so a run that stops resumes where it stopped.
+3. `python3 tools/render.py --list` (the same as `--status`): every trip pending, reason 'renderer changed'.
+4. `python3 tools/render.py --jobs 2 --budget 3600`, as often as needed until it reports nothing pending. It prints a
+   progress line every 10 trips and ends with a summary line (rendered, skipped, failed, OSM missing, left, site maps)
+   for the commit message. A run that stops on its budget skips the site maps; the last one draws them, or run
+   `python3 tools/render.py --site`. `/opt/homebrew/bin/python3.12 tools/render.py` draws the same files about 40 %
+   faster; the tools stay 3.9-compatible.
+5. `python3 tools/render_sheet.py --all` and look at the before/after sheet in `.cache/render-sheet/` before staging.
+6. Stage by path, `git add rendered/trips rendered/site`, after `git status --short` shows no ' 2' / ' 3' names; one
+   commit carrying the summary line.
+
+Every `meta.json` records what drew it (`meta['renderer']`: the VERSION, Python, cwebp, the day, and whether its
+OpenStreetMap data came from the cache, was fetched or is missing), and `validate.py` warns while the trip folders
+disagree on the version (a round left half done) or the site maps are older than the newest trip. `render.py` draws
+nothing without cwebp (`brew install webp`): the hillshades would be committed as PNGs about twice the size;
+`--allow-png` draws all the same. `render.HILLSHADE_Q` is cwebp's quality for every hillshade, chosen before a round
+from a side-by-side at 1x and 2x: 80 since the 2026 round, where q88, q80 and q75 looked the same and q80 was 29 to 35%
+smaller than q88 (it was 88 before). The map base layers keep their gzip budgets (`mapkit.BASE_GZ_KB`, 80 KB,
+and `BASE_GZ_KB_PHONE`, 40 KB); each map's `base_gz_kb` is in its meta.json for the sheet.
+
+What the 2026 round (renderer version 8) draws differently:
+
+- A single-day report's or a goal's map whose track box is taller than `renderkey.TALL` (1.4) to 1 across is drawn
+  1440 x 800 (wide) and 718 x 500 (column) instead of 1440 x 640 and 718 x 400 (maps-03; 34 of the 157 such maps in
+  2026). The frame enters the trip's hash only when it is the tall one (`renderkey.report_frame`), so a later change
+  of the rule redraws only those trips; the phone map stays 390 x 336, and a multi-day trip's day maps keep theirs.
+- The wide map's scale bar may be 200 px, so a 1 mi / 2 km bar fits a 1440 px frame (maps-16).
+- Contour labels in both units, and a kilometre set of distance discs beside the miles (maps-01).
+- A 400 x 267 'card' drawing beside the 200 x 152 tile (visual-01 step 2): `core.card_tile` shows it on cards (home,
+  the explorer, More like this) and falls back to the tile; build.py publishes it as `card.svg` with strokes that scale.
+- A multi-day trip's phone overview numbers each day's end with the wide overview's squares, without the hut names,
+  clear of the scale bar and the credit tag (maps-05).
+- The journal's two overviews label the first recorded day of each month after the first ('MAY') where that day's line
+  starts, with a 6 px tick; a label with no free place is left out (maps-06, `point_labels`).
+- Site maps for the Mountain biking and Hiking pages' panels, `mtb-<region>` and `hike-<region>`, for a region with at
+  least `renderkey.PANEL_TRIPS` (5) trips of the activity, 506 x 680 and 390 x 480 like the ski ones (maps-15; in 2026
+  Santa Cruz and Lake Tahoe for rides, Lake Tahoe for hikes). `section.ski_panel(ts, here, act)` draws the panel
+  beside the 'More' list when they exist (one region: no tab row), `section.PANELS` names their ids and headings.
+- A numbered cluster's tooltip: 'N reports start here: A; B; C and K more' (copy-18, `mapkit.cluster_title`; the build
+  writes it again from the current titles, `core.relabel`).
+- A journal line's hit stroke is the class rule `.mk-line .mk-hit` (mapkit's MAP_CSS), not an inline style, so the
+  focus halo and the touch width need no `!important` (a11y-06).
+- The decoded terrain tiles are `array('d')`, at most 256 kept in memory (geo, gap9-08).
 
 ## Measuring page loads
 This is the method the Phase 4 loading measurements used, written down so that a later change can be measured the same

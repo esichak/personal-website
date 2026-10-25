@@ -112,7 +112,7 @@ def card(t, lead=False, wide=False):
     if img:
         media = '<a class="hom-card-img" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, img)
     else:
-        tile = core.tile(t, HERE)
+        tile = core.card_tile(t, HERE)
         media = ('<a class="hom-card-img hom-card-img--tile" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, tile)) if tile else ''
     chips = '<div class="chips hom-card-chips">%s%s</div>' % (core.chip(t, href=link(HERE, core.section_url(t['activity']))), card_tags(t))
     meta = meta_line([core.trip_date(t), card_place(t)])

@@ -252,6 +252,9 @@ at the first thing that is wrong, with one line that says what to do:
   region maps were drawn with it, or the write-up links to it): GitHub's check would not have that trip, so publish
   the two together (`publish.py one-trip other-trip`), or the other first.
 
+After a render with no trip name (the yearly round, `docs/DEVELOPING.md`, "A render round"), look at the before/after
+sheet `python3 tools/render_sheet.py --all` writes before you stage `rendered/`: every changed map beside its old self.
+
 It then stages `content/trips/<trip-name>`, `rendered/trips/<trip-name>` (when it exists, or existed), `rendered/site`
 when the region maps changed and `content/home.json` when it changed, prints the list, and commits `Add <title>`
 (`Update <title>` for a trip already published, `Remove <trip-name>` for a folder you deleted; `--message` gives your
@@ -440,6 +443,9 @@ previews the page and publishes it as in step 5.
   (`~/Library/Caches/personal-website/osm/`, or `.cache/osm/` in this folder until the caches have been moved:
   `docs/DEVELOPING.md`, "Render caches"), or one answer in it, then run `python3 tools/render.py --site --force`. That
   downloads every answer again (one is about 200 MB) and can change roads and labels on every map; stage `rendered`
-  after it.
+  after it. The best time is just before the year's render round, which redraws every map anyway.
+
+Once a year, with the first trip of the year, go down the "Yearly upkeep" list in `docs/DEVELOPING.md`: what the
+repository weighs, the workflow's actions, the runner, GitHub's limits, the map and font sources, the iCloud copies.
 
 More detail on how the site works: `README.md`, `docs/CONTENT_GUIDE.md` and `docs/DEVELOPING.md`.

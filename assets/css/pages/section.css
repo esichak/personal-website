@@ -256,6 +256,7 @@
 .sec-tab-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 .sec-maps { margin-top: 12px; }
 .sec-rp-l { display: none; margin-bottom: 8px; }
+.sec-rp--one .sec-rp-l { display: block; }   /* one region, no tab row: the label names it */
 .sec-pcap { min-width: 0; }  /* core.map_caption inside: 12 above, Small ink-3 */
 @media (hover: none) { .sec-pcap-h { display: none; } }
 /* the last list row's rule is the only separator above the forecasts */

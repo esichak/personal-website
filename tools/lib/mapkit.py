@@ -32,9 +32,12 @@ SANS = "Archivo, 'Helvetica Neue', system-ui, sans-serif"
 SERIF = "'Source Serif 4', Georgia, serif"
 
 # Shared CSS for map/profile SVG internals (goes in each artboard's <helmet><style>)
+LINE_HIT = 14   # px: the width of the invisible stroke along a line that is a link (the line itself is drawn 2.5 wide)
+# (a class rule in MAP_CSS, .mk-line .mk-hit, since Phase 15: a11y-06)
 MAP_CSS = """
 .mk-min{fill:none;stroke:#CFCABD;stroke-width:.5}
 .mk-idx{fill:none;stroke:#B3AD9F;stroke-width:.9}
+.mk-line .mk-hit{fill:none;stroke:transparent;stroke-width:%(line_hit)spx;pointer-events:stroke}
 .mk-cl{font:500 11px/1 %(mono)s;fill:#55524A;stroke:#EEECE6;stroke-width:3px;paint-order:stroke;stroke-linejoin:round}
 .mk-water{fill:#D3DEE2;stroke:#9FB4BD;stroke-width:.75;fill-rule:evenodd}
 .mk-glacier{fill:#E6ECEE;fill-opacity:.5;stroke:none;fill-rule:evenodd}
@@ -77,7 +80,7 @@ MAP_CSS = """
 .gl-trk{fill:none;stroke-linecap:round;stroke-linejoin:round}
 .mk-ph .mk-lbl,.mk-ph .mk-gps,.mk-ph .mk-num,.mk-ph .mk-rl,.mk-ph .mk-day,.mk-ph .mk-cl{font-size:12px}
 .pf-ph .pf-ax{font-size:12.1px}
-""" % {'mono': MONO, 'sans': SANS, 'serif': SERIF}
+""" % {'mono': MONO, 'sans': SANS, 'serif': SERIF, 'line_hit': LINE_HIT}
 
 
 AX_HALO = 'stroke: #F2F1EC; stroke-width: 3px; paint-order: stroke; stroke-linejoin: round'  # phone y-axis labels over the plot
@@ -425,7 +428,8 @@ def contours_svg(proj, interval_ft, index_every=5, step=2.0, zoom=None, labels=T
                     if abs(ang) > 45:
                         break
                     txt = fmt_int(k * interval_ft)
-                    tw = text_w(txt, 11, mono=True) + 4
+                    txt_m = fmt_int(int(round(k * iv)))
+                    tw = max(text_w(txt, 11, mono=True), text_w(txt_m, 11, mono=True)) + 4
                     a = math.radians(ang)
                     bw = tw * abs(math.cos(a)) + 16 * abs(math.sin(a))
                     bh = tw * abs(math.sin(a)) + 16 * abs(math.cos(a))
@@ -434,7 +438,7 @@ def contours_svg(proj, interval_ft, index_every=5, step=2.0, zoom=None, labels=T
                             not (avoid and avoid(x, y, 26)):
                         boxes.append(b)
                         lbl.append('<text class="mk-cl" x="%.1f" y="%.1f" text-anchor="middle" dominant-baseline="central" '
-                                   'transform="rotate(%.1f %.1f %.1f)">%s</text>' % (x, y, ang, x, y, txt))
+                                   'transform="rotate(%.1f %.1f %.1f)">%s</text>' % (x, y, ang, x, y, u_span(txt, txt_m)))
                         placed = True
                     break
                 acc += seg
@@ -630,7 +634,18 @@ def join_ways(ways):
 LAST_OSM = {}
 
 
-LINE_HIT = 14   # px: the width of the invisible stroke along a line that is a link (the line itself is drawn 2.5 wide)
+
+
+def cluster_title(titles):
+    """A numbered cluster's tooltip (copy-18): 'N reports start here: A; B; C and K more', the first three distinct titles
+    (a planned route counts as a report). core.relabel writes it again from the current titles at build time."""
+    names = []
+    for t in titles:
+        if t and t not in names:
+            names.append(t)
+    more = len(names) - 3
+    return '%d %s here: %s%s' % (len(titles), 'report starts' if len(titles) == 1 else 'reports start', '; '.join(names[:3]),
+                                 (' and %d more' % more) if more > 0 else '')
 
 
 def line_links(links):
@@ -641,8 +656,7 @@ def line_links(links):
     the pointer or the focus is on it, as it does for a pin."""
     out = []
     for key, ln in links.items():
-        uses = ''.join('<use href="#%s" class="mk-hit" style="fill: none; stroke: transparent; stroke-width: %d; pointer-events: stroke"/>'
-                       % (i, LINE_HIT) for i in ln['ids'])
+        uses = ''.join('<use href="#%s" class="mk-hit"/>' % i for i in ln['ids'])
         out.append('<a class="mk-line" href="%s" data-key="%s" aria-label="%s"><title>%s</title>%s</a>'
                    % (esc(ln['href']), esc(key), esc(ln['title']), esc(ln['title']), uses))
     return out
@@ -1046,64 +1060,74 @@ def render_map(spec):
                 marker_pts.append((ex, ey))
                 if t['hut_end'].get('label'):
                     meta.setdefault('hut_labels', []).append((ex, ey, re.sub(r'\s+(CAS|CAF|SAC|CAI)$', '', t['hut_end']['label'])))
-        # mile markers (outbound only on out-and-back tracks; clear of start/end and GPS max)
+        # mile markers (outbound only on out-and-back tracks; clear of start/end and GPS max), and a kilometre set beside
+        # them (maps-01 part 3): each in its own unit group, so the MI|KM switch shows one; placed apart, never shown together
         if style == 'route' and spec.get('miles'):
             tot_mi = tr.total / MI
             total_mi = tot_mi
-            every = 1 if tot_mi <= 15 else 2
-            m = every
             limit = tr.total - 0.1 * MI
             if oab:
                 far_i = max(range(len(tr.raw)), key=lambda k: geo.hav(tr.raw[0], tr.raw[k]))
                 limit = tr.cd[far_i]
             meta['outbound_only'] = bool(oab)
             gpt = gps_pts.get(idx_t)
-            placed_discs = []
-
-            def blocked(x, y):
-                if min(math.hypot(x - xy[0][0], y - xy[0][1]), math.hypot(x - xy[-1][0], y - xy[-1][1])) < 19:
-                    return True
-                if gpt and math.hypot(x - gpt[0], y - gpt[1]) < 22:
-                    return True
-                if any(math.hypot(x - a_, y - b_) < 22 for a_, b_ in placed_discs):
-                    return True
-                return overlaps((x - 10, y - 10, x + 10, y + 10), boxes, 1)
+            boxes0 = list(boxes)
 
             def in_gap(tgt):
                 # inside a recording gap (fixes > GAP_M apart): the map draws nothing there, so no disc either
                 k_ = bisect.bisect_left(cds, tgt)
                 return 0 < k_ < len(cds) and cds[k_] - cds[k_ - 1] > GAP_M
-            while m * MI < limit:
-                if cds[0] <= m * MI <= cds[-1] and in_gap(m * MI):
-                    m += every  # the mile falls in a gap: try the next one
-                    continue
-                if cds[0] <= m * MI <= cds[-1]:
-                    pos = None
-                    for dm in (0, 0.05, -0.05, 0.1, -0.1, 0.15, -0.15, 0.2, -0.2, 0.25, -0.25):
-                        tgt = (m + dm) * MI
-                        if not (cds[0] <= tgt <= cds[-1]) or in_gap(tgt):
-                            continue
-                        x, y, ang = along(xy, cds, tgt)
-                        if not blocked(x, y):
-                            pos = (x, y)
-                            break
-                    if pos is None:
-                        pos = along(xy, cds, m * MI)[:2]
-                        # nowhere clear: still mark the mile unless the disc would sit on another marker (a lap of the
-                        # same loop, the start/end pair, the GPS max), where it would hide both
-                        px_, py_ = pos
-                        if (gpt and math.hypot(px_ - gpt[0], py_ - gpt[1]) < 22) or \
-                                any(math.hypot(px_ - a_, py_ - b_) < 21 for a_, b_ in placed_discs) or \
-                                min(math.hypot(px_ - xy[0][0], py_ - xy[0][1]), math.hypot(px_ - xy[-1][0], py_ - xy[-1][1])) < 19:
-                            m += every
-                            continue
-                    x, y = pos
-                    placed_discs.append((x, y))
-                    marker_pts.append((x, y))
-                    layers['markers'].append('<g class="mk-mile"><circle cx="%.1f" cy="%.1f" r="10" style="fill: #FFFFFF; stroke: #16171A; stroke-width: 1"/>'
-                                             '<text class="mk-num" x="%.1f" y="%.1f">%d</text></g>' % (x, y, x, y + 0.5, m))
-                    boxes.append((x - 11, y - 11, x + 11, y + 11))
-                m += every
+
+            def discs(unit, every, cls):
+                """One disc per `every` units of distance, numbered; [svg], [boxes]. Clear of the ends, the GPS max and the
+                discs of its own set (the other unit's are never on screen with it)."""
+                placed_discs, out, new_boxes = [], [], []
+
+                def blocked(x, y):
+                    if min(math.hypot(x - xy[0][0], y - xy[0][1]), math.hypot(x - xy[-1][0], y - xy[-1][1])) < 19:
+                        return True
+                    if gpt and math.hypot(x - gpt[0], y - gpt[1]) < 22:
+                        return True
+                    if any(math.hypot(x - a_, y - b_) < 22 for a_, b_ in placed_discs):
+                        return True
+                    return overlaps((x - 10, y - 10, x + 10, y + 10), boxes0 + new_boxes, 1)   # as before: its own set's boxes too
+                m = every
+                while m * unit < limit:
+                    if cds[0] <= m * unit <= cds[-1] and in_gap(m * unit):
+                        m += every  # the mark falls in a gap: try the next one
+                        continue
+                    if cds[0] <= m * unit <= cds[-1]:
+                        pos = None
+                        for dm in (0, 0.05, -0.05, 0.1, -0.1, 0.15, -0.15, 0.2, -0.2, 0.25, -0.25):
+                            tgt = (m + dm) * unit
+                            if not (cds[0] <= tgt <= cds[-1]) or in_gap(tgt):
+                                continue
+                            x, y, ang = along(xy, cds, tgt)
+                            if not blocked(x, y):
+                                pos = (x, y)
+                                break
+                        if pos is None:
+                            pos = along(xy, cds, m * unit)[:2]
+                            # nowhere clear: still mark it unless the disc would sit on another marker (a lap of the
+                            # same loop, the start/end pair, the GPS max), where it would hide both
+                            px_, py_ = pos
+                            if (gpt and math.hypot(px_ - gpt[0], py_ - gpt[1]) < 22) or \
+                                    any(math.hypot(px_ - a_, py_ - b_) < 21 for a_, b_ in placed_discs) or \
+                                    min(math.hypot(px_ - xy[0][0], py_ - xy[0][1]), math.hypot(px_ - xy[-1][0], py_ - xy[-1][1])) < 19:
+                                m += every
+                                continue
+                        x, y = pos
+                        placed_discs.append((x, y))
+                        marker_pts.append((x, y))
+                        out.append('<g class="%s"><circle cx="%.1f" cy="%.1f" r="10" style="fill: #FFFFFF; stroke: #16171A; stroke-width: 1"/>'
+                                   '<text class="mk-num" x="%.1f" y="%.1f">%d</text></g>' % (cls, x, y, x, y + 0.5, m))
+                        new_boxes.append((x - 11, y - 11, x + 11, y + 11))
+                    m += every
+                return out, new_boxes
+            mi_svg, mi_boxes = discs(MI, 1 if tot_mi <= 15 else 2, 'mk-mile')
+            km_svg, km_boxes = discs(1000.0, 1 if tr.total <= 24000 else 2, 'mk-mile mk-km')
+            layers['markers'].append('<g class="u-mi">%s</g><g class="u-km">%s</g>' % (''.join(mi_svg), ''.join(km_svg)))
+            boxes.extend(mi_boxes + km_boxes)
         if style == 'route' and spec.get('chevrons') and not oab:
             m = 0.5
             while m * MI < tr.total:
@@ -1438,7 +1462,7 @@ def render_map(spec):
     # scale bar: a compact bar in the freest corner, one per unit (the MI|KM toggle shows one); at most 25% of the width
     if spec.get('scale', True):
         mpp = proj.m_per_px
-        cap_px = min(80 if w <= 400 else 120, SCALE_MAX_FRAC * w)
+        cap_px = min(80 if w <= 400 else (200 if w >= 1200 else 120), SCALE_MAX_FRAC * w)   # 200: maps-16
         mi_len = nice_len(cap_px * mpp, 'mi')[0]
         spec['_scale'] = None
 
@@ -1493,6 +1517,31 @@ def render_map(spec):
                 if done_:
                     break
 
+    # labels at points along the line (maps-06: the first recorded day of each month on a journal's overview, 'MAY'): a
+    # 6 px tick from the point and the word beside it, where nothing drawn is in the way; a label with no free place is
+    # left out, so the map never crowds
+    for lat, lon, txt in spec.get('point_labels') or []:
+        mx, my = proj.xy(lat, lon)
+        if not (0 <= mx <= w and 0 <= my <= h):
+            continue
+        tw = text_w(txt, fs_s, mono=True)
+        done_ = False
+        for strict in (True, False):
+            for side, dy in ((1, 4), (-1, 4), (1, -8), (-1, -8)):
+                tx = mx + side * 9
+                bx = tx if side > 0 else tx - tw
+                b = (bx - 2, my + dy - 10, bx + tw + 2, my + dy + 3)
+                if free(b, 2, track=strict):
+                    layers['labels'].append('<g class="mk-plbl"><path d="M%.1f %.1fh%d" style="fill: none; stroke: #45474C; stroke-width: 1"/>'
+                                            '<text class="mk-lbl" x="%.1f" y="%.1f" text-anchor="%s">%s</text></g>'
+                                            % (mx, my, side * 6, tx, my + dy, 'start' if side > 0 else 'end', esc(txt)))
+                    boxes.append(b)
+                    tboxes.append(b)
+                    done_ = True
+                    break
+            if done_:
+                break
+
     # lines that are links, under the pins: where a pin sits on such a line the pin is what is pressed
     layers['pins'] += line_links(spec.get('_line_links') or {})
 
@@ -1536,7 +1585,7 @@ def render_map(spec):
                 cats_ = set(i_['cat'] for i_ in c['items'])
                 ring = CAT[list(cats_)[0]] if len(cats_) == 1 else '#16171A'
                 layers['pins'].append('<g class="mk-cluster" aria-hidden="true" data-keys="%s"><title>%s</title><circle class="mk-hit" cx="%.1f" cy="%.1f" r="%d" style="fill: transparent"/><circle cx="%.1f" cy="%.1f" r="11" style="fill: #F2F1EC; stroke: %s; stroke-width: 2"/><text x="%.1f" y="%.1f" style="font: 600 12px/1 %s; fill: #16171A; text-anchor: middle; dominant-baseline: central">%d</text></g>'
-                                      % (esc(' '.join(i_.get('key', '') for i_ in c['items'])), esc('; '.join(i_.get('title', '') for i_ in c['items'])), x, y, hit_r, x, y, ring, x, y + 0.5, MONO, n))
+                                      % (esc(' '.join(i_.get('key', '') for i_ in c['items'])), esc(cluster_title([i_.get('title', '') for i_ in c['items']])), x, y, hit_r, x, y, ring, x, y + 0.5, MONO, n))
             c['x'], c['y'] = x, y
             boxes.append((x - 12, y - 12, x + 12, y + 12))
             marker_pts.append((x, y))
@@ -1753,7 +1802,8 @@ def render_map(spec):
     write_frag(name, svg)
     meta['bytes'] = len(svg)
     meta['total_mi'] = total_mi
-    json.dump(meta, open(os.path.join(FRAG, name + '.meta.json'), 'w'), default=str)
+    with open(os.path.join(FRAG, name + '.meta.json'), 'w') as fh:
+        json.dump(meta, fh, default=str)
     return meta
 
 
@@ -2275,7 +2325,8 @@ def render_profile(name, tracks, w, plot_h, opts):
     svg = ('<svg width="%d" height="%d" viewBox="0 0 %d %d"%s role="img" aria-label="%s" style="display: block; overflow: visible">%s</svg>'
            % (w, H, w, H, ' class="pf-ph"' if phone else '', esc(opts.get('aria', 'Elevation profile')), ''.join(out)))
     write_frag(name, svg)
-    json.dump(info, open(os.path.join(FRAG, name + '.meta.json'), 'w'))
+    with open(os.path.join(FRAG, name + '.meta.json'), 'w') as fh:
+        json.dump(info, fh)
     return info
 
 
@@ -2320,9 +2371,10 @@ def render_glyph(name, track_or_tracks, w, h, cat, pad=6, stroke=2.0, bg=None, p
 
 
 def render_tile(name, track, w, h, cat, osm_detail=None, extra_tracks=(), osm_data=None, planned=False, tracks=None, transfers=(),
-                tiny_disc=4):
-    """Mini-topo tile: map-paper, index contours only, water fill, track 2.5px on a 1.5px casing."""
-    trs = tracks or [{'track': track, 'style': 'planned' if planned else 'cat', 'cat': cat, 'width': 2.5, 'trim': DEFAULT_TRIM}]
+                tiny_disc=4, width=2.5):
+    """Mini-topo tile: map-paper, index contours only, water fill, track `width` px (2.5 on the 200 x 152 tile, more on the
+    400 x 267 card drawing) on a 1.5px casing."""
+    trs = tracks or [{'track': track, 'style': 'planned' if planned else 'cat', 'cat': cat, 'width': width, 'trim': DEFAULT_TRIM}]
     spec = {'name': name, 'w': w, 'h': h, 'tracks': trs,
             'pad': 0.12 if tracks else 0.14, 'hillshade': False, 'osm': osm_detail, 'legend': False, 'scale': False, 'north': False,
             'graticule': False, 'miles': False, 'chevrons': False, 'startend': False, 'gpsmax': False,

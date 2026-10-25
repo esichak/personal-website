@@ -6,18 +6,26 @@
   python3 tools/render.py --site          # only the region / section overview maps
   python3 tools/render.py --force …       # ignore the change check
   python3 tools/render.py --status [SLUG …]   # what a run would draw and why; offline, draws nothing (exit 1: something to draw)
+  python3 tools/render.py --list      # the same as --status
+  python3 tools/render.py --jobs 2 --budget 3600   # a full re-render after a VERSION bump: run it again until nothing is
+                                      # pending (it resumes through the hashes), then --site (docs/DEVELOPING.md)
 
 Needs the internet (AWS Terrain Tiles + OpenStreetMap Overpass); downloads are cached in
 ~/Library/Caches/personal-website/ (lib/geo.py). Outputs are committed, so the GitHub Action never has to render anything.
 A trip whose render fails keeps its last good maps, the run goes on with the others, and it ends with exit status 1.
+Every meta.json records what drew it (meta['renderer']: VERSION, Python, cwebp, the day, whether OpenStreetMap came from
+the cache); a run stops before drawing when cwebp is missing (--allow-png draws all the same, with PNG hillshades).
 """
 import argparse
 import json
 import math
 import os
+import platform
 import shutil
+import subprocess
 import sys
 import time
+from datetime import date
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
@@ -30,6 +38,7 @@ import renderkey  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
 # the input hashes (and the rules they need) live in lib/renderkey.py, where the content checks read them too
 from renderkey import VERSION, MIN_REGION_TRIPS, file_hash, trip_inputs, no_route, no_track, journal_parts  # noqa: E402,F401
+from sitegen.sitecheck import conflict_copy  # noqa: E402
 
 MI, FT = geo.MI, geo.FT
 OUT = os.path.join(ROOT, 'rendered')
@@ -48,17 +57,48 @@ OVERVIEW = dict(north=False, png_scale=1.5, graticule=False, contour_density=1.2
 
 # ---------------------------------------------------------------- helpers
 
+def cwebp_version():
+    """The first line of `cwebp -version`, or None when cwebp is not installed."""
+    if not shutil.which('cwebp'):
+        return None
+    try:
+        out = subprocess.run(['cwebp', '-version'], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return (out.strip().splitlines() or [None])[0]
+
+
+def osm_fetches():
+    """Downloads so far: geo's own count plus each map served from a pool area this run downloaded (prefetch_osm), which
+    geo counted once, in the parent, before any trip began."""
+    return geo.CACHE['osm_miss'] + POOL_FETCHED[0]
+
+
+def renderer_record(osm_before):
+    """meta['renderer'] (gap9-05): which renderer, Python and cwebp drew a folder, on which day, and whether its
+    OpenStreetMap data came from the cache, was fetched, or is missing (osm_fetches() since osm_before). Versions and a
+    day: nothing about a trip."""
+    osm = 'missing' if OSM_FAILED else ('fetched' if osm_fetches() > osm_before else 'cached')
+    return {'version': VERSION, 'python': platform.python_version(), 'cwebp': cwebp_version(),
+            'date': date.today().isoformat(), 'osm': osm}
+
+
+# cwebp's quality for every hillshade (perf-05), chosen from a side-by-side at 1x and 2x before a round: in 2026 q88, q80
+# and q75 looked the same at both, and q80 came out 29 to 35% smaller than q88 (docs/DEVELOPING.md, "A render round")
+HILLSHADE_Q = 80
+
+
 def optimize_images(folder, meta):
-    """Hillshade PNGs -> WebP (q88: visually identical, ~6x smaller). Keeps the PNG only if cwebp is missing."""
+    """Hillshade PNGs -> WebP at HILLSHADE_Q (-m 6: the slowest, smallest method). Keeps the PNG only if cwebp is
+    missing (and main() draws nothing then without --allow-png)."""
     if not shutil.which('cwebp'):
         return
-    import subprocess
     for f in sorted(os.listdir(folder)):
         if not f.endswith('.png'):
             continue
         src = os.path.join(folder, f)
         dst = src[:-4] + '.webp'
-        subprocess.run(['cwebp', '-quiet', '-q', '88', '-m', '5', src, '-o', dst], check=True)
+        subprocess.run(['cwebp', '-quiet', '-q', str(HILLSHADE_Q), '-m', '6', src, '-o', dst], check=True)
         os.remove(src)
     for m in meta.get('maps', {}).values():
         if m.get('png', '').endswith('.png'):
@@ -104,8 +144,12 @@ def union(bbs):
     return (min(b[0] for b in bbs), min(b[1] for b in bbs), max(b[2] for b in bbs), max(b[3] for b in bbs))
 
 
+CARD_W, CARD_H = 400, 267   # the card drawing (visual-01 step 2; core.GLYPH_SIZES['card'])
+CARD_LINE = 3.5              # its line: the tile's 2.5 at twice the size would read thin in a 3:2 card slot
+PANEL_WORDS = {'ski': 'ski', 'mtb': 'mountain bike', 'hike': 'hiking'}   # a panel map's alt text: 'Map of hiking trips in X'
 OSM_FAILED = []
-OSM_POOL = []  # (bbox, detail, data): larger areas fetched once and shared by every map inside them
+OSM_POOL = []  # (bbox, detail, data, fetched): larger areas fetched once and shared by every map inside them
+POOL_FETCHED = [0]  # maps served from a pool area that this run downloaded rather than read from the cache
 
 
 def _contains(outer, inner):
@@ -137,16 +181,18 @@ def prefetch_osm(trips):
         if (u[2] - u[0]) > 0.4 or (u[3] - u[1]) > 0.5:
             continue  # too big to be worth sharing; those trips fetch their own
         t0 = time.time()
+        before = geo.CACHE['osm_miss']
         data = fetch_osm(u, 'report', pooled=False)
         if data:
-            OSM_POOL.append((u, 'report', data))
+            OSM_POOL.append((u, 'report', data, geo.CACHE['osm_miss'] > before))
             print('  prefetched OSM for %d trips around %.3f,%.3f in %.0fs' % (len(bbs), (u[0] + u[2]) / 2, (u[1] + u[3]) / 2, time.time() - t0), flush=True)
 
 
 def fetch_osm(bbox, detail, pooled=True):
     if pooled:
-        for pb, pd, data in OSM_POOL:
+        for pb, pd, data, fetched in OSM_POOL:
             if pd == detail and _contains(pb, bbox):
+                POOL_FETCHED[0] += fetched
                 return data
     for attempt in range(3):
         try:
@@ -226,11 +272,14 @@ def render_single(t, meta):
     if planned:
         base.update(gpsmax=False, miles=False, chevrons=False, startend=True)
     aria = aria_for(t)
+    # a tall route (its track box over renderkey.TALL to 1) gets a taller wide and column frame; the phone map keeps its
+    # own (maps-03). meta.json records each map's size, and core.map_block takes it from there
+    wh, ch = (800, 500) if renderkey.report_frame(t) == 'tall' else (640, 400)
     specs = [
-        dict(REPORT, **base, name='map-wide', w=1440, h=640, skin=(act == 'ski'), peaks_max=2, priority_peaks=peaks,
-             places_allow=mo.get('places'), extra_water_labels=water_labels(mo.get('water_labels'), 1440, 640), aria=aria),
-        dict(REPORT, **base, name='map-col', w=718, h=400, png_scale=2.0, skin=(act == 'ski'), peaks_max=2, priority_peaks=peaks,
-             places_allow=mo.get('places'), extra_water_labels=water_labels(mo.get('water_labels'), 718, 400), aria=aria),
+        dict(REPORT, **base, name='map-wide', w=1440, h=wh, skin=(act == 'ski'), peaks_max=2, priority_peaks=peaks,
+             places_allow=mo.get('places'), extra_water_labels=water_labels(mo.get('water_labels'), 1440, wh), aria=aria),
+        dict(REPORT, **base, name='map-col', w=718, h=ch, png_scale=2.0, skin=(act == 'ski'), peaks_max=2, priority_peaks=peaks,
+             places_allow=mo.get('places'), extra_water_labels=water_labels(mo.get('water_labels'), 718, ch), aria=aria),
         dict(SMALL, **{k: v for k, v in base.items() if k not in ('water_labels',)}, name='map-phone', w=390, h=336, scale_corner='bl',
              priority_peaks=peaks, reserve=[(0, 0, 60, 60), (390 - 208, 336 - 36, 390, 336)], pad_bottom_px=40, aria=aria),
     ]
@@ -242,10 +291,13 @@ def render_single(t, meta):
         s['osm_data'] = osm
         m = render_map(s)
         meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'interval_ft': m.get('interval_ft'),
-                                   'outbound_only': m.get('outbound_only')}
+                                   'outbound_only': m.get('outbound_only'), 'base_gz_kb': m.get('base_gz_kb')}
     single_charts(t, meta, tr)
     multi = [{'track': x, 'style': 'planned', 'cat': cat, 'width': 2.5, 'trim': mapkit.DEFAULT_TRIM} for x in drawn] if len(drawn) > 1 else None
     render_tile('tile', tr, 200, 152, cat, osm_detail=None, osm_data=osm, planned=planned, tracks=multi)
+    # the card drawing (visual-01 step 2): a card's 3:2 slot without a photo, its line drawn for that size
+    render_tile('card', tr, CARD_W, CARD_H, cat, osm_detail=None, osm_data=osm, planned=planned, width=CARD_LINE, tiny_disc=7,
+                tracks=[dict(x, width=CARD_LINE) for x in multi] if multi else None)
     render_glyph('g112', drawn if len(drawn) > 1 else tr, 112, 64, cat, planned=planned)
     render_glyph('g64', drawn if len(drawn) > 1 else tr, 64, 48, cat, planned=planned, pad=5)
     meta['start'] = drawn[0].raw[0][:2]
@@ -337,14 +389,17 @@ def render_multi(t, meta):
         s['tracks'] = ov_tracks()
         s['osm_data'] = osm_ov
         m = render_map(s)
-        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base')}
+        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'base_gz_kb': m.get('base_gz_kb')}
+    # the phone overview numbers each day's end as the wide one does (maps-05), without the hut names; the squares keep clear
+    # of the scale bar (bottom left) and the credit tag (bottom right)
+    ph_tracks = [dict(e, hut_end=({'n': e['hut_end']['n']} if e.get('hut_end') else None), gpsmax=False) for e in ov_tracks()]
     ph = dict(SMALL, name='overview-phone', w=390, h=260, pad=0.12, places_allow=[], day_labels=False, poly_eps=1.2, min_water_px=40,
-              road_levels=('motorway', 'trunk', 'primary'), tracks=[dict(e, hut_end=None, gpsmax=False) for e in ov_tracks()],
+              road_levels=('motorway', 'trunk', 'primary'), tracks=ph_tracks,
               miles=False, chevrons=False, startend=False, gpsmax=False, overall_startend=True, transfers=transfers, peaks_max=0,
-              bands_off=True, priority_peaks=mo.get('peaks'), reserve=[(0, 0, 60, 60), (390 - 208, 260 - 36, 390, 260)],
+              bands_off=True, priority_peaks=mo.get('peaks'), reserve=[(0, 0, 60, 60), (0, 260 - 40, 150, 260), (390 - 208, 260 - 36, 390, 260)],
               scale_corner='bl', osm_data=osm_ov, pad_bottom_px=40, aria=aria_for(t))
     m = render_map(ph)
-    meta['maps']['overview-phone'] = {'w': 390, 'h': 260, 'png': m.get('png'), 'base': m.get('base')}
+    meta['maps']['overview-phone'] = {'w': 390, 'h': 260, 'png': m.get('png'), 'base': m.get('base'), 'base_gz_kb': m.get('base_gz_kb')}
     # day maps: one OSM download covering every day's frame
     day_specs = []
     ski = t['activity'] == 'ski'
@@ -365,7 +420,7 @@ def render_multi(t, meta):
         s['tracks'] = tk
         s['osm_data'] = osm_days
         m = render_map(s)
-        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base')}
+        meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'base_gz_kb': m.get('base_gz_kb')}
     multi_charts(t, meta, trs)
     dom = (min(min(tr.ele) for tr in trs if tr.ele), max(max(tr.ele) for tr in trs if tr.ele))
     for d, tr in zip(days, trs):
@@ -373,6 +428,8 @@ def render_multi(t, meta):
         render_sparkline('spark-%s-cur' % d['id'], tr, 96, 24, color='{{route}}', stroke=2, domain=dom)
     render_tile('tile', None, 200, 152, cat, transfers=transfers, osm_data=osm_ov,
                 tracks=[{'track': tr, 'style': 'cat', 'cat': cat, 'width': 2.5, 'trim': False, 'i0': 0, 'i1': len(tr.raw) - 1} for tr in trs])
+    render_tile('card', None, CARD_W, CARD_H, cat, transfers=transfers, osm_data=osm_ov, tiny_disc=7,
+                tracks=[{'track': tr, 'style': 'cat', 'cat': cat, 'width': CARD_LINE, 'trim': False, 'i0': 0, 'i1': len(tr.raw) - 1} for tr in trs])
     # connectors only for content transfers (CZ D2 -> D3); separate crags stay separate, tiny days read as spots
     render_glyph('g112', trs, 112, 64, cat, transfer_dash='2 2', transfers=transfers)
     render_glyph('g64', trs, 64, 48, cat, pad=5, transfer_dash='1.5 1.5', transfers=transfers)
@@ -403,18 +460,26 @@ def render_series(t, meta):
     # the start disc and end square carry the content dates, so the end reads as the last recording, not the finish
     first_d, last_d = trs[0][0].get('date') or t.get('date'), trs[-1][0].get('date') or t.get('end_date')
     ends = [d_.strftime('%b %d').upper().replace(' 0', ' ') if d_ else None for d_ in (first_d, last_d)]
+    # the first recorded day of each month after the first, labelled with its month where the line starts that day (maps-06)
+    months, seen = [], {first_d.strftime('%Y-%m')} if first_d else set()
+    for d, tr in trs:
+        if d.get('date') and d['date'].strftime('%Y-%m') not in seen:
+            seen.add(d['date'].strftime('%Y-%m'))
+            months.append((tr.raw[0][0], tr.raw[0][1], d['date'].strftime('%b').upper()))
     for nm, w, h in (('overview-tall', 560, 860), ('overview-phone', 390, 600)):
         extra = {'reserve': [(w - 208, h - 36, w, h)], 'pad_bottom_px': 40} if nm == 'overview-phone' else {}
         m = render_map(dict(name=nm, w=w, h=h, tracks=[dict(x) for x in tracks], osm=None, png_scale=1.5, legend=False, graticule=False,
                             contours=False, ocean=True, exaggeration=6.0, miles=False, chevrons=False, startend=False, gpsmax=False,
-                            overall_startend=True, overall_labels=ends, min_track_px=4, pad=0.06, north=False, scale=True, trim=False,
+                            overall_startend=True, overall_labels=ends, point_labels=months, min_track_px=4, pad=0.06, north=False,
+                            scale=True, trim=False,
                             scale_corner='bl',
                             aria='Every recorded day of %s' % t['title'], **extra))
-        meta['maps'][nm] = {'w': w, 'h': h, 'png': m.get('png'), 'base': m.get('base')}
+        meta['maps'][nm] = {'w': w, 'h': h, 'png': m.get('png'), 'base': m.get('base'), 'base_gz_kb': m.get('base_gz_kb')}
     allt = [tr for _, tr in trs]
     render_glyph('g112', allt, 112, 64, cat, stroke=1.6, tiny_r=None)  # a thru-hike's days are short but joined: never spots
     render_glyph('g64', allt, 64, 48, cat, pad=5, stroke=1.4, tiny_r=None)
     render_tile('tile', None, 200, 152, cat, tracks=[dict(x, width=2) for x in tracks], tiny_disc=None)
+    render_tile('card', None, CARD_W, CARD_H, cat, tracks=[dict(x, width=2.6) for x in tracks], tiny_disc=None)
     meta['start'] = allt[0].raw[0][:2]
     meta['end'] = allt[-1].raw[-1][:2]
     meta['bbox'] = geo.bbox_of([[(p[0], p[1]) for p in tr.raw] for tr in allt])
@@ -440,6 +505,7 @@ def render_trip(t, force=False):
             set_out(tmp)
             meta = {'hash': h, 'inputs': renderkey.input_parts(t), 'slug': t['slug'], 'kind': t['kind'], 'maps': {}, 'charts': {}}
             del OSM_FAILED[:]
+            osm_before = osm_fetches()
             if t['kind'] == 'series':
                 render_series(t, meta)
             elif t['days']:
@@ -454,6 +520,7 @@ def render_trip(t, force=False):
                 meta['hash'] = None  # incomplete: the next run retries
                 meta['osm_failed'] = True
             optimize_images(tmp, meta)
+            meta['renderer'] = renderer_record(osm_before)
             with open(os.path.join(tmp, 'meta.json'), 'w') as fh:
                 json.dump(meta, fh, indent=1, default=str)
         finally:
@@ -472,12 +539,14 @@ def stored_hash(mf):
 
 
 def render_folders(tdir):
-    """The trip render folders under rendered/trips/: not a file (.DS_Store), not a dot-name, and not the temp or old folder
-    of a render at work (<slug>.tmp-<pid>, <slug>.old), which belongs to that run."""
+    """The trip render folders under rendered/trips/: not a file (.DS_Store), not a dot-name, not the temp or old folder
+    of a render at work (<slug>.tmp-<pid>, <slug>.old), which belongs to that run, and not an iCloud conflict copy
+    ('<slug> 2'), which tools/tidy.py lists and only its --delete removes (until 2026-10-25 a run removed them as renders
+    of gone trips)."""
     if not os.path.isdir(tdir):
         return []
     return sorted(d for d in os.listdir(tdir) if not d.startswith('.') and '.tmp-' not in d and not d.endswith('.old')
-                  and os.path.isdir(os.path.join(tdir, d)))
+                  and not conflict_copy(d) and os.path.isdir(os.path.join(tdir, d)))
 
 
 class drawing_into(object):
@@ -646,6 +715,7 @@ def draw_site(folder, h, jobs, groups, mapped):
     set_out(folder)
     meta = {'hash': h, 'maps': {}}
     del OSM_FAILED[:]
+    osm_before = osm_fetches()
     for key, region, ts, sizes, journals in jobs:
         t0 = time.time()
         pins = []
@@ -666,7 +736,7 @@ def draw_site(folder, h, jobs, groups, mapped):
                 # the part's own drawing, for its row in the region's list: the journal's glyph is the whole journal
                 render_glyph(part_glyph(key, pt), [x['track'] for x in lines], 64, 48, pt['trip']['cat'], pad=5, tiny_r=None)
         specs = [dict(OVERVIEW, name='%s-%s' % (key, v), w=w, h=h_, pins=pins, pad=0.10, priority_peaks=[p for t in ts for p in (t['map'].get('peaks') or [])][:6],
-                      aria='Map of %s trips in %s' % ('ski' if key.startswith('ski-') else 'all', region), **frame,
+                      aria='Map of %s trips in %s' % (PANEL_WORDS.get(key.split('-', 1)[0], 'all'), region), **frame,
                       **({'scale_corner': 'bl', 'reserve': [(w - 208, h_ - 36, w, h_)], 'pad_bottom_px': 40} if v == 'phone' else {})) for w, h_, v in sizes]
         for s in specs:
             s['tracks'] = [dict(x) for x in tracks]
@@ -674,7 +744,8 @@ def draw_site(folder, h, jobs, groups, mapped):
         for s in specs:
             s['osm_data'] = osm
             m = render_map(s)
-            meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'region': region,
+            meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'),
+                                       'base_gz_kb': m.get('base_gz_kb'), 'region': region,
                                        'trips': [t['slug'] for t in ts], 'clusters': m.get('clusters')}
             if journals:
                 # the journal days this map draws, part by part; 'trips' stays the region's own reports and planned routes
@@ -692,6 +763,7 @@ def draw_site(folder, h, jobs, groups, mapped):
     if OSM_FAILED:
         meta['hash'] = None
     optimize_images(folder, meta)
+    meta['renderer'] = renderer_record(osm_before)
     with open(os.path.join(folder, 'meta.json'), 'w') as fh:
         json.dump(meta, fh, indent=1, default=str)
 
@@ -719,9 +791,13 @@ def pending_reason(t, force=False):
     if stored == trip_inputs(t):
         return None
     had = meta.get('inputs') if isinstance(meta.get('inputs'), dict) else {}
+    if not had and stored in {trip_inputs(t, v) for v in range(max(1, VERSION - 3), VERSION)}:
+        return 'renderer changed'      # drawn before the inputs were recorded: the same trip, an older renderer
     now = renderkey.input_parts(t)
     what = [w for k, w in (('files', 'track changed'), ('fields', 'title/map/stats changed'), ('version', 'renderer changed'))
             if k in had and had[k] != now[k]]
+    if not what and all(k in had for k in ('files', 'fields', 'version')):
+        return 'map frame changed (renderkey.report_frame)'   # the three parts agree: the frame is all the hash has left
     return ', '.join(what) or 'track, title, activity, kind, map: or stats changed'
 
 
@@ -797,11 +873,20 @@ def main(argv=None):
     ap.add_argument('--no-site', action='store_true', help='skip region/section maps')
     ap.add_argument('--charts', action='store_true', help='only re-render elevation profiles / speed charts (fast, offline)')
     ap.add_argument('--status', action='store_true', help='list what a run would draw and why, offline; draws and fetches nothing')
+    ap.add_argument('--list', action='store_true', help='the same as --status')
+    ap.add_argument('--allow-png', action='store_true', help='draw without cwebp (the hillshades stay PNG, larger)')
     ap.add_argument('--budget', type=float, help='stop starting new trips after this many seconds (run again to continue)')
     ap.add_argument('--jobs', type=int, default=1, help='render this many trips in parallel (uses fork; shares prefetched OSM)')
     a = ap.parse_args(argv)
-    if a.status:
+    if a.status or a.list:
         return status(a.slugs, a.force)
+    if not a.charts and cwebp_version() is None and not a.allow_png:
+        # without it the hillshades would be committed as PNGs, about twice the size (gap9-05)
+        print('cwebp is not installed (brew install webp); nothing drawn. --allow-png draws with PNG hillshades.')
+        return 2
+    if a.force and not a.slugs and not a.site:
+        print('note: a full re-render is a VERSION bump in tools/lib/renderkey.py plus --budget, which resumes; '
+              '--force redraws every trip on every run')
     trips = content.load_all()
     if a.charts:
         for t in trips:
@@ -819,7 +904,8 @@ def main(argv=None):
             json.dump(meta, open(mf, 'w'), indent=1, default=str)
             print('charts', t['slug'])
         return 0
-    failed = []
+    failed, drawn = [], []
+    run = {'site': None, 'left': 0, 'pending': 0, 't0': time.time()}
 
     def attempt(fn, name, *args):
         """Run one render; an error is printed and remembered, and the run goes on with the next (its old maps stay)."""
@@ -829,13 +915,31 @@ def main(argv=None):
             print('! %s: %s' % (name, ex), flush=True)
             failed.append(name)
             return False
+
+    def finished(slug, result):
+        """A trip is done: remembered, and every 10th prints where the run stands (gap9-04)."""
+        if result:
+            drawn.append(slug)
+        n = len(drawn) + len([f for f in failed if f != 'site maps'])
+        if n and n % 10 == 0 and run['pending'] and run.get('said') != n:
+            run['said'] = n
+            per = (time.time() - run['t0']) / n
+            left = max(0, run['pending'] - n) * per
+            print('progress: %d of %d trips done, %.0f s a trip, about %d min left'
+                  % (n, run['pending'], per, round(left / 60.0)), flush=True)
+    def left():
+        """Trips still to draw when a run stops: pending, and neither drawn nor failed in this run."""
+        done = set(drawn) | set(failed)
+        return len([t for t in pending_trips(trips, a.slugs, a.force) if t['slug'] not in done])
     if not a.site:
         t_start = time.time()
         for t in trips:
             if (no_route(t) or no_track(t)) and (not a.slugs or t['slug'] in a.slugs):
                 render_trip(t)   # nothing to draw: only clears a render left from when the goal had a route, or the report a track
-        # the journal is drawn by the one-at-a-time loop below only, as before
+        # the journal is drawn by the one-at-a-time loop below only, as before: with --jobs that loop draws it alone, after
+        # the pool (until 2026-10-25 --jobs skipped the loop, and with it the journal)
         pending = [t for t in pending_trips(trips, a.slugs, a.force) if t['kind'] != 'series']
+        run['pending'] = len(pending_trips(trips, a.slugs, a.force))
         if len(pending) > 3:
             prefetch_osm(pending)
         if a.jobs > 1 and pending:
@@ -852,19 +956,25 @@ def main(argv=None):
                         break
                     done, _ = wait(set(running), return_when=FIRST_COMPLETED)
                     for f in done:
-                        attempt(f.result, running.pop(f))
+                        slug = running.pop(f)
+                        finished(slug, attempt(f.result, slug))
             if todo:
-                print('budget used up; %d trips left — run again to continue' % len(todo))
+                run['left'] = left()
+                print('budget used up; %d trips left — run again to continue' % run['left'])
+                summary(run, trips, drawn, failed)
                 return 1 if failed else 0
-        for t in ([] if a.jobs > 1 else trips):
+        to_draw = {t['slug'] for t in pending_trips(trips, a.slugs, a.force)}
+        for t in ([t for t in trips if t['kind'] == 'series'] if a.jobs > 1 else trips):
             if a.slugs and t['slug'] not in a.slugs:
                 continue
-            if a.budget and time.time() - t_start > a.budget:
-                print('budget used up; run again to continue')
+            if a.budget and time.time() - t_start > a.budget and t['slug'] in to_draw:
+                run['left'] = left()
+                print('budget used up; %d trips left — run again to continue' % run['left'])
+                summary(run, trips, drawn, failed)
                 return 1 if failed else 0
-            attempt(render_trip, t['slug'], t, a.force)
+            finished(t['slug'], attempt(render_trip, t['slug'], t, a.force))
     if not a.no_site:
-        attempt(render_site, 'site maps', trips, a.force and (a.site or not a.slugs))
+        run['site'] = bool(attempt(render_site, 'site maps', trips, a.force and (a.site or not a.slugs)))
     # drop renders of trips that no longer exist
     live = {t['slug'] for t in content.load_all(include_drafts=True)}
     tdir = os.path.join(OUT, 'trips')
@@ -873,10 +983,31 @@ def main(argv=None):
             shutil.rmtree(os.path.join(tdir, d))
             print('removed stale render', d)
     cache_report()
+    summary(run, trips, drawn, failed)
     if failed:
         print('%d failed, their last good maps kept: %s. Run python3 tools/render.py again for them.' % (len(failed), ', '.join(failed)))
         return 1
     return 0
+
+
+def summary(run, trips, drawn, failed):
+    """The run's last line (gap9-04), for the commit message of a render round: trips rendered, skipped (their hash
+    unchanged), failed (named), drawn with OpenStreetMap missing, left for the next run, and whether the site maps were
+    drawn. OSM missing is read back from the meta.json each rendered trip wrote (a --jobs worker's own list is not ours)."""
+    osm = []
+    for slug in drawn:
+        try:
+            with open(os.path.join(OUT, 'trips', slug, 'meta.json'), encoding='utf-8') as fh:
+                if json.load(fh).get('osm_failed'):
+                    osm.append(slug)
+        except (OSError, ValueError, AttributeError):
+            pass
+    trip_failed = [f for f in failed if f != 'site maps']
+    skipped = max(0, len(trips) - len(drawn) - len(trip_failed) - run['left'])
+    site = {None: 'not drawn this run', True: 'drawn', False: 'up to date'}[run['site']] if 'site maps' not in failed else 'failed'
+    print('summary: rendered %d, skipped %d (unchanged), failed %d%s, OSM missing %d%s, left %d; site maps %s; %.0f min'
+          % (len(drawn), skipped, len(trip_failed), (' (%s)' % ', '.join(trip_failed)) if trip_failed else '', len(osm),
+             (' (%s)' % ', '.join(osm)) if osm else '', run['left'], site, (time.time() - run['t0']) / 60.0))
 
 
 def cache_report():

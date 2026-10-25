@@ -1,7 +1,7 @@
 """Synthetic GPX fixtures for the Phase 2T tests (tests/test_gpxroute.py and tests/test_ticklist_cli.py).
 
-Every file is hand-shaped XML text built from short point lists around an invented spot (38.9°N 120.1°W, which is open
-water on Lake Tahoe: no real route). The point lists are kept beside the text so a test can compute its own haversine sums,
+Every file is hand-shaped XML text built from short point lists around a round-number spot (38.9°N 120.1°W; the
+shapes are invented, not a real route). The point lists are kept beside the text so a test can compute its own haversine sums,
 hysteresis gain and expected timestamps from the same numbers the file holds. Nothing here is a real goal, a real trip or a
 repurposed recording, and nothing is written under content/ or rendered/: callers write the strings to a temp dir.
 """

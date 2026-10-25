@@ -138,7 +138,7 @@ def drawing_svg(src, name):
         return None
     used = {c for v in re.findall(r'class="([^"]+)"', s) for c in v.split()}
     rules = [r for c, r in _CSS_RULES if c in used]
-    if name != 'tile':
+    if name not in ('tile', 'card'):     # the two map-like drawings scale their strokes with the picture
         rules.append('.gl-trk{vector-effect:non-scaling-stroke}')
     root = '<svg xmlns="http://www.w3.org/2000/svg"%s>' % _DROP_ATTR.sub('', m.group(1))
     style = ('<style>%s</style>' % ''.join(rules)) if rules else ''
@@ -199,7 +199,7 @@ def copy_trip_assets(t):
     # the drawings and the map renders are made from the track: a trip whose track is gone publishes none of them, even
     # while rendered/trips/<slug>/ (committed, and only rewritten by tools/render.py) still holds them
     if core.has_track(t):
-        for name in ('tile', 'g112', 'g64'):
+        for name in ('tile', 'card', 'g112', 'g64'):
             src = os.path.join(t['rendered'], name + '.svg.html')
             svg = drawing_svg(src, name) if os.path.exists(src) else None
             if svg:
