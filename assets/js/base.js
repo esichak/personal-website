@@ -292,18 +292,38 @@
     var lbImg = lb.querySelector('.lb-img'), lbN = lb.querySelector('.lb-n'), lbCap = lb.querySelector('.lb-cap');
     var lbPrev = lb.querySelector('.lb-prev'), lbNext = lb.querySelector('.lb-next'), lbClose = lb.querySelector('.lb-close');
     var lbLive = document.getElementById('lb-live');
+    var lbFile = lb.querySelector('.lb-file');
     var group = [], at = 0, opener = null;
     var LINKS = 'a.jph, a.mul-ph, a.ser-ph';
-    // announce: moving within the open viewer (keys, buttons, swipes) says 'Photo N of M. <alt>'; the first open does not
+    // the viewer is a history entry while it is open, so a phone's Back gesture closes it instead of leaving the page:
+    // pushed while our entry is on top; popping while a popstate is closing it (that close must not go back again)
+    var pushed = false, popping = false;
+    // a page reloaded (or come back to without the back-forward cache) while the viewer was open starts closed but on the
+    // viewer's entry: forget its mark, so the next open does not stack a second entry for one Back to undo
+    try { if (history.state && history.state.lb) history.replaceState(null, ''); } catch (err) { /* sandboxed */ }
+    var say = function () {
+      if (lbLive) lbLive.textContent = 'Photo ' + (at + 1) + ' of ' + group.length + '. ' + lbImg.alt;
+    };
+    // announce: moving within the open viewer (keys, buttons, swipes) says 'Photo N of M. <alt>'; the open says it too,
+    // once the dialog is up (the click handler below)
     var show = function (i, announce) {
       at = Math.max(0, Math.min(group.length - 1, i));
       var a = group[at], th = a.querySelector('img');
+      lb.classList.remove('lb--error');
+      if (lbFile) { lbFile.hidden = true; lbFile.removeAttribute('href'); }
       var ss = th && th.getAttribute('srcset');
       lbImg.removeAttribute('srcset');
       lbImg.removeAttribute('sizes');
       // width descriptors (800/1600 copies) let a phone take the small file; density-only thumbnail sets would pick a
       // thumbnail, so those open the full file (the href)
-      if (ss && /\s\d+w\s*(,|$)/.test(ss)) { lbImg.setAttribute('sizes', '100vw'); lbImg.setAttribute('srcset', ss); }
+      if (ss && /\s\d+w\s*(,|$)/.test(ss)) {
+        // a set that stops at the .sm copy (the journal's photos, core.photo full=False) gets the file back for the viewer:
+        // the thumbnail's width attribute is the file's own width
+        var fw = th.getAttribute('width');
+        if (fw && ss.indexOf(a.getAttribute('href') + ' ') === -1) ss += ', ' + a.getAttribute('href') + ' ' + fw + 'w';
+        lbImg.setAttribute('sizes', '100vw');
+        lbImg.setAttribute('srcset', ss);
+      }
       // the thumbnail's size attributes give the viewer its shape before the file arrives, so the bar never jumps
       lbImg.style.aspectRatio = (th && th.getAttribute('width') && th.getAttribute('height'))
         ? th.getAttribute('width') + ' / ' + th.getAttribute('height') : '';
@@ -314,8 +334,17 @@
       lbPrev.hidden = at === 0;
       lbNext.hidden = at === group.length - 1;
       if (document.activeElement && document.activeElement.hidden) lbClose.focus();
-      if (lbLive) lbLive.textContent = announce ? 'Photo ' + (at + 1) + ' of ' + group.length + '. ' + lbImg.alt : '';
+      if (announce) say(); else if (lbLive) lbLive.textContent = '';
     };
+    // a photo that does not load says so, and offers its file (the full-size href) to open instead
+    lbImg.addEventListener('error', function () {
+      if (!lb.open || !group[at]) return;
+      lb.classList.add('lb--error');      // base.css hides the broken image (its glyph and alt text) but keeps its box
+      lbCap.textContent = 'This photo could not be loaded';
+      if (lbFile) { lbFile.href = group[at].getAttribute('href'); lbFile.hidden = false; }
+      // the caption is no live region: say it where the photo was announced
+      if (lbLive) lbLive.textContent = 'Photo ' + (at + 1) + ' of ' + group.length + ' could not be loaded';
+    });
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest(LINKS);
       if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -334,6 +363,12 @@
       show(group.indexOf(a));
       lb.showModal();
       lbClose.focus();
+      say();
+      try { history.pushState({ lb: true }, ''); pushed = true; } catch (err) { pushed = false; /* file:// or a sandbox */ }
+    });
+    window.addEventListener('popstate', function () {
+      pushed = false;
+      if (lb.open) { popping = true; lb.close(); }
     });
     lbPrev.addEventListener('click', function () { show(at - 1, true); });
     lbNext.addEventListener('click', function () { show(at + 1, true); });
@@ -342,10 +377,13 @@
       if (e.key === 'ArrowLeft' && at > 0) { e.preventDefault(); show(at - 1, true); }
       if (e.key === 'ArrowRight' && at < group.length - 1) { e.preventDefault(); show(at + 1, true); }
     });
+    // a swipe: one finger (or the mouse) moved 40 px sideways. base.css gives the dialog touch-action: pinch-zoom, so a
+    // drag reaches here instead of scrolling the page; a second finger is a pinch, and a cancelled pointer is no swipe
     var sx = null, swiped = false;
-    lb.addEventListener('pointerdown', function (e) { sx = e.clientX; swiped = false; });
+    lb.addEventListener('pointerdown', function (e) { if (!e.isPrimary) return; sx = e.clientX; swiped = false; });
+    lb.addEventListener('pointercancel', function () { sx = null; });
     lb.addEventListener('pointerup', function (e) {
-      if (sx === null) return;
+      if (!e.isPrimary || sx === null) return;
       var dx = e.clientX - sx;
       sx = null;
       if (Math.abs(dx) > 40) {
@@ -359,6 +397,12 @@
     lb.addEventListener('close', function () {
       if (opener) opener.focus({ preventScroll: true });
       opener = null;
+      // closed by the button, Escape or a tap outside: take the viewer's history entry back off (a Back gesture already did)
+      if (pushed && !popping && history.state && history.state.lb) {
+        pushed = false;
+        try { history.back(); } catch (err) { /* nothing to undo */ }
+      }
+      popping = false;
     });
   }
 
@@ -388,6 +432,17 @@
   document.addEventListener('keydown', function (e) {
     if ((e.key === 'Escape' || e.key === 'Esc') && document.querySelector('.copy-pop')) closeCopy();
   });
+  // a touch screen with a share sheet (phone-06): the control becomes 'Share this page' (its data-share) with the share
+  // icon, and a press opens the sheet; desktops keep 'Copy link' (their browsers may have navigator.share too)
+  var canSheet = false;
+  try { canSheet = !!(navigator.share && window.matchMedia && window.matchMedia('(hover: none)').matches); } catch (err) { canSheet = false; }
+  if (canSheet) {
+    Array.prototype.forEach.call(document.querySelectorAll('.copy-btn[data-share]'), function (b) {
+      var l = b.querySelector('.copy-l');
+      if (l) l.textContent = b.getAttribute('data-share');
+      b.classList.add('is-share');
+    });
+  }
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('.copy-btn');
     if (!b) { closeCopy(e.target.closest && e.target.closest('.copy-pop')); return; }
@@ -395,6 +450,21 @@
     var msg = box.querySelector('.copy-msg');
     if (box.querySelector('.copy-pop')) { closeCopy(); return; }
     closeCopy();
+    // the share sheet, inside the press (it needs the gesture); the clipboard below when the sheet is refused, unless the
+    // reader dismissed it (AbortError)
+    if (b.classList.contains('is-share')) {
+      var data = { title: document.title, url: url }, ok = false;
+      try { ok = !navigator.canShare || navigator.canShare(data); } catch (err) { ok = false; }
+      if (ok) {
+        try {
+          navigator.share(data).then(null, function (err) { if (!err || err.name !== 'AbortError') copyPath(b, box, url, msg); });
+        } catch (err) { copyPath(b, box, url, msg); }
+        return;
+      }
+    }
+    copyPath(b, box, url, msg);
+  });
+  function copyPath(b, box, url, msg) {
     var byHand = function () {
       if (msg) msg.textContent = '';
       var pop = document.createElement('span'), inp = document.createElement('input');
@@ -423,7 +493,7 @@
     };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, byHand);
     else byHand();
-  });
+  }
 
   // ------------------------------------------------------------ phones: the explorer's and the tick list's secondary
   // filters behind one Filters button (trips.py more_button; trips.css hides them below 760 px until it is pressed). The
@@ -444,18 +514,33 @@
   }
 
   // ------------------------------------------------------------ full-screen map page: open on the route, not the image
-  // centre. A route that fits the screen is centred; a wider one opens on its start (kept in view, as much of the route as
-  // fits beside it). A map wider than the screen shows 'Drag to pan'.
+  // centre. The address already names #route-start (core.fullscreen_link), so the browser has opened the map on the
+  // route's start before this runs; here a route that fits the screen is centred and a wider one keeps its start in view
+  // with as much of the route as fits beside it. The start is the one core.route_start marks: the first route path that
+  // is not a faded one, the dashed ascent on a ski map. 'Drag to pan' shows until the map turns out to fit the screen.
   var fm = document.querySelector('.fs-map');
   if (fm) {
     var svg = fm.querySelector('.mv svg'), mapEl = fm.querySelector('.map');
     var vb = svg && svg.viewBox && svg.viewBox.baseVal;
     var bb = null, start = null;
-    fm.querySelectorAll('.mk-trk').forEach(function (p) {
+    var trks = Array.prototype.filter.call(fm.querySelectorAll('.mk-trk'), function (p) {
+      return !/stroke-opacity/.test(p.getAttribute('style') || '');
+    });
+    var first = trks.filter(function (p) { return /stroke-dasharray/.test(p.getAttribute('style') || ''); })[0] || trks[0];
+    // mapkit's start disc sits on the recording's first point; the paths are the fallback (as core.route_start reads them)
+    var disc = Array.prototype.filter.call(fm.querySelectorAll('circle'), function (c) {
+      var st = c.getAttribute('style') || '';
+      return /fill: #16171A; stroke: #FFFFFF/.test(st) && /^[57]$/.test(c.getAttribute('r') || '');
+    })[0];
+    if (trks.length && disc) {
+      start = { x: parseFloat(disc.getAttribute('cx')), y: parseFloat(disc.getAttribute('cy')) };
+    } else {
+      try { if (first && first.getPointAtLength) start = first.getPointAtLength(0); } catch (err) { start = null; }
+    }
+    trks.forEach(function (p) {
       try {
         var b = p.getBBox();
         if (!b.width && !b.height) return;
-        if (!start && p.getPointAtLength) start = p.getPointAtLength(0);
         bb = bb ? { x0: Math.min(bb.x0, b.x), y0: Math.min(bb.y0, b.y), x1: Math.max(bb.x1, b.x + b.width), y1: Math.max(bb.y1, b.y + b.height) }
           : { x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height };
       } catch (err) { /* not rendered */ }
@@ -474,5 +559,6 @@
       fm.scrollLeft = (fm.scrollWidth - fm.clientWidth) / 2;
     }
     if (fm.scrollWidth > fm.clientWidth + 1) document.body.classList.add('is-pannable');
+    else document.body.classList.add('is-fit');
   }
 })();

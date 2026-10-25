@@ -88,6 +88,9 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-wnav .alink { color: var(--ink-2); }
 .ser-wnav .alink:hover { color: var(--ink); }
 .ser-wnav .copy { margin-left: auto; }
+.ser-wnav-c { flex-basis: 100%; color: var(--ink-3); text-transform: uppercase; }
+/* 'Continue reading: Day N · title' among the title actions (series.js) */
+.ser-continue { min-height: 44px; }
 
 /* ---------------------------------------------------------------- day log: head, filter, sticky month nav */
 .ser-log-h { align-items: center; padding-bottom: 8px; }
@@ -116,8 +119,9 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-mn-s { font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); }
 .ser-mnav a[aria-current] { color: var(--ink); }
 .ser-mnav a[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--route); }
-.ser-mnav a[aria-disabled="true"] { pointer-events: none; color: var(--rule-strong); }
-.ser-mnav a[aria-disabled="true"] .ser-mn-s { color: var(--rule-strong); }
+/* a month without a write-up while the filter is on (series.js .is-empty, with ', no write-ups' read out): lighter, but
+   still a link: pressing it reveals the month (a11y-07) */
+.ser-mnav a.is-empty { color: var(--ink-3); }
 @media (max-width: 759.98px) {
   .ser-mnav { margin-inline: calc(-1 * var(--m)); }
   .ser-mnav a { align-items: center; padding: 0 4px; }
@@ -176,8 +180,12 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-gap { padding: 10px 0 10px 80px; border-bottom: 1px solid var(--rule); font: 400 12px/16px var(--mono); letter-spacing: 0.02em;
   color: var(--ink-3); text-transform: uppercase; }
 .ser-wu { max-width: 620px; }
-/* day photos: one even square contact sheet at every width (3 / 4 / 5 / 6 columns; about 115 px squares at 390, 141 at 768,
-   128 at 1024, 145 at 1440), so a short last row starts on the same grid instead of trailing off as a ragged strip */
+/* a written day's photos: justified rows (core.photo_rows) in the write-up's measure, with the clamp series.DAY_ROWS
+   declares in each sizes attribute; under 760 base.css turns each row into its two-column grid */
+.ser-body .jrows { --jmax: 400px; --jmin: 200px; --jgap: 12px; max-width: 620px; margin-top: 24px; }
+.ser-body > .jrows:first-child { margin-top: 2px; }
+/* a track-only day's photos: one even square contact sheet at every width (3 / 4 / 5 / 6 columns; about 115 px squares at
+   390, 141 at 768, 128 at 1024, 145 at 1440), so a short last row starts on the same grid instead of trailing off */
 .ser-phs { --ser-ph-n: 3; display: grid; grid-template-columns: repeat(var(--ser-ph-n), minmax(0, 1fr)); gap: 6px; margin-top: 24px; }
 .ser-body > .ser-phs:first-child { margin-top: 2px; }
 .ser-phs li { min-width: 0; }
@@ -197,9 +205,10 @@ body.p-series .rep-strip { margin-top: 24px; }
   .ser-gap { padding-left: 88px; }
 }
 
-/* ---------------------------------------------------------------- table rows (≥ 1000): glyph | day | date | title | dist | gain | moving | elevation | GPX */
+/* ---------------------------------------------------------------- table rows (≥ 1000): glyph | day | date | title | dist | gain | moving | so far | elevation | GPX */
 @media (min-width: 1000px) {
-  body.p-series { --ser-c: 64px 40px 104px minmax(0, 1fr) 64px 72px 56px 96px 44px; --ser-g: 16px; }
+  /* the so-far column is 80 px: its head's first word, RECORDED, is about 77 px in the 12 px caps */
+  body.p-series { --ser-c: 64px 40px 104px minmax(0, 1fr) 64px 72px 56px 80px 96px 44px; --ser-g: 16px; }
   .ser-cols { display: grid; grid-template-columns: var(--ser-c); column-gap: var(--ser-g); align-items: center; min-height: 32px;
     border-bottom: 1px solid var(--rule); }
   .ser-cols .num { text-align: right; }
@@ -213,21 +222,21 @@ body.p-series .rep-strip { margin-top: 24px; }
   .ser-dd::before, .ser-dd:not(:empty)::before { content: none; }
   .ser-dd { font: 400 13px/18px var(--mono); }
   .ser-t { grid-column: 4; font-size: 16px; line-height: 21px; }
-  .ser-st { grid-column: 5 / span 3; display: grid; grid-template-columns: 64px 72px 56px; column-gap: var(--ser-g); margin: 0;
+  .ser-st { grid-column: 5 / span 4; display: grid; grid-template-columns: 64px 72px 56px 80px; column-gap: var(--ser-g); margin: 0;
     clip-path: none; font: 500 15px/20px var(--mono); letter-spacing: 0; color: var(--ink); text-transform: none; }
   .ser-st > div::before { content: none; }
   .ser-st > div { padding-left: 0; text-align: right; }
   .ser-st .unit { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .ser-sp { grid-column: 8; }
-  .ser-gpx { grid-column: 9; justify-self: end; margin-right: -10px; }
+  .ser-sp { grid-column: 9; }
+  .ser-gpx { grid-column: 10; justify-self: end; margin-right: -10px; }
   .ser-body { padding: 4px 0 40px calc(64px + 40px + 104px + 3 * var(--ser-g)); }
   .ser-gap { padding-left: calc(64px + var(--ser-g)); font-size: 13px; line-height: 18px; }
   .ser-t-none { padding-top: 0; }
 }
 @media (min-width: 1200px) {
-  body.p-series { --ser-c: 64px 64px 118px minmax(0, 1fr) 80px 88px 72px 96px 44px; --ser-g: 24px; }
+  body.p-series { --ser-c: 64px 64px 118px minmax(0, 1fr) 80px 88px 72px 80px 96px 44px; --ser-g: 24px; }
   .ser-n { grid-template-columns: 64px 118px; }
-  .ser-st { grid-template-columns: 80px 88px 72px; }
+  .ser-st { grid-template-columns: 80px 88px 72px 80px; }
   .ser-t { font-size: 17px; line-height: 22px; }
   .ser-body { padding-left: calc(64px + 64px + 118px + 3 * var(--ser-g)); }
 }

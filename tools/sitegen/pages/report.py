@@ -413,10 +413,11 @@ def goal_map_section(t, here, meta):
     variants = [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]
     if meta['maps']:
         nowide = 'map-wide' not in meta['maps']
-        return ('<section class="rep-map" id="map" aria-label="Planned route map"><div class="bleed">%s</div><div class="wrap">%s%s</div></section>'
+        fs = core.fullscreen_link(t, here)
+        return ('<section class="rep-map" id="map" aria-label="Planned route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
                 % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=True, cls='map--report' + (' map--nowide' if nowide else ''),
-                                  fullscreen_href=link(here, t['url'] + 'map/')),
-                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t)))
+                                  fullscreen_href=fs),
+                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), core.map_full_link(fs), map_caption(t)))
     if t['track']:
         # no direction ('above'): on phones the download is the bottom bar's GPX item
         text = 'Map not rendered yet. The planned GPX is published: use the Download planned GPX button.'
@@ -644,10 +645,11 @@ def page(t, site):
     drawn = has_map and bool(meta['maps'])
     map_ = ''
     if drawn:
-        map_ = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s</div></section>'
+        fs = core.fullscreen_link(t, here)
+        map_ = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
                 % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=not show_hero, cls='map--report' + (' map--nowide' if nowide else ''),
-                                  fullscreen_href=link(here, t['url'] + 'map/')),
-                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t)))
+                                  fullscreen_href=fs),
+                   core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), core.map_full_link(fs), map_caption(t)))
     elif has_map:
         map_ = not_rendered_section('Route map', 'Map not rendered yet. The GPX file is published: use the Download GPX button.')
     profile = profile_section(t, here, meta)
@@ -719,16 +721,22 @@ def fullscreen_page(t, variants=None, key_html=None, cls=None, caption=None, pos
     here = t['url'] + 'map/'
     meta = core.render_meta(t)
     if variants is None:
-        name = 'map-wide' if 'map-wide' in meta['maps'] else 'map-col'
+        name = core.fs_render(t)
         variants = [(name, 'fs')]
         cls = 'map--fs' + ('' if name == 'map-wide' else ' map--fscol')
-    mp = core.map_block(t, here, variants, t['url'] + 'map/', 'fs', attrib=False, cls=cls or 'map--fs')
+    cls = cls or 'map--fs'
+    mp = core.map_block(t, here, variants, t['url'] + 'map/', 'fs', attrib=False, cls=cls)
     if post:
         mp = post(mp)
+    # the bar's second line keeps a scale and the disclaimer in view while the map pans (maps-10); the key row and the
+    # caption stay under the map. 'Drag to pan' shows without a script: base.js hides it when the map fits the screen
+    width = next((w for c, w in core.FS_WIDTHS.items() if c in cls.split()), 1440)
+    scale = core.fs_scale(t, variants[0][0], width)
+    line2 = ('<div class="fs-line2">%s<span class="t-mono-s fs-nav">NOT FOR NAVIGATION</span></div>' % scale)
     body = ('<h1 class="sr">%s: map</h1><div class="wrap fs-bar"><a class="btn" href="../#map">%sBack to report</a>'
-            '<span class="t-small fs-pan">Drag to pan</span></div>'
+            '<span class="t-small fs-pan">Drag to pan</span>%s</div>'
             '<div class="fs-map" tabindex="0" role="region" aria-label="Map, scroll to pan">%s</div><div class="wrap fs-foot">%s%s</div>'
-            % (esc(t['title']), icon('arrow-left', 18), mp,
+            % (esc(t['title']), icon('arrow-left', 18), line2, mp,
                key_html if key_html is not None else core.key_row(key_items(t, meta)),
                caption if caption is not None else map_caption(t)))
     desc = 'Full-size route map for %s.' % t['title']

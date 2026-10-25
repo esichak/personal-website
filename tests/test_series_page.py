@@ -522,9 +522,10 @@ class TitleActionTests(JournalPageFixture):
         # contract 5, Actions: <a class="btn" href="#<anchor of the first written day>">Read the first written entry</a>
         a = self.action('Read the first written entry')
         self.assertIsNotNone(a, 'no "Read the first written entry" action')
-        self.assertIn('btn', a.classes)
+        self.assertEqual(a.classes, ['btn', 'btn--ink'])   # Phase 11 (visual-20): the page's one primary action, in ink
         self.assertEqual(a['href'], '#' + self.series.day_anchor(self.days[1]))
         self.assertEqual(a['href'], '#day-2')            # day 1 is track only: the first written entry is not the first day
+        self.assertEqual(self.action('Browse all recordings').classes, ['btn'])
         self.assertEqual(self.main.by_id('day-2').tag, 'article')
 
     def test_read_the_first_written_entry_uses_the_anchor_of_a_decimal_day(self):
@@ -548,7 +549,7 @@ class TitleActionTests(JournalPageFixture):
         # contract 5, Actions: omitted when no day is written
         t = self.journal(slug='syn-j-unwritten', days=[dict(d, body='') for d in journal_days()])
         actions = self.doc(t).by_id('main').find(cls='rep-actions')
-        texts = [a.text() for a in actions.find_all('a')]
+        texts = [a.text() for a in actions.find_all('a') if 'ser-continue' not in a.classes]
         self.assertNotIn('Read the first written entry', texts)
         self.assertEqual(texts, ['Browse all recordings'])
 
@@ -583,10 +584,15 @@ class TitleActionTests(JournalPageFixture):
         self.assertIs(copy.elements()[-1], msg)
 
     def test_actions_come_in_the_contract_order(self):
-        # contract 5, Actions: first written entry, browse all recordings, then the copy-link control
+        # contract 5, Actions: first written entry, browse all recordings, then the copy-link control; Phase 11 (features-08)
+        # adds the 'Continue reading' link last, empty and hidden until series.js fills it from this browser's storage
         self.assertEqual([el.text() for el in self.actions.elements()],
-                         ['Read the first written entry', 'Browse all recordings', 'Copy link'])
-        self.assertEqual([el.tag for el in self.actions.elements()], ['a', 'a', 'span'])
+                         ['Read the first written entry', 'Browse all recordings', 'Copy link', ''])
+        self.assertEqual([el.tag for el in self.actions.elements()], ['a', 'a', 'span', 'a'])
+        cont = self.actions.elements()[-1]
+        self.assertEqual(cont.classes, ['alink', 'ser-continue'])
+        self.assertIn('hidden', cont)
+        self.assertEqual(cont['href'], '#days')
 
     def test_day_by_day_button_is_gone_and_the_day_log_heading_stays(self):
         # contract 5, Actions: the old 'Day by day' action goes; 'Download all GPX' is not added; the log keeps its heading
@@ -857,16 +863,19 @@ class WrittenNavTests(JournalPageFixture):
                 # the visible label, then the day for assistive technology: the button ends <span class="sr">, Day N</span>
                 spans = btn.find_all('span')
                 self.assertEqual([(s.classes, s.text(clean=False)) for s in spans],
-                                 [([], 'Copy link to this entry'), (['sr'], ', Day %s' % d['label'])])
+                                 [(['copy-l'], 'Copy link to this entry'), (['sr'], ', Day %s' % d['label'])])
+                # phones with a share sheet: base.js renames it from data-share (phone-06)
+                self.assertEqual(btn['data-share'], 'Share this entry')
                 self.assertIs(btn.children[-1], spans[-1])
                 self.assertEqual(btn.text(), 'Copy link to this entry, Day %s' % d['label'])
                 self.assertEqual(nav.find('span', cls='copy-msg')['role'], 'status')
                 self.assertIn('copy', nav.elements()[-1].classes)
                 self.assertTrue(self.series.written_nav(self.t, d, URL).endswith(
-                    core.copy_link(btn['data-copy'], 'Copy link to this entry', cls='alink', of='Day %s' % d['label']) + '</div>'))
+                    core.copy_link(btn['data-copy'], 'Copy link to this entry', cls='alink', of='Day %s' % d['label'],
+                                   share='Share this entry') + '</div>'))
         self.assertEqual(self.nav(self.days[3]).find('button')['data-copy'],
                          'https://esichak.github.io/personal-website/trips/syn-j-journal/#day-5-2')
-        self.assertIn('<span>Copy link to this entry</span><span class="sr">, Day 5.2</span></button>',
+        self.assertIn('<span class="copy-l">Copy link to this entry</span><span class="sr">, Day 5.2</span></button>',
                       self.series.written_nav(self.t, self.days[3], URL))
 
     def test_every_copy_control_on_the_page_has_its_own_name(self):
@@ -895,9 +904,10 @@ class WrittenNavTests(JournalPageFixture):
         self.assertEqual(self.main.by_id('days').find_all('nav', cls='ser-wnav'), [])
 
     def test_a_written_day_article_ends_its_body_with_the_navigation(self):
-        # contract 5, Written-entry navigation: every written day's .ser-body ends with it, after the write-up and thumbnails
+        # contract 5, Written-entry navigation: every written day's .ser-body ends with it, after the write-up and its photos
+        # (justified rows since Phase 11's report-18; a track-only day keeps the square sheet, below)
         body = self.main.by_id('day-2').find('div', cls='ser-body')
-        self.assertEqual([el.classes[-1] for el in body.elements()], ['ser-wu', 'ser-phs', 'ser-wnav'])
+        self.assertEqual([el.classes[-1] for el in body.elements()], ['ser-wu', 'jrows', 'ser-wnav'])
         self.assertEqual(body.find('div', cls='ser-wu').text(), W1)             # the write-up, verbatim
         self.assertEqual(body.elements()[-1].find('button')['data-copy'], core.SITE_URL + URL + '#day-2')
         no_photos = self.main.by_id('day-5-2').find('div', cls='ser-body')

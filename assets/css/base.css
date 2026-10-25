@@ -365,6 +365,9 @@ picture.cover-pic { display: contents; }
 .mv-fs .ic { width: 20px; height: 20px; }
 /* from 560 the map caption carries the attribution, and the full-screen button belongs to phones only */
 @media (min-width: 560px) { .mv-attrib, .mv-fs { display: none; } }
+/* 'Open the full map' (core.map_full_link): at 560-1199 px only, where the page draws the 718 px render larger than drawn */
+.map-full { display: none; }
+@media (min-width: 560px) and (max-width: 1199.98px) { .map-full { display: inline-flex; } }
 .mk-pin { cursor: pointer; }
 .mk-cluster { cursor: default; }
 .mk-cluster.is-linked { cursor: pointer; }
@@ -384,10 +387,25 @@ picture.cover-pic { display: contents; }
 .trow.is-map-hl .trow-t, .rtab-r.is-map-hl .rtab-tt { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 
 /* full-screen map page (trips/<slug>/map/) */
-.p-fsmap .fs-bar { padding: 12px 0; display: flex; align-items: center; }
-.fs-pan { display: none; color: var(--ink-3); margin-left: 12px; }
-.is-pannable .fs-pan { display: inline; }  /* base.js: the map is wider than the screen */
-.p-fsmap .fs-map { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100svh - 140px); }
+.p-fsmap .fs-bar { padding: 12px 0 8px; display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; }
+/* every full-screen map is wider than a phone that can reach the page, so the hint shows without a script; base.js
+   hides it when the map fits after all (a wide screen) */
+.fs-pan { color: var(--ink-3); margin-left: 12px; }
+.is-fit .fs-pan { display: none; }
+/* second line: a scale and the disclaimer in view while the map pans (report.fullscreen_page, maps-10) */
+.fs-line2 { flex-basis: 100%; height: 24px; display: flex; align-items: center; gap: 16px; }
+.fs-scale { display: block; flex-shrink: 0; overflow: visible; }
+.fs-sc-t { font: 400 11px/1 var(--mono); fill: var(--ink-2); }
+.fs-nav { color: var(--ink-3); }
+/* 168 px: the bar's two lines (44 + 24 + gaps and padding) and the header's breathing room */
+.p-fsmap .fs-map { overflow: auto; -webkit-overflow-scrolling: touch; max-height: calc(100svh - 168px); }
+/* the route's start (core.route_start): the page's address names it, and the browser scrolls the map box so the start
+   lands in its middle (fragment scrolling aligns block start and inline nearest: the right margin centres it sideways,
+   half the box's height above it centres it in height). The page itself must not scroll, or its bar (Back, the scale)
+   goes under the header: on this page alone the root's scroll padding is taller than any distance the start can sit
+   below the page's top, so the viewport's part of the fragment scroll stays at 0; base.js refines */
+.mv-start { position: absolute; width: 0; height: 0; scroll-margin-right: 50vw; scroll-margin-top: calc((100svh - 168px) / 2); }
+html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 .p-fsmap .fs-map:focus-visible { outline-offset: -2px; }
 .p-fsmap .fs-map .map { width: 1440px; }
 .p-fsmap .fs-map .map--fscol { width: 1077px; }
@@ -740,7 +758,9 @@ picture.cover-pic { display: contents; }
 .dl-leader dd.dl-list { display: flex; flex-direction: column; align-items: flex-end; }  /* one list item per line */
 
 /* ---------------------------------------------------------------- photo viewer (core.lightbox, base.js) */
-.lb { padding: 0; border: 0; background: transparent; max-width: 100vw; max-height: 100svh; width: 100vw; height: 100svh; overflow: hidden; }
+.lb { padding: 0; border: 0; background: transparent; max-width: 100vw; max-height: 100svh; width: 100vw; height: 100svh; overflow: hidden;
+  touch-action: pinch-zoom; }   /* one finger's drag reaches base.js as a swipe; two still zoom */
+html:has(dialog.lb[open]) { overflow: hidden; }   /* the page behind the open viewer does not scroll */
 .lb::backdrop { background: rgb(22 23 26 / .94); }
 .lb[open] { display: flex; align-items: center; justify-content: center; padding: 24px 0 72px; }  /* the photo centres above the bar */
 .lb-img { max-width: 100vw; max-height: calc(100svh - 96px); min-width: 0; min-height: 0; margin: 0; object-fit: contain; }
@@ -751,7 +771,15 @@ picture.cover-pic { display: contents; }
 .lb-n { color: #B9B6AD; margin-right: auto; white-space: nowrap; }
 .lb-cap { color: #D6D4CC; min-width: 0; }
 .lb-cap:empty { display: none; }
+.lb-file { flex-shrink: 0; min-height: 44px; display: inline-flex; align-items: center; color: var(--paper); text-decoration: underline;
+  text-underline-offset: 3px; }
+.lb-file:focus-visible { outline-color: var(--paper); }
+.lb--error .lb-img { visibility: hidden; }
 .lb[open] { animation: ab-in .12s ease-out; }
+
+/* copy link (core.copy_link): the link icon, or the share icon once base.js has made it a share-sheet control (phones) */
+.copy-btn .copy-ic--share, .copy-btn.is-share .copy-ic--link { display: none; }
+.copy-btn.is-share .copy-ic--share { display: block; }
 
 /* ---------------------------------------------------------------- forced colors: current states keep a visible cue */
 @media (forced-colors: active) {

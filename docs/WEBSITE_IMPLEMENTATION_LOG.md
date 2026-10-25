@@ -1916,3 +1916,160 @@ Not run: `render.py` (nothing to draw); Lighthouse (the pre-push session); a rea
   with photos". New check messages: "beta[N].url must be a full http or https address, such as
   https://www.example.org/route, got '…'" and the warning "beta[N] has an unknown key 'URL' (is it url:?); a row takes
   label:, value: and url:".
+
+## Phase 11 - The PCT journal, the photo viewer and the full-screen map (2026-10-25)
+
+The sixth phase of the second plan (`docs/personal-website-improvement-plan-2.md`, section 11, and the Phase 11 prompt
+of `docs/claude-code-website-prompt-2.md`), built on branch `phase-11-journal-viewer-map` from `phase-10-report-pages`
+at `b2a0740`. No decision from Eric was needed; the session made the one the prompt leaves to it, report-18's size cap
+(below). Nothing under `content/` or `rendered/` changed, and `render.py` was not run (the route's start is read from
+the committed overlays at build time). The disk had about 20 GB free, under the plan's 30 GB line: builds were linked
+into the session's scratch folder, and no worktree or copy of the checkout was made. Two parts of the test work went
+to subagents in the same checkout, each confined to its own test files: the series harness (Continue reading, the
+month bar) and a new harness for base.js's viewer and share sheet.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/series.py` | `day_photos()` and `DAY_ROWS`: a written day's photos through `core.photo_rows` at the write-up's measure, `full=False`; `thumbs()` for track-only days only; `so_far()`, `far_item()`, the `Recorded` cell in `stats_dl(d, far)` and its `Recorded so far` column head; `N MI SO FAR` in the month heads and By-month rows; `WRITE-UP N OF M` in `written_nav`; the first action `btn btn--ink`; the hidden `.ser-continue` link; `share='Share this entry'` on entry links; `core.fullscreen_link` and `core.map_full_link` in the intro; `core.fs_render` in `fullscreen`. |
+| `tools/sitegen/core.py` | `photo(..., full=False)` (the `.th` and `.sm` copies only) and `photo_rows(..., name=, full=)`; `fs_render()`, `route_start()` (mapkit's start disc, else the paths), `fullscreen_link()`, `map_full_link()`, `FS_WIDTHS`, `fs_scale()`; `photo_rows(..., narrow=)` (the journal's sizes from 760 px); `map_block` writes `#route-start` in the fs render; `copy_link(..., share=None)` with `data-share`, both icons and `.copy-l`; `lightbox()` with `aria-describedby="lb-live"` and `.lb-file`. |
+| `tools/sitegen/pages/report.py`, `multiday.py` | `fullscreen_link` for the corner button and 'Open the full map' after the key rows; `fullscreen_page` uses `fs_render` and gains the bar's second line (`fs_scale` and `NOT FOR NAVIGATION`). |
+| `tools/lib/icons.py` | `share`. |
+| `assets/js/base.js` | Viewer: history entry on open, `popstate` closes, close takes the entry back off only when it is ours, a leftover entry's mark is cleared on load; the error state (`lb--error`, the caption, 'Open the file', the live region); the opening announcement; the swipe ignores non-primary pointers and `pointercancel`; a capped srcset gets the file back. Share sheet under `(hover: none)` with the clipboard as fallback (`copyPath`). Full-screen map: the start from the start disc, else the first unfaded path (the ascent on ski maps); `is-fit`. |
+| `assets/js/pages/series.js` | `openedDay()`; empty months `is-empty` with ', no write-ups' instead of `aria-disabled` / `tabindex`; Continue reading in `localStorage`. |
+| `assets/css/base.css`, `assets/css/pages/series.css` | `.lb` `touch-action: pinch-zoom`, `html:has(dialog.lb[open])`, `.lb-file`, `.lb--error`; the copy icons; `.map-full` at 560-1199 px; the fs bar's two lines, `.fs-pan` without a script, `.is-fit`, `.mv-start` and the fs page's root scroll padding, 168 px; `.ser-body .jrows`, the tenth row column and fourth stats column, `.ser-mnav a.is-empty`, `.ser-wnav-c`, `.ser-continue`. |
+| Docs | DEVELOPING.md (copy link and share sheet, the journal's photos, distance so far, counter, actions, the viewer on phones, series.js's fifth helper, month bar, Continue reading, the full-screen page, srcsets, icons, the harness list; the Phase 10 hero note in the CSS paragraph); CONTENT_GUIDE.md 7.2 (the full-size map), 7.6 (share), 7.7 (actions, Continue reading, month bar, photos, so far). |
+| Tests | New: test_phase11 (26), test_viewer_js (9; `tests/viewer_js_harness.js`, 50 checks, and 50 copies of base.js broken one line each, all rejected), `Phase11Tests` in test_a11y_static (the cascade of 'Open the full map' at nine widths; the dialog's description). Changed: series_js_harness and test_series_js (58 pure checks, 53 page checks; the stand-in's `createElement`, `localStorage` and its `local` fault), page_standin.js (history state per entry, an initial state, `back()` as a later task, selector lists), test_series_page, test_related, test_report_page. |
+
+### Behaviour
+
+- **Which pages changed.** A `--link` build against one of `b2a0740` made before any edit differs in the 168 trip pages
+  (the copy control's markup on every one; the photos, rows, counters and actions on the journal; the map links), the
+  168 full-screen map pages and the two bundles. Nothing else.
+- **The journal's photos (report-18, the size cap).** The written days' 98 photos are justified rows now, the 5 on
+  three track-only days keep the square sheet. Measured on the phone profile (390 x 844 at 3x) in the default
+  write-ups-only view, scrolled to the end so every lazy photo loads: 3,182,292 B before (98 `.th` squares), 9,239,288 B
+  with the cap (98 `.sm` copies), 13,237,218 B without it (83 `.sm` copies and 16 full files). The cap stays: the
+  journal never takes a full file (on a 2x desktop the uncapped rows would ask for the 1600 px file throughout), the
+  trade-off IMPLEMENTATION_REPORT 12.1 accepts on phones. The first screen is unchanged (114,902 B of images).
+- **Phone load of the journal** (DEVELOPING.md "Measuring page loads", median of 3): LCP 1,740 → 1,740 ms, CLS 0.036
+  → 0.037, document 87,095 → 92,837 B, images on load 220,712 → 177,882 B (6 → 3), total 370,173 → 335,624 B. The 0.036
+  is a shift that was there before (the title's place line arrives after the title); a 0.172 shift this phase first
+  added, the share label wrapping the title actions, is fixed (below).
+- **Running distance.** The last month's `MI SO FAR` equals the strip's total (both are the sum of the day files); a
+  gap in the day numbers adds nothing.
+- **The full-screen map (resilience-13).** Of the 168 `map/` pages, the 167 whose map has a route path carry
+  `#route-start` inside the frame at mapkit's start disc (all 167 have one; checked by a stdlib script over the
+  build); the journal's page has none and its link stays bare; every report's corner button and 'Open the full map'
+  name the fragment; `build.py --check` passes with them. With every script removed from the page, three maps (a ride,
+  the Matterhorn ski tour, a multi-day ski day) at 375 x 548, 390 x 664, 390 x 844 and 667 x 375 landscape: the start
+  inside the map box every time, near its middle where the map can scroll that far, and the page itself never
+  scrolled (the bar stays at 57 px).
+- **The viewer on a touch screen** (Chrome's touch emulation, 390 px, the Matterhorn report): a one-finger swipe with
+  60 px of vertical drift moves to the next photo; a vertical drag on the dialog leaves the page where it was; the
+  dialog keeps `touch-action: pinch-zoom`; Next answers a tap; `history.back()` closes it; Close takes its history
+  entry back off. A missing file shows 'This photo could not be loaded' and 'Open the file'.
+- **validate.py**: 0 errors, 1 warning, 346 notes, as before.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **The share label of a title-block button is 'Share'**, not 'Share this page': the longer label wrapped the PCT's
+  title actions onto a third row on a phone, and the page moved by 56 px when the script ran (CLS 0.172). The long
+  control ('Copy link to this page', the report's phone row) becomes 'Share this page'; a PCT entry's 'Share this entry'.
+- **The page itself must not scroll to the start**: with only the prompt's half-box margin the browser also scrolled
+  the page and the bar (Back, the new scale line) went under the header, so on the fs page alone `html` has a
+  `scroll-padding-top` of half the screen plus 100 px, which keeps the viewport's part of the fragment scroll at 0
+  (a first attempt, a whole screen of margin on the marker, left the start out of view on short phones; the review
+  caught it).
+- **The start is mapkit's start disc** where the overlay has one (all 167 today), the path rule only without it: the
+  prompt's 'dashed ascent' rule put the start in the wrong place on two ski maps whose recording opens with a descent.
+- **The fs bar's scale is redrawn, not copied**: the 718 and 560 px renders are drawn at 1.5x on that page, so the
+  render's own groups would be the wrong length; `core.fs_scale` takes their bar widths and labels and draws them at the
+  page's size, in `u-mi` / `u-km` groups.
+- **A press on Continue reading also stores its entry** (the harness subagent asked): following the offer is reading
+  that entry.
+- **Empty months are ink-3, not the rule colour**: they are links now and keep a text contrast.
+- **The journal's rows use a 12 px gap** (the sheet's gap from 760 px; the report's 24 px is wide in a 620 px column),
+  declared in `DAY_ROWS` and series.css alike.
+- **The viewer hides a broken image** (`lb--error`) so its glyph and alt text do not show over the backdrop.
+- **'Drag to pan' shows without a script** and base.js hides it when the map fits (`is-fit`), as the prompt asks; the
+  class `is-pannable` stays for the other case.
+
+### Review
+
+One independent read-only review of the whole change (an agent given the prompt, the rules and the diff, not this
+log). It ran the 3.9 suite, the gate script and headless Chrome on the built pages, and confirmed: one history entry
+per open, removed by Close and by Back, focus back on the photo; the viewer's srcset gets the file back; the opening
+announcement; the last month's SO FAR equals the strip's total; no sideways overflow at 390 or 1000 px; no privacy
+problem (the start's position is the first point of a route already drawn in the same page, with its start marker).
+Its findings:
+
+1. Without a script the fs map hid the start on short phones (a whole screen of margin kept the box at its top) and
+   scrolled the page on very short ones (bar under the header). Fixed with its tested change (half-box margin, the fs
+   page's root scroll padding); checked at four viewports (above).
+2. The dashed-ascent rule was wrong on two ski maps (215 and 133 px off the drawn start). Fixed: the start disc first,
+   in core and base.js; a test.
+3. CONTENT_GUIDE said only the PCT's title button reads 'Share'; every title block's does. Fixed.
+4. A photo that fails was never announced. Fixed: 'Photo N of M could not be loaded' in `#lb-live`; a harness check and
+   a broken copy.
+5. A reload while the viewer is open left the entry marked, so the next open stacked a second entry. Fixed:
+   `replaceState` on load; the stand-in can open a page on such an entry; a harness check and a broken copy.
+6. The journal's photos declared the report's 760-1199 px widths, larger than drawn. Fixed: `photo_rows(narrow=True)`
+   declares the 620 px column's widths from 760; a test.
+7. 'RECORDED' overflowed the 72 px column at 1000-1199 px. Fixed: 80 px (the title column is 156 px at 1000, titles
+   wrap); checked in Chrome.
+8. 'Continue reading' moves the page for a returning reader (the title actions grow from 104 to 156 px at 390 px when
+   it appears). Accepted and listed below: it appears once, only for a reader with a stored entry, and only on the
+   journal.
+9. Test gaps: the page's own so-far cell, the journal's 'Open the full map' with its bare link (now only when the
+   overview is rendered), a multi-day overview and fs page after `slim`. Tests added.
+10. The harness paragraph in DEVELOPING sat between 'By hand:' and its code block. Moved.
+
+### Checks actually run
+
+All on the working tree of 2026-10-25 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 3,036 tests, OK, 105 s (2,996 before the phase). One earlier 3.9 run during the work reported one failure that did not recur on any later run; which test it was was not recorded |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 3,036 tests, OK, 131 s |
+| `python3 tests/run_orders.py --reverse` | OK |
+| `node tests/*_harness.js` (node 25.8.2) | profile 35, series 58, ticklist 103, trips 167, maplist 14, viewer 50 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 357 pages, 168 trips, link check OK (with the `#route-start` fragments) |
+| `diff -rq` against a `--link` build of `b2a0740` | the pages under Behaviour |
+| `python3 tools/validate.py` | 0 errors, 1 warning, 346 notes |
+| route-start script over the build (`p11tools/route_start_gate.py`, scratch) | 167 of 167 pages with a route path marked at the start disc, the journal bare, 0 problems |
+| Phone measurements and a scroll-to-the-end byte count (scratch `measure.mjs`, `scrollbytes.mjs`) | under Behaviour |
+| Touch emulation of the viewer (CDP touch events and `synthesizeScrollGesture`) and of the fs page with scripts removed at four viewports | under Behaviour |
+| Screenshots (headless Chrome; 390 px in an emulated phone) | `.cache/plan2/phase11/`: the PCT page at 1280 and 390 before and after (top, Day 1, Day 15's photos); the Matterhorn report's map section at 1024 with 'Open the full map'; the fs pages at 390 with scripts removed (with the new bar); the viewer's error state at 390; the journal's row at 1000 |
+
+Not run: a real phone (item 13, below); `render.py`; Lighthouse (the pre-push session).
+
+### Remaining issues and author inputs
+
+- **The sizes cap**: decided, the cap (journal photos stop at the `.sm` copy). If the photos look soft on a large 2x
+  screen, `full=True` in `series.day_photos` lifts it (13.2 MB instead of 9.2 MB on a phone that scrolls the journal).
+- **The real-phone look (item 13): pending.** The share sheet needs https, so it can only be tried on the published
+  site; the other two can be tried before. Five minutes on an iPhone in Safari (and an Android phone in Chrome if one is
+  at hand), after the push or in the review gate before it:
+  1. Open a report with several photos (the Matterhorn report), tap a photo, then use the Back gesture (swipe from the
+     left edge): the viewer should close and the report stay. Open it again and close with the X: Back should then
+     leave the report, as usual.
+  2. In the viewer, swipe left with a finger that also drifts up or down: the next photo should come, the page behind
+     should not move, and a pinch should still zoom.
+  3. In Settings > Safari > Advanced, turn JavaScript off; open the report's map, tap the corner button: the full map
+     should open on the start of the route with the Back button and the scale line in view. Turn JavaScript back on.
+  4. On the PCT page, the title's button should read 'Share' and open the share sheet.
+  Tell the session what each did; it goes in the next log entry and closes IMPLEMENTATION_REPORT 15.5's "never run".
+- **Continue reading moves a returning reader's page once** (finding 8): accepted; reserving 52 px for a link most
+  visits never show would cost every visit.
+- **A known edge**: a photo opened within a few milliseconds of closing the last one can be closed again by the close's
+  own `history.back()` landing late (the harness cannot step between the two tasks). No fix: no reader taps that fast.
+- **The pre-existing 0.036 CLS** on the journal (the place line under the title) is left for Phase 13's sweep.
+- **The hero frame** (Phase 10, decision b) still waits on Eric's look at `.cache/plan2/phase10/sheet/hero-frame-sheet.png`.
+- **Interface copy, new on the site:** "Recorded so far" (column head) and "Recorded" (its cell, read out); "254 MI SO
+  FAR" (rows on phones, month heads, By-month rows); "WRITE-UP 12 OF 32"; "Continue reading: Day N · <title>"; ", no
+  write-ups" (read out on an empty month); "Share", "Share this page", "Share this entry"; "This photo could not be
+  loaded" and "Open the file"; "Open the full map"; "NOT FOR NAVIGATION" on the fs bar; "Day 15, photo 2 of 4, full
+  size" (read out for a journal photo without alt text).

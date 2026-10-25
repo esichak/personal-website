@@ -1,7 +1,8 @@
 'use strict';
-/* A stand-in for the browser, shared by tests/trips_js_harness.js and tests/ticklist_js_harness.js. Neither a test nor
-   a harness: it checks nothing by itself, and unittest never collects it (it is not Python, and its name does not start
-   with test_). There is one copy, so that the two harnesses cannot come to disagree about what a browser does.
+/* A stand-in for the browser, shared by tests/trips_js_harness.js, tests/ticklist_js_harness.js,
+   tests/profile_js_harness.js and tests/viewer_js_harness.js. Neither a test nor a harness: it checks nothing by itself,
+   and unittest never collects it (it is not Python, and its name does not start with test_). There is one copy, so that
+   the harnesses cannot come to disagree about what a browser does.
 
    open(model, scripts, opts) builds just enough of a document from a page that the site generator wrote, runs the
    page's scripts against it and returns the tab the page is open in.
@@ -12,7 +13,8 @@
    - opts: { search, hash } the query string and the fragment the page is opened with; navType the type of the
      navigation entry ('navigate' unless said; 'back_forward'); fragmentPopstate: false a browser that sends no
      popstate when only the fragment changes; refused: true a browser that refuses every write to the history from the
-     start (a page opened from a file).
+     start (a page opened from a file); state: the history state the page's entry already holds (a reload of an entry
+     the page pushed; null unless said).
 
    history and location are a list of addresses and a position in it. An address is spelled as the URL Standard spells
    it (Node's own URL class, the parser browsers implement), so location.search reads back an apostrophe as %27 where
@@ -25,14 +27,18 @@
    setTimeout, clearTimeout and Date.now follow it. fetch answers at once with the model's index. Every pushState and
    replaceState is kept (calls(), and counted: pushes(), replaces()), so a check can say that a step wrote nothing.
    refuse(true) is a browser that throws on both from then on, as one does for a page opened from a file, until
-   refuse(false). Selectors: a tag, classes, #id, [attr], [attr="value"] and :not(...) of those, joined by spaces
-   (descendants). A selector or a call the stand-in lacks throws and fails the run: add it here. Layout, focus and
-   scrolling are not modelled; this is not a browser.
+   refuse(false). Each entry keeps the state pushState or replaceState gave it (history.state; null for the first entry
+   and for one a fragment link made), a copy, as a browser keeps a structured clone. history.back() and forward() are
+   the page's own traversals: kept in order (traversals()) and, as in a browser, not made at once but as a task of their
+   own, the next time the clock moves (pause(0) is enough); popstate comes then. Selectors: a tag, classes, #id, [attr],
+   [attr="value"] and :not(...) of those, joined by spaces (descendants), and lists of those (commas), for
+   querySelectorAll, querySelector, matches and closest. A selector or a call the stand-in lacks throws and fails the
+   run: add it here. Layout, focus and scrolling are not modelled; this is not a browser.
 
    The tab: body, byId(id), one(scope, selector, what) (the one element a selector finds, or the run fails),
    press(element) (a click), fire(element, type) (any other event of an element, returned), follow(link), and visitor:
    what the visitor of any page does (pause, back, forward, refuse) and sees of the history (stack, at, address, left,
-   calls, pushes, replaces, fetched). A harness adds the page's own controls to visitor. */
+   calls, pushes, replaces, state, traversals, fetched). A harness adds the page's own controls to visitor. */
 const assert = require('assert');
 const vm = require('vm');
 
@@ -57,14 +63,28 @@ function compound(text, whole) {
   if (!tests.length) throw new Error('the stand-in cannot read the selector ' + JSON.stringify(whole));
   return (el) => tests.every((t) => t(el));
 }
+// a selector list: its selectors are the parts between the commas that are neither in a quoted value nor in :not(...)
+function list(sel) {
+  const out = [];
+  let quote = '', depth = 0, from = 0;
+  for (let i = 0; i < sel.length; i++) {
+    const c = sel.charAt(i);
+    if (quote) { if (c === quote) quote = ''; } else if (c === '"' || c === "'") quote = c;
+    else if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && !depth) { out.push(sel.slice(from, i)); from = i + 1; }
+  }
+  return out.concat([sel.slice(from)]);
+}
 function matcher(sel) {
-  const chain = String(sel).trim().split(/\s+/).map((part) => compound(part, sel));
-  return (el) => {
+  const chains = list(String(sel)).map((one) => one.trim().split(/\s+/).map((part) => compound(part, sel)));
+  const one = (chain, el) => {
     if (!chain[chain.length - 1](el)) return false;
     let i = chain.length - 2;
     for (let p = el.parentNode; p && i >= 0; p = p.parentNode) if (chain[i](p)) i--;
     return i < 0;
   };
+  return (el) => chains.some((chain) => one(chain, el));
 }
 
 class Text {
@@ -85,6 +105,8 @@ class El {
     const names = () => (self.attrs.class || '').split(/\s+/).filter(Boolean);
     this.classList = {
       contains: (k) => names().indexOf(k) !== -1,
+      add: (k) => { self.classList.toggle(k, true); },
+      remove: (k) => { self.classList.toggle(k, false); },
       toggle: (k, force) => {
         const on = force === undefined ? names().indexOf(k) === -1 : !!force;
         self.attrs.class = names().filter((x) => x !== k).concat(on ? [k] : []).join(' ');
@@ -95,6 +117,7 @@ class El {
     this.dataset = new Proxy({}, { get: (_t, prop) => (typeof prop === 'string' ? self.attrs['data-' + prop.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())] : undefined) });
   }
   get id() { return this.attrs.id || ''; }
+  set id(v) { this.attrs.id = String(v); }
   get className() { return this.attrs.class || ''; }
   set className(v) { this.attrs.class = String(v); }
   get type() { return this.attrs.type || ''; }
@@ -144,13 +167,21 @@ class El {
   hasAttribute(name) { return name in this.attrs; }
   getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
   setAttribute(name, value) { this.attrs[name] = String(value); }
+  removeAttribute(name) { delete this.attrs[name]; }
   descendants() {
     const out = [];
     this.childNodes.forEach((c) => { if (c instanceof El) { out.push(c); c.descendants().forEach((d) => out.push(d)); } });
     return out;
   }
+  contains(other) { for (let p = other; p; p = p.parentNode) if (p === this) return true; return false; }
   querySelectorAll(sel) { return this.descendants().filter(matcher(sel)); }
   querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+  matches(sel) { return matcher(sel)(this); }
+  closest(sel) {
+    const test = matcher(sel);
+    for (let p = this; p instanceof El; p = p.parentNode) if (test(p)) return p;
+    return null;
+  }
   addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
   focus() {}
   scrollIntoView() {}
@@ -194,6 +225,10 @@ function open(model, scripts, opts) {
   const spell = (url, base) => { const u = new URL(url, ORIGIN + base); return u.pathname + u.search + u.hash; };
   const hist = { entries: [spell(model.pathname + (opts.search || '') + (opts.hash || ''), '/')], at: 0, calls: [], left: false, refused: !!opts.refused };
   const refusal = () => { if (hist.refused) throw new Error('SecurityError: the history cannot be written'); };
+  // each entry's state (history.state), a copy as a browser keeps one; the page's own back() and forward() calls
+  hist.states = [opts.state === undefined ? null : JSON.parse(JSON.stringify(opts.state))];
+  hist.traversals = [];
+  const keep = (s) => (typeof structuredClone === 'function' ? structuredClone(s) : JSON.parse(JSON.stringify(s === undefined ? null : s)));
   const here = () => hist.entries[hist.at];
   const loc = {};
   ['pathname', 'search', 'hash'].forEach((k) => Object.defineProperty(loc, k, { get: () => new URL(here(), ORIGIN)[k], enumerable: true }));
@@ -228,6 +263,7 @@ function open(model, scripts, opts) {
     const from = new URL(here(), ORIGIN);
     if (from.hash === href) return;
     hist.entries.splice(hist.at + 1, hist.entries.length, from.pathname + from.search + href);
+    hist.states.splice(hist.at + 1, hist.states.length, null);
     hist.at++;
     arrived(from);
   };
@@ -241,19 +277,27 @@ function open(model, scripts, opts) {
     location: loc,
     history: {
       // without a URL (null, or none given) the entry keeps the address the page has
-      pushState: (_s, _t, url) => {
+      pushState: (s, _t, url) => {
         refusal();
+        const kept = keep(s);
         url = url == null ? here() : spell(url, here());
         hist.entries.splice(hist.at + 1, hist.entries.length, url);    // a new entry drops the ones Forward led to
+        hist.states.splice(hist.at + 1, hist.states.length, kept);
         hist.at++;
         hist.calls.push('push ' + short(url));
       },
-      replaceState: (_s, _t, url) => {
+      replaceState: (s, _t, url) => {
         refusal();
+        const kept = keep(s);
         url = url == null ? here() : spell(url, here());
         hist.entries[hist.at] = url;
+        hist.states[hist.at] = kept;
         hist.calls.push('replace ' + short(url));
       },
+      get state() { return hist.states[hist.at]; },
+      // a traversal the page asks for is made in a task of its own, the next time the clock moves (pause(0) is enough)
+      back: () => { hist.traversals.push('back'); timers.push({ id: ++ids, at: clock, fn: () => step(-1) }); },
+      forward: () => { hist.traversals.push('forward'); timers.push({ id: ++ids, at: clock, fn: () => step(1) }); },
     },
     performance: { getEntriesByType: (t) => (t === 'navigation' ? [{ type: opts.navType || 'navigate' }] : []) },
     setTimeout: (fn, ms) => { timers.push({ id: ++ids, at: clock + (ms || 0), fn: fn }); return ids; },
@@ -297,6 +341,8 @@ function open(model, scripts, opts) {
       calls: () => hist.calls.slice(),                      // every pushState / replaceState so far: 'push ?q=…', 'replace '
       pushes: () => hist.calls.filter((c) => c.indexOf('push ') === 0).length,
       replaces: () => hist.calls.filter((c) => c.indexOf('replace ') === 0).length,   // the replaceState calls alone
+      state: () => hist.states[hist.at],                    // the state of the entry the visitor is on
+      traversals: () => hist.traversals.slice(),            // the page's own history.back() and forward() calls, in order
       fetched: () => fetched.slice(),
     },
   };

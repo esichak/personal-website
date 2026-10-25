@@ -103,6 +103,22 @@ def km_of(d):
     return d['stats'].get('distance_km') or 0.0
 
 
+def so_far(t):
+    """{day id: km}: the distance recorded from the first day file through each one, in file order (features-07). A gap in
+    the day numbers adds nothing: only day files are summed, so the last day's figure is the strip's total."""
+    out, km = {}, 0.0
+    for d in t['days']:
+        km += km_of(d)
+        out[d['id']] = km
+    return out
+
+
+def far_item(km):
+    """'2,654 MI SO FAR': one meta_items() item for the month heads and the By-month rows, '' before any distance."""
+    mi, k = core.dist_vals(km)
+    return U(core.nb(mi + ' MI SO FAR'), core.nb(k + ' KM SO FAR')) if mi else ''
+
+
 def group_months(t):
     """[(key, label, short, [days])] in file order; days without a date fall into one 'Undated' group."""
     out = []
@@ -233,15 +249,17 @@ def map_month_keys(t):
     return set(k for nm in ('overview-tall', 'overview-phone') for k in _KEY.findall(overview_svg(t, nm)))
 
 
-def month_index(months, keyed=frozenset()):
+def month_index(months, keyed=frozenset(), far=None):
     """Month rows. A row whose month the map carries gets data-key: hovering or focusing it highlights that month's tracks on
-    the overview map (base.js, via data-map-target on the list)."""
+    the overview map (base.js, via data-map-target on the list). far: so_far(t), for the distance recorded through each
+    month's last day (benchmark-10)."""
+    far = far or {}
     top = max(sum(km_of(d) for d in m[3]) for m in months) or 1
     rows = []
     for key, name, year, days in months:
         km = sum(km_of(d) for d in days)
         wu = sum(1 for d in days if written(d))
-        meta = core.meta_items([days_item(days), wu_item(wu)])
+        meta = core.meta_items([days_item(days), wu_item(wu), far_item(far.get(days[-1]['id']))])
         mk = month_key(key)
         rows.append('<li%s><a class="ser-mi-a" href="#%s"><span class="ser-mi-h"><span class="ser-mi-m">%s</span>'
                     '<span class="t-mono-s ser-mi-s">%s</span></span><span class="ser-mi-v">%s</span>%s</a></li>'
@@ -294,8 +312,9 @@ def ov_preloads(t, here):
 
 def intro(t, here, months):
     # map_block shows wide >= 1200 and col 560-1199; series.css swaps the 560x860 render back in for 560-759 (OV_MEDIA)
+    fs = core.fullscreen_link(t, here)   # bare: the journal's overview draws no route path to start on
     mp = core.map_block(t, here, [('overview-tall', 'wide'), ('overview-phone', 'col'), ('overview-phone', 'phone')],
-                        t['url'] + 'map/', 'ov', cls='ser-map', id_=MAP_ID, fullscreen_href=link(here, t['url'] + 'map/'))
+                        t['url'] + 'map/', 'ov', cls='ser-map', id_=MAP_ID, fullscreen_href=fs)
     tall, small = map_keys(t, 'overview-tall'), map_keys(t, 'overview-phone')
     if tall == small:
         keys = core.key_row(tall, 'ser-mkey') if tall else ''
@@ -304,9 +323,10 @@ def intro(t, here, months):
         keys = ((core.key_row(tall, 'ser-mkey ser-mkey--tall') if tall else '')
                 + (core.key_row(small, 'ser-mkey ser-mkey--390') if small else ''))
     return ('<section class="ser-intro wrap" id="map" aria-labelledby="ov-h">'
-            '<div class="ser-intro-map">%s%s%s</div>'
+            '<div class="ser-intro-map">%s%s%s%s</div>'
             '<div class="ser-intro-t"><div class="shead"><h2 class="shead-t" id="ov-h">Overview</h2></div>%s%s</div></section>'
-            % (mp, keys, map_caption(t), lede(t), month_index(months, map_month_keys(t))))
+            % (mp, keys, core.map_full_link(fs) if core.render_meta(t)['maps'] else '', map_caption(t), lede(t),
+               month_index(months, map_month_keys(t), so_far(t))))
 
 
 # ---------------------------------------------------------------- day log
@@ -320,8 +340,9 @@ def thumb_file(t, p):
 
 
 def thumbs(t, d, here):
-    """One even square contact sheet (series.css: 3-6 columns, about 92-145 px squares). Every screen gets the .th copy
-    (320 px short edge, so 2x on Retina) and never the 800 px .sm file; each thumbnail links to the full photo."""
+    """A track-only day's photos: one even square contact sheet (series.css: 3-6 columns, about 92-145 px squares). Every
+    screen gets the .th copy (320 px short edge, so 2x on Retina) and never the 800 px .sm file; each thumbnail links to
+    the full photo. A written day shows its photos as photos instead (day_photos)."""
     if not d['photos']:
         return ''
     base = link(here, t['url'])
@@ -339,7 +360,23 @@ def thumbs(t, d, here):
     return '<ul class="ser-phs" aria-label="Day %s photos">%s</ul>' % (esc(d['label']), ''.join(out))
 
 
-def stats_dl(d):
+# a written day's photos: justified rows in the write-up's 620 px measure (series.css caps .jrows and sets the clamp to
+# 400 / 200 px with a 12 px gap; photo_rows declares the same numbers in each sizes attribute)
+DAY_ROWS = dict(per_row=3, col=620, jmax=400, jmin=200, gap=12, narrow=True)
+
+
+def day_photos(t, d, here):
+    """A written day's photos as photos (report-18): core.photo_rows, as on a report, at the journal's measure. They take
+    the .th or the .sm copy, never the full file (full=False: on a 2x screen a 620 px row would otherwise fetch the
+    1600 px file); the viewer still opens the full file. A track-only day keeps the square sheet (thumbs)."""
+    if not written(d):
+        return thumbs(t, d, here)
+    return core.photo_rows(t, here, d['photos'], ns='d' + d['id'], name='Day %s, photo' % d['label'], full=False, **DAY_ROWS)
+
+
+def stats_dl(d, far=None):
+    """Distance, Gain, Moving and, with far (the km recorded through this day), the running total: under its column
+    head 'Recorded so far' from 1000 px, '254 MI SO FAR' in the phone line; never trail mileage."""
     st = d['stats']
     cells = []
     mi, km = core.dist_vals(st.get('distance_km'))
@@ -347,6 +384,9 @@ def stats_dl(d):
     g = st.get('gain_m')
     cells.append(('g', 'Gain', U(n(g * FT), n(g), ' ft', ' m') if g is not None else '—'))
     cells.append(('m', 'Moving', ('%s<span class="unit"> moving</span>' % core.hm(st['moving_s'])) if st.get('moving_s') else '—'))
+    if far is not None:
+        fmi, fkm = core.dist_vals(far)
+        cells.append(('f', 'Recorded', (U(fmi, fkm, ' mi', ' km') + '<span class="unit"> so far</span>') if fmi else '—'))
     return ('<dl class="ser-st">%s</dl>'
             % ''.join('<div class="ser-st-%s"><dt>%s</dt><dd>%s</dd></div>' % (k, lab, v) for k, lab, v in cells))
 
@@ -384,7 +424,8 @@ def written_nav(t, d, here):
         return ''
     ws = [x for x in t['days'] if written(x)]
     i = ws.index(d)
-    parts = []
+    # where the entry sits among the written ones (benchmark-10)
+    parts = ['<span class="t-mono-s ser-wnav-c">%s</span>' % core.nb('WRITE-UP %s OF %s' % (n(i + 1), n(len(ws))))]
     if i > 0:
         prev = ws[i - 1]
         parts.append('<a class="alink ser-wnav-p" href="#%s">%sPrevious write-up: Day %s</a>' % (day_anchor(prev), icon('arrow-left', 16), esc(prev['label'])))
@@ -392,11 +433,11 @@ def written_nav(t, d, here):
         nxt = ws[i + 1]
         parts.append('<a class="alink ser-wnav-n" href="#%s">Next write-up: Day %s%s</a>' % (day_anchor(nxt), esc(nxt['label']), icon('arrow-right', 16)))
     parts.append(core.copy_link(core.SITE_URL + t['url'] + '#' + day_anchor(d), 'Copy link to this entry', cls='alink',
-                                of='Day %s' % d['label']))
+                                of='Day %s' % d['label'], share='Share this entry'))
     return '<div class="ser-wnav">%s</div>' % ''.join(parts)
 
 
-def day_article(t, d, here):
+def day_article(t, d, here, far=None):
     aid = day_anchor(d)
     days_dir = os.path.join(t['rendered'], 'days')
     glyph = slim_svg(core.frag(os.path.join(days_dir, '%s-g64.svg.html' % d['id']), here), 'gl-trk')
@@ -411,7 +452,7 @@ def day_article(t, d, here):
     body = ''
     if d['body_md']:
         body += '<div class="prose t-body ser-wu">%s</div>' % markdown.to_html(d['body_md'], heading_shift=4)
-    body += thumbs(t, d, here)
+    body += day_photos(t, d, here)
     body += written_nav(t, d, here)
     cls = 'ser-day' + (' has-wu' if written(d) else '') + (' has-body' if body else '') + ('' if d['title'] else ' no-title')
     labelled = ('%s-n %s-t' % (aid, aid)) if d['title'] else ('%s-n' % aid)
@@ -420,14 +461,14 @@ def day_article(t, d, here):
             '<p class="ser-n" id="%s-n"><span class="ser-dn"><span class="ser-dw">Day </span>%s</span>'
             '<span class="ser-dd">%s</span></p>'
             '<h4 class="ser-t" id="%s-t">%s</h4>%s<div class="ser-sp">%s</div>%s</div>%s</article>'
-            % (cls, aid, labelled, glyph, aid, esc(d['label']), esc(date_s), aid, day_title(d), stats_dl(d), spark, gpx,
+            % (cls, aid, labelled, glyph, aid, esc(d['label']), esc(date_s), aid, day_title(d), stats_dl(d, far), spark, gpx,
                ('<div class="ser-body">%s</div>' % body) if body else ''))
 
 
 def cols_head():
     return ('<div class="ser-cols" aria-hidden="true"><span></span><span>Day</span><span>Date</span><span>Title</span>'
             '<span class="num">Dist %s</span><span class="num">Gain %s</span><span class="num">Moving</span>'
-            '<span>Elevation</span><span class="num">GPX</span></div>'
+            '<span class="num">Recorded so far</span><span>Elevation</span><span class="num">GPX</span></div>'
             % (U('mi', 'km'), U('ft', 'm')))
 
 
@@ -450,13 +491,14 @@ def gap_row(a, b):
     return '<p class="ser-gap">%s</p>' % core.meta_items([core.nb('DAY%s %s' % ('' if a == b else 'S', rng)), core.nb('NO RECORDING')])
 
 
-def month_section(t, here, key, name, year, days, gaps):
+def month_section(t, here, key, name, year, days, gaps, far=None):
     mid = month_id(key)
+    far = far or {}
     km = sum(km_of(d) for d in days)
     wu = sum(1 for d in days if written(d))
-    meta = [days_item(days), wu_item(wu), dist_u(km, caps=True) if km else '']
+    meta = [days_item(days), wu_item(wu), dist_u(km, caps=True) if km else '', far_item(far.get(days[-1]['id']))]
     title = '%s %s' % (name, year) if year else name
-    rows = ''.join((gap_row(*gaps[d['id']]) if d['id'] in gaps else '') + day_article(t, d, here) for d in days)
+    rows = ''.join((gap_row(*gaps[d['id']]) if d['id'] in gaps else '') + day_article(t, d, here, far.get(d['id'])) for d in days)
     return ('<section class="ser-month%s" id="%s" aria-labelledby="%s-h"><div class="ser-mh"><h3 class="ser-mh-t" id="%s-h">%s</h3>'
             '<p class="t-mono-s ser-mh-m">%s</p></div>%s<div class="ser-days">%s</div></section>'
             % (' has-wu' if wu else '', mid, mid, mid, esc(title), core.meta_items(meta), cols_head(), rows))
@@ -477,6 +519,7 @@ def day_log(t, here, months):
     n_days = len(t['days'])
     n_wu = sum(1 for d in t['days'] if written(d))
     gaps = label_gaps(t['days'])
+    far = so_far(t)
     toggle = ''
     if 0 < n_wu < n_days:
         # data-default="wu": series.js starts the filter on (written entries are the reader mode) unless the URL hash
@@ -490,7 +533,7 @@ def day_log(t, here, months):
             '<div class="shead ser-log-h"><h2 class="shead-t" id="days-h">Day by day</h2>%s</div>'
             '<p class="sr" id="ser-live" aria-live="polite"></p>%s%s%s</section>'
             % (core.ACT[t['activity']][3], toggle, DL_SPRITE, month_nav(months),
-               ''.join(month_section(t, here, *m, gaps=gaps) for m in months)))
+               ''.join(month_section(t, here, *m, gaps=gaps, far=far) for m in months)))
 
 
 # ---------------------------------------------------------------- page
@@ -501,10 +544,14 @@ def page(t, site):
     fw = first_written(t)
     actions = ''
     if fw:
-        actions += '<a class="btn" href="#%s">%sRead the first written entry</a>' % (day_anchor(fw), icon('report', 18))
+        # the page's one primary action, in ink as on every other page type (visual-20)
+        actions += '<a class="btn btn--ink" href="#%s">%sRead the first written entry</a>' % (day_anchor(fw), icon('report', 18))
     # data-ser-all: series.js turns the write-ups filter off when this is followed, so every recording shows
     actions += '<a class="btn" href="#days" data-ser-all>%sBrowse all recordings</a>' % icon('list', 18)
     actions += core.copy_link(core.SITE_URL + here)
+    # 'Continue reading: Day N · title' (features-08): series.js fills and shows it when this browser has opened an entry
+    # before (localStorage); empty and hidden otherwise, so nothing shows without JavaScript or a stored entry
+    actions += '<a class="alink ser-continue" href="#days" hidden></a>'
     body = [report.title_block(t, here, actions), report.tick_backlink(t, here, site)]
     cover = t.get('cover')
     lead = bool(cover) and report.lead_photo(t) is not None   # a portrait cover fronts the cards but does not lead the page
@@ -539,6 +586,6 @@ def build(site):
 
 def fullscreen(t):
     """trips/<slug>/map/: the 560×860 overview at 1.5× for phones (the phone map's full-screen button)."""
-    keys = map_keys(t, 'overview-tall')
-    return report.fullscreen_page(t, [('overview-tall', 'fs')], core.key_row(keys) if keys else '', 'map--fs map--fstall',
+    keys = map_keys(t, core.fs_render(t))
+    return report.fullscreen_page(t, [(core.fs_render(t), 'fs')], core.key_row(keys) if keys else '', 'map--fs map--fstall',
                                   map_caption(t))

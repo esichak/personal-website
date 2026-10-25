@@ -1,7 +1,8 @@
 /* Series log: month scrollspy for the sticky month nav, the "Show days with write-ups only" filter (on by default as the
-   reader mode; a link to a hidden day or month turns it off), and the written-entry navigation. The decisions (what a
-   hash names, whether the filter starts on, whether a link must reveal its target, whether to re-scroll after loading)
-   are pure helpers, exported for the Node tests. Without JS every day shows and the month links are plain anchors. */
+   reader mode; a link to a hidden day or month turns it off), the written-entry navigation and a 'Continue reading' link
+   to the last entry this browser opened. The decisions (what a hash names, whether the filter starts on, whether a link
+   must reveal its target, whether to re-scroll after loading, which entry an opened link names) are pure helpers,
+   exported for the Node tests. Without JS every day shows, the month links are plain anchors and nothing is stored. */
 (function (root) {
   'use strict';
 
@@ -36,7 +37,17 @@
     return !!filtered && (k === 'day' || k === 'month') && (!navType || navType === 'navigate');
   }
 
-  var api = { hashTarget: hashTarget, startFiltered: startFiltered, revealId: revealId, landAfterLoad: landAfterLoad };
+  // the entry an opened link names: '#day-15' -> 'day-15'; a month link -> its first day (firstDayOf(monthId)); '' for
+  // anything else (the map, '#days', another page)
+  function openedDay(href, firstDayOf) {
+    var t = hashTarget(String(href || '').charAt(0) === '#' ? href : '');
+    if (t.kind === 'day') return t.id;
+    if (t.kind === 'month') return firstDayOf(t.id) || '';
+    return '';
+  }
+
+  var api = { hashTarget: hashTarget, startFiltered: startFiltered, revealId: revealId, landAfterLoad: landAfterLoad,
+              openedDay: openedDay };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SeriesLog = api;
   if (typeof document === 'undefined') return;
@@ -71,6 +82,44 @@
   window.addEventListener('resize', onScroll);
   spy();
 
+  // ------------------------------------------------------------ continue reading: the last entry this browser opened
+  // (a month-nav link, a link to a day, the written-entry links, or arriving at a #day address) is kept per page in
+  // localStorage; on a later visit the title actions offer it. Per device, never synced; a browser that refuses storage
+  // (private mode) simply offers nothing
+  var LAST = 'ser-last:' + window.location.pathname;
+  var cont = document.querySelector('.ser-continue');
+  // a month link opens the month's first day the reader can see (the first written one under the filter), else its first
+  function firstDayOf(monthId) {
+    var m = document.getElementById(monthId);
+    var ds = m ? Array.prototype.slice.call(m.querySelectorAll('.ser-day')) : [];
+    var d = ds.filter(function (x) { return x.offsetParent !== null; })[0] || ds[0];
+    return d ? d.id : '';
+  }
+  function keep(id) {
+    var el = id && document.getElementById(id);
+    if (!el || !el.classList.contains('ser-day')) return;
+    try { window.localStorage.setItem(LAST, id); } catch (e) { /* private mode, or storage full */ }
+  }
+  // the offer itself counts: following it is reading that entry
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (a) keep(openedDay(a.getAttribute('href'), firstDayOf));
+  });
+  if (cont) {
+    var last = null;
+    try { last = window.localStorage.getItem(LAST); } catch (e) { /* private mode */ }
+    var day = last && document.getElementById(last);
+    // not when the address already names that entry: the reader is there
+    if (day && day.classList.contains('ser-day') && hashTarget(window.location.hash).id !== last) {
+      var dn = day.querySelector('.ser-dn'), tt = day.querySelector('.ser-t');
+      var title = day.classList.contains('no-title') || !tt ? '' : tt.textContent.trim();
+      cont.textContent = 'Continue reading: ' + (dn ? dn.textContent.trim() : '') + (title ? ' · ' + title : '');
+      cont.setAttribute('href', '#' + last);
+      cont.hidden = false;
+    }
+  }
+  if (hashTarget(window.location.hash).kind === 'day') keep(hashTarget(window.location.hash).id);
+
   // ------------------------------------------------------------ filter: days with write-ups only
   var box = document.getElementById('ser-only');
   var live = document.getElementById('ser-live');
@@ -87,10 +136,19 @@
   function apply(announce) {
     var on = box.checked;
     log.classList.toggle('is-wu', on);
+    // a month with no write-up stays a link (a press reveals it, through the hashchange below): lighter, and named so
     links.forEach(function (a) {
       var off = on && a.dataset.wu === '0';
-      if (off) { a.setAttribute('aria-disabled', 'true'); a.setAttribute('tabindex', '-1'); }
-      else { a.removeAttribute('aria-disabled'); a.removeAttribute('tabindex'); }
+      var note = a.querySelector('.ser-mn-none');
+      a.classList.toggle('is-empty', off);
+      if (off && !note) {
+        note = document.createElement('span');
+        note.className = 'sr ser-mn-none';
+        note.textContent = ', no write-ups';
+        a.appendChild(note);
+      } else if (!off && note) {
+        a.removeChild(note);
+      }
     });
     if (announce && live) {
       live.textContent = on ? 'Showing the ' + box.dataset.wu + ' days with write-ups'

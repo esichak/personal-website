@@ -125,6 +125,21 @@ menu button below 1140px.
 - Maps are static: `core.map_block(t, here, [(name, size)…], asset_dir, ns)` shows exactly one variant per
   breakpoint (`wide` ≥1200, `col` 560–1199 or ≥1200 with `map--nowide`, `desktop` ≥560, `phone` <560).
   Charts: `core.chart_block`. Every inline fragment needs a unique `ns` (ids are namespaced with it).
+- The full-screen map page (`trips/<slug>/map/`, `report.fullscreen_page`): `core.fs_render(t)` names its render (the
+  journal's `overview-tall`, a multi-day trip's `overview-wide` else `overview-col`, a report's `map-wide` else
+  `map-col`). `core.route_start(t, name)` → (left %, top %) of mapkit's start disc in the committed overlay (drawn at
+  the recording's first point); without one, of the first point of the render's first `.mk-trk` path that has no
+  `stroke-opacity` (a faded one), the dashed (`stroke-dasharray`) ascent's on a ski map. None without a route path or
+  for a point outside the frame. `map_block` puts `<span
+  id="route-start" class="mv-start" style="left:X%;top:Y%" aria-hidden="true">` in the fs render's `.mv`, and
+  `core.fullscreen_link(t, here)` (the phone map's corner button and `core.map_full_link`'s 'Open the full map', shown
+  at 560-1199 px only, after the key rows) ends in `#route-start` exactly then, so the browser opens the map on the
+  start before any script (resilience-13; base.css: `scroll-margin-right: 50vw` and half the box's height of
+  `scroll-margin-top` centre it in the map box, and on that page alone `html`'s `scroll-padding-top: calc(50svh + 100px)`
+  keeps the page itself from scrolling, which would put the bar under the header). The journal's link stays bare. The bar's second line
+  (`.fs-line2`, maps-10) holds `core.fs_scale(t, name, width)`, the render's MI and KM scale groups redrawn at the size
+  the page draws the render (`core.FS_WIDTHS`), and `NOT FOR NAVIGATION`; 'Drag to pan' shows without a script and
+  base.js hides it (`is-fit`) when the map fits. render.py and meta.json are untouched.
 - Key rows decode symbols only, never values (`core.key_row(['skin','ski','start_end','gps','mile'])`). A label may be
   HTML (`core.KEY_HTML`: `Mile` / `Mile (1.6 km)` through `U`, since a mile disc stays a mile under KM). Trail and road
   lines are decoded only where the map's base layer draws them (`core.base_keys(t, names)`, looked up in each
@@ -736,13 +751,18 @@ menu button below 1140px.
   layout) and `multiday.page`, before the pager, with `skip=report.neighbours(t, site)`: the block leaves out the two
   reports the pager right under it links as Newer / Older. Never on goal or series pages. `RELATED_SIZES = '(min-width: 1200px) 400px,
   (min-width: 560px) calc((100vw - 104px) / 2), 112px'`.
-- Copy link: `core.copy_link(url, label='Copy link', cls='btn', of='')` → `<span class="copy"><button type="button"
-  class="<cls> copy-btn" data-copy="<url>">` + `icon('link', 18)` + `<span><label></span></button><span
-  class="copy-msg t-small" role="status"></span></span>`. With `of` the button ends `<span><label></span><span
+- Copy link: `core.copy_link(url, label='Copy link', cls='btn', of='', share=None)` → `<span
+  class="copy"><button type="button" class="<cls> copy-btn" data-copy="<url>" data-share="<share>">` + the link and the
+  share icons (`.copy-ic--link`, `.copy-ic--share`; base.css shows one) + `<span class="copy-l"><label></span></button><span
+  class="copy-msg t-small" role="status"></span></span>`. On a touch screen with a share sheet base.js renames it from
+  `data-share` (phone-06, under base.js additions): `share` defaults to 'Share' for the title block's short 'Copy link'
+  (a longer word wrapped the journal's title actions onto a third row on phones and moved the page, CLS 0.17) and to
+  'Share this page' for any other label. With `of` the button ends `<span class="copy-l"><label></span><span
   class="sr">, <of></span></button>` (escaped), so each control has its own accessible name on a page that repeats a
   label. `url` is absolute: `core.SITE_URL + here`, plus `'#' + day_anchor(d)` for a series entry. Callers: the last
   title action on single-day, goal, multi-day and series pages (`cls='btn'`); `report.share_row` (`cls='alink'`, 'Copy
-  link to this page'); `series.written_nav` (`cls='alink'`, 'Copy link to this entry', `of='Day <label>'`). The status
+  link to this page'); `series.written_nav` (`cls='alink'`, 'Copy link to this entry', `of='Day <label>'`, `share='Share
+  this entry'`). The status
   element is always rendered, empty until base.js fills it. Never inside `<noscript>`: with scripting off report.css
   hides the control and the share row (`@media (scripting: none) { .copy, .rep-share { display: none; } }`). A
   browser that does not know the `scripting` media feature still shows the button there, and it then does nothing.
@@ -753,11 +773,28 @@ menu button below 1140px.
     `core.cover_preload(t, here, report.HERO_SIZES)` in place of `ov_preloads`; a portrait, square or near-square cover
     gives no hero, and `ov_preloads` stay. The share image is the cover file whenever `t['cover']` exists, lead or not
     (`core.share_photo(t)`), and the page passes `report=t` as the other report pages do. The hero is alone in its
-    viewer group (no other element on the page carries `data-lb-group`), and the cover photo stays in its day's
-    `.ser-phs`.
-  - Actions: `Read the first written entry` → `#<day_anchor(first_written(t))>` (omitted when there is none), `Browse
-    all recordings` → `#days` with `data-ser-all`, then `core.copy_link`. No 'Day by day' action and no 'Download all
-    GPX'. series.css keeps the three under the title at every width.
+    viewer group (no other element on the page carries `data-lb-group`), and the cover photo stays among its day's
+    photos.
+  - Actions: `Read the first written entry` → `#<day_anchor(first_written(t))>` (`btn btn--ink`, the page's one primary
+    action since Phase 11; omitted when there is none), `Browse all recordings` → `#days` with `data-ser-all`, then
+    `core.copy_link`, then `<a class="alink ser-continue" href="#days" hidden></a>`, empty until series.js fills it
+    ('Continue reading', below). No 'Day by day' action and no 'Download all GPX'. series.css keeps them under the
+    title at every width.
+  - A day's photos (`series.day_photos`, report-18): on a written day `core.photo_rows(t, here, d['photos'],
+    ns='d<id>', name='Day <label>, photo', full=False, **DAY_ROWS)` (`DAY_ROWS`: three to a row, a 620 px column, the
+    clamp 400 / 200 px, a 12 px gap; series.css sets the same on `.ser-body .jrows`), so they show as photos in the
+    write-up's measure and under 760 in base.css's two-column grid. `full=False` (core.photo) leaves the full file out
+    of every srcset: a photo takes its `.th` or `.sm` copy, never the 1600 px file a 2x screen would ask for (measured
+    in the Phase 11 log); its link and the viewer still open the full file. A track-only day keeps `series.thumbs`, the
+    even square sheet of `.th` copies (`.ser-phs`).
+  - The distance so far (features-07, benchmark-10): `series.so_far(t)` → `{day id: km}`, the running sum of the day
+    files' `distance_km` in file order (a gap in the day numbers adds nothing, so the last figure is the strip's
+    total). `stats_dl(d, far)` adds a fourth cell, `<div class="ser-st-f"><dt>Recorded</dt><dd>` + `U(mi, km, ' mi', '
+    km')` + `<span class="unit"> so far</span>`, under the column head `Recorded so far` (`cols_head`; a tenth grid
+    column from 1000 px, the phone line's fourth item below). `far_item(km)` → `2,654 MI SO FAR` (both units) ends each
+    month head's meta and each By-month row's (`month_index(months, keyed, far)`), through the month's last day.
+    `written_nav` opens with `<span class="t-mono-s ser-wnav-c">WRITE-UP 12 OF 32</span>`, its place among the written
+    days.
   - `series.first_written(t)` → the first day dict with a write-up, in `t['days']` order, or None.
   - `lede(t)`: the series write-up when `t['body_md']`; else `<p class="ser-lede">` opening with `<title>: <N>
     recorded day(s)[, <core.frange(date, end_date)>][, <place>].` (a journal without dates or without a place leaves
@@ -775,7 +812,7 @@ menu button below 1140px.
     caps) is there only for a day with both a title and a date, so an untitled day's date is printed once. The excerpt
     is `markdown.plain(body_md, 160)`, for a written day.
   - `series.written_nav(t, d, here)` → `''` for a track-only day; else `<div class="ser-wnav">` (a div: a nav per
-    entry would add one landmark per written day) with `<a class="alink ser-wnav-p">` 'Previous write-up: Day <label>'
+    entry would add one landmark per written day) with the counter above, `<a class="alink ser-wnav-p">` 'Previous write-up: Day <label>'
     and `<a class="alink ser-wnav-n">` 'Next write-up: Day <label>' for the nearest written days in `t['days']` order
     (each omitted at the ends), then the entry's `core.copy_link` with `of='Day <label>'`, so every entry's button has
     its own accessible name. `day_article` appends it to `.ser-body`.
@@ -811,16 +848,35 @@ menu button below 1140px.
     out of the flow, so a button at the bottom edge of the screen (or just above the phone bottom bar) would open them
     out of sight: both are brought in with `scrollIntoView({ block: 'nearest' })`, which honours `html`'s scroll
     padding and does nothing when they already show.
+  - Share sheet (phone-06): at load, when `navigator.share` exists and `(hover: none)` matches, every
+    `.copy-btn[data-share]` gets its `data-share` text in `.copy-l` and the class `is-share` (base.css then shows the
+    share icon). A press on one calls `navigator.share({title: document.title, url})` inside the click, after
+    `navigator.canShare` when the browser has it; a rejection other than `AbortError` (the reader closed the sheet), or
+    a throw, falls back to the clipboard path above. Desktops keep 'Copy link' even where their browser has
+    `navigator.share`.
   - Viewer groups: a photo link inside, or carrying, `data-lb-group` opens the group of every `a.jph` under an element
     with that value plus every `a.jph` carrying it, in document order (hero, then the grid), so `PHOTO k / N` counts each
     photo once. Links without the attribute group as before (`.jrows`, `.mul-photos`, `.ser-phs`, `.rep-aside-ph`).
+    A thumbnail whose srcset stops at the `.sm` copy (`full=False`) gets the file added for the viewer, at the width
+    its `<img>` records.
+  - Viewer on phones (Phase 11): opening pushes `history.pushState({lb: true}, '')` (in try/catch), so a Back gesture
+    fires `popstate`, which closes the viewer; closing it any other way (Close, Escape, a tap outside) calls
+    `history.back()` only while `history.state.lb` is ours, and never after a `popstate` close (resilience-10); a page
+    loaded on a leftover viewer entry (a reload while it was open) clears its mark with `replaceState`. An `error` on
+    `.lb-img` adds `lb--error` (the broken image is hidden, its box kept), writes 'This photo could not be loaded' into
+    `.lb-cap`, says 'Photo N of M could not be loaded' in `#lb-live` and unhides `.lb-file` ('Open the file', the
+    photo's href); the next photo undoes all three. Opening announces 'Photo 1 of N. <alt>' in `#lb-live`, which
+    describes the dialog (`aria-describedby`, a11y-14). The swipe ignores a non-primary pointer and forgets one that
+    is cancelled; base.css gives the dialog `touch-action: pinch-zoom` (one finger reaches the script, two still zoom)
+    and `html:has(dialog.lb[open]) { overflow: hidden; }` keeps the page behind still (gap1-07).
   - The current-section spy marks the phone bottom bar only (`.bbar` links, `aria-current="location"`); the section
     row (`.rep-toc`) is never marked. A bar link the reader presses is pinned as current while its section stays
     where the jump put it: the click asks for an update, which runs after the jump and records the section's top, and
     the pin is released once that top has moved by more than 8 px (any scroll, by any means) or a `hashchange` (Back /
     Forward) names another fragment.
-- series.js: four pure helpers, exported before any DOM access through `module.exports` under Node and as
-  `window.SeriesLog`. `hashTarget(hash)` → `{kind: 'day' | 'month' | 'other' | null, id}` (`'#day-5-2'` → day,
+- series.js: five pure helpers, exported before any DOM access through `module.exports` under Node and as
+  `window.SeriesLog`. `openedDay(href, firstDayOf)` → the day article an in-page link opens: `#day-…` itself, a month
+  link's first visible day (the callback), `''` for anything else. `hashTarget(hash)` → `{kind: 'day' | 'month' | 'other' | null, id}` (`'#day-5-2'` → day,
   `'#month-2024-06'` → month, `'#days'` → other, `''` → `{kind: null, id: ''}`; the hash is URI-decoded).
   `startFiltered(defaultOn, hash, hiddenIds)` → `defaultOn` and the hash's id is not in `hiddenIds`.
   `revealId(filtered, hash, hiddenIds)` → the id a link must reveal: `''` unless `filtered` and the hash names an id
@@ -850,8 +906,17 @@ menu button below 1140px.
     the current `location.hash` runs the same reveal, because no `hashchange` fires for it.
   - A click on `[data-ser-all]` unchecks the box and stores the choice, and announces 'Showing all N days' when the
     filter was on. Without JavaScript every day shows.
-- CSS: report.css gains the story block (`.rep-hero` / `.rep-hero-a`: 3 / 2, 4 / 3 and edge to edge under 560, 2 / 1
-  from 1200, `object-fit: cover` under the `object-position` `core.cover_img` sets; `.rep-toc` / `.rep-toc-a`: a
+  - While the filter is on, a month-bar link to a month without a write-up gets the class `is-empty` (lighter in
+    series.css) and a `<span class="sr ser-mn-none">, no write-ups</span>`; it stays a link (a11y-07: no
+    `aria-disabled`, no `tabindex`), and a press reveals the month through the `hashchange` path above.
+  - Continue reading (features-08): a click on any in-page link stores the day it opens (`openedDay`) in
+    `localStorage['ser-last:' + location.pathname]`, and so does arriving at a `#day-…` address. On a later load, when
+    the stored id is a `.ser-day` on the page and the address does not already name it, `.ser-continue` reads
+    'Continue reading: Day N · <title>' (no title for a `.no-title` day) with `href="#<id>"` and is shown; a press goes
+    through the reveal above. Per browser, never synced; storage errors (private mode) leave the link hidden. This
+    runs before the filter's setup, so a journal without the toggle has it too.
+- CSS: report.css gains the story block (`.rep-hero` / `.rep-hero-a`: 3 / 2, 4 / 3 and edge to edge under 560 (2 / 1
+  from 1200 until Phase 10), `object-fit: cover` under the `object-position` `core.cover_img` sets; `.rep-toc` / `.rep-toc-a`: a
   wrapping row of 48 px links, not sticky, with no current-section marker (no `.rep-toc-a[aria-current]` rule and no
   `::before` square); `.p-report--story` spacing), `.rep-rel` (one column, two from 560, three from 1200),
   `.rep-share`, `.rep-anchor`, and the copy control: `.copy` is `position: relative`, and `.copy-msg` (the status) and
@@ -869,7 +934,7 @@ menu button below 1140px.
   `''` or the page is a goal that is only an idea, keeps no room for one under the footer; a browser that does not
   know `:has()` keeps the 72 px), an ellipsis for a search placeholder longer than its box to trips.css (`.trx-q`), and
   the rules listed under Accessibility above.
-- Icons: `link` in `tools/lib/icons.py` (`PATHS`), drawn by `core.copy_link`.
+- Icons: `link` and `share` in `tools/lib/icons.py` (`PATHS`), drawn by `core.copy_link`.
 
 ### Photos and share metadata
 
@@ -877,7 +942,8 @@ menu button below 1140px.
   (800 px) and the `.th` copy (card size: `core.THUMB_EDGE`, 320 px, on the short edge). `content._photos` records `sm`
   and `th` on the photo dict only when the file exists, so a missing copy is never linked.
   - Srcsets: `core.photo` (galleries, featured blocks) lists the `.sm` copy and the full file, and writes them and
-    `width` / `height` only when both `w` and `h` are recorded. `core._cover_srcset(t, p, here)`, behind
+    `width` / `height` only when both `w` and `h` are recorded; with `full=False` (the journal's written days) it lists
+    the `.th` copy, when there is one, and the `.sm` copy, and takes the `.sm` copy for `src`. `core._cover_srcset(t, p, here)`, behind
     `core.cover_img` and `core.cover_preload`, lists the same two for a cover. The `.th` copy is never a candidate of
     an `<img>` or a preload. It is offered to phones only: for a card cover (a `sizes` string that ends with
     `core.CARD_PHONE_SLOT`, 112 px: `trips.TRX_SIZES`, `core.RELATED_SIZES`, `home.RECENT_SIZES`) whose photo has the
@@ -1669,13 +1735,21 @@ stand-in for a page with a region map and the list beside it, and plays a reader
 which rows dim the map and which leave it as it is, and what `Show all N` and `Show fewer` focus and scroll to (Region
 pages, Script, above). `tests/test_trips_js.py`, `tests/test_ticklist_js.py`, `tests/test_series_js.py` and
 `tests/test_maplist_js.py` run them, also against modules and scripts with wrong answers that a harness must reject,
-and skip those tests when `node` is not installed; the build never runs node. By hand:
+and skip those tests when `node` is not installed; the build never runs node. Since Phases 10 and 11 two more:
+`tests/profile_js_harness.js` (the profile readout, `tests/test_profile_js.py`) and `tests/viewer_js_harness.js`
+(base.js's photo viewer and share sheet on a page built from `series.day_photos`, `core.photo_rows`, `core.copy_link`
+and `core.lightbox`, on `tests/page_standin.js`, which keeps a state per history entry and runs `history.back()` as a
+later task; `tests/test_viewer_js.py`, with one-line-broken copies of base.js that must fail). The series harness's
+stand-in gained `createElement` / `appendChild` / `removeChild` and a `localStorage` with its own `local` fault (Phase
+11's Continue reading). By hand:
 
 ```bash
 node tests/trips_js_harness.js
 node tests/ticklist_js_harness.js
 node tests/series_js_harness.js
 node tests/maplist_js_harness.js
+node tests/profile_js_harness.js
+node tests/viewer_js_harness.js            # asks python3 tests/test_viewer_js.py --model for its page
 ```
 
 What the test files cover:

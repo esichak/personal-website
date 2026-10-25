@@ -3684,6 +3684,24 @@ class TargetSizeTests(SiteFixture):
 
 # ---------------------------------------------------------------- forced colours: the units switch
 
+class Phase11Tests(unittest.TestCase):
+    """Phase 11: 'Open the full map' (core.map_full_link, gap1-02) is on screen only at 560-1199 px, where the page draws
+    the 718 px render larger than drawn; the photo viewer is described by its live region (a11y-14)."""
+
+    def test_open_the_full_map_shows_from_560_to_1199_only(self):
+        rules = published_rules()[0]
+        a = Doc('<div class="wrap">%s</div>' % core.map_full_link('../../trips/syn-x/map/')).find('a', cls='map-full')
+        for width, shown in ((360, False), (390, False), (559, False), (560, True), (800, True), (1024, True), (1199, True),
+                             (1200, False), (1300, False)):
+            with self.subTest(width=width):
+                self.assertEqual(hidden_by(a, rules, env(width)) is None, shown, why(a, 'display', rules, env(width)))
+
+    def test_the_viewer_is_described_by_its_live_region(self):
+        dlg = Doc(core.lightbox()).find('dialog', cls='lb')
+        self.assertEqual(dlg['aria-describedby'], 'lb-live')
+        self.assertEqual(dlg.find('p', cls='sr')['aria-live'], 'polite')
+
+
 class ForcedColoursTests(SiteFixture):
 
     def forced(self, width):

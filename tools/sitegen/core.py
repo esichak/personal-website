@@ -567,6 +567,97 @@ def _strip_size(svg):
     return re.sub(r'^<svg width="\d+" height="\d+"', '<svg', svg, count=1)
 
 
+# ---------------------------------------------------------------- the full-screen map page (trips/<slug>/map/)
+
+_TRK_PATH = re.compile(r'<path class="mk-trk"[^>]*>')
+_MOVE = re.compile(r'\sd="M\s*(-?[\d.]+)[\s,]+(-?[\d.]+)')
+# mapkit's start disc (drawn_ends reads the same marker): at the recording's first point
+_START_DISC = re.compile(r'<circle cx="(-?[\d.]+)" cy="(-?[\d.]+)" r="[57]" style="fill: #16171A; stroke: #FFFFFF')
+FS_WIDTHS = {'map--fscol': 1077, 'map--fstall': 840}   # base.css: .map is 1440 px on that page, these two 1.5x their render
+
+
+def fs_render(t):
+    """The render trips/<slug>/map/ shows: the journal's 560x860 overview, a multi-day trip's wide overview (else its
+    column one), a report's wide map (else its column one). report.fullscreen_page, multiday.fullscreen and
+    series.fullscreen use this one rule."""
+    maps = render_meta(t).get('maps', {})
+    if t['kind'] == 'series':
+        return 'overview-tall'
+    if t['kind'] == 'multi-day':
+        return 'overview-wide' if 'overview-wide' in maps else 'overview-col'
+    return 'map-wide' if 'map-wide' in maps else 'map-col'
+
+
+def route_start(t, name):
+    """(left %, top %) of where the route starts in the render `name`, read from its committed overlay: mapkit's start
+    disc, which it draws at the recording's first point; without one, the first point of the first route path (.mk-trk)
+    that is not a faded one (stroke-opacity), and on a ski map the dashed ascent's (mapkit draws the descent first). The
+    path rule alone was wrong on two ski maps whose recording opens with a descent. None without a route path (the
+    journal's overview draws its days otherwise) or a point inside the frame (resilience-13)."""
+    m = render_meta(t).get('maps', {}).get(name)
+    path = rendered(t, name + '.svg.html')
+    if not m or not m.get('w') or not m.get('h') or not os.path.exists(path):
+        return None
+    svg = _read(path)
+    trks = [x for x in _TRK_PATH.findall(svg) if 'stroke-opacity' not in x]
+    if not trks:
+        return None
+    pick = next((x for x in trks if 'stroke-dasharray' in x), trks[0])
+    mv = _START_DISC.search(svg) or _MOVE.search(pick)
+    if not mv:
+        return None
+    x, y = float(mv.group(1)) / m['w'] * 100, float(mv.group(2)) / m['h'] * 100
+    return (x, y) if (0 <= x <= 100 and 0 <= y <= 100) else None
+
+
+def fullscreen_link(t, here):
+    """The address of a trip's full-screen map page, ending '#route-start' when that page marks the start (route_start):
+    the browser then opens the map on the route before any script runs. A bare address otherwise (the journal)."""
+    return link(here, t['url'] + 'map/') + ('#route-start' if route_start(t, fs_render(t)) else '')
+
+
+def map_full_link(href):
+    """'Open the full map' after a map's key rows: shown at 560-1199 px only (base.css), where the page draws the 718 px
+    render larger than it was drawn and the full-screen page has the 1440 px one 1:1; phones have the button in the map's
+    corner, and from 1200 px the page shows the wide render (gap1-02)."""
+    return '<a class="alink map-full" href="%s">Open the full map%s</a>' % (href, icon('expand', 16))
+
+
+_SCALE_G = re.compile(r'<g class="u-(mi|km)">(.*?)</g>', re.S)
+_SCALE_RECT = re.compile(r'<rect [^>]*width="([\d.]+)"[^>]*style="([^"]*)"')
+_SCALE_TEXT = re.compile(r'<text\b[^>]*>([^<]*)</text>')
+
+
+def fs_scale(t, name, width):
+    """The full-screen page's own scale bar, for its bar above the map, so a scale stays in view while the map pans
+    (maps-10): the render's MI and KM scale groups (its corner, mapkit), redrawn at the size the page draws the render
+    (width: its CSS width; the 718 and 560 px renders are shown at 1.5x) in a 160 x 24 SVG, each in its u-mi / u-km
+    group so the units switch applies. '' when the render has no scale."""
+    m = render_meta(t).get('maps', {}).get(name)
+    path = rendered(t, name + '.svg.html')
+    if not m or not m.get('w') or not os.path.exists(path):
+        return ''
+    k = float(width) / m['w']
+    groups = {}
+    for unit, body in _SCALE_G.findall(_read(path)):
+        rects = _SCALE_RECT.findall(body)
+        texts = [x for x in _SCALE_TEXT.findall(body) if x.strip() and x.strip() != '0']
+        if rects and texts:
+            groups[unit] = (rects, texts[-1])          # the last group of each unit: the scale bar is drawn last
+    if set(groups) != {'mi', 'km'}:
+        return ''
+    out = []
+    for unit in ('mi', 'km'):
+        rects, label = groups[unit]
+        x, bars = 0.0, []
+        for w, style in rects:
+            bars.append('<rect x="%.1f" y="15" width="%.1f" height="5" style="%s"/>' % (x + 0.5, float(w) * k, esc(style)))
+            x += float(w) * k
+        out.append('<g class="u-%s">%s<text class="fs-sc-t" x="0.5" y="10">0</text>'
+                   '<text class="fs-sc-t" x="%.1f" y="10" text-anchor="end">%s</text></g>' % (unit, ''.join(bars), x + 0.5, esc(label)))
+    return '<svg class="fs-scale" width="160" height="24" viewBox="0 0 160 24" aria-hidden="true">%s</svg>' % ''.join(out)
+
+
 def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=False, attrib=True, fullscreen_href=None, id_=None):
     """Responsive static map: one <div class="mv mv--{size}"> per render, each a hillshade <img> under an SVG overlay.
 
@@ -574,7 +665,8 @@ def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=F
     full-screen map page, always shown). Consecutive variants of one render share one div (<div class="mv mv--col
     mv--phone">), so its SVG is inlined once. asset_dir: site-relative folder the PNGs are copied to ('trips/slug/map/').
     eager=True marks the hero map: fetchpriority="high" on every variant (pair it with map_preloads() in the head).
-    The fs map loads at once (it is the whole page)."""
+    The fs map loads at once (it is the whole page), and marks the route's start with an empty #route-start span
+    (route_start) that the page's address names, so it opens on the route (fullscreen_link)."""
     if site_maps:
         mp = os.path.join(ROOT, 'rendered', 'site', 'meta.json')
         meta = read_json(mp, {'maps': {}})
@@ -606,6 +698,10 @@ def map_block(t, here, variants, asset_dir, ns, eager=False, cls='', site_maps=F
         svg = _strip_size(frag(os.path.join(base, name + '.svg.html'), here, '%s-%s-%s' % (ns, name, sizes[0]),
                                drop=gone_keys(m) if site_maps else None, labels=site_maps))
         tagx = '<span class="mv-attrib">© OSM · Not for navigation</span>' if (attrib and 'phone' in sizes) else ''
+        if fs_page and not site_maps:
+            st = route_start(t, name)
+            if st:
+                tagx += '<span id="route-start" class="mv-start" style="left:%.2f%%;top:%.2f%%" aria-hidden="true"></span>' % st
         fs = ''
         if fullscreen_href and 'phone' in sizes:
             fs = '<a class="mv-fs" href="%s" aria-label="Open the full map">%s</a>' % (fullscreen_href, icon('expand', 20))
@@ -911,7 +1007,9 @@ def phone_sizes(sizes, p):
     return sizes.replace(PHONE_FULL, '100vw')
 
 
-def photo(t, p, here, sizes='(min-width: 1200px) 1248px, ' + PHONE_FULL, cls='', eager=False, caption=True):
+def photo(t, p, here, sizes='(min-width: 1200px) 1248px, ' + PHONE_FULL, cls='', eager=False, caption=True, full=True):
+    """full=False: the page never takes the full file, only the .th and .sm copies (the journal's photos: its column is
+    620 px at most, and a 2x screen would otherwise fetch the 1600 px file for it); the link to the file stays."""
     base = link(here, t['url'])
     src = base + p['file']
     srcset = ''
@@ -920,7 +1018,12 @@ def photo(t, p, here, sizes='(min-width: 1200px) 1248px, ' + PHONE_FULL, cls='',
     if p.get('sm') and sized:
         big_w = p['w'] if p['w'] >= p['h'] else int(p['w'])
         small_w = int(round(p['w'] * 800.0 / max(p['w'], p['h'])))
-        srcset = ' srcset="%s %dw, %s %dw" sizes="%s"' % (base + p['sm'], small_w, src, big_w, sizes)
+        if full:
+            srcset = ' srcset="%s %dw, %s %dw" sizes="%s"' % (base + p['sm'], small_w, src, big_w, sizes)
+        else:
+            src = base + p['sm']
+            th = ('%s %dw, ' % (base + p['th'], thumb_width(p))) if p.get('th') else ''
+            srcset = ' srcset="%s%s %dw" sizes="%s"' % (th, src, small_w, sizes)
     wh = (' width="%d" height="%d"' % (p['w'], p['h'])) if sized else ''
     img = '<img src="%s"%s%s alt="%s" decoding="async"%s>' % (src, srcset, wh, esc(p.get('alt') or ''), '' if eager else ' loading="lazy"')
     cap = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if (caption and p.get('caption')) else ''
@@ -1061,7 +1164,8 @@ def photo_partition(photos, per_row=4):
 PHONE_SOLO_MIN_AR = 0.6   # a tall portrait alone on a phone row is cropped to this, no narrower
 
 
-def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280, gap=24, lead=0):
+def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280, gap=24, lead=0, name='Photo', full=True,
+               narrow=False):
     """Justified photo rows (reports, multi-day chapters): every row fills the column at one height (1248: a landscape
     alone 1248×624, four portraits 294×392), clamped in CSS so a row of portraits never runs taller than 624. Phones
     (< 760) show a 2-column grid: landscapes and unpaired portraits full width. Each photo links to its full-size file
@@ -1069,7 +1173,10 @@ def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280
     col / jmax / jmin / gap: the desktop column and the CSS clamp (.jrows --jmax / --jmin / --jgap) of the page, so each
     image's sizes attribute declares the width it is drawn at (a 294px portrait picks the 800px .sm file).
     lead: how many of the trip's photos sit above the grid in the same viewer group (a story's lead photo: 1), so a photo
-    without alt text is numbered as the viewer numbers it ('Photo 2 of 7' for the first one in the grid)."""
+    without alt text is numbered as the viewer numbers it ('Photo 2 of 7' for the first one in the grid).
+    name: what that label calls a photo ('Day 15, photo 2 of 4' on the journal). full=False: see photo(). narrow=True:
+    the column is `col` wide or a little less from 760 px (the journal's 620 px measure), so each photo declares its
+    1200 px width from 760, not a share of the report's 100vw - 80px column."""
     photos = [p for p in photos if p.get('file')]
     if not photos:
         return ''
@@ -1093,20 +1200,23 @@ def photo_rows(t, here, photos, per_row=4, ns='ph', col=1248, jmax=624, jmin=280
         for i, (p, a) in enumerate(zip(row, ars)):
             k += 1
             land = a >= 1
+            wide = '(min-width: 760px)' if narrow else '(min-width: 1200px)'
             if lone_land:
-                sizes = '(min-width: 1200px) %dpx, %s' % (col, PHONE_FULL)
+                sizes = '%s %dpx, %s' % (wide, col, PHONE_FULL)
             elif one:
                 sizes = '(min-width: 760px) %dpx, %s' % (round(min(col, a * jmax)), PHONE_FULL)  # .jrow--one: min(100%, ar × jmax)
+            elif narrow:
+                sizes = '%s %dpx, %s' % (wide, round(a * h), PHONE_FULL if (land or i in solo) else '50vw')
             else:
                 sizes = ('(min-width: 1200px) %dpx, (min-width: 760px) calc((100vw - 80px) * %.3f), %s'
                          % (round(a * h), a / tot, PHONE_FULL if (land or i in solo) else '50vw'))
             c = 'jph jph--%s%s' % ('l' if land else 'p', ' jph--solo' if i in solo else '')
-            name = '' if p.get('alt') else ' aria-label="Photo %d of %d, full size"' % (k + lead, len(photos) + lead)
+            label = '' if p.get('alt') else ' aria-label="%s %d of %d, full size"' % (esc(name), k + lead, len(photos) + lead)
             cap = (' data-cap="%s"' % esc(p['caption'])) if p.get('caption') else ''
             # --arp: the shape a photo alone on a phone row keeps, no narrower than 0.6 (base.css)
             figs.append('<a class="%s" href="%s%s" style="--ar:%.4f;--arp:%.4f;--fg:%d"%s%s>%s</a>'
-                        % (c, base, p['file'], a, max(a, PHONE_SOLO_MIN_AR), round(a * 1000), cap, name,
-                           photo(t, p, here, sizes=sizes, caption=False)))
+                        % (c, base, p['file'], a, max(a, PHONE_SOLO_MIN_AR), round(a * 1000), cap, label,
+                           photo(t, p, here, sizes=sizes, caption=False, full=full)))
         out.append('<div class="jrow%s" style="--n:%d;--sum:%.4f;--ar:%.4f">%s</div>'
                    % (' jrow--one' if one else '', len(row), tot, ars[0], ''.join(figs)))
         caps = [p['caption'] for p in row if p.get('caption')]
@@ -1687,16 +1797,25 @@ def related_block(t, here, site, k=3, skip=()):
             % (meta_items(shared or [nb(_plural(len(rel), 'REPORT'))]), ''.join(trip_card(x, here, RELATED_SIZES, ns='rel') for x in rel)))
 
 
-def copy_link(url, label='Copy link', cls='btn', of=''):
+def copy_link(url, label='Copy link', cls='btn', of='', share=None):
     """A copy-to-clipboard control for an absolute url (base.js). On success 'Link copied' shows under the button for a
     few seconds; when the clipboard is unavailable the url appears there in a read-only, selected field to copy by hand.
     Both hang out of the flow (report.css), so the row the control sits in never moves. `of` names what the link is to
     ('Day 3') for assistive technology, on a page that repeats the same label. The status is its own element after the
     button and is always rendered: a live region that appears together with its text is not reliably announced. With
-    scripting off the control is not shown (report.css): the address bar already holds the page's URL."""
+    scripting off the control is not shown (report.css): the address bar already holds the page's URL.
+    On a touch screen with a share sheet (navigator.share and (hover: none)) base.js renames it `share` (data-share)
+    and shows the share icon instead of the link icon (both are in the markup; base.css shows one): a press then opens
+    the phone's share sheet, and the clipboard path is the fallback (phone-06). `share` defaults to the label's own
+    length: 'Share' for the short 'Copy link' of a title block (a longer word there wrapped the journal's title actions
+    onto a third row on phones, and the page moved when the script ran), 'Share this page' otherwise."""
+    if share is None:
+        share = 'Share' if label == 'Copy link' else 'Share this page'
     more = '<span class="sr">, %s</span>' % esc(of) if of else ''
-    return ('<span class="copy"><button type="button" class="%s copy-btn" data-copy="%s">%s<span>%s</span>%s</button>'
-            '<span class="copy-msg t-small" role="status"></span></span>' % (cls, esc(url), icon('link', 18), esc(label), more))
+    ics = (icon('link', 18).replace('<svg class="ic"', '<svg class="ic copy-ic copy-ic--link"', 1)
+           + icon('share', 18).replace('<svg class="ic"', '<svg class="ic copy-ic copy-ic--share"', 1))
+    return ('<span class="copy"><button type="button" class="%s copy-btn" data-copy="%s" data-share="%s">%s<span class="copy-l">%s</span>%s</button>'
+            '<span class="copy-msg t-small" role="status"></span></span>' % (cls, esc(url), esc(share), ics, esc(label), more))
 
 
 def goal_tags(goal):
@@ -2089,9 +2208,11 @@ def footer(here):
 
 def lightbox():
     """The in-page photo viewer (base.js). Photo links keep their .webp hrefs, so without JS they still open the file.
-    #lb-live announces 'Photo N of M. <alt>' when the viewer moves to another photo."""
-    return ('<dialog class="lb" aria-label="Photo viewer"><img class="lb-img" alt=""><div class="lb-bar">'
-            '<span class="t-mono-s lb-n"></span><p class="t-small lb-cap"></p>'
+    #lb-live announces 'Photo N of M. <alt>' when the viewer opens and when it moves to another photo, and describes the
+    dialog (aria-describedby). A photo that fails to load says so in the caption and offers its file (.lb-file, hidden
+    until then)."""
+    return ('<dialog class="lb" aria-label="Photo viewer" aria-describedby="lb-live"><img class="lb-img" alt=""><div class="lb-bar">'
+            '<span class="t-mono-s lb-n"></span><p class="t-small lb-cap"></p><a class="t-small lb-file" hidden>Open the file</a>'
             '<button type="button" class="lb-prev" aria-label="Previous photo">%s</button>'
             '<button type="button" class="lb-next" aria-label="Next photo">%s</button>'
             '<button type="button" class="lb-close" aria-label="Close">%s</button></div>'

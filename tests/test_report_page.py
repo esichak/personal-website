@@ -2909,10 +2909,12 @@ class NoTrackTests(ReportFixture):
                     want = ('<section class="rep-map rep-map--empty" id="map" aria-label="Route map"><div class="wrap"><div class="empty">'
                             '%s<p>%s</p></div></div></section>' % (core.icon('map', 24), NOT_RENDERED))
                 else:
-                    # Phase 10 (gap6-04): no copy of the stats note under the caption; phones show it under the strip
-                    want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s</div></section>'
+                    # Phase 10 (gap6-04): no copy of the stats note under the caption; phones show it under the strip.
+                    # Phase 11 (gap1-02): 'Open the full map' between the key rows and the caption (a fixture render draws
+                    # no route path, so its address names no #route-start)
+                    want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
                             % (block, core.key_rows(self.report.key_items(t, meta), self.report.key_items(t, meta, phone=True)),
-                               self.report.map_caption(t)))
+                               core.map_full_link('../../trips/%s/map/' % slug), self.report.map_caption(t)))
                 html_ = self.page(slug).html
                 self.assertEqual(MAP_SECTION.findall(html_), [want])
                 self.assertEqual('fetchpriority="high"' in want, rendered and not hero)

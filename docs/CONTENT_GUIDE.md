@@ -623,6 +623,11 @@ What the stats, the map and the profile show, on every layout:
   them again (their renders do not record the interval yet). The key decodes the trail and road lines when the map
   draws them (phone maps draw no trails). The mile discs and the
   numbers inside the map stay in feet until the maps are drawn again.
+- The full-size map (`trips/<slug>/map/`) opens with the route's start in the middle of the map box, even before the
+  page's script runs, and the page itself stays at its top. Its top bar keeps a scale and "NOT FOR NAVIGATION" in view while the map is dragged. Phones
+  reach it with the button in the map's corner, and screens from 560 to 1199 px wide with "Open the full map" under
+  the map's key. The PCT's full-size map, which draws its days another way, opens in its middle as before (at its
+  corner without the script).
 - The profile's line reads `VERTICAL SCALE ×4.0`, and its GPS max adds the time of day it was reached (`AT 11:40 AM`)
   on a single-day report with a `timezone:`.
 - "View as table" lists the elevation at each mile (or kilometre), with the time of day on a single-day report that
@@ -771,7 +776,13 @@ On the PCT every written entry also ends with "Copy link to this entry", at ever
   nothing there. The address bar holds the same address.
 - On the PCT each entry's button reads "Copy link to this entry", and screen readers also hear the day ("Copy link to
   this entry, Day 3"), so every copy button on the page has its own name.
-- There is no account, no share menu and no third-party script.
+- On a phone or tablet whose browser has a share sheet (iPhone Safari, Android Chrome), the same control becomes a
+  share button with a share icon: "Share" for a title block's button (the PCT's on phones, every page's on a tablet),
+  "Share this page" for the row near the end of a report, "Share this entry" on a PCT entry, and a press opens the phone's share sheet with the
+  page's title and address. When the sheet cannot open, the copy behaviour above takes over; closing the sheet does
+  nothing more. Desktops keep "Copy link". What the receiving app shows comes from the page's share metadata
+  (section 9).
+- There is no account, no third-party share button and no third-party script.
 
 ### 7.7 The PCT page
 
@@ -779,11 +790,15 @@ On the PCT every written entry also ends with "Copy link to this entry", at ever
 lead (7.3), the stats strip, the Overview (map, introduction, month list), Highlights when any are listed (7.8), then
 the day log under "Day by day".
 
-**The two actions.**
+**The actions.**
 
-- "Read the first written entry" jumps to the first day, in day-file order, that has a write-up (Day 1 today). It is
-  left out when no day has a write-up.
+- "Read the first written entry", the dark button, jumps to the first day, in day-file order, that has a write-up (Day
+  1 today). It is left out when no day has a write-up.
 - "Browse all recordings" jumps to the day log and switches the write-ups filter off, so every recorded day shows.
+- "Continue reading: Day N · <that day's title>" appears after them when this browser has opened an entry before
+  (a link to a day, a month in the bar, Previous / Next write-up, or an address ending in `#day-…`). It goes back to
+  the last one. It is kept in the browser only, per device, and nothing shows without JavaScript, in a private window
+  that refuses storage, or on a first visit.
 
 "Copy link" follows them (7.6). The earlier "Day by day" button is gone; the day log keeps that heading. There is no
 "Download all GPX" button: each day has its own download, as before.
@@ -805,7 +820,8 @@ becomes the PCT card's summary unless `card_summary` is set (section 4).
 
 **Written entries first.** With JavaScript the day log opens on the days that have a write-up. The "Show days with
 write-ups only" toggle ("Write-ups only" on phones) starts switched on, so 32 of the 150 days show, months without a
-write-up are hidden, and the month bar greys those months out (July and August 2024 today). Switching the toggle off,
+write-up are hidden, and the month bar shows those months lighter (July and August 2024 today). They are still links:
+pressing one switches the filter off, screen readers hear "Showing all 150 days", and the page goes to the month. Switching the toggle off,
 or "Browse all recordings", shows every day. Once a reader has used the toggle or that button, the page keeps their
 choice for the rest of the browser session in that tab, so a reload or Back returns to the list as they left it. The
 button counts as a choice even when a link had already switched the filter off. A fresh tab starts on write-ups again.
@@ -830,6 +846,16 @@ Without JavaScript there is no toggle and every day shows.
   there.
 - Being shown a hidden day by a link does not count as the reader's choice: the next visit in that tab starts on
   write-ups again.
+
+**A day's photos.** A written day shows its photos as photos, in rows as wide as its write-up (three at most to a row,
+each in its own shape), and two to a row on phones. A track-only day with photos keeps the square thumbnails. The
+journal loads the 800 px copy of a photo at most, never the full file, which the photo viewer still opens.
+
+**How far so far.** Every day row ends its figures with the distance recorded from the first day file through that
+day ("Recorded so far" from 1000 px, "254 MI SO FAR" on phones), each month heading and By month row with the
+figure through that month's last day, and the last of them equals the strip's "Distance recorded". It is the sum of
+the days' recorded distances, not trail mileage: days without a recording add nothing. Each written entry also says
+where it sits among the write-ups ("WRITE-UP 12 OF 32").
 
 **Moving between written entries.** Each written entry ends with "Previous write-up: Day N" and "Next write-up: Day
 N". They go to the nearest written day before and after, skipping track-only days: from Day 35 the next write-up is

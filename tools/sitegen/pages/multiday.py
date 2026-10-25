@@ -395,8 +395,7 @@ def overview_caption(t):
 def fullscreen(t):
     """trips/<slug>/map/: the overview at full size for phones (the phone overview map's full-screen button), with the
     desktop key row and caption, as on single-day reports."""
-    maps = core.render_meta(t).get('maps', {})
-    name = 'overview-wide' if 'overview-wide' in maps else 'overview-col'
+    name = core.fs_render(t)
     return report.fullscreen_page(t, [(name, 'fs')], core.key_row(key_items(t, [name], 'Route by day')),
                                   'map--fs' + ('' if name == 'overview-wide' else ' map--fscol'), overview_caption(t), post=slim)
 
@@ -416,11 +415,11 @@ def overview_map(t, here, meta, eager=True):
     # the shared caption (as on reports and the series map); no GPX button: the ink title button (>= 760) and the phone
     # bottom bar carry 'Download all GPX'
     cap = overview_caption(t)
-    mp = slim(core.map_block(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', 'ov', eager=eager, cls=cls,
-                             fullscreen_href=core.link(here, t['url'] + 'map/')))
+    fs = core.fullscreen_link(t, here)
+    mp = slim(core.map_block(t, here, OVERVIEW_VARIANTS, t['url'] + 'map/', 'ov', eager=eager, cls=cls, fullscreen_href=fs))
     return ('<section class="rep-map mul-map" id="map" aria-label="Route map, all days"><div class="bleed">%s</div>'
-            '<div class="wrap">%s%s</div></section>'
-            % (mp, core.key_rows(desk, phone), cap))
+            '<div class="wrap">%s%s%s</div></section>'
+            % (mp, core.key_rows(desk, phone), core.map_full_link(fs), cap))
 
 
 # ---------------------------------------------------------------- sticky day nav

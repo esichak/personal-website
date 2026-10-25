@@ -897,13 +897,18 @@ class CopyLinkTests(unittest.TestCase):
         return box, box.find('button'), box.find('span', cls='copy-msg')
 
     def test_markup(self):
-        # section 4: <span class="copy"><button type="button" class="<cls> copy-btn" data-copy="<url>">(icon)<span>Copy
-        # link</span></button><span class="copy-msg t-small" role="status"></span></span>
+        # section 4: <span class="copy"><button type="button" class="<cls> copy-btn" data-copy="<url>" data-share="Share">
+        # (link icon)(share icon)<span class="copy-l">Copy link</span></button><span class="copy-msg t-small"
+        # role="status"></span></span>; Phase 11 (phone-06) added data-share, the share icon and the label's class
         html_ = self.copy_link(self.URL)
-        m = re.match(r'^<span class="copy"><button type="button" class="btn copy-btn" data-copy="([^"]*)">(<svg\b.*?</svg>)'
-                     r'<span>Copy link</span></button><span class="copy-msg t-small" role="status"></span></span>$', html_, re.S)
+        m = re.match(r'^<span class="copy"><button type="button" class="btn copy-btn" data-copy="([^"]*)" data-share="Share">'
+                     r'(<svg class="ic copy-ic copy-ic--link" .*?</svg>)(<svg class="ic copy-ic copy-ic--share" .*?</svg>)'
+                     r'<span class="copy-l">Copy link</span></button><span class="copy-msg t-small" role="status"></span></span>$', html_, re.S)
         self.assertIsNotNone(m, html_)
         self.assertEqual(m.group(1), self.URL)
+        self.assertIn('data-share="Share this entry"', self.copy_link(self.URL, share='Share this entry'))
+        # the short title-block label gets the short share label, every longer one 'Share this page'
+        self.assertIn('data-share="Share this page"', self.copy_link(self.URL, 'Copy link to this page', cls='alink'))
 
     def test_a_real_button_that_never_submits(self):
         # section 4: <button type="button">
@@ -975,11 +980,11 @@ class CopyLinkTests(unittest.TestCase):
         # section 10.1: with of='Day 3' the button ends ...<span>label</span><span class="sr">, Day 3</span></button>, so
         # each control of a page that repeats the label has its own accessible name
         html_ = self.copy_link(self.URL, 'Copy link to this entry', cls='alink', of='Day 3')
-        self.assertIn('<span>Copy link to this entry</span><span class="sr">, Day 3</span></button>', html_)
+        self.assertIn('<span class="copy-l">Copy link to this entry</span><span class="sr">, Day 3</span></button>', html_)
         box, btn, _msg = self.parts(self.URL, 'Copy link to this entry', cls='alink', of='Day 3')
-        self.assertEqual([e.tag for e in btn.elements()], ['svg', 'span', 'span'])
-        label, sr = btn.elements()[1:]
-        self.assertEqual((label.classes, label.text()), ([], 'Copy link to this entry'))
+        self.assertEqual([e.tag for e in btn.elements()], ['svg', 'svg', 'span', 'span'])
+        label, sr = btn.elements()[2:]
+        self.assertEqual((label.classes, label.text()), (['copy-l'], 'Copy link to this entry'))
         self.assertEqual(sr.classes, ['sr'])
         self.assertEqual(sr.text(clean=False), ', Day 3')
         self.assertTrue(sr.text(clean=False).startswith(', '))
@@ -1002,7 +1007,7 @@ class CopyLinkTests(unittest.TestCase):
         self.assertNotIn(' & ', html_)
         self.assertIn('Day &lt;5.2&gt; &amp; ', html_)
         _box, btn, _msg = self.parts(self.URL, of=of)
-        self.assertEqual([e.tag for e in btn.elements()], ['svg', 'span', 'span'])
+        self.assertEqual([e.tag for e in btn.elements()], ['svg', 'svg', 'span', 'span'])
         self.assertEqual(btn.find('span', cls='sr').text(clean=False), ', ' + of)
         self.assertEqual(btn.find_all('span', cls='sr')[0].elements(), [])
 
@@ -1014,20 +1019,24 @@ class CopyLinkTests(unittest.TestCase):
                 self.assertEqual(self.copy_link(*args, of='', **kw), plain)
                 self.assertNotIn('class="sr"', plain)
                 _box, btn, _msg = self.parts(*args, **kw)
-                self.assertEqual([e.tag for e in btn.elements()], ['svg', 'span'])
+                self.assertEqual([e.tag for e in btn.elements()], ['svg', 'svg', 'span'])
                 named = self.copy_link(*args, of='Day 3', **kw)
                 self.assertEqual(named.count('<span class="sr">, Day 3</span>'), 1)
                 self.assertEqual(named.replace('<span class="sr">, Day 3</span>', ''), plain)
         self.assertEqual(self.copy_link(self.URL, 'Copy link', 'btn', 'Day 3'), self.copy_link(self.URL, of='Day 3'))   # the fourth parameter
 
     def test_icon_is_the_new_link_icon(self):
-        # section 4: icon 'link', new in tools/lib/icons.py
+        # section 4: icon 'link', new in tools/lib/icons.py; Phase 11: 'share' beside it, which base.css shows instead
+        # once base.js has made the control a share-sheet one (both hidden from assistive technology)
         icons = load_module(self, 'icons')
         self.assertIn('link', icons.PATHS)
+        self.assertIn('share', icons.PATHS)
         _box, btn, _msg = self.parts(self.URL)
-        self.assertEqual([e.tag for e in btn.elements()], ['svg', 'span'])
-        self.assertEqual(btn.find('svg')['aria-hidden'], 'true')
+        self.assertEqual([e.tag for e in btn.elements()], ['svg', 'svg', 'span'])
+        self.assertEqual([(svg['aria-hidden'], svg.classes[1:]) for svg in btn.find_all('svg')],
+                         [('true', ['copy-ic', 'copy-ic--link']), ('true', ['copy-ic', 'copy-ic--share'])])
         self.assertIn(icons.PATHS['link'], self.copy_link(self.URL))
+        self.assertIn(icons.PATHS['share'], self.copy_link(self.URL))
 
     def test_url_and_label_are_escaped(self):
         # section 4 / the copy rules: attribute and text are escaped, and read back unchanged
