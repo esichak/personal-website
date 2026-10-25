@@ -3007,3 +3007,128 @@ Not run: Lighthouse; a VoiceOver pass; anything after a deploy (there was none).
 - **Carried:** the VoiceOver pass (13C), the region pages' year heads (13B), the gap1-01 and qa-04 sheets (Phase 12),
   the hero frame (Phase 10), the real-phone look, the checkout move, `strava_id`, the rehearsal push (Phase 8), the
   place names, retitles and merges (Phase 9), and the after-deploy checks of Phase 14.
+
+## Review gate before publication (2026-10-25)
+
+The gate of `docs/claude-code-website-prompt-2.md` ('Review gate before each publication'), run at Eric's word ("Yes run
+it") after Phase 15, on branch `phase-15-render-round`.
+
+### Starting point
+
+`git log --oneline origin/main..HEAD` at 13:02 PDT: the 14 commits of Phases 6 to 15 (`da8c7cd` … `e23d0e2`; Phases 6
+to 14 already on GitHub as branches, `main` at `1cb9cf2`). `git status --short`: the two Plan 2 documents (never
+committed) and ten render temp files iCloud put back after the render round (untracked; Phase 15). Python 3.9.6
+(`/usr/bin/python3`) and 3.12.11, Node 25.8.2, Chrome 155, Lighthouse 13 (through the Chrome DevTools tools). Free disk
+12 GB at the start, so no worktree: the public commit was extracted with `git archive origin/main` into the session's
+scratch folder (233 MB) and deleted after the comparisons. During the gate iCloud offloaded 834 content files, 569
+rendered files and 5,356 files inside `.git` (a build took 39 minutes); all were read back before any git command,
+and 6.4 GB of the session's own temporary Chrome profiles were deleted (20 GB free afterwards).
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/archive.py` | In a region list long enough to fold, the journal rows come right after the reports that stay shown (`archive.SHOW`), not after all of them (commit `5726e32`). |
+| `tests/test_region_days.py` | The folded-list test pins that place. |
+| `docs/DEVELOPING.md` | The journal row's place in a folded list. |
+| `docs/PRIVACY_NOTES.md` | `content/author.json` now names one address (the author's own, not an alias) and no profile. |
+
+### Behaviour
+
+- On map/ and the region pages, a folded 'In this region' list shows the same rows as before; unfolded, a journal row
+  now follows the first eight reports instead of the last. The reason: folding at load moved the Lake Tahoe journal
+  row from about 5,000 px down the page to the bottom of the screen, a layout shift of 0.684 on map/ at 1350 x 940
+  (Lighthouse desktop: 0.777, which held its agentic-browsing score at 53), against 0.035 on the live site. After the
+  change: 0.0005 at 1350 px, 0.034 at 1440 px (the live site's, from the region tabs appearing), 0 at 390 px; the
+  region pages 0.0003 or less; Lighthouse 100 in all four categories on map/ (desktop and mobile) and the Lake Tahoe
+  region page (desktop).
+
+### Compatibility with the public site
+
+- **Baseline.** The live home, trips/, the Matterhorn report, the Haute Route, the PCT, map/, the Lake Tahoe region
+  page, the tick list, About and the 404 page (`curl`) are byte-identical to the build of `origin/main` made with its
+  own code (357 pages, 168 trips, link check OK).
+- **Paths.** Public build 3,414 files, new build 3,614 (365 pages, 168 trips, link check OK): none gone; 200 new: the
+  eight full-screen region maps `map/<region>/` (Phase 11), 168 card drawings `trips/<slug>/card.svg` (Phase 15), the
+  three panel maps as 12 files under `assets/maps/` (Phase 15), the four font files and three licence texts and the
+  home-screen icon (Phase 14), and four `map-*.png` copied from the untracked files iCloud put back (local builds
+  only: CI builds from the commit, which does not hold them).
+- **Unchanged:** all 351 GPX files byte-identical; every write-up (the `.prose` text of every trip page) identical;
+  every H1 and BlogPosting headline; every canonical; no documented anchor missing; the feed's 30 guids; the
+  sitemap's 186 addresses.
+- **Pages that differ:** all 355 public pages (the shared layout: the header and menu of Phase 13A, the head metadata,
+  fonts and versioned bundles of Phase 14, the footer's Follow and address), each also for its own phase's items. 68
+  element ids of the public pages are gone, each for a reason: the tick list's form ids (`tkl-q`, `tkl-chips`,
+  `tkl-clear`, `tkl-count`, `tkl-none`, `search`), because since Phase 7 the form shows only from six active goals
+  and there is one; `ph-h` on four photo-only reports, whose one photo leads the page since Phase 10 (report-02), with
+  `#photos` still landing on it; and `rel-<slug>-m` on 36 trip pages, whose related reports changed when Phase 7
+  paired reports of the same place or peak.
+
+### Checks actually run
+
+| Check | Result (build or tree it ran on) |
+| --- | --- |
+| `python3 tools/doctor.py` | WARN disk 12 GB, 12 stray `.git/index N`, 3 iCloud copies (one new: `rendered/trips/pacific-crest-trail-2024 2/`), branch not `main`; OK otherwise |
+| Both Pythons, `-W error`, `RENDER_TESTS=1`, after the gate's fix | 3,241 tests OK on 3.9.6 (205.9 s) and 3.12.11 (160.4 s), working tree = `5726e32` |
+| `tests/run_orders.py` | `--reverse` on 3.9 and `--shuffle 15` on 3.12 (before the fix), `--shuffle 25` on 3.9 (after it): OK, no region page left registered |
+| `python3 tools/check.py` (before the fix) | validate, both suites, the linked build check: all passed |
+| Node harnesses (Node 25.8.2) | maplist 46, profile 35, series 58, ticklist 103, trips 167, viewer 50 checks passed |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without a goal.json), 346 notes |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `python3 tools/tidy.py` | 3 copies (`_site/regions 2/`, `_site/trips 2/`, `rendered/trips/pacific-crest-trail-2024 2/`) and the `.git/index N` files |
+| `python3 tools/share_preview.py --site <new build>` | 363 pages, 186 indexable: 62 no og:image, 0 descriptions cut, 123 titles over 60, 124 WebP images, 30 portrait (as after Phase 14) |
+| `python3 tools/size_report.py` | as in DEVELOPING.md, Storage budget |
+| `python3 tools/render.py --status` | all 168 trips up to date, site maps up to date |
+| `python3 tools/smoke.py <new build>` | all 5 pages OK |
+| CI rehearsal | the 5,510 files of `5726e32` (`git archive`), Python 3.12.11 alone on the path with Node 25.8.2, `TZ=UTC`, `LANG=C`, the workflow's two commands: 3,241 tests OK (108.6 s; 11 skipped without `CI`), then with `CI=true` and no cwebp, as on the runner, the 11 render tests OK (45.5 s); `build.py --check` 365 pages, 168 trips, link check OK, 3,610 files (the local build less the four untracked PNGs) |
+| Lighthouse 13, 15 pages, mobile and desktop (the new build before the fix) | Accessibility, best practices and SEO 100 in all 30 runs; agentic browsing 100 except map/ desktop, 53 twice (the layout shift above); after the fix map/ (both) and the Lake Tahoe region page (desktop) 100 in all four. The one failed audit is `label-content-name-mismatch`, weight 0: home's activity tiles (as on main), the section lists' rows on Ski, Mountain biking and Hiking, and the focusable cluster on map/ and the region pages. Performance is not in this tool; not measured |
+| Console sweep (Chrome, scratch `p15gate/replay.mjs`) | 16 pages at 1440, 1024 (touch) and 390 px: 48 loads, no console error, page exception or failed request |
+| Replays (real key presses, clicks and touch) | the explorer at 1440 and 390 px with the back/forward cache on and off (search, activity filter, sort, the address, zero results and its two buttons, Clear, a result and Back to the same results); the header search from a report; the 404 search; the units switch and its reload; the menu on a phone; the viewer with keys, its error state, a phone tap, swipe and Back; the profile readout in miles and km; map/'s cluster selection and legend toggle; the journal's month links, write-ups filter and Continue reading with Back; print; forced colours with more contrast; site.js blocked; the full-screen map opening on the route without scripting; the coarse-pointer walk on Lake Tahoe's region page (as in Phase 13) |
+| Screenshots | 16 pages at 390, 768, 1024, 1180 and 1440 px of each build (160), paired in `.cache/review/gate-2026-10-25/index.html`; one pair byte-identical (home at 768 px), the others differ by the phases' layout changes |
+| Privacy | `privacy_audit.py` gives the same summary for the public tree and the new one; no personal export path or outside-repository name in the change (only `/path/to/...` placeholders); docs/PRIVACY_NOTES.md now names the published address |
+
+Not run: Safari and Firefox; real phones; a screen reader (the VoiceOver script is Eric's); the share preview paste,
+Search Console, the Rich Results Test and the W3C feed validator (after a deploy, with Eric's accounts); Node 22 (the
+workflow's; Node 25 here); a case-sensitive volume for the rehearsal; mutation testing as in the 2026-10-11 gate.
+
+### What a push makes public
+
+- **New files in the repository:** the repository's `CLAUDE.md`; the tools `publish.py`, `check.py`, `doctor.py`,
+  `tidy.py`, `smoke.py`, `content_report.py`, `trip_photos.py`, `about_photo.py`, `share_preview.py`, `fonts.py`,
+  `render_sheet.py`, `size_report.py`, `tools/lib/renderkey.py`, `tools/sitegen/author.py`; 33 test modules, two
+  harnesses, `render_fixtures.py` and 48 golden files (all synthetic); `assets/js/pages/profile.js`,
+  `assets/css/print.css`, `assets/css/fonts.css`, the four fonts and three licence texts, `apple-touch-icon.png`;
+  `docs/CHECKING_WITH_A_SCREEN_READER.md`; `content/author.json`; 168 card drawings and the three panel maps under
+  `rendered/`. Nothing is deleted. In all 1,638 files change.
+- **New facts on the site:** the contact address in `content/author.json`, the author's own and not an alias, on
+  About, in every footer and in every report's 'Ask about this trip', and in the repository's history for good; no
+  profile links. No content file other than that one changed: no places, titles, merges, `published_at` lines, About
+  text or region introductions were written. New title tags, descriptions, og and JSON-LD tags (BlogPosting,
+  BreadcrumbList), and the feed's full write-ups and photos (Phase 14).
+- **New behaviour:** each phase's 'Behaviour' list above (Phases 6 to 15) and this gate's list.
+- **Choices made for the author:** the interface copy each phase lists; the recommended answers taken under the
+  standing instruction (13A's units row first and km default for non-English browsers, 13C's 'Backcountry Skiing',
+  Phase 12's (c) to (e), Phase 10's lead frame A); Phase 15's hillshade q80; the tall map frame rule; the journal
+  row's place in a folded list (this gate).
+
+### Open points
+
+- **Eric's checks:** the VoiceOver script; the real-phone look; the share preview paste, Search Console, the Rich
+  Results Test and the W3C feed validator after the deploy; a look at the Phase 15 contact sheet and these
+  screenshots.
+- **Eric's decisions carried:** the hero frame (Phase 10), the gap1-01 and qa-04 sheets (Phase 12), the region pages'
+  year heads (13B), profile links, the 79 places, 24 retitles and the merges (Phase 9), `strava_id`, the ten titles
+  that keep the old form (Phase 14), the rehearsal push and dispatch test (Phase 8), the checkout and cache moves.
+- **Upkeep:** `git gc` (7,610 loose objects), the `.git/index N` files, the workflow actions' majors, both Overpass
+  endpoints timing out on 2026-10-25 (DEVELOPING.md, Yearly upkeep).
+- **Not done in Phase 15 though 13C left it there:** the maps' own `aria-label`s still give miles only ('12.8 miles,
+  high point 11,952 ft'); the build could add the kilometres without a render.
+- **`label-content-name-mismatch`** (weight 0) on the section rows and the focusable cluster, besides home's tiles.
+
+### Going back
+
+Written before the push. The durable path: `git revert --no-edit <oldest>^..<newest>` of the new commits on `main`
+(or a revert of one commit), then `git push origin main`: live in about three minutes, as a push with code. The
+temporary path: `gh run rerun` of the last good run of `1cb9cf2` within 30 days deploys that commit's site until the
+next push (ADDING-TRIPS.md, "When something goes wrong"). Never a forced push. Either way the history keeps everything
+the inventory lists, the address included.
