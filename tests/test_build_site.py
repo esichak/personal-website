@@ -93,9 +93,12 @@ TITLES = {'synb-story': 'Synthetic Story', 'synb-notrack': 'Synthetic Without Tr
           'synb-journal': 'Synthetic Journal', 'synb-goal': 'Synthetic Goal', 'synb-idea': 'Synthetic Idea', 'synb-draft': 'Synthetic Draft'}
 SECTIONS = ['ski/', 'climbing/', 'hiking/', 'mountain-biking/', 'other/']
 SITE_PAGES = ['', 'trips/', 'tick-list/', 'map/', 'about/']
-# full-screen map pages: every report but the two single-day ones without a track (contract 10.2); the tours and the
-# journal keep theirs, with or without day tracks. No goal has a rendered map here, so none has a helper page
-HELPERS = ['trips/%s/map/' % s for s in REPORTS if s not in NO_TRACK]
+# full-screen map pages (contract 10.2 as amended by Phase 6, resilience-12): a report with a track gets one only with a
+# rendered map, which here is synb-story alone; the two tours with day tracks are not rendered, so they have none. The
+# tour without any day track keeps its page with the empty map, and the journal keeps its own (series.py). No goal has a
+# rendered map here, so none has a helper page
+UNRENDERED = ['synb-tour', 'synb-tour-half']
+HELPERS = ['trips/%s/map/' % s for s in REPORTS if s not in NO_TRACK + UNRENDERED]
 # every GPX file the site publishes: output path -> source path under content/trips/ (None: written by the build)
 GPX_FILES = {
     'trips/synb-story/synb-story.gpx': 'synb-story/track.gpx',
@@ -495,9 +498,9 @@ class OutputTests(BuiltCase):
                 + ['404.html', 'trips/search.json', 'trips/journal.json'])
         self.assertEqual(sorted(p.url for p in self.fx.pages), sorted(want))
         self.assertEqual(self.html_files(), sorted(page_path(u) for u in want if not u.endswith('.json')))
-        self.assertEqual(len(HELPERS), len(REPORTS) - 2)
+        self.assertEqual(len(HELPERS), len(REPORTS) - 4)
         self.assertEqual(sorted(u for u in want if re.fullmatch(r'trips/[^/]+/map/', u)),
-                         sorted('trips/%s/map/' % s for s in ('synb-journal', 'synb-story', 'synb-tour', 'synb-tour-half', 'synb-tour-none')))
+                         sorted('trips/%s/map/' % s for s in ('synb-journal', 'synb-story', 'synb-tour-none')))
 
     def test_each_trip_has_its_page(self):
         for slug in REPORTS + GOALS:
@@ -1038,22 +1041,24 @@ class NoTrackSiteTests(BuiltCase):
 
     # ------------------------------------------------------------ pages and files
 
-    def test_a_map_page_for_every_report_with_a_track_rendered_or_not_and_for_no_other(self):
+    def test_a_map_page_for_no_report_without_a_rendered_map(self):
+        # contract 10.2 as amended by Phase 6 (resilience-12): no fixture trip here is rendered, so no report has a
+        # full-screen map page; a report with a track keeps its #map section, which is the 'Map not rendered yet' box,
+        # and its GPX download
         urls = [p.url for p in self.fx.pages]
-        self.assertEqual(sorted(u for u in urls if u.startswith('trips/') and u.endswith('/map/')), sorted('trips/%s/map/' % s for s in NT_WITH))
+        self.assertEqual(sorted(u for u in urls if u.startswith('trips/') and u.endswith('/map/')), [])
         for slug in NT_WITH + NT_WITHOUT:
             with self.subTest(slug=slug):
                 self.assertIn('trips/%s/' % slug, urls)
-                self.assertEqual(os.path.isfile(self.path('trips/%s/map/index.html' % slug)), slug in NT_WITH)
+                self.assertFalse(os.path.exists(self.path('trips/%s/map' % slug)), slug)
                 self.assertEqual(os.path.isfile(self.path('trips/%s/%s.gpx' % (slug, slug))), slug in NT_WITH)
-                self.assertEqual(self.doc('trips/%s/' % slug).by_id('map') is not None, slug in NT_WITH)
+                box = self.doc('trips/%s/' % slug).by_id('map')
+                self.assertEqual(box is not None, slug in NT_WITH)
+                if box is not None:
+                    self.assertIn('rep-map--empty', box.classes)
+                    self.assertIn('Map not rendered yet', box.text())
         for slug in NT_WITHOUT:
-            self.assertFalse(os.path.exists(self.path('trips/%s/map' % slug)), slug)
             self.assertEqual([f for f in files_of(self.path('trips/' + slug)) if f.lower().endswith('.gpx')], [])
-        # an unrendered map page is the empty map with its way back to the section the report page has
-        helper = self.doc('trips/synb-climb-b/map/')
-        self.assertIsNotNone(helper.find('a', attrs={'href': '../#map'}))
-        self.assertIn('<meta name="robots" content="noindex">', self.html('trips/synb-climb-b/map/'))
 
     def test_the_sitemap_lists_the_reports_and_no_map_page(self):
         text = read(self.path('sitemap.xml'))
@@ -1329,8 +1334,9 @@ class RegionSiteTests(BuiltCase):
             self.assertIn('region-' + RG_SLUG[name], ids)
 
     def test_the_pages_of_the_site_are_exactly_these(self):
+        # no report of this site is rendered: of the full-screen map pages only the journal's is built (series.py)
         want = (SITE_PAGES + SECTIONS + RG_URLS + ['trips/%s/' % s for s in RG_REPORTS + RG_GOALS]
-                + ['trips/%s/map/' % s for s in RG_REPORTS if s not in RG_NO_TRACK] + ['404.html', 'trips/search.json', 'trips/journal.json'])
+                + ['trips/synb-rg-journal/map/', '404.html', 'trips/search.json', 'trips/journal.json'])
         self.assertEqual(sorted(p.url for p in self.fx.pages), sorted(want))
 
     def test_the_sitemap_lists_the_region_pages(self):

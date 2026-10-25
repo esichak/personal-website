@@ -14,7 +14,9 @@ exact strings: section 10) and to the Metadata row of plan section 16.
 
 A synthetic site in a temp dir, every slug prefixed synm- (no real trip has that prefix). The loader, tools/build.py's
 site_of() and every page module are the real ones; content.RENDERED and core.ROOT point into the temp dir and
-core._SITE_META is replaced, so nothing under the real rendered/ or content/ is read (sandbox()). The shared fixture is
+core._SITE_META is replaced, so nothing under the real rendered/ or content/ is read (sandbox()). Every report with a
+track and the goal have a placeholder render folder in the temp dir (Site.render), so each has its map helper page
+(trips/<slug>/map/): since Phase 6 a track whose map is not rendered gets neither a map nor a helper page. The shared fixture is
 built once for the module (fixture()) because its pages are only read; a test that needs another trip builds a small
 site of its own (Site). core's registered site (the header's lookups and the fallback share image) is put back after
 every build, so no test leaks into another module's.
@@ -302,13 +304,16 @@ class Site:
             add_front_matter(folder, *lines)
         return folder
 
-    def render(self, slug):
-        """A placeholder render folder for the trip inside the temp dir: meta.json with the three report maps and the
-        tiny fragments core.map_block inlines."""
+    REPORT_MAPS = (('map-wide', (1440, 640)), ('map-col', (718, 400)), ('map-phone', (390, 336)))
+    OVERVIEW_MAPS = (('overview-wide', (1440, 560)), ('overview-col', (718, 440)), ('overview-phone', (390, 260)))
+
+    def render(self, slug, maps=REPORT_MAPS):
+        """A placeholder render folder for the trip inside the temp dir: meta.json with the three report maps (or the
+        multi-day overview's, maps=OVERVIEW_MAPS) and the tiny fragments core.map_block inlines."""
         folder = os.path.join(self.root, 'rendered', 'trips', slug)
         os.makedirs(folder, exist_ok=True)
         meta = {'maps': {}, 'charts': {}}
-        for name, (w, h) in (('map-wide', (1440, 640)), ('map-col', (718, 400)), ('map-phone', (390, 336))):
+        for name, (w, h) in maps:
             meta['maps'][name] = {'w': w, 'h': h, 'png': name + '.webp', 'base': name + '.base.svg'}
             with open(os.path.join(folder, name + '.svg.html'), 'w', encoding='utf-8') as fh:
                 fh.write('<svg width="%d" height="%d" viewBox="0 0 %d %d"></svg>' % (w, h, w, h))
@@ -368,6 +373,11 @@ def fixture_site(root):
                             photo('photos/d001-02.webp', LANDSCAPE, alt='Synthetic journal landscape')]},
                 {'id': '002', 'title': 'Synthetic Camp Two', 'date': '2024-04-23', 'body': LONG},
                 {'id': '003', 'title': 'Synthetic Camp Three', 'date': '2024-04-24', 'body': SHORT, 'track': False}])
+    for slug in REPORTS:
+        if slug == 'synm-tour':
+            s.render(slug, Site.OVERVIEW_MAPS)
+        elif slug != 'synm-journal':          # a journal's map page needs no render (series.py)
+            s.render(slug)
     s.add('synm-goal', title='Synthetic Goal', activity='hike', kind='planned', region=REGION, track=True, body=NOTES,
           photos=[photo('photos/01.webp', PORTRAIT, alt='Synthetic goal portrait'), photo('photos/02.webp', LANDSCAPE, alt='Synthetic goal landscape')])
     s.render('synm-goal')
@@ -1682,6 +1692,10 @@ class PublicationSurfaceTests(TempCase):
         m.update(meta)
         s.add('synm-dated', lines, **m)
         s.add('synm-other', title='Synthetic Other Report', activity='hike', region=REGION, date='2026-05-01', track=True)
+        # rendered, so each report has its map helper page (a series needs none)
+        if kind != 'series':
+            s.render('synm-dated', Site.OVERVIEW_MAPS if kind == 'multi-day' else Site.REPORT_MAPS)
+        s.render('synm-other')
         return s.build(only=('report', 'multiday', 'series'))
 
     def pub_line(self, built, url='trips/synm-dated/'):

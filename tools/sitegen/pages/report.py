@@ -405,8 +405,14 @@ def goal_map_section(t, here, meta):
     else:
         text = 'No route added yet: this is an idea without a GPX.'
     # .rep-map: the same distance from the strip as a rendered map, so the page keeps its rhythm either way
-    return ('<section class="rep-map rep-map--empty" id="map" aria-label="Planned route map"><div class="wrap"><div class="empty">%s<p>%s</p></div></div></section>'
-            % (icon('map', 24), esc(text)))
+    return not_rendered_section('Planned route map', text)
+
+
+def not_rendered_section(label, text, note=''):
+    """The #map section of a page whose track has no rendered map yet: the goal page's empty box, the sentence, and the
+    phone's copy of the stats note (on a phone the strip's note is hidden and shown under the map instead)."""
+    return ('<section class="rep-map rep-map--empty" id="map" aria-label="%s"><div class="wrap"><div class="empty">%s<p>%s</p></div>%s</div></section>'
+            % (esc(label), icon('map', 24), esc(text), note))
 
 
 def goal_bottom_bar(t, has_notes):
@@ -613,13 +619,19 @@ def page(t, site):
     strip_ = ('<section class="wrap rep-strip" id="stats" aria-label="Stats">%s%s</section>' % (core.strip(cells), core.stats_note(t))) if has_stats else ''
     variants = [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]
     nowide = 'map-wide' not in meta['maps']
+    # a track whose maps render.py has not drawn yet (--no-render, no internet): the section says so instead of holding
+    # an empty map with a key and a caption for it; the GPX download and the links to #map stay
+    drawn = has_map and bool(meta['maps'])
     map_ = ''
-    if has_map:
+    if drawn:
         map_ = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
                 % (core.map_block(t, here, variants, t['url'] + 'map/', 'm', eager=not show_hero, cls='map--report' + (' map--nowide' if nowide else ''),
                                   fullscreen_href=link(here, t['url'] + 'map/')),
                    core.key_rows(key_items(t, meta), key_items(t, meta, phone=True)), map_caption(t),
                    core.stats_note(t, 'rep-note-ph')))
+    elif has_map:
+        map_ = not_rendered_section('Route map', 'Map not rendered yet. The GPX file is published: use the Download GPX button.',
+                                    core.stats_note(t, 'rep-note-ph'))
     profile = profile_section(t, here, meta)
     main = ''
     if has_report:
@@ -710,7 +722,7 @@ def build(site):
     for t in site['trips']:
         if not t['days'] and t['kind'] in ('trip', 'planned'):
             out.append(page(t, site))
-            # a goal without a rendered map, or a report without a track, has no full-screen map page
-            if core.render_meta(t)['maps'] if t['kind'] == 'planned' else t['track']:
+            # a goal or a report without a rendered map (a report without a track has none) has no full-screen map page
+            if core.render_meta(t)['maps'] and (t['kind'] == 'planned' or t['track']):
                 out.append(fullscreen_page(t))
     return out

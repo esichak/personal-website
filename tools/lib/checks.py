@@ -43,6 +43,7 @@ import content  # noqa: E402
 import frontmatter  # noqa: E402
 import goals  # noqa: E402
 import markdown  # noqa: E402
+import renderkey  # noqa: E402
 from sitegen import core  # noqa: E402
 from sitegen import curation  # noqa: E402
 from sitegen.sitecheck import conflict_copy  # noqa: E402
@@ -57,7 +58,7 @@ INDEX_KEYS = (
     'region_days',
     'published_at', 'updated_at',
     'conditions',   # read into the trip dict by content.load_trip; no page shows it yet
-    'strava_id',    # written by the first bulk import, on 156 trips and every day file; nothing reads it
+    'strava_id',    # written by the first bulk import, on 156 trips and every day file; add_trip.py --list reads it
 )
 # days/NN.md (published_at / updated_at belong to index.md: in a day file they are unknown keys)
 DAY_KEYS = ('day', 'title', 'date', 'start_time', 'stats', 'photos', 'hut', 'transfer_before', 'strava_id')
@@ -252,6 +253,9 @@ def _split_file(path, file, out):
         if key in seen:
             _warn(out, file, 'key %r is written twice in the front matter; only the last one is read' % key)
         seen.add(key)
+    for n, kept, note in _cut_notes(text):
+        _warn(out, file, 'line %d: %r after a space starts a note, so the line is read as %r; quote the value if the # '
+                         'belongs to it' % (n, note, kept))
     return parsed
 
 
@@ -270,6 +274,25 @@ def _top_keys(text):
         m = _TOP_KEY.match(ln)
         if m:
             keys.append(m.group(1))
+    return []
+
+
+def _cut_notes(text):
+    """[(line number, the line as read, the note)] for front-matter lines where a note cut a value short in a way that
+    looks unintended: the '#' is followed by a letter or digit ('Lap #2', '#hashtag'), as a value's own '#' is and a
+    comment ('# a note') is not. frontmatter reads ' #' as YAML does: everything from it is a note."""
+    if not text.startswith('---'):
+        return []
+    found = []
+    for n, ln in enumerate(text.split('\n')[1:], 2):
+        if ln.rstrip() == '---':
+            return found
+        if ln.lstrip().startswith('#'):
+            continue
+        kept = frontmatter._strip_comment(ln)
+        note = ln[len(kept):].strip()
+        if note[1:2].isalnum():
+            found.append((n, kept.strip(), note))
     return []
 
 
@@ -829,10 +852,20 @@ def _trip_findings(t, rec, today, rendered_dir, out):
             else:
                 first[d['label']] = d['id']
     has_track = bool(t['track']) or any(d['track'] for d in t['days'])
-    if rendered_dir and has_track and not t['draft'] \
-            and not os.path.exists(os.path.join(rendered_dir, 'trips', slug, 'meta.json')):
-        _warn(out, file, 'no rendered map (rendered/trips/%s/meta.json is missing); run python3 tools/render.py %s'
-              % (slug, slug))
+    if rendered_dir and has_track and not t['draft']:
+        meta_file = os.path.join(rendered_dir, 'trips', slug, 'meta.json')
+        if not os.path.exists(meta_file):
+            # a series page keeps its own map section (DEVELOPING.md, "No file, no control"); the others show the box
+            _warn(out, file, 'no rendered map (rendered/trips/%s/meta.json is missing); run python3 tools/render.py %s%s'
+                  % (slug, slug, '' if kind == 'series' else ' (until then the page shows "Map not rendered yet")'))
+        else:
+            stale = _render_staleness(t, meta_file)
+            if stale:
+                _warn(out, file, stale)
+    if kind != 'planned' and t['track'] and t.get('timezone') == 'UTC' and t.get('start_time'):
+        # tracks.guess_tz answers UTC where it knows no zone: the page's Start line is then a UTC clock
+        _note(out, file, 'timezone is UTC, so start_time is a UTC clock; set the zone with python3 tools/add_trip.py '
+                         '--retime %s --timezone <zone>' % slug)
     if kind != 'planned':
         if not t.get('place'):
             _note(out, file, 'no place')
@@ -843,6 +876,81 @@ def _trip_findings(t, rec, today, rendered_dir, out):
     for d in t['days']:
         if not d.get('title'):
             _note(out, _day_file(slug, d['id']), 'no title')
+
+
+def _offloaded(paths):
+    """True when iCloud Drive holds the bytes of one of these files and this disk only its name: hashing it would make
+    a check wait for a download, so a check that needs the bytes says nothing instead."""
+    for p in paths:
+        try:
+            if p and getattr(os.stat(p), 'st_flags', 0) & _DATALESS:
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def _render_staleness(t, meta_file):
+    """Why the maps in rendered/trips/<slug>/ no longer match the trip, or None: render.py stores the hash of what it
+    drew from (renderkey.trip_inputs) and of a run that lost its OpenStreetMap data writes null. A meta.json without a
+    'hash' key was not written by render.py, and a track iCloud Drive has offloaded is not read: nothing is said."""
+    try:
+        with open(meta_file, encoding='utf-8') as fh:
+            meta = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(meta, dict) or 'hash' not in meta:
+        return None
+    if meta['hash'] is None or meta.get('osm_failed'):
+        return ('maps were drawn without OpenStreetMap data (no roads, trails or lake names); run python3 tools/render.py '
+                '%s again' % t['slug'])
+    if _offloaded(renderkey.input_files(t)):
+        return None
+    if meta['hash'] != _inputs(t):
+        return ('maps were drawn from other inputs (the track, the title, activity, kind, map: or stats changed since): '
+                'run python3 tools/render.py %s' % t['slug'])
+    return None
+
+
+_INPUTS = {}
+
+
+def _inputs(t):
+    """renderkey.trip_inputs, once per trip and run (the site maps' hash asks again for every trip on a map)."""
+    key = (t['slug'], t['dir'])
+    if key not in _INPUTS:
+        _INPUTS[key] = renderkey.trip_inputs(t)
+    return _INPUTS[key]
+
+
+def _site_hash_findings(live, rendered_dir, out):
+    """The region and ski maps under rendered/site/ drawn from other inputs than the trips have now (a title, a track or
+    a region changed, a trip was added or taken out), or without OpenStreetMap data. One warning for the whole folder,
+    and none when another line of the run already asks for a render: `render.py <slug>` draws the site maps again too,
+    and the other lines (a trip's maps, a draft or a gone trip still drawn, journal days) say why."""
+    try:
+        with open(os.path.join(rendered_dir, 'site', 'meta.json'), encoding='utf-8') as fh:
+            meta = json.load(fh)
+    except (OSError, ValueError):
+        return
+    if not isinstance(meta, dict) or 'hash' not in meta or any('tools/render.py' in f['text'] for f in out):
+        return
+    if meta['hash'] is None:
+        _warn(out, 'rendered/site/meta.json', 'the region and ski maps were drawn without OpenStreetMap data; run python3 '
+                                              'tools/render.py --site again and commit rendered/site/')
+        return
+    # content.load_all's order: by folder name, then newest first (the order is part of the hash)
+    trips = sorted(live, key=lambda t: (t['date'] or date.min), reverse=True)
+    if _offloaded([p for t in trips for p in renderkey.input_files(t)]):
+        return
+    try:
+        now = renderkey.site_hash(renderkey.site_jobs(trips)[0], _inputs)
+    except Exception:   # noqa: BLE001 — a goal file the renderer could not read either: its own check names it
+        return
+    if now != meta['hash']:
+        _warn(out, 'rendered/site/meta.json', 'the region and ski maps were drawn from other inputs (a trip on one of them '
+                                              'changed, was added or was taken out since); run python3 tools/render.py '
+                                              '--site and commit rendered/site/')
 
 
 # ---------------------------------------------------------------- the checks that need every trip
@@ -1173,6 +1281,7 @@ def survey(trips_dir=None, home_json=None, rendered_dir=None, today=None):
     if not os.path.isdir(trips_dir):
         return [_finding('error', 'content/trips', 'the folder does not exist')], counts
     records, loaded, by_slug, drafts = [], [], {}, set()
+    _INPUTS.clear()               # the render hashes are worked out again for every run (a track may have changed)
     with _FixedDay(fixed):
         for slug in sorted(n for n in os.listdir(trips_dir) if not n.startswith('.')):
             folder = os.path.join(trips_dir, slug)
@@ -1200,6 +1309,8 @@ def survey(trips_dir=None, home_json=None, rendered_dir=None, today=None):
     if rendered_dir:
         site_wide.append(('content/trips', _region_findings, (live, rendered_dir)))
         site_wide.append(('content/trips', _site_map_findings, (live, by_slug, drafts, rendered_dir)))
+        # last: it stays quiet when one of the lines above already named the site maps
+        site_wide.append(('rendered/site/meta.json', _site_hash_findings, (live, rendered_dir)))
     for file, check, args in site_wide:
         try:
             check(*(args + (out,)))

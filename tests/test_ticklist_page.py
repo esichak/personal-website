@@ -1176,6 +1176,16 @@ class BoundaryTests(TickListFixture):
                           photos=[photo('photos/01.webp', LANDSCAPE, alt='A synthetic view', caption='A synthetic caption', sm=True),
                                   photo('photos/02.webp', PORTRAIT, alt='A second synthetic view')])
         helpers.touch(os.path.join(self.tmp, 'photo-report', 'photos', '01.th.webp'))
+        # a placeholder render, so the report has its full-screen map page (Phase 6: a track without a render has none)
+        rdir = os.path.join(self.tmp, '_rendered', 'trips', 'photo-report')
+        os.makedirs(rdir)
+        maps = {}
+        for name, (w, h) in (('map-wide', (1440, 640)), ('map-col', (718, 400)), ('map-phone', (390, 336))):
+            maps[name] = {'w': w, 'h': h, 'png': name + '.webp', 'base': name + '.base.svg'}
+            with open(os.path.join(rdir, name + '.svg.html'), 'w', encoding='utf-8') as fh:
+                fh.write('<svg width="%d" height="%d" viewBox="0 0 %d %d"></svg>' % (w, h, w, h))
+        with open(os.path.join(rdir, 'meta.json'), 'w', encoding='utf-8') as fh:
+            json.dump({'maps': maps, 'charts': {}}, fh)
         helpers.make_trip(self.tmp, 'hut-report', title='Hut Report', activity='ski', kind='multi-day', date='2026-03-01', end_date='2026-03-02',
                           region='Alps', days=[{'title': 'Up', 'date': '2026-03-01', 'body': 'Synthetic day words.'}, {'title': 'Down', 'date': '2026-03-02'}])
         helpers.make_series(self.tmp, slug='long-walk', title='Long Walk')

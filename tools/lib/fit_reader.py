@@ -6,6 +6,7 @@ import gzip
 import struct
 
 FIT_EPOCH = 631065600  # 1989-12-31T00:00:00Z in unix seconds
+GZ_MAX = 200 * 1024 * 1024  # a .fit.gz unpacks to a few MB; more than this is not a recording
 SEMI = 180.0 / 2 ** 31
 
 # base type sizes and struct formats (little-endian; endianness applied per definition)
@@ -33,9 +34,18 @@ def _read_value(buf, off, size, btype, endian):
 
 
 def read_fit(path):
-    raw = open(path, 'rb').read()
-    if path.endswith('.gz'):
-        raw = gzip.decompress(raw)
+    with open(path, 'rb') as fh:
+        return read_fit_bytes(fh.read(), path.lower().endswith('.gz'))
+
+
+def read_fit_bytes(raw, gz=False):
+    """The points of a FIT file held in memory (a member read out of a .zip); gz: the bytes are gzip-compressed."""
+    if gz:
+        import io
+        with gzip.GzipFile(fileobj=io.BytesIO(raw)) as fh:
+            raw = fh.read(GZ_MAX + 1)    # bounded: a small file that unpacks without end is refused, not read
+        if len(raw) > GZ_MAX:
+            raise ValueError('the .fit.gz unpacks to more than %d MB, more than a recording' % (GZ_MAX // (1024 * 1024)))
     pts = []
     pos = 0
     while pos + 12 <= len(raw):
@@ -127,10 +137,31 @@ def _add_point(pts, rec):
 
 
 def read_gpx(path):
+    import xml.etree.ElementTree as ET
+    return _gpx_points(ET.parse(path).getroot())
+
+
+def read_gpx_bytes(data):
+    """The points of a GPX file held in memory (a member read out of a .zip). A DOCTYPE or ENTITY declaration is refused
+    before parsing, as gpxroute refuses it: the Mac's Python 3.9 ships an expat without the entity-expansion limits."""
     import re
     import xml.etree.ElementTree as ET
-    from datetime import datetime, timezone
-    root = ET.parse(path).getroot()
+    # the declaration check reads UTF-8 text; a file in another encoding (a UTF-16 BOM, NUL bytes) would slip past it
+    not_utf8 = ValueError('the GPX file is not UTF-8 (or ASCII) text, which is the only kind accepted')
+    if data.startswith((b'\xff\xfe', b'\xfe\xff')) or b'\x00' in data:
+        raise not_utf8
+    try:
+        data.decode('utf-8')
+    except UnicodeDecodeError:
+        raise not_utf8
+    if re.search(rb'<!(?!--|\[CDATA\[)', data):
+        raise ValueError('the GPX file holds a DOCTYPE, ENTITY or other <! declaration, which is not accepted')
+    return _gpx_points(ET.fromstring(data))
+
+
+def _gpx_points(root):
+    import re
+    from datetime import datetime
     m = re.match(r'\{.*\}', root.tag)
     ns = m.group(0) if m else ''
     pts = []
@@ -150,6 +181,12 @@ def read_gpx(path):
 
 def read_track(path):
     return read_gpx(path) if path.lower().endswith('.gpx') else read_fit(path)
+
+
+def read_track_bytes(name, data):
+    """read_track for a file held in memory under its own name (a .zip member): .gpx by name, else FIT (.fit.gz unzipped)."""
+    low = name.lower()
+    return read_gpx_bytes(data) if low.endswith('.gpx') else read_fit_bytes(data, low.endswith('.gz'))
 
 
 if __name__ == '__main__':

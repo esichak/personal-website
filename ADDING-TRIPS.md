@@ -6,7 +6,9 @@ publishes nothing.
 
 ## 1. Get the track file
 
-- **Garmin Connect:** open the activity, then ⚙, then **Export Original**. You get a `.zip`; unzip it to get the `.fit` file.
+- **Garmin Connect:** open the activity, then ⚙, then **Export Original**. You get a `.zip` holding the `.fit` file; give
+  the `.zip` to `add_trip.py` as it is (it reads the one track file inside without unpacking anything), or unzip it and
+  give the `.fit`.
 - **Strava:** open the activity, then ⋯, then **Export GPX**.
 
 Put the photos you want in one folder, for example `~/Desktop/rose/`.
@@ -27,14 +29,23 @@ python3 tools/add_trip.py ~/Downloads/Morning_Ski.fit --title "Rose Knob Peak" -
 | --- | --- |
 | `--title` | The trip's name as it should appear on the site |
 | `--activity` | `ski`, `climb`, `hike`, `mtb` or `other` |
-| `--subtype` | Only with `other`: `SUP`, `Rafting`, `Kayaking` or `Mountaineering` |
+| `--subtype` | Only with `other`: `SUP`, `Rafting`, `Kayaking` or `Mountaineering` (any other word is refused) |
 | `--place` | The specific spot, e.g. "Mount Rose" (optional) |
-| `--region` | Reuse an existing region, spelt exactly as it is, so the trip joins its region map and its region page (list below) |
+| `--region` | Reuse an existing region, spelt exactly as it is, so the trip joins its region map and its region page (list below). A second spelling of an existing region is refused |
+| `--timezone` | The trip's time zone as an IANA name, e.g. `America/Chicago` (optional). Without it the tool guesses from where the track starts and prints the zone it used (`timezone America/Denver, guessed; --timezone to change`); the date and the start time are worked out in that zone |
 | `--party` | Who you went with, e.g. "Adam" (optional) |
 | `--photos` | A folder of photos, or individual photo files (optional) |
 | `--draft` | Keep the trip off the site until you remove `draft: true` from its file. A draft you push is still in the public repository. Its maps are not drawn while it is a draft: after you remove the line, run `python3 tools/render.py <trip-name>`. To push a draft, stage `"content/trips/<trip-name>"` alone in step 5. For a trip that is already on the site, see "Taking a trip off the site" below |
 | `--strip-times` | Write the GPX without timestamps. The page still shows the date and the start time (see `docs/PRIVACY_NOTES.md`) |
 | `--no-render` | Skip drawing the maps, so no internet is needed. Draw them later with `python3 tools/render.py <trip-name>` |
+| `--force` | Import again over a folder that is still an untouched import: the placeholder report, empty `alt:` lines and nothing you added. It is refused, and nothing is written, once the folder has a write-up, a photo description, a line such as `beta:`, `map:` or `cover_photo:`, day files or a `goal.json` ("If something goes wrong", below) |
+
+Two more commands share the script; neither adds a trip:
+
+| Command | What it does |
+| --- | --- |
+| `python3 tools/add_trip.py --retime <trip-name> --timezone America/Chicago` | Sets the trip's time zone and works its `date:` and `start_time:` out again from its own `track.gpx`, which keeps the time of every point; it prints each line old and new. Without `--timezone` it uses the zone the file already names. Offline; no map is drawn again. A trip with day files, or whose track has no times, is refused |
+| `python3 tools/add_trip.py --strava-export "/path/to/Strava export folder" --list` | Lists the activities of a Strava export that no `strava_id:` line of a trip or a day names, newest first: date, activity ID, type, distance, whether it has photos, name. `--type Hike,Ride` and `--since 2026-01-01` narrow the list. It only prints. The `strava_id:` lines are the first bulk import's; `add_trip.py` writes none, so an activity added with `--strava-id` stays on the list (add the line to its `index.md` by hand to drop it: `strava_id: "<activity id>"`) |
 
 Regions already on the site: Lake Tahoe, Santa Cruz, Eastern Sierra, Boise, Bay Area, Tetons, Alps, Oregon, Utah,
 Yosemite, Washington, Idaho, Minnesota, Arizona (the PCT journal has a region of its own, Pacific Crest Trail). A new
@@ -43,7 +54,10 @@ with a route counts as one of the three; a report without a track does not. Unti
 the Map page does not list the new region, and the check prints a `WARNING` for the trip that ends
 `run python3 tools/render.py --site --force`: run that (internet needed) and stage `rendered/site` with the trip. A
 name that differs from an existing region only in capitals, accents, apostrophes or other punctuation is not a new
-region but a second spelling of that one: correct it instead of running the command (`docs/CONTENT_GUIDE.md`, 11.4).
+region but a second spelling of that one. `add_trip.py` refuses such a spelling and names the one to use
+(`region "eastern sierra" is written "Eastern Sierra" on N trips; use that spelling`); for a `region:` line typed by
+hand the content check warns instead: correct it rather than running the command (`docs/CONTENT_GUIDE.md`, 11.4). A
+name no trip uses yet is a new region, and the command says so (`new region: ...`) and lists the existing ones.
 
 A region that has a region map and at least one published report also has a page of its own, `regions/<region>/`. The
 address is made from the name: lower case, accents folded to plain letters, apostrophes and characters with no
@@ -61,7 +75,12 @@ region map has no page and stays in the Map page's list, under "Not on a region 
 
 The command creates `content/trips/<trip-name>/` with the GPX track, web copies of each photo in three sizes (GPS and
 camera data removed) and the stats, then draws the maps and elevation profile. That takes about a minute and needs the
-internet. `<trip-name>` is the title in lower case with hyphens: `rose-knob-peak` here.
+internet; the terrain tiles and OpenStreetMap answers it downloads are kept in `~/Library/Caches/personal-website/`
+for the next render. `<trip-name>` is the title in lower case with hyphens: `rose-knob-peak` here. It then says what a render
+would still draw (`render.py --status`, below; when the render failed or something is left to draw, the list below
+keeps the step that draws the maps) and ends with a numbered list of what is left to do: the file to edit,
+how many `alt:` lines are empty, the optional lines, the preview command and the publishing step. With `--no-render`
+it prints `maps not drawn: python3 tools/render.py <trip-name>` instead of drawing.
 
 **Multi-day trips.** A multi-day trip is one folder: an `index.md` that says `kind: multi-day`, and two files for each
 day in `days/` (`01.md` and `01.gpx`, `02.md` and `02.gpx`, and so on). `add_trip.py` writes the day files; you write
@@ -109,8 +128,10 @@ worked out again from that file and can differ from the ones the report showed.
    its `days/NN.md`. The day file also lists that day's photos, each with an `alt:` to fill in.
 
 To add a day to a multi-day trip that is already on the site, run the same `--day-of` command. If its `index.md` has
-an `end_date:` line (the older trips do), change it to the new last day: the page's date range follows that line. A
-day later than it does not stop the build; the day's file gets a `WARNING` such as
+an `end_date:` line (the older trips do) earlier than the new day, the command moves it to the new day's date and says
+so (`end_date 2026-09-12 -> 2026-09-13 (index.md)`): the page's date range follows that line. A trip without the line
+gets none. An `index.md` with a comment inside its front matter is left alone, and the command prints a `note:` that
+asks you to change the line by hand; until then the day's file gets a `WARNING` such as
 `date 2026-09-13 is after the trip's end_date 2026-09-12 (index.md), so the page's dates end before this day`.
 If the command prints a `note:`, do what it says before you build, with one exception: a note that asks for
 `kind: multi-day` in a folder that holds a `track.gpx` means the folder is a single-day report, and "If the trip is
@@ -125,15 +146,18 @@ python3 tools/add_trip.py ~/Downloads/day.fit --day-of pacific-crest-trail-2024 
 1. Open the new `days/NNN.md` the command names (not `index.md`) and add a `day:` line with a label no other day has,
    for example `day: "154"`. The journal's day labels do not follow the file numbers, so the build stops until the
    new day has one.
-2. If the day is later than `end_date:` in the journal's `index.md`, change `end_date:` to it.
+2. If the day is later than `end_date:` in the journal's `index.md`, the command has moved `end_date:` to it (it
+   prints `end_date ... -> ...`); check that it did.
 3. Write the entry under the `---` of the day file, then run `python3 tools/render.py pacific-crest-trail-2024`
    (internet needed) and go on with steps 4 and 5.
 
 **From a Strava bulk export** (Strava settings, then Download your data): unzip the download and give
 `--strava-export` the folder that holds `activities.csv`. The title, stats, description and photos come along
-automatically. `--strava-id` is the activity's number in the `Activity ID` column of that file.
+automatically. `--strava-id` is the activity's number in the `Activity ID` column of that file; `--list` instead of
+`--strava-id` prints the activities that are on no trip yet, with their numbers, and stops.
 
 ```bash
+python3 tools/add_trip.py --strava-export "/path/to/Strava export folder" --list
 python3 tools/add_trip.py --strava-export "/path/to/Strava export folder" --strava-id "<activity id>"
 ```
 
@@ -160,19 +184,24 @@ Open `content/trips/<trip-name>/index.md` in any text editor:
   kind, with or without a track: the Featured row there holds three cards, and flagged reports come before unflagged
   ones, the newest flagged first, so a fourth flagged report is not shown (`docs/CONTENT_GUIDE.md`, 11.3). `beta:`
   rows show beside the report. `map: peaks:` labels those summits on the map (run `python3 tools/render.py
-  <trip-name>` after changing it). Keep comments out of this block: a `#` note at the end of a line breaks it. Any
-  existing trip's `index.md` shows the format.
+  <trip-name>` after changing it). Indent with spaces: a line indented with a tab stops the build with a line that
+  names it. Any existing trip's `index.md` shows the format.
 - The other optional lines (the cover photo and its crop, the card summary, search names, and the `published_at` and
   `updated_at` dates) are described in `docs/CONTENT_GUIDE.md`.
 
 ## 4. Preview it
 
 ```bash
-python3 tools/build.py --serve
+python3 tools/build.py --serve --open rose-knob-peak --watch
 ```
 
-Open http://localhost:8000 to check the page, then press Ctrl+C to stop (the Python traceback it prints then is
-normal).
+It builds the site in a few seconds, opens the trip's page in your browser (`--open` alone opens the home page), and
+serves it on http://localhost:8000 until you press Ctrl+C. The preview links the photos, maps and GPX files instead of
+copying them (add `--copy` to copy, as the published build does). With `--watch`, every time you save a file under
+`content/`, `assets/`, `tools/sitegen/`, `tools/lib/` or `rendered/site/` the site is built again (`rebuilt in 2.4s:
+content/trips/rose-knob-peak/index.md changed`); reload the page to see it. A rebuild empties the folder first, so a
+reload during those two seconds can show "File not found": reload again. When the content check stops a rebuild, its
+`ERROR` lines print and the preview keeps the last good build until you fix the file and save it again.
 
 Every build checks the content first. A mistake stops it with one line for each problem, starting with `ERROR` and
 the name of the file; fix the file and run the command again. Lines starting with `WARNING` do not stop the build.
@@ -313,10 +342,26 @@ previews the page and publishes it as in step 5.
 ## If something goes wrong
 
 - **`cwebp` not found:** run `brew install webp` (photos fall back to larger JPEGs without it).
-- **A map is missing its roads or lake names:** OpenStreetMap was busy. Run `python3 tools/render.py` again later; it
-  retries anything that didn't finish. Then stage what the table in step 5 gives for a run with no trip name.
+- **A map is missing its roads or lake names:** OpenStreetMap was busy. The check says so (`maps were drawn without
+  OpenStreetMap data ...`). Run `python3 tools/render.py` again later; it retries anything that didn't finish. Then
+  stage what the table in step 5 gives for a run with no trip name.
+- **A render stops with `! <trip-name>: ...`:** that trip's drawing failed (a terrain tile that would not download, a
+  file it could not read). Its last good maps stay where they were, the run goes on with the other trips, and it ends
+  with `1 failed, their last good maps kept: <trip-name>`. Run the same command again later. A render you stop with
+  Ctrl+C also leaves the maps as they were.
 - **Changed a trip's title or map settings:** run `python3 tools/render.py <trip-name>` to redraw its maps, then
-  stage `rendered/trips/<trip-name>` and `rendered/site` with the trip's folder (step 5).
+  stage `rendered/trips/<trip-name>` and `rendered/site` with the trip's folder (step 5). The check reminds you
+  (`maps were drawn from other inputs ...`). `python3 tools/render.py --status` lists, without the internet, every
+  trip a render would draw and why, and whether the region maps are up to date.
+- **Newer OpenStreetMap data (a new trail, a renamed lake):** a downloaded answer is kept and used for ever. Delete the
+  cache's `osm/` folder (`~/Library/Caches/personal-website/osm/`, or `.cache/osm/` in this folder until the caches
+  have been moved: `docs/DEVELOPING.md`, "Render caches"), or one answer in it, then run
+  `python3 tools/render.py --site --force`. That downloads every answer again (one is about 200 MB) and can change
+  roads and labels on every map, which the change check does not notice; stage `rendered` after it.
+- **`add_trip.py --force` stops with `... --force would erase them`:** the folder is not an untouched import any more
+  (a write-up, photo descriptions, lines you added, day files or a `goal.json`), and nothing was written. To import the
+  recording again, move the folder out of `content/trips/` first; git keeps the committed version, and
+  `git checkout -- content/trips/<trip-name>` puts it back.
 - **A warning says a cover has no card-size copy (.th):** run `python3 tools/thumbs.py <trip-name>` and stage the new
   file with the trip's folder. It happens when `cover_photo` names a photo that was imported before those copies
   existed. If the command prints a `skipped` line that ends `the photo could not be converted`, the photo file itself

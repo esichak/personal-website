@@ -1,7 +1,10 @@
 """A small YAML subset for Markdown front matter (stdlib only).
 
 Supported: `key: value` mappings, nested mappings by indentation, `- item` lists (of scalars or mappings),
-inline lists `[a, b]`, quoted strings, ints, floats, true/false, null/~, and `#` comments on their own line.
+inline lists `[a, b]`, quoted strings, ints, floats, true/false, null/~, `#` comments on their own line, and a `#`
+note at the end of a line after a space (YAML's rule: `title: Rose Knob  # a note` is the title `Rose Knob`; a `#` inside
+quotes or an inline list, or with no space before it, is part of the value). Indentation is spaces only: a line indented
+with a tab is refused, because a tab would silently move the key to another level.
 That covers every field the trip files use; anything fancier should stay out of front matter.
 """
 import json
@@ -17,7 +20,8 @@ def split(text):
     lines = text.split('\n')
     for i in range(1, len(lines)):
         if lines[i].rstrip() == '---':
-            return loads('\n'.join(lines[1:i])), '\n'.join(lines[i + 1:]).lstrip('\n')
+            # line numbers in a message count from the top of the file: the block starts on its second line
+            return loads('\n'.join(lines[1:i]), first_line=2), '\n'.join(lines[i + 1:]).lstrip('\n')
     raise ValueError('front matter is not closed with ---')
 
 
@@ -77,11 +81,59 @@ def _key_split(s):
     return None, None
 
 
-def loads(text):
+def _strip_comment(s):
+    """The line without a `#` note at its end. A note starts at a `#` that follows a space, outside a quoted value and
+    outside an inline list. A quote opens a quoted value only where a value starts (after `key: `, `- `, `[` or `,`),
+    so the apostrophe in `Lover's Leap  # the crag` is plain text and the note still goes."""
+    q, depth, start = None, 0, True
+    i, n = 0, len(s)
+    while i < n:
+        ch = s[i]
+        if q == '"':
+            if ch == '\\':
+                i += 1
+            elif ch == '"':
+                q = None
+        elif q == "'":
+            if ch == "'":
+                if i + 1 < n and s[i + 1] == "'":
+                    i += 1          # '' is a quote inside a single-quoted value
+                else:
+                    q = None
+        elif ch in '"\'' and start:
+            q = ch
+            start = False
+        elif ch == '#' and depth == 0 and i > 0 and s[i - 1] in ' \t':
+            return s[:i].rstrip()
+        elif ch == '[' and (start or depth):
+            depth += 1
+            start = True
+        elif ch == ']' and depth:
+            depth -= 1
+            start = False
+        elif ch == ',' and depth:
+            start = True
+        elif ch == ':' and depth == 0 and (i + 1 == n or s[i + 1] == ' '):
+            start = True
+        elif ch == '-' and start and depth == 0 and (i + 1 == n or s[i + 1] == ' '):
+            start = True        # '- item': the item starts after the dash
+        elif ch not in ' \t':
+            start = False
+        i += 1
+    return s
+
+
+def loads(text, first_line=1):
+    """The front matter between the two --- lines as a dict. first_line: the file's line number of the text's first line
+    (split passes 2), so a refused line is named as an editor numbers it."""
     rows = []
-    for raw in text.split('\n'):
+    for n, raw in enumerate(text.split('\n'), first_line):
         if not raw.strip() or raw.lstrip().startswith('#'):
             continue
+        lead = raw[:len(raw) - len(raw.lstrip(' \t'))]
+        if '\t' in lead:
+            raise ValueError('line %d is indented with a tab; use spaces' % n)
+        raw = _strip_comment(raw)
         rows.append((len(raw) - len(raw.lstrip(' ')), raw.strip()))
     val, i = _block(rows, 0, rows[0][0] if rows else 0)
     return val if isinstance(val, dict) else {}

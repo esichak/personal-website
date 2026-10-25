@@ -27,10 +27,11 @@ class Export:
         with open(os.path.join(self.folder, 'activities.csv'), newline='', encoding='utf-8') as fh:
             rows = list(csv.reader(fh))
         self.hdr, self.rows = rows[0], rows[1:]
+        self.skipped = 0     # rows the last not_imported() could not read (record() raised on them)
 
     def _col(self, r, name, which=0):
         ids = [i for i, h in enumerate(self.hdr) if h == name]
-        return r[ids[which]] if len(ids) > which else ''
+        return r[ids[which]] if len(ids) > which and ids[which] < len(r) else ''
 
     def record(self, r):
         c = self._col
@@ -65,6 +66,20 @@ class Export:
     def search(self, text):
         t = text.lower()
         return [self.record(r) for r in self.rows if t in self._col(r, 'Activity Name').lower()]
+
+    def not_imported(self, known_ids):
+        """The records whose Activity ID is not in known_ids (the strava_id of every trip and day file), newest first. A
+        row record() cannot read (a date not in Strava's form) is left out and counted in self.skipped."""
+        known = {str(i) for i in known_ids}
+        out, self.skipped = [], 0
+        for r in self.rows:
+            if not any(r) or self._col(r, 'Activity ID') in known:
+                continue
+            try:
+                out.append(self.record(r))
+            except ValueError:
+                self.skipped += 1
+        return sorted(out, key=lambda rec: rec['date_utc'], reverse=True)
 
 
 def stats_from(rec):

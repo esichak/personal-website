@@ -366,6 +366,10 @@ class ReportFixture(unittest.TestCase):
         return nav
 
     def caption(self, slug):
+        """The map caption's items. The caption is drawn only under a rendered map (Phase 6: a track without one gets
+        the 'Map not rendered yet' box), so a fixture report that has none is pointed at a placeholder render first."""
+        if self.by[slug]['track'] and not core.render_meta(self.by[slug])['maps']:
+            self.render(slug)
         cap = self.main(slug).by_id('map').find('div', cls='mapcap')
         self.assertIsNotNone(cap, '%s: the map section has no caption' % slug)
         return ml_items(cap)
@@ -1314,6 +1318,7 @@ class MapCaptionTests(ReportFixture):
     def test_multi_day_caption_says_as_recorded_and_the_date_range(self):
         # the task (multi-day pages): 'As recorded ' + the date range, then 'full track, not trimmed', 'North up'
         t = self.by['syn-tour']
+        render_overview(self.tmp, t)
         doc = Doc(load_module(self, 'sitegen.pages.multiday').page(t, self.site).html)
         items = ml_items(doc.by_id('map').find('div', cls='mapcap'))
         self.assertEqual(items[:3], ['As recorded ' + core.frange(t['date'], t['end_date']), 'full track, not trimmed', 'North up'])
@@ -1326,6 +1331,7 @@ class MapCaptionTests(ReportFixture):
         t = self.add('syn-tour-undated', kind='multi-day', activity='ski', date=None,
                      days=[{'title': 'Synthetic Day One'}, {'title': 'Synthetic Day Two'}])
         self.assertEqual((t['date'], t['end_date'], [d['date'] for d in t['days']]), (None, None, [None, None]))
+        render_overview(self.tmp, t)
         page = multiday.page(t, self.site)
         items = ml_items(Doc(page.html).by_id('map').find('div', cls='mapcap'))
         self.assertEqual(items, ['full track, not trimmed', 'North up'] + CREDIT)
@@ -1338,6 +1344,7 @@ class MapCaptionTests(ReportFixture):
         multiday = load_module(self, 'sitegen.pages.multiday')
         t = self.add('syn-tour-day-dates', kind='multi-day', activity='ski', date=None,
                      days=[{'title': 'Synthetic Day One', 'date': '2025-02-03'}, {'title': 'Synthetic Day Two', 'date': '2025-02-04'}])
+        render_overview(self.tmp, t)
         items = ml_items(Doc(multiday.page(t, self.site).html).by_id('map').find('div', cls='mapcap'))
         self.assertEqual(items[:3], ['As recorded Feb 3–4, 2025', 'full track, not trimmed', 'North up'])
 
@@ -2280,6 +2287,149 @@ class MultiDayPageTests(ReportFixture):
                     self.assertEqual(re.findall(r'<name>Synthetic day (\d+)</name>', combined), [d['id'] for d in t['days'] if d['track']])
 
 
+# ---------------------------------------------------------------- Phase 6: a track whose maps are not drawn yet
+
+RECORDINGS = 'Stats from the GPS recordings via Strava.'                                   # multiday.stats_note, plural
+GPS_MAX_FILES = 'GPS max is the highest point in the GPX files, not a surveyed summit height.'
+
+
+class NotRenderedMapTests(ReportFixture):
+    """Phase 6 (resilience-12): a page whose track render.py has not drawn yet (--no-render, no internet) says so in
+    place of the map instead of showing an empty map with a key and a caption for it.
+
+    A multi-day trip with at least one day track and no rendered overview: #map is the goal page's empty box with the
+    label 'Route map, all days', the sentence NOT_RENDERED_DAYS and the phones' copy of the stats note; no key row, no
+    caption; 'Download all GPX' stays; and multiday.build makes no trips/<slug>/map/ page (a full-screen page round a
+    map that is not drawn would be empty). Once the overview is rendered (render_overview) the map, its caption and its
+    key are back, and so is the map page. A multi-day trip with no day track at all keeps the old empty map section and
+    its map page, unchanged. A single-day report through report.build: no map page without a render, the box on the
+    page, and a story keeps its 'View route' action, which leads to the box. The fixture tour syn-tour has two day tracks
+    (empty GPX files) and, like every syn- trip, no render folder until a test points it at one."""
+
+    def setUp(self):
+        super().setUp()
+        self.multiday = load_module(self, 'sitegen.pages.multiday')
+
+    def box(self, label, text, note):
+        """The #map section of a track without a rendered map, written out: the box, the sentence, the phone note."""
+        return ('<section class="rep-map rep-map--empty" id="map" aria-label="%s"><div class="wrap"><div class="empty">%s<p>%s</p></div>%s</div></section>'
+                % (label, core.icon('map', 24), text, note))
+
+    def bare_tour(self):
+        """A two-day ski tour neither of whose days has a GPX."""
+        return self.add('syn-trek-bare', kind='multi-day', activity='ski', date='2025-03-01', end_date='2025-03-02',
+                        days=[{'title': 'Synthetic Day 1', 'date': '2025-03-01', 'track': False},
+                              {'title': 'Synthetic Day 2', 'date': '2025-03-02', 'track': False}])
+
+    def multiday_urls(self):
+        return [p.url for p in self.multiday.build(self.site)]
+
+    def test_a_tour_with_day_tracks_and_no_render_gets_the_box(self):
+        t = self.by['syn-tour']
+        self.assertEqual([bool(d['track']) for d in t['days']], [True, True])
+        self.assertEqual(core.render_meta(t)['maps'], {})
+        page = self.multiday.page(t, self.site)
+        doc = Doc(page.html)
+        sec = doc.by_id('map')
+        self.assertEqual((sec.tag, sec.classes, sec['aria-label']), ('section', ['rep-map', 'rep-map--empty'], 'Route map, all days'))
+        self.assertEqual(sec.find('div', cls='empty').find('p').text(), NOT_RENDERED_DAYS)
+        note = sec.find('p', cls='rep-note-ph')
+        self.assertEqual((note.classes, note.text()), (['strip-note', 'rep-note-ph'], '%s %s' % (RECORDINGS, GPS_MAX_FILES)))
+        want = self.box('Route map, all days', NOT_RENDERED_DAYS, strip_note([RECORDINGS, GPS_MAX_FILES], 'rep-note-ph'))
+        self.assertEqual(page.html.count(want), 1)
+        # no map, no key row, no caption, no button to a full-screen page; the day chapters have no map, key or caption of
+        # their own either (their maps are not drawn: the box says so for the whole trip)
+        self.assertEqual(sec.find_all(cls='keyrow') + sec.find_all(cls='mapcap') + sec.find_all(cls='map'), [])
+        self.assertEqual(doc.find_all(cls='mul-dmap-w') + doc.find_all(cls='mul-dmap') + doc.find_all(cls='mul-dcap'), [])
+        self.assertEqual(doc.find_all(cls='keyrow'), [])
+        self.assertEqual(doc.find_all(cls='mapcap'), [])
+        self.assertNotIn('href="../../trips/syn-tour/map/"', page.html)
+        self.assertNotIn(NOT_RENDERED, page.html)                         # the single-day sentence is not the tour's
+        # the section stands where the map stood, and the GPX downloads stay
+        self.assertInOrder(marks(doc.by_id('main')), ['title', 'stats', 'map', 'days-h'])
+        actions = doc.by_id('main').find('div', cls='rep-actions')
+        self.assertEqual(gpx_links(actions), [('Download all GPX', 'syn-tour.gpx')])
+        self.assertEqual(bar_items(doc.find('nav', cls='bbar')), [MAP, ('Days', '#overview'), ('GPX', 'syn-tour.gpx')])
+
+    def test_a_tour_with_day_tracks_and_no_render_has_no_map_page(self):
+        urls = self.multiday_urls()
+        self.assertIn('trips/syn-tour/', urls)
+        self.assertNotIn('trips/syn-tour/map/', urls)
+
+    def test_one_day_track_is_enough_for_the_box(self):
+        t = self.add('syn-trek-one', kind='multi-day', activity='ski', date='2025-03-01', end_date='2025-03-02',
+                     days=[{'title': 'Synthetic Day 1', 'date': '2025-03-01', 'track': False},
+                           {'title': 'Synthetic Day 2', 'date': '2025-03-02'}])
+        self.assertEqual([bool(d['track']) for d in t['days']], [False, True])
+        sec = Doc(self.multiday.page(t, self.site).html).by_id('map')
+        self.assertEqual(sec.classes, ['rep-map', 'rep-map--empty'])
+        self.assertEqual(sec.find('div', cls='empty').find('p').text(), NOT_RENDERED_DAYS)
+        self.assertNotIn('trips/syn-trek-one/map/', self.multiday_urls())
+
+    def test_a_rendered_overview_brings_back_the_map_its_caption_its_key_and_the_map_page(self):
+        t = self.by['syn-tour']
+        render_overview(self.tmp, t)
+        self.assertTrue(core.render_meta(t)['maps'])
+        page = self.multiday.page(t, self.site)
+        doc = Doc(page.html)
+        self.assertEqual(len(doc.find_all(cls='mul-dmap-w')), 2)        # each day's map block is back with the render
+        sec = doc.by_id('map')
+        self.assertEqual((sec.tag, sec.classes, sec['aria-label']), ('section', ['rep-map', 'mul-map'], 'Route map, all days'))
+        self.assertIsNotNone(sec.find('div', cls='mapcap'))
+        self.assertTrue(sec.find_all('ul', cls='keyrow'))
+        self.assertIsNotNone(sec.find('p', cls='rep-note-ph'))
+        self.assertIsNone(sec.find('div', cls='empty'))
+        self.assertNotIn(NOT_RENDERED_DAYS, page.html)
+        self.assertNotIn('rep-map--empty', page.html)
+        self.assertIn('href="../../trips/syn-tour/map/"', page.html)
+        self.assertEqual(gpx_links(doc.by_id('main').find('div', cls='rep-actions')), [('Download all GPX', 'syn-tour.gpx')])
+        urls = self.multiday_urls()
+        self.assertIn('trips/syn-tour/map/', urls)
+        self.assertEqual(urls.index('trips/syn-tour/map/'), urls.index('trips/syn-tour/') + 1)
+
+    def test_a_tour_without_any_day_track_keeps_the_old_empty_map_section_and_its_map_page(self):
+        t = self.bare_tour()
+        self.assertEqual([d['track'] for d in t['days']], [None, None])
+        page = self.multiday.page(t, self.site)
+        doc = Doc(page.html)
+        sec = doc.by_id('map')
+        self.assertEqual((sec.tag, sec.classes, sec['aria-label']), ('section', ['rep-map', 'mul-map'], 'Route map, all days'))
+        self.assertIn('<div class="bleed"><div class="map map--report map--nowide"></div></div>', page.html)
+        self.assertIsNotNone(sec.find('div', cls='mapcap'))
+        self.assertTrue(sec.find_all('ul', cls='keyrow'))
+        self.assertIsNone(sec.find('div', cls='empty'))
+        self.assertNotIn(NOT_RENDERED_DAYS, page.html)
+        self.assertNotIn('rep-map--empty', page.html)
+        self.assertNotIn('Download all GPX', page.html)
+        urls = self.multiday_urls()
+        self.assertIn('trips/syn-trek-bare/', urls)
+        self.assertIn('trips/syn-trek-bare/map/', urls)
+        self.assertNotIn('trips/syn-tour/map/', urls)                    # the tour with day tracks, beside it, still has none
+
+    def test_report_build_a_track_without_a_render_has_the_box_and_no_map_page(self):
+        t = self.by['syn-story']
+        self.assertTrue(t['track'])
+        self.assertTrue(need(self, self.report, 'narrative')(t))
+        self.assertEqual(core.render_meta(t)['maps'], {})
+        pages = {p.url: p for p in self.report.build(self.site)}
+        self.assertIn('trips/syn-story/', pages)
+        self.assertNotIn('trips/syn-story/map/', pages)
+        html_ = pages['trips/syn-story/'].html
+        doc = Doc(html_)
+        self.assertEqual(html_.count(self.box('Route map', NOT_RENDERED, strip_note([RECORDING, GPS_MAX], 'rep-note-ph'))), 1)
+        self.assertEqual(doc.find_all(cls='keyrow') + doc.find_all(cls='mapcap'), [])
+        # the story keeps 'View route', and it leads to the box; the GPX download stays
+        self.assertEqual(html_.count(view_route_action()), 1)
+        self.assertEqual(html_.count(gpx_title_action('syn-story')), 1)
+        actions = [(a.text(), a['href']) for a in doc.by_id('main').find('div', cls='rep-actions').find_all('a')]
+        self.assertEqual(actions, [('View route', '#map'), ('Download GPX', 'syn-story.gpx')])
+        self.assertEqual(doc.by_id('map')['aria-label'], 'Route map')
+        self.assertIn('rep-map--empty', doc.by_id('map').classes)
+        # drawn, the same report gets its map page back
+        self.render('syn-story')
+        self.assertIn('trips/syn-story/map/', [p.url for p in self.report.build(self.site)])
+
+
 # ---------------------------------------------------------------- Phase 4: no track, no route (contract-phase4.md 10.2, 10.3)
 
 RECORDING = 'Stats from the GPS recording via Strava.'                                    # core.stats_note, sentence by sentence
@@ -2288,7 +2438,10 @@ AVG_SPEED = 'Average speed is distance divided by moving time.'
 PACE = 'Pace is moving time divided by distance.'
 ROUTE_ROW_ITEM = '<li><a class="rep-toc-a" href="#map">Route</a></li>'                    # the story section row's Route item
 STATS_ROW_ITEM = '<li><a class="rep-toc-a" href="#stats">Trip details</a></li>'           # ... and its Trip details item, without beta
-MAP_SECTION = re.compile(r'<section class="rep-map" id="map" aria-label="Route map">.*?</section>', re.S)
+# the Route map section: the map with its key and caption, or (Phase 6, resilience-12) the box of a track not rendered yet
+MAP_SECTION = re.compile(r'<section class="rep-map(?: rep-map--empty)?" id="map" aria-label="Route map">.*?</section>', re.S)
+NOT_RENDERED = 'Map not rendered yet. The GPX file is published: use the Download GPX button.'
+NOT_RENDERED_DAYS = 'Map not rendered yet. The GPX files of the days are published: use the Download all GPX button.'
 STRIP_SECTION = re.compile(r'<section class="wrap rep-strip" id="stats" aria-label="Stats">.*?</section>', re.S)
 DRAWING = re.compile(r'(?:^|/)trips/([^/]+)/(tile|g112|g64)\.svg$')                        # a trip's route drawing, as an <img> src
 BBAR = re.compile(r'<nav class="bbar" aria-label="Report sections" style="--n:(\d+)">(.*?)</nav>', re.S)
@@ -2325,6 +2478,21 @@ def drawings(node, slug=None):
     with slug, only that trip's."""
     found = [DRAWING.search(i['src'] or '') for i in node.find_all('img')]
     return [m.groups() for m in found if m and (slug is None or m.group(1) == slug)]
+
+
+def render_overview(tmp, t):
+    """Point a multi-day trip at a placeholder render folder in the temp dir holding its three overview maps (the
+    caption and the key are drawn only under a rendered overview since Phase 6)."""
+    folder = os.path.join(tmp, '_rendered', t['slug'])
+    os.makedirs(folder, exist_ok=True)
+    meta = {'maps': {}, 'charts': {}}
+    for name, (w, h) in (('overview-wide', (1440, 560)), ('overview-col', (718, 440)), ('overview-phone', (390, 260))):
+        meta['maps'][name] = {'w': w, 'h': h, 'png': name + '.webp', 'base': name + '.base.svg'}
+        with open(os.path.join(folder, name + '.svg.html'), 'w', encoding='utf-8') as fh:
+            fh.write('<svg width="%d" height="%d" viewBox="0 0 %d %d"></svg>' % (w, h, w, h))
+    with open(os.path.join(folder, 'meta.json'), 'w', encoding='utf-8') as fh:
+        json.dump(meta, fh)
+    t['rendered'] = folder
 
 
 def without_track(body, slug, note, note_left, stats=True):
@@ -2626,8 +2794,10 @@ class NoTrackTests(ReportFixture):
                 self.assertEqual([n for n in doc.root.walk() if 'download' in n], [])
                 self.assertNotIn('.gpx', without.lower())
                 self.assertNoRoute(slug)
-                # ... all of which the page with the track has: the list is what the track brings, not what no page has
-                for needle in ('id="map"', 'href="#map"', 'Download GPX', 'Route (GPX)', 'full track', 'GPS recording', 'GPX file'):
+                # ... all of which the page with the track has: the list is what the track brings, not what no page has.
+                # The key's route symbol and the caption come with a rendered map; without one the box stands there
+                for needle in ('id="map"', 'href="#map"', 'Download GPX', 'GPS recording', 'GPX file') + (
+                        ('Route (GPX)', 'full track') if render is not None else (NOT_RENDERED,)):
                     self.assertIn(needle, with_)
                 # ... and, once rendered, the phone map's link to the full-screen map page
                 self.assertEqual('href="../../trips/%s/map/"' % slug in with_, render is not None)
@@ -2692,9 +2862,11 @@ class NoTrackTests(ReportFixture):
                 self.assertNotIn('map', want)
 
     def test_the_map_section_of_a_report_with_a_track_is_what_it_was(self):
-        # 10.2: a report with a track is exactly as before, rendered or not: the Route map section is the map block (empty
-        # while the track is not rendered), the two key rows, the caption and the phones' copy of the stats note, in
-        # the place its layout gives it, and the map is the page's eager image only when no photo leads
+        # 10.2: a report with a track and a rendered map is exactly as before: the Route map section is the map block,
+        # the two key rows, the caption and the phones' copy of the stats note, in the place its layout gives it, and the
+        # map is the page's eager image only when no photo leads. Phase 6 (resilience-12): while the track is not
+        # rendered the section is the 'Map not rendered yet' box (the goal page's), with the phones' copy of the note
+        # and no map, key or caption; the section stays where it was and the Download GPX action stays
         variants = [('map-wide', 'wide'), ('map-col', 'col'), ('map-phone', 'phone')]
         for slug, rendered in (('syn-story', True), ('syn-story', False), ('syn-portrait', False), ('syn-words', True), ('syn-words', False),
                                ('syn-photos', True), ('syn-track', False), ('syn-undated', True)):
@@ -2716,16 +2888,22 @@ class NoTrackTests(ReportFixture):
                 self.assertEqual('href="../../trips/%s/map/"' % slug in block, rendered)
                 if not rendered:
                     self.assertEqual(block, '<div class="map map--report map--nowide"></div>')
-                want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
-                        % (block, core.key_rows(self.report.key_items(t, meta), self.report.key_items(t, meta, phone=True)),
-                           self.report.map_caption(t), strip_note(self.note_of(slug)[0], 'rep-note-ph')))
+                    want = ('<section class="rep-map rep-map--empty" id="map" aria-label="Route map"><div class="wrap"><div class="empty">'
+                            '%s<p>%s</p></div>%s</div></section>' % (core.icon('map', 24), NOT_RENDERED, strip_note(self.note_of(slug)[0], 'rep-note-ph')))
+                else:
+                    want = ('<section class="rep-map" id="map" aria-label="Route map"><div class="bleed">%s</div><div class="wrap">%s%s%s</div></section>'
+                            % (block, core.key_rows(self.report.key_items(t, meta), self.report.key_items(t, meta, phone=True)),
+                               self.report.map_caption(t), strip_note(self.note_of(slug)[0], 'rep-note-ph')))
                 html_ = self.page(slug).html
                 self.assertEqual(MAP_SECTION.findall(html_), [want])
                 self.assertEqual('fetchpriority="high"' in want, rendered and not hero)
                 story = need(self, self.report, 'narrative')(t)
                 self.assertInOrder(marks(self.main(slug)), ['stats', 'report', 'map'] if story else ['stats', 'map'])
-                self.assertEqual(self.caption(slug)[-len(CREDIT) - 2:-len(CREDIT)], ['full track, not trimmed', 'North up'])
                 self.assertEqual(self.actions(slug)[-2], ('Download GPX', slug + '.gpx'))
+                if rendered:
+                    self.assertEqual(self.caption(slug)[-len(CREDIT) - 2:-len(CREDIT)], ['full track, not trimmed', 'North up'])
+                else:
+                    self.assertEqual(self.doc(slug).find_all(cls='mapcap') + self.doc(slug).find_all(cls='keyrow'), [])
 
     def test_reports_written_without_a_track(self):
         # plan 12.5: fixtures of the missing case, in both layouts, written without a track from the start: a story
@@ -3194,9 +3372,10 @@ class NoTrackTests(ReportFixture):
         self.assertEqual([(a.text(), a['href']) for a in Doc(section_nav(True, False, False, False, False)).find_all('a')], [REPORT_ROW])
 
     def test_build_makes_a_map_page_exactly_for_the_reports_with_a_track(self):
-        # 10.2: report.build builds trips/<slug>/map/ for a single-day report with a track, rendered or not, and for no
-        # report without one, whatever a stale render folder holds. (A goal gets one only with a rendered map:
-        # tests/test_metadata.py pins that on its built site; the fixture goal here has a track and no render)
+        # 10.2 as amended by Phase 6 (resilience-12): report.build builds trips/<slug>/map/ for a single-day report with
+        # a track and a rendered map, as for a goal, and for no report without one, whatever a stale render folder
+        # holds: a full-screen page round a map that is not drawn would be empty. (tests/test_metadata.py pins the goal
+        # on its built site; the fixture goal here has a track and no render)
         mk = helpers.make_trip
         mk(self.tmp, 'syn-nt-words', title='Synthetic Trackless Words', date='2025-06-17', region=REGION, body=WRITEUP)
         mk(self.tmp, 'syn-nt-bare', title='Synthetic Trackless Bare', date='2025-06-16', region=REGION)
@@ -3216,16 +3395,19 @@ class NoTrackTests(ReportFixture):
         want = []
         for t in self.site['trips']:                          # in site order: each report, then its map page
             if t['slug'] in SINGLE:
-                want += [t['url'], t['url'] + 'map/']
+                want += [t['url']] + ([t['url'] + 'map/'] if t['slug'] in ('syn-story', 'syn-words') else [])
             elif t['slug'] in no_track:
                 want.append(t['url'])
         self.assertEqual([u for u in urls if not u.startswith('trips/syn-goal/')], want)
-        self.assertEqual(len(want), 2 * len(SINGLE) + 3)
+        self.assertEqual(len(want), len(SINGLE) + 2 + 3)
+        for slug in SINGLE:
+            if slug not in ('syn-story', 'syn-words'):
+                self.assertNotIn('trips/%s/map/' % slug, urls)          # a track, but no map drawn: no full-screen page
         for slug in no_track:
             self.assertIn('trips/%s/' % slug, urls)
             self.assertNotIn('trips/%s/map/' % slug, urls)
         by_url = {p.url: p for p in pages}
-        for slug in SINGLE:
+        for slug in ('syn-story', 'syn-words'):
             with self.subTest(slug):
                 self.assertTrue(self.by[slug]['track'])
                 helper = by_url['trips/%s/map/' % slug]

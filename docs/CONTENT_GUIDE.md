@@ -183,14 +183,15 @@ broken page, and the site does not update until it is fixed. A warning does not 
 ### 5.1 `validate.py`
 
 It reads every trip folder under `content/trips/` (drafts too: a broken draft stops a build like any other trip),
-`content/home.json`, and three things in `rendered/`: whether a trip's map has been drawn, which regions the site maps
-know, and which trips those maps draw. It writes nothing, draws nothing and fetches nothing.
+`content/home.json`, and four things in `rendered/`: whether a trip's map has been drawn, whether it was drawn from the
+trip as it is now (the track, title, activity, kind, `map:` and stats) and with OpenStreetMap data, which regions the
+site maps know, and which trips those maps draw. It writes nothing, draws nothing and fetches nothing.
 
 Each finding is one line: the level, the file to open, then the message. The lines are sorted by file and a summary
 follows. On today's content the summary reads:
 
 ```
-content: 0 errors, 1 warnings, 467 notes (168 trips, 398 photos, 341 GPX files)
+content: 0 errors, 1 warnings, 468 notes (168 trips, 398 photos, 341 GPX files)
 ```
 
 The one warning is about a planned route saved before the tick list ([TICK_LIST_GUIDE.md](TICK_LIST_GUIDE.md),
@@ -200,7 +201,7 @@ section 9).
 | --- | --- | --- |
 | `ERROR` | a value the generator cannot use, or a file that a page needs and is not there | the build stops; exit status 1 |
 | `WARNING` | optional metadata left incomplete; the pages cope | the build goes on; exit status 0 |
-| `NOTE` | an optional field that is simply absent: no place, no write-up, no photos, a day without a title, photos without a caption | counted in the summary; listed only with `-v` |
+| `NOTE` | an optional field that is simply absent: no place, no write-up, no photos, a day without a title, photos without a caption; and a trip whose `timezone:` is `UTC` (`timezone is UTC, so start_time is a UTC clock; set the zone with python3 tools/add_trip.py --retime <slug> --timezone <zone>`: the tool's guess falls back to UTC where it knows no zone, and the page's Start time is then a UTC clock) | counted in the summary; listed only with `-v` |
 
 | Flag | Effect |
 | --- | --- |
@@ -277,7 +278,13 @@ the row says otherwise:
 | `none of the day GPX files holds a recorded track (<trk>): "Download all GPX" would be an empty file; a day's file is that day's recording` | the file named is the `index.md` of a multi-day trip whose `days/NN.gpx` files all hold a route (`<rte>`) and no recorded track. `add_trip.py --day-of` writes a track, so this takes GPX files put into `days/` by hand. One such day among recorded ones is a warning (5.3) | Put each day's recording in its `days/NN.gpx`. |
 | `the folder name 'My_New Trip' cannot be a page address: use lower-case letters, digits and single dashes (such as my-new-trip)` | a trip folder made or renamed by hand | Rename the folder. |
 | `front matter: front matter is not closed with ---` | the `---` line that ends the block at the top of the file is gone. A `days/NN.md` is named the same way | Put it back. |
+| `front matter: line 7 is indented with a tab; use spaces` | a line of the front matter (line 7 of the file here) starts with a tab, as an editor's Tab key writes one. A tab would move the key under it to another level without a word, so it is refused | Replace the tab with spaces: two for each level, as in the lines around it. |
 | `front matter: Extra data: line 1 column 14 (char 13)` | a value that starts with a double quote but is not one complete quoted string, such as `card_summary: "No chance." The rest` | Quote the whole value and write an inner quote as `\"`. |
+
+A `#` after a space starts a note that is not part of the value, as in YAML: `title: Rose Knob  # first lap` is the
+title `Rose Knob`. A `#` inside quotes or inside `[...]`, or with no space before it (`C#`), stays in the value; to
+write ` #` into a value, quote it (`title: "Peak #2"`). A `#` that looks like part of a value (`Lap #2`: a letter or a
+digit right after it) gets a warning (5.3), because the note cuts the value short.
 
 The two tables do not quote every error. One that is not listed is written the same way: the line names the file and
 the field and says what is accepted there, as in `start_time must be a time written HH:MM (00:00 to 23:59), got '8am'`.
@@ -302,7 +309,11 @@ A warning line reads `WARNING <file>: <message>`. A warning never stops a build.
 | `none of the 2 days has a GPX (days/NN.gpx): the page shows an empty map and offers no downloads` | a multi-day trip or a journal with no `NN.gpx` beside any of its `days/NN.md` | The page is built either way, with an empty map. `add_trip.py --day-of <slug>` writes a day's `NN.md` and `NN.gpx` together ([ADDING-TRIPS.md](../ADDING-TRIPS.md)). |
 | `region_days: the region map of Lake Tahoe was last drawn without these days; run python3 tools/render.py --site and commit rendered/site/` | the journal's `region_days` block lists days for a region whose map was drawn before, or with other days (`… with other days of this journal`) or another stretch of a day (`… with another stretch of one of these days`), or the block no longer lists days the map still draws (`the region map of … still draws days of this journal …`) | Run the command (internet needed) and commit `rendered/site/` with the change (11.7). The message names the part when the region has named parts (`the region map of Lake Tahoe (Tahoe Rim Trail) …`). Until then the list has the rows and the map shows what it was last drawn with. |
 | `region_days: 'Yosemite' has no region map (one is drawn from three reports with a track), so these days are shown on no map` | the block names a region that has reports but no region map | Nothing, or take the line out: the days appear once the region has its map. |
-| `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug>` | the trip was added with `--no-render`, or its render did not finish. Until then the report's map area is empty (7.2) | Run the command it gives (needs the internet), then stage `rendered/trips/<slug>` and `rendered/site` with the trip (step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md)). |
+| `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug> (until then the page shows "Map not rendered yet")` | the trip was added with `--no-render`, or its render did not finish. Until then the page's map section is a box that says so (7.2). On the PCT journal the line ends after the command, and its map area is empty | Run the command it gives (needs the internet), then stage `rendered/trips/<slug>` and `rendered/site` with the trip (step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md)). |
+| `maps were drawn from other inputs (the track, the title, activity, kind, map: or stats changed since): run python3 tools/render.py <slug>` | the trip's track, `title:`, `activity:`, `kind:`, `map:`, `stats:` or `route_shape:` (or a day's file of a multi-day trip) changed after its maps were drawn: `render.py` stores what it drew from, and it no longer matches. The page still shows the old maps | Run the command (needs the internet) and stage as in step 5 of [ADDING-TRIPS.md](../ADDING-TRIPS.md). `python3 tools/render.py --status` says which of them changed. |
+| `maps were drawn without OpenStreetMap data (no roads, trails or lake names); run python3 tools/render.py <slug> again` | OpenStreetMap did not answer when the maps were drawn, so they show terrain only | Run the command again later. |
+| `the region and ski maps were drawn from other inputs (a trip on one of them changed, was added or was taken out since); run python3 tools/render.py --site and commit rendered/site/` | the file named is `rendered/site/meta.json`: a trip of a region with a region map (or a ski map) changed, was added or was taken out after those maps were drawn. The line is left out when another line of the same run already asks for a render, because `render.py <slug>` draws these maps again too | Run the command and stage `rendered/site`. |
+| `the region and ski maps were drawn without OpenStreetMap data; run python3 tools/render.py --site again and commit rendered/site/` | the file named is `rendered/site/meta.json`; as the line above for a trip's maps | Run the command again later. |
 | `photos[1] (photos/02.webp) has no alt text; describe the photo in a sentence` | `alt: ""`, which is what `add_trip.py` writes | Write the description. On the cover it is also the share image's description (section 9). |
 | `photos[1] (photos/02.webp) has no w and h, so the page cannot hold its place while it loads; record the pixel size` | a photo entry typed by hand | Add `w:` and `h:`, the file's size in pixels. |
 | `photos[1] (photos/02.webp) has no 800 px copy (02.sm.webp), so phones load the full file` | a photo copied into `photos/` by hand. `add_trip.py` writes this copy for the photos it imports; no tool adds one afterwards | Save a copy 800 px on its long edge under the name in the message. |
@@ -311,6 +322,7 @@ A warning line reads `WARNING <file>: <message>`. A warning never stops a build.
 | `not declared under photos: in index.md or a days/NN.md, and not the .sm or .th copy of a declared photo; the build publishes it all the same` | the file named is one in `content/trips/<slug>/photos/` that no entry lists. An iCloud conflict copy such as `01 2.webp` shows up this way | Delete the file, or add an entry for it. |
 | `looks like an iCloud conflict copy (the name ends in a space and a number): nothing reads it, but git add of the folder would stage it; delete it` | the file named is the copy: a file in a trip folder or its `days/` whose name ends in a space and a number, such as `index 2.md` or `track 2.gpx`. A copy of a day's `.md` or `.gpx` is an error instead (5.2), and a copy in `photos/` gets the line above | Delete the file. |
 | `unknown key 'plase' (did you mean 'place'?); nothing reads it` | a misspelt field name: the line is ignored. Inside a photo entry or `stats:` the message says where (`in photos[1]`, `in stats`). A misspelt key in `content/home.json` gets the same line, with that file named | Correct the name. |
+| `line 2: '#2' after a space starts a note, so the line is read as 'title: Lap'; quote the value if the # belongs to it` | a `#` after a space with a letter or a digit right after it (`title: Lap #2`): the front matter reads everything from ` #` as a note (5.2), so the value is cut short. A note written `# like this`, with a space after the `#`, is taken for a comment and says nothing | Quote the value (`title: "Lap #2"`), or write the note with a space after the `#`. |
 | `key 'place' is written twice in the front matter; only the last one is read` | a field name stands twice at the left margin of the front matter, in `index.md` or in a `days/NN.md` | Delete one of the two lines. |
 | `route_shape 'lollipop' is not one of loop, out-and-back, point-to-point; it is shown as written` | a `route_shape:` the site has no word for. `subtype:` is held to its own list in the same words: `subtype 'Scrambling' is not one of SUP, Rafting, Kayaking, Mountaineering; it is shown as written` | Use one of the listed words. |
 | `region 'Lake Taho' is not in rendered/site/meta.json, so the map page does not list it yet; run python3 tools/render.py --site --force` | a region the site maps do not know: a misspelling, a new region, or a region that was renamed. When several trips are filed under it, the line names one of them and counts the others: `region 'Lake Taho' (and 2 more trips) is not in …` | Correct the spelling. When the warning of the next row is printed as well, the name is a second spelling of a region that is on the site: bring the trips to one spelling and do not run the command while two are in use, because after that render `build.py --check` fails (next row). For a new region run the command as printed (needs the internet) and commit `rendered/site/`. Without `--force` the run can end before it rewrites the list of regions. For a renamed region the same command draws the region map under the new name, which takes three trips with a track; until it has, the region's reports are on no region page (11.4). |
@@ -518,9 +530,11 @@ Three things on either layout follow from what the trip folder holds:
   strip, the note under it prints that row instead). Such a report is never its section page's Featured trip, whatever
   its `featured:` line says (section 1). What deleting the `track.gpx` of a published report takes off the site, and
   what it leaves, is in 7.10.
-- A report whose track `render.py` has not drawn yet keeps its map section, but the map area is empty: the key and the
-  `As recorded on …` caption are there, there is no profile under them, and "Download GPX" and, on a story page, "View
-  route" still work. `validate.py` and every build warn `no rendered map …` (5.3) until
+- A report whose track `render.py` has not drawn yet keeps its map section, where a box says `Map not rendered yet. The
+  GPX file is published: use the Download GPX button.` There is no key, no `As recorded on …` caption, no profile and
+  no full-screen map page; "Download GPX" and, on a story page, "View route" (which leads to the box) still work. A
+  multi-day trip in the same state shows the same box over its days (`... The GPX files of the days are published: use
+  the Download all GPX button.`). `validate.py` and every build warn `no rendered map …` (5.3) until
   `python3 tools/render.py <slug>` has run (needs the internet).
 
 On a phone a story page's bottom bar reads Report, Map, Photos, GPX. When the page has no Photos section it reads

@@ -1796,7 +1796,8 @@ class TrackTests(Fixture):
         for slug in (HIKE, HUT, 'goal-route'):
             os.remove(os.path.join(s.rendered, 'trips', slug, 'meta.json'))
         self.assertFindings(warnings=[
-            I(slug, 'no rendered map (rendered/trips/%s/meta.json is missing); run python3 tools/render.py %s' % (slug, slug))
+            I(slug, 'no rendered map (rendered/trips/%s/meta.json is missing); run python3 tools/render.py %s (until then the page '
+                    'shows "Map not rendered yet")' % (slug, slug))
             for slug in (HIKE, HUT, 'goal-route')])
 
     def test_no_render_is_expected_of_a_draft_or_a_trip_without_a_track(self):

@@ -226,6 +226,22 @@ class RepeatedKeyTests(Fixture):
             fh.write('\ntitle: this line is in the write-up\ndate: so is this\n')
         self.assertEqual(self.found('error') + self.found('warning'), [])
 
+    def test_a_note_that_looks_like_part_of_the_value_is_a_warning(self):
+        # frontmatter reads ' #' as YAML does (everything from it is a note): 'Lap #2' would lose its '#2' without a word.
+        # A note that starts '# ' is a comment and says nothing
+        path = os.path.join(self.walk, 'index.md')
+        self.rewrite(path, 'title: Synthetic Walk', 'title: Synthetic Walk #2\nplace: Synthetic Basin  # the usual start')
+        self.assertEqual(self.found('error'), [])
+        self.assertEqual(self.found('warning'), ["content/trips/syn-walk/index.md: line 2: '#2' after a space starts a note, so the "
+                                                 "line is read as 'title: Synthetic Walk'; quote the value if the # belongs to it"])
+        self.rewrite(path, 'title: Synthetic Walk #2', 'title: "Synthetic Walk #2"')
+        self.assertEqual(self.found('warning'), [])
+
+    def test_cut_notes(self):
+        self.assertEqual(checks._cut_notes('---\na: x #1\nb: [c #d]\nc: "e #f"\nd: g # h\n# i #j\n---\nk: l #m\n'),
+                         [(2, 'a: x', '#1')])
+        self.assertEqual(checks._cut_notes('no front matter\na: x #1\n'), [])
+
     def test_top_keys(self):
         self.assertEqual(checks._top_keys('---\na: 1\nb:\n  a: 2\n- a: 3\na: 4\n---\na: 5\n'), ['a', 'b', 'a'])
         self.assertEqual(checks._top_keys('no front matter\na: 1\n'), [])

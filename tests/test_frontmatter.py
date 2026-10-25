@@ -229,5 +229,145 @@ class ValidatorDigitTests(unittest.TestCase):
         self.assertTrue(any('start_time must be a time written HH:MM' in e for e in errors), errors)
 
 
+class CommentAndTabTests(unittest.TestCase):
+    """Phase 6: a `#` note at the end of a line, and lines indented with a tab.
+
+    A note starts at a `#` with a space or a tab before it, outside a quoted value and outside an inline list; a quote
+    opens a quoted value only where a value starts (after `key: `, `- `, `[` or `,`), so an apostrophe inside plain text
+    does not hide the note that follows. A `#` with no space before it, or inside quotes or an inline list, is part of
+    the value, and `key: #x` is no value (YAML). dumps() quotes every string holding a `#`, so render() and split() give
+    such a value back. A line whose indentation holds a tab is refused with its line number: counted from 1 by loads(),
+    from the top of the file by split() (the block's first line is the file's second); blank lines and whole-line
+    comments are skipped before the check, and a tab inside a value is not indentation. content.load_trip reports the
+    refusal as a ContentError that names the file. Every value is synthetic."""
+
+    def test_a_note_after_a_value_is_not_part_of_it(self):
+        self.assertEqual(value('Synthetic Knob  # a note'), 'Synthetic Knob')
+        self.assertEqual(value('Synthetic Knob # one space is enough'), 'Synthetic Knob')
+        self.assertEqual(value('Synthetic Knob\t# after a tab'), 'Synthetic Knob')
+        self.assertEqual(value('1600  # pixels'), 1600)
+        self.assertEqual(value('true  # yes'), True)
+        self.assertEqual(frontmatter.loads('title: Synthetic Knob  # a note\ndate: 2026-07-04  # the day')['date'], '2026-07-04')
+
+    def test_an_apostrophe_in_plain_text_does_not_hide_the_note(self):
+        self.assertEqual(frontmatter.loads("place: Pat's Ledge  # the crag"), {'place': "Pat's Ledge"})
+        self.assertEqual(value("it's a synthetic 'name'  # note"), "it's a synthetic 'name'")
+        self.assertEqual(value('a "quoted" word  # note'), 'a "quoted" word')
+
+    def test_a_hash_inside_double_quotes_stays(self):
+        self.assertEqual(value('"Synthetic # Knob"'), 'Synthetic # Knob')
+        self.assertEqual(value('"Synthetic # Knob"  # a note'), 'Synthetic # Knob')
+        self.assertEqual(value(r'"a \" quote # and a hash"  # note'), 'a " quote # and a hash')
+
+    def test_a_hash_inside_single_quotes_stays(self):
+        self.assertEqual(value("'it''s #1'"), "it's #1")
+        self.assertEqual(value("'it''s #1'  # a note"), "it's #1")
+        self.assertEqual(value("'a # b'  # note"), 'a # b')
+
+    def test_a_hash_inside_an_inline_list_stays(self):
+        self.assertEqual(value('[a #b, c]'), ['a #b', 'c'])
+        self.assertEqual(value('[a #b, c]  # a note'), ['a #b', 'c'])
+        self.assertEqual(value('[a, b]  # a note'), ['a', 'b'])
+        self.assertEqual(value('["x # y", \'z # w\']  # note'), ['x # y', 'z # w'])
+
+    def test_a_hash_with_no_space_before_it_stays(self):
+        self.assertEqual(value('C#minor'), 'C#minor')
+        self.assertEqual(value('C#minor  # the key'), 'C#minor')
+        self.assertEqual(value('route#2'), 'route#2')
+        self.assertEqual(value('a#b #c'), 'a#b')
+
+    def test_key_hash_is_no_value(self):
+        self.assertIsNone(value('#x'))
+        self.assertEqual(frontmatter.loads('title: #x\nplace: Synthetic Basin'), {'title': None, 'place': 'Synthetic Basin'})
+        self.assertEqual(frontmatter.loads('title:  # only a note'), {'title': None})
+
+    def test_a_note_on_a_block_key_line(self):
+        text = 'beta:  # rows\n  - label: Trailhead\n    value: Synthetic Lot\nmap:  # settings\n  zoom: 2'
+        self.assertEqual(frontmatter.loads(text), {'beta': [{'label': 'Trailhead', 'value': 'Synthetic Lot'}], 'map': {'zoom': 2}})
+
+    def test_a_note_on_a_list_item_line(self):
+        text = '\n'.join(['tags:',
+                          '  - one  # first',
+                          '  - "two # 2"  # second',
+                          '  - C#',
+                          'beta:',
+                          '  - label: Trailhead  # where it starts',
+                          '    value: Synthetic Lot  # paved',
+                          '  - label: Grade',
+                          "    value: 'easy # mostly'  # graded"])
+        self.assertEqual(frontmatter.loads(text), {'tags': ['one', 'two # 2', 'C#'],
+                                                   'beta': [{'label': 'Trailhead', 'value': 'Synthetic Lot'},
+                                                            {'label': 'Grade', 'value': 'easy # mostly'}]})
+
+    def test_whole_line_comments_are_still_skipped(self):
+        self.assertEqual(frontmatter.loads('# a comment\ntitle: Synthetic\n  # an indented comment\nplace: Synthetic Basin'),
+                         {'title': 'Synthetic', 'place': 'Synthetic Basin'})
+
+    def test_dumps_quotes_a_value_with_a_hash_and_the_file_reads_it_back(self):
+        self.assertEqual(frontmatter.dumps({'title': 'C#minor'}), 'title: "C#minor"')
+        self.assertEqual(frontmatter.dumps({'title': 'Synthetic # Knob'}), 'title: "Synthetic # Knob"')
+        meta = {'title': 'Synthetic # Knob', 'subtitle': 'C#minor', 'place': "Pat's #1 ledge", 'note': '#first',
+                'tags': ['#one', 'two #2', 'three'],
+                'beta': [{'label': 'Route #', 'value': "it's #2"}, {'label': 'Track', 'value': 'a gap # here'}],
+                'map': {'peaks': ['Synthetic #3 Peak'], 'zoom': 2}}
+        text = frontmatter.render(meta, 'Synthetic body # not a note.')
+        back, body = frontmatter.split(text)
+        self.assertEqual(back, meta)
+        self.assertEqual(body, 'Synthetic body # not a note.\n')
+        self.assertEqual(frontmatter.loads(frontmatter.dumps(meta)), meta)
+
+    def test_a_line_indented_with_a_tab_is_refused_with_its_number_from_1(self):
+        for text, n in (('title: Synthetic\n\tplace: Synthetic Basin', 2),
+                        ('stats:\n  gain_m: 800\n \thigh_m: 2900', 3),
+                        ('\tkey: value', 1),
+                        ('\n# a comment\ntitle: Synthetic\nbeta:\n\t- label: Trailhead', 5)):
+            with self.subTest(text=text):
+                with self.assertRaises(ValueError) as cm:
+                    frontmatter.loads(text)
+                self.assertEqual(str(cm.exception), 'line %d is indented with a tab; use spaces' % n)
+
+    def test_split_counts_the_line_from_the_top_of_the_file(self):
+        for text, n in (('---\ntitle: Synthetic\n\tplace: Synthetic Basin\n---\nBody.\n', 3),
+                        ('---\n\ttitle: Synthetic\n---\n', 2),
+                        ('---\ntitle: Synthetic\n\n# a comment\nbeta:\n  - label: Trailhead\n\t  value: Synthetic Lot\n---\n\nBody.\n', 7)):
+            with self.subTest(text=text):
+                with self.assertRaises(ValueError) as cm:
+                    frontmatter.split(text)
+                self.assertEqual(str(cm.exception), 'line %d is indented with a tab; use spaces' % n)
+
+    def test_a_tab_inside_a_value_is_not_indentation(self):
+        self.assertEqual(frontmatter.loads('title: Synthetic\tKnob'), {'title': 'Synthetic\tKnob'})
+        self.assertEqual(frontmatter.loads('beta:\n  - label: Track\n    value: one\ttwo'), {'beta': [{'label': 'Track', 'value': 'one\ttwo'}]})
+
+    def test_a_blank_line_of_tabs_and_a_tab_indented_comment_are_skipped(self):
+        self.assertEqual(frontmatter.loads('title: Synthetic\n\t\t\nplace: Synthetic Basin'), {'title': 'Synthetic', 'place': 'Synthetic Basin'})
+        self.assertEqual(frontmatter.loads('title: Synthetic\n \t \nplace: Synthetic Basin'), {'title': 'Synthetic', 'place': 'Synthetic Basin'})
+        self.assertEqual(frontmatter.loads('title: Synthetic\n\t# a comment\nplace: Synthetic Basin'),
+                         {'title': 'Synthetic', 'place': 'Synthetic Basin'})
+        self.assertEqual(frontmatter.split('---\ntitle: Synthetic\n\t\n---\nBody.\n'), ({'title': 'Synthetic'}, 'Body.\n'))
+
+    def test_load_trip_names_the_file(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        folder = helpers.make_trip(tmp.name, 'syn-tabbed', title='Synthetic Tabs', date='2026-07-04', body='Synthetic body.')
+        path = os.path.join(folder, 'index.md')
+        with open(path, encoding='utf-8') as fh:
+            text = fh.read()
+        head, rest = text.split('\n---\n', 1)
+        self.assertTrue(head.startswith('---\n'))
+        tabbed = head + '\nbeta:\n\t- label: Trailhead\n\t  value: Synthetic Lot\n---\n' + rest
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(tabbed)
+        n = tabbed.split('\n').index('\t- label: Trailhead') + 1          # the file's own line number, from 1
+        self.assertGreater(n, 2)
+        with self.assertRaises(content.ContentError) as cm:
+            content.load_trip(folder)
+        self.assertEqual(str(cm.exception), 'content/trips/syn-tabbed/index.md: front matter: line %d is indented with a tab; use spaces' % n)
+        # the same file with spaces loads
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(tabbed.replace('\t', '  '))
+        self.assertEqual(content.load_trip(folder)['meta']['beta'], [{'label': 'Trailhead', 'value': 'Synthetic Lot'}])
+
+
 if __name__ == '__main__':
     unittest.main()

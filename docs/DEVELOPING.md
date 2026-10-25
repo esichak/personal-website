@@ -11,10 +11,14 @@ content/trips/<slug>/photos/      web copies: NN.webp (1600 px) + NN.sm.webp (80
 content/home.json                 the home page's featured trips, in order (tools/sitegen/curation.py validates it)
 rendered/trips/<slug>/            maps (.svg.html overlay, .webp hillshade, .base.svg contours / water / roads), profiles, tiles, glyphs, meta.json
 rendered/site/                    region + ski-panel overview maps, meta.json
-tools/add_trip.py                 new trip from a FIT/GPX file or a Strava export (runs render.py unless --no-render)
-tools/render.py                   renders rendered/ (needs internet; caches in .cache/, which is not committed)
+tools/add_trip.py                 new trip from a FIT/GPX file, Garmin's .zip or a Strava export (runs render.py unless --no-render);
+                                  --day-of, --retime (time zone, date, start time from track.gpx), --strava-export --list
+tools/render.py                   renders rendered/ (needs internet; caches in ~/Library/Caches/personal-website/, lib/geo.py);
+                                  --status: what a run would draw and why, offline
+tools/lib/renderkey.py            the input hashes render.py stores in meta.json (trip_inputs, site_jobs, site_hash), read by the
+                                  content checks too, without importing the renderer
 tools/build.py                    checks content/, then builds _site/ from content/ + rendered/ + assets/ (what the GitHub Action runs);
-                                  --check then checks the built site
+                                  --check then checks the built site; --serve [--open SLUG] [--watch] previews it, linked
 tools/validate.py                 the content checks without a build: one line per finding, then a summary; --site DIR adds the site checks
 tools/lib/checks.py               the content rules: run() -> findings (error | warning | note) for every broken file in one pass
 tools/sitegen/sitecheck.py        the built-site rules behind build.py --check: links, anchors, ids, head metadata, sitemap, feed, search
@@ -209,7 +213,18 @@ menu button below 1140px.
   an Other sub-type segment then links to `#reports`, not to a `#featured` the page lacks; a section page's
   description ends `with the full GPX track and map` only when every report it lists has a track; and
   `multiday.has_gpx(t)` (some day has a track) gates `Download all GPX`, the bar's GPX item and the combined file
-  build.py writes. Goal pages and journal day rows follow the same rule. One part stays whatever the files hold: a
+  build.py writes. Goal pages and journal day rows follow the same rule. No render, no map (Phase 6): a single-day
+  report with a track whose `rendered/trips/<slug>/meta.json` is missing (`--no-render`, no internet, a draft just
+  un-drafted) has its `#map` section as `report.not_rendered_section('Route map', text, phone note)`, the goal page's
+  `.empty` box (`<section class="rep-map rep-map--empty" id="map" ...>`, `Map not rendered yet. The GPX file is
+  published: use the Download GPX button.`, then the phones' copy of the stats note), with no map block, key rows,
+  caption or map preloads, and `report.build` writes no `trips/<slug>/map/` page for it (the condition is now
+  `core.render_meta(t)['maps']` for a report as for a goal). The `Download GPX` and `View route` actions, the section
+  row's Route item and the bar's Map item stay and lead to the box. `multiday.overview_map` does the same for a
+  multi-day trip with a day track and no render (`Route map, all days`, `... The GPX files of the days are published:
+  use the Download all GPX button.`), and `multiday.build` then writes no map page; with no day track at all the old
+  empty map stays (below). No published trip is in this state; tests/test_report_page.py and tests/test_build_site.py
+  hold it with fixtures, which give a report a placeholder render where they need its map. One part stays whatever the files hold: a
   multi-day or journal page keeps its map section, so with no day track at all it draws an empty map and offers no
   downloads, and the validator warns (`none of the N days has a GPX (days/NN.gpx): the page shows an empty map and
   offers no downloads`). No report lacks a track today (the validator would warn), so tests/test_report_page.py,
@@ -807,7 +822,26 @@ menu button below 1140px.
     `_DURATION` are compiled with `re.ASCII`, as `frontmatter._NUM` is, so a value typed in full-width digits stays the
     text that was typed and gets its field's error.
   - Existing messages are never reworded: the author guides quote them. A new rule names the file, the field and the
-    value and says what is accepted. Two messages were reworded in Phase 4 after the guides had quoted them, each
+    value and says what is accepted. Phase 6 added a consequence to the end of one: `no rendered map (rendered/trips/
+    <slug>/meta.json is missing); run python3 tools/render.py <slug> (until then the page shows "Map not rendered
+    yet")` (not on a `kind: series` trip, whose page keeps its map section), and the guides that quote it were changed
+    with it.
+  - Renders that no longer match the content (Phase 6; `checks._render_staleness`, `checks._site_hash_findings`): for a
+    trip with a track that is not a draft and whose `rendered/trips/<slug>/meta.json` has a `hash` key, a `hash` of
+    null or `osm_failed: true` is the warning `maps were drawn without OpenStreetMap data (no roads, trails or lake
+    names); run python3 tools/render.py <slug> again`, and a hash other than `renderkey.trip_inputs(t)` is `maps were
+    drawn from other inputs (the track, the title, activity, kind, map: or stats changed since): run python3
+    tools/render.py <slug>`. A meta.json without a `hash` key was not written by render.py (test fixtures) and gets
+    nothing; a track that iCloud Drive has offloaded is not read (`checks._offloaded`, as `gpx_problem` does), and gets
+    nothing either. `rendered/site/meta.json` is compared once per run with `renderkey.site_hash(renderkey.site_jobs(
+    trips))`, the trips in `content.load_all`'s order (by folder, then newest first: the order is part of the hash), and
+    gives one warning on `rendered/site/meta.json` (drawn from other inputs, or without OpenStreetMap data), left out
+    when another finding of the run already names `tools/render.py`. `checks._inputs` hashes each trip once per run
+    (`_INPUTS`, emptied at the start of `survey`). On today's content a run takes about 0.4 s with the hashing (341 GPX
+    files). A trip with a track whose `timezone` is `UTC` and that has a `start_time` gets the note `timezone is UTC, so
+    start_time is a UTC clock; set the zone with python3 tools/add_trip.py --retime <slug> --timezone <zone>`. A
+    front-matter line whose ` #` note starts with a letter or a digit (`title: Lap #2`, which reads as `Lap`) is a
+    warning (`checks._cut_notes`, with `frontmatter._strip_comment`); a note written `# like this` is a comment. Two messages were reworded in Phase 4 after the guides had quoted them, each
     because its old text sent the author the wrong way, and the guides were changed with them. The region warning
     ended `run python3 tools/render.py --site`: without `--force`, `render.render_site` returns before it rewrites
     `all_regions` when the set of map jobs is unchanged, as it is for a new region with too few reports for a map. The
@@ -862,6 +896,21 @@ menu button below 1140px.
     nested too deeply to parse is `… not valid JSON (nested too deeply)`, in a search index (`INDEX …`) and in a
     structured-data block (`META <page>: application/ld+json is not valid JSON (nested too deeply)`).
 - build.py (tests/test_build_cli.py drives `main` with stand-ins; tests/test_build_site.py builds a synthetic site):
+  - The preview (Phase 6): `--serve` builds with `LINK` true (photos, maps and GPX symlinked into the output folder,
+    about 3 s, instead of copying 240 MB that stall while iCloud Drive has offloaded half of `rendered/`) unless
+    `--copy` is given; `--copy` with `--link`, and `--open` or `--watch` without `--serve`, are usage errors. CI's
+    `build.py --check` never serves and always copies. `build.serve(port, open_slug, watch_link, server_class, only)`
+    binds 127.0.0.1, opens `build.page_url(port, slug)` (`trips/<slug>/`, or the home page for `--open` alone or for a
+    slug that has no page in the build) with macOS `open` (`build.open_in_browser`), starts the watcher when asked, and
+    ends quietly on Ctrl+C (`stopped`, `server_close`, return 0). `--watch`: `build.watch` looks every
+    `WATCH_EVERY` (1 s) at `build.watch_state()`, the mtimes and sizes of the files under `WATCH_DIRS` (content/,
+    assets/, tools/sitegen/, tools/lib/, rendered/site/; conflict copies, dot-files, `__pycache__` and `.pyc` left out;
+    each `photos/` folder one entry, its own mtime), and when `build.changed()` finds a difference runs `build.rebuild`
+    (the look from before the rebuild stays the baseline, so a file saved during it is built at the next look): a child
+    `build.py --out <OUT> [--link] [--only ...]`, so edits to the page modules and helpers are read again, printing
+    `rebuilt in 2.4s: <path> changed (and N more)` or the child's `ERROR` lines and a `not rebuilt ...; still serving`
+    line (a content error leaves the last good build in place, since the build stops before it touches the folder).
+    The child empties the output folder first, so a reload during a rebuild can be a 404.
   - `build.main(argv=None)` returns the exit status (0 or 1; a usage error is argparse's exit 2) and the file ends with
     `sys.exit(main())`, so tests call it in-process. Order: parse the arguments (a wrong `--only` or an unsafe `--out`
     ends here), `content_errors()`, `build(only=...)`, `check()` under `--check`, the preview server under `--serve`.
@@ -1276,10 +1325,17 @@ While working on the generator:
   counted as broken, so the check prints its first 40 lines, `... N more` and `link check: N problems` with N in the
   thousands (8,761 for `report,home` on 2026-10-10, with the region pages among the modules left out) and ends with
   exit status 1.
-- `python3 tools/build.py --serve` previews the build on http://localhost:8000; `--port N` moves it to another port.
-- `python3 tools/add_trip.py … --no-render` skips the map render. The build still passes and the validator warns `no
-  rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug>`; that command needs the
-  internet and runs on Eric's Mac only. A wrong `--strava-export` folder or an unknown `--strava-id` is a usage error
+- `python3 tools/build.py --serve` previews the build on http://localhost:8000 (linked, as `--link`; `--copy` copies);
+  `--port N` moves it to another port, `--open [SLUG]` opens the page in the browser, and `--watch` builds again
+  whenever a source file is saved (build.py, above).
+- `python3 tools/render.py --status [SLUG ...]` lists, offline, every trip a run would draw and why (`new: no maps drawn
+  yet`, `track changed`, `title/map/stats changed`, `renderer changed`, `OSM missing last time ...`, a goal or report
+  whose render is removed, `draft, skipped`), render folders left by trips that are gone, and `site maps: up to date |
+  stale (...)`; exit status 1 when anything is to draw. It reads content/ and rendered/ only (render.py, below).
+- `python3 tools/add_trip.py … --no-render` skips the map render. The build still passes, the page shows the 'Map not
+  rendered yet' box, and the validator warns `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3
+  tools/render.py <slug> (until then the page shows "Map not rendered yet")`; that command needs the internet and runs
+  on Eric's Mac only. A wrong `--strava-export` folder or an unknown `--strava-id` is a usage error
   with exit status 2, not a traceback: `add_trip.py: error: --strava-export <dir>: no activities.csv in that folder
   (give the unzipped Strava export folder)` and `add_trip.py: error: --strava-id <id>: no such activity in
   <dir>/activities.csv`. The id in the tool's help text is a placeholder.
@@ -1300,6 +1356,26 @@ in about 75 s each, with no test skipped and none marked as an expected failure.
 relied on how 3.12.11 parses a malformed declaration failed there; a test must not depend on the patch release).
 GitHub's runner image has Node.js, so the tests that run a Node harness run there too, and passed there; they skip
 only where `node` is not installed (53 tests then).
+
+render.py (Phase 6; tests/test_render_goals.py, with the drawing and fetching stubbed): `render_trip` and `render_site`
+draw into `<folder>.tmp-<pid>` (`render.drawing_into`; `t['rendered']` points there while the trip is drawn) and swap
+it in only when the drawing, `optimize_images` and meta.json are done: the old folder is renamed `<folder>.old`, the new
+one takes its name, the old one is removed (a folder cannot be renamed over one that has files). An exception, or
+Ctrl+C, leaves the last good render where it was and removes the temp folder; `.gitignore` ignores both names. `main`
+catches an exception per trip (and per `f.result()` with `--jobs`) and for the site maps, prints `! <slug>: <error>`,
+goes on, and returns 1 at the end with `N failed, their last good maps kept: ...`. meta.json carries
+`'inputs': renderkey.input_parts(t)` (`fields`, `files`, `version`, each hashed alone) beside `hash`, so that
+`render.pending_reason` can say which changed. `render.pending_trips(trips, slugs, force)` is the list `main` draws
+(the journal only in the one-at-a-time loop, as before), `render.site_maps_stale(trips, force)` render_site's own test,
+and `render.status(slugs, force, say)` the `--status` report. The hash functions moved to tools/lib/renderkey.py
+unchanged (`render.trip_inputs is renderkey.trip_inputs`), with `renderkey.site_jobs(trips)` (the region and ski map
+jobs, moved out of `render_site`) and `renderkey.goal_has_line(t)` (the test `goal_lines(t)` stood for, without mapkit);
+on 2026-10-24 every stored hash in rendered/ equalled the moved functions' answer. At the end of a run render.py prints
+the cache counts (`geo.CACHE`: tiles and OpenStreetMap answers cached or fetched, the days the answers used were
+fetched) and, while the caches are still in the checkout, a reminder to move them (Render caches, below). A meta.json
+that does not parse counts as no render (`render.stored_hash`) and is drawn again. `render.render_folders(tdir)` is
+what `main`'s clean-up and `--status` take for trip renders under `rendered/trips/`: folders only, no dot-names, and no
+`<slug>.tmp-<pid>` or `<slug>.old`, which belong to a render at work.
 
 `tests/run_orders.py` is a helper, not a test module (discovery never loads it), for checking that the suite does not
 depend on the order of its test modules: nothing that one module registers with `sitegen.core` (the site, the regions
@@ -1403,6 +1479,15 @@ What the test files cover:
     no node); and on every page type one h1, the skip link, alt attributes and no nested interactive elements.
   - `tests/test_archive_page.py`: the map page's anchors (`map/#all-reports`, `map/#other-places`, one
     `map/#region-<slug>` per region) and its share image.
+- Phase 6 (author tools), on synthetic fixtures only: `tests/test_add_trip.py` (add_trip.main end to end: a synthetic
+  GPX and a hand-built FIT, the photo copies stubbed, the `--force` guard, region and sub-type checks, `--day-of` and
+  its end_date, `--retime`, the `.zip` input, `--strava-export --list`, the checklist), `tests/test_strava_export.py`
+  (strava.Export, stats_from, paragraphs, not_imported), `tests/test_fit_reader.py` (the FIT and GPX readers, from a
+  path and from bytes), `tests/test_tracks.py` (guess_tz, local_start, the .zip member rules),
+  `tests/test_geo_cache.py` (the OpenStreetMap cache, the cache folders, nothing made at import), the comment and tab
+  rules in `tests/test_frontmatter.py`, the preview options in `tests/test_build_cli.py`, the temp-folder swap,
+  failures, `--status` and renderkey in `tests/test_render_goals.py`, the stale-render warnings in
+  `tests/test_checks_site_maps.py`, and the not-rendered box in `tests/test_report_page.py`.
 - Phase 5 (region pages), on synthetic fixtures only: `tests/test_region_page.py` holds the rule for which regions get
   a page (`core.region_groups`, `core.region_pages`, `core.region_page_href` and what `core.register_site` records)
   and the page itself (the head, the map panel with `page=True`, the Featured rule, the table for a subset, the other
@@ -1424,6 +1509,31 @@ What the test files cover:
   words of the text below a trip's or a day's front matter stand in a test file, and names the two files and the line,
   not the words. Reword the test's sentence when it fires. Its check of the real `content/` is skipped where that
   folder is absent.
+
+## Render caches
+
+`tools/lib/geo.py` keeps the terrain tiles and the OpenStreetMap (Overpass) answers it downloads in
+`~/Library/Caches/personal-website/tiles/` and `.../osm/` (`geo.CACHE_HOME`; the `TILE_DIR` and `OSM_DIR` environment
+variables still override them). That folder is outside iCloud Drive, which offloads files in `~/Documents` and so made
+every cached file a download again, and outside Time Machine. The folders are made on the first download, never when
+geo.py is imported, so the tests and CI make none. An answer is stored as `{"fetched": "YYYY-MM-DD", "query", "data"}`;
+an answer cached before Phase 6 is the bare answer and is read as it is (dated by its file). A cached answer is used
+for ever; one that does not parse (cut short by a full disk or a killed run) is removed and fetched again
+(`geo.cached_answer`), as a truncated tile always was; one that cannot be read at all (an iCloud placeholder while
+offline: an `OSError`) is kept, and the answer is fetched as if it were not there. To pick up newer OpenStreetMap data, delete `osm/` (or one
+answer) and run `python3 tools/render.py --site --force`: every answer is fetched again (one is about 200 MB and once
+overran the 180 s limit) and roads and labels can change on every map, which the hash check does not see.
+
+Until the old caches are moved, a checkout whose `.cache/tiles` or `.cache/osm` exists while the new folder does not
+keeps using the old one (`geo._cache_dir`), so no render downloads again what is already on disk, and render.py ends
+each run with a reminder. The move is one command, run by hand before (not during) a render:
+
+```bash
+mkdir -p ~/Library/Caches/personal-website && mv .cache/tiles .cache/osm ~/Library/Caches/personal-website/
+```
+
+iCloud Drive downloads each offloaded file before it moves (about 1.3 GB on 2026-10-13, when 206 of the 220 answers and
+1,806 of the 2,524 tiles were offloaded), and the two folders then take about 1.4 GB of local disk.
 
 ## Measuring page loads
 This is the method the Phase 4 loading measurements used, written down so that a later change can be measured the same

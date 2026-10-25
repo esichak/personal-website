@@ -5,12 +5,13 @@
   python3 tools/render.py SLUG [SLUG …]   # just these trips (region maps are refreshed too)
   python3 tools/render.py --site          # only the region / section overview maps
   python3 tools/render.py --force …       # ignore the change check
+  python3 tools/render.py --status [SLUG …]   # what a run would draw and why; offline, draws nothing (exit 1: something to draw)
 
-Needs the internet (AWS Terrain Tiles + OpenStreetMap Overpass); downloads are cached in .cache/.
-Outputs are committed, so the GitHub Action never has to render anything.
+Needs the internet (AWS Terrain Tiles + OpenStreetMap Overpass); downloads are cached in
+~/Library/Caches/personal-website/ (lib/geo.py). Outputs are committed, so the GitHub Action never has to render anything.
+A trip whose render fails keeps its last good maps, the run goes on with the others, and it ends with exit status 1.
 """
 import argparse
-import hashlib
 import json
 import math
 import os
@@ -23,15 +24,15 @@ sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 import fit_reader  # noqa: E402
 import geo  # noqa: E402
-import goals  # noqa: E402
 import gpxroute  # noqa: E402
 import mapkit  # noqa: E402
+import renderkey  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
+# the input hashes (and the rules they need) live in lib/renderkey.py, where the content checks read them too
+from renderkey import VERSION, MIN_REGION_TRIPS, file_hash, trip_inputs, no_route, no_track, journal_parts  # noqa: E402,F401
 
-VERSION = 7  # bump after renderer changes to force a full re-render
 MI, FT = geo.MI, geo.FT
 OUT = os.path.join(ROOT, 'rendered')
-MIN_REGION_TRIPS = 3
 
 REPORT = dict(legend=False, north=False, graticule=False, miles=True, chevrons=False, startend=True, gpsmax=True,
               png_scale=1.25, contour_density=0.75, peaks_max=3, trim=False)
@@ -80,14 +81,6 @@ def load_track(path, key, cat, stats=None):
     if stats and stats.get('high_m'):
         tr.label_max_m = stats['high_m']  # GPS-max label matches the stats strip
     return tr
-
-
-def file_hash(paths):
-    h = hashlib.sha1()
-    for p in paths:
-        if p and os.path.exists(p):
-            h.update(open(p, 'rb').read())
-    return h.hexdigest()
 
 
 def frame_bbox(spec, tracks):
@@ -427,24 +420,6 @@ def render_series(t, meta):
     meta['bbox'] = geo.bbox_of([[(p[0], p[1]) for p in tr.raw] for tr in allt])
 
 
-def trip_inputs(t):
-    files = [t['track']] + [d['track'] for d in t['days']]
-    keys = {k: t['meta'].get(k) for k in ('title', 'activity', 'kind', 'map', 'stats', 'route_shape')}
-    keys['days'] = [(d['id'], d['hut'], d['transfer_before'], d['stats'], d['label']) for d in t['days']]
-    return hashlib.sha1((json.dumps(keys, sort_keys=True, default=str) + file_hash(files) + str(VERSION)).encode()).hexdigest()
-
-
-def no_route(t):
-    """A tick-list goal saved without a GPX (an idea): there is nothing to draw."""
-    return t['kind'] == 'planned' and not t['track']
-
-
-def no_track(t):
-    """A report without a recording: no track.gpx of its own and no day with one. There is nothing to draw, and the site
-    does not show a render left from when it had a track (sitegen.core.has_track)."""
-    return t['kind'] != 'planned' and not (t['track'] or any(d['track'] for d in t['days']))
-
-
 def render_trip(t, force=False):
     if no_route(t) or no_track(t):
         # a render left over from when the goal had a route, or the report a track, would show a line that no longer exists
@@ -454,31 +429,92 @@ def render_trip(t, force=False):
         return False
     mf = os.path.join(t['rendered'], 'meta.json')
     h = trip_inputs(t)
-    if not force and os.path.exists(mf) and json.load(open(mf)).get('hash') == h:
+    if not force and stored_hash(mf) == h:
         return False
-    if os.path.exists(t['rendered']):
-        shutil.rmtree(t['rendered'])
-    set_out(t['rendered'])
-    meta = {'hash': h, 'slug': t['slug'], 'kind': t['kind'], 'maps': {}, 'charts': {}}
+    final = t['rendered']
     t0 = time.time()
-    del OSM_FAILED[:]
-    if t['kind'] == 'series':
-        render_series(t, meta)
-    elif t['days']:
-        render_multi(t, meta)
-    else:
-        render_single(t, meta)
-    set_out(t['rendered'])
-    for f in os.listdir(t['rendered']):
-        if f.endswith('.meta.json'):
-            os.remove(os.path.join(t['rendered'], f))
-    if OSM_FAILED:
-        meta['hash'] = None  # incomplete: the next run retries
-        meta['osm_failed'] = True
-    optimize_images(t['rendered'], meta)
-    json.dump(meta, open(mf, 'w'), indent=1, default=str)
+    with drawing_into(final) as tmp:
+        # render_single / render_multi / render_series write through t['rendered']: point it at the temp folder
+        t['rendered'] = tmp
+        try:
+            set_out(tmp)
+            meta = {'hash': h, 'inputs': renderkey.input_parts(t), 'slug': t['slug'], 'kind': t['kind'], 'maps': {}, 'charts': {}}
+            del OSM_FAILED[:]
+            if t['kind'] == 'series':
+                render_series(t, meta)
+            elif t['days']:
+                render_multi(t, meta)
+            else:
+                render_single(t, meta)
+            set_out(tmp)
+            for f in os.listdir(tmp):
+                if f.endswith('.meta.json'):
+                    os.remove(os.path.join(tmp, f))
+            if OSM_FAILED:
+                meta['hash'] = None  # incomplete: the next run retries
+                meta['osm_failed'] = True
+            optimize_images(tmp, meta)
+            with open(os.path.join(tmp, 'meta.json'), 'w') as fh:
+                json.dump(meta, fh, indent=1, default=str)
+        finally:
+            t['rendered'] = final
     print('rendered %-40s %5.0fs%s' % (t['slug'], time.time() - t0, '  (OSM missing)' if OSM_FAILED else ''))
     return True
+
+
+def stored_hash(mf):
+    """The hash a meta.json records, or None: no file, or one that does not parse (it is drawn again, never a crash)."""
+    try:
+        with open(mf, encoding='utf-8') as fh:
+            return json.load(fh).get('hash')
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def render_folders(tdir):
+    """The trip render folders under rendered/trips/: not a file (.DS_Store), not a dot-name, and not the temp or old folder
+    of a render at work (<slug>.tmp-<pid>, <slug>.old), which belongs to that run."""
+    if not os.path.isdir(tdir):
+        return []
+    return sorted(d for d in os.listdir(tdir) if not d.startswith('.') and '.tmp-' not in d and not d.endswith('.old')
+                  and os.path.isdir(os.path.join(tdir, d)))
+
+
+class drawing_into(object):
+    """with drawing_into(folder) as tmp: draw into <folder>.tmp-<pid>, and only when the block ends without an exception
+    put it in the folder's place (the old folder is renamed to <folder>.old, the new one to the folder, the old one
+    removed: a folder cannot be renamed over a folder that has files). A render that fails half-way, or that Ctrl+C
+    stops, leaves the last good render where it was and no temp folder behind, so the site never gets a page whose map
+    files are half there."""
+
+    def __init__(self, folder):
+        self.folder = folder
+        self.tmp = '%s.tmp-%d' % (folder, os.getpid())
+        self.old = folder + '.old'
+
+    def __enter__(self):
+        if os.path.exists(self.tmp):
+            shutil.rmtree(self.tmp)
+        os.makedirs(self.tmp)
+        return self.tmp
+
+    def __exit__(self, kind, value, tb):
+        try:
+            if kind is None:
+                if os.path.exists(self.old):
+                    shutil.rmtree(self.old)
+                if os.path.exists(self.folder):
+                    os.rename(self.folder, self.old)
+                os.rename(self.tmp, self.folder)
+                if os.path.exists(self.old):
+                    shutil.rmtree(self.old, ignore_errors=True)
+        finally:
+            # whatever stopped the swap (Ctrl+C included): the last good render goes back, the temp folder goes
+            if not os.path.exists(self.folder) and os.path.exists(self.old):
+                os.rename(self.old, self.folder)
+            if os.path.exists(self.tmp):
+                shutil.rmtree(self.tmp, ignore_errors=True)
+        return False
 
 
 # ---------------------------------------------------------------- site maps
@@ -540,22 +576,6 @@ def part_points(t, part, d):
     return content.day_points(d, (part.get('stretches') or {}).get(d['id']), 'content/trips/%s/index.md' % t['slug'])
 
 
-def journal_parts(trips):
-    """{region: [part]}: a journal (kind: series) spans many regions and is filed under none of them; its region_days
-    (content.py) say which days lie where, and those days are drawn on that region's map. A part is the content's own
-    ({'region', 'title', 'key', 'days', 'stretches'}) with the journal under 'trip' and only the days that have a track. A part
-    whose listed days hold no track has no entry."""
-    parts = {}
-    for t in trips:
-        if t['kind'] != 'series':
-            continue
-        for rd in t.get('region_days') or []:
-            days = [d for d in rd['days'] if d['track']]
-            if days:
-                parts.setdefault(rd['region'], []).append(dict(rd, days=days, trip=t))
-    return parts
-
-
 def part_href(t, part):
     """The journal page at the part's first day."""
     return '@@ROOT@@' + t['url'] + '#' + content.day_anchor(part['days'][0]['label'])
@@ -608,43 +628,20 @@ def journal_pins(t, part, frame=None):
 
 
 def render_site(trips, force=False):
-    folder = os.path.join(OUT, 'site')
-    groups = {}
-    for t in trips:
-        if t['kind'] == 'series' or not t['region']:
-            continue
-        if t['kind'] == 'planned' and not (goals.is_active(t.get('goal')) and goal_lines(t)):
-            # region maps show future routes: a completed or archived goal leaves them (the report it led to has its own
-            # line), and an idea without a route, or a file with no line, has no place on a map yet
-            continue
-        groups.setdefault(t['region'], []).append(t)
-    jobs = []
-    mapped = []
-    parts = journal_parts(trips)
-    for region, ts in groups.items():
-        # a report without a track has no line and no start to pin: it stays in the region's list (all_regions below) and
-        # out of the maps
-        ts = [t for t in ts if not no_track(t)]
-        # overview maps only where there is something to overview; one-off trips elsewhere are listed without a map
-        if len(ts) >= MIN_REGION_TRIPS:
-            mapped.append(region)
-            # the region's own map also draws the journal days that lie in it; they are no report of the region, so they
-            # do not count towards MIN_REGION_TRIPS, and the ski maps do not take them
-            jobs.append(('region-' + content.slugify(region), region, ts, [(718, 620, 'desktop'), (390, 480, 'phone')],
-                         parts.get(region, [])))
-        ski = [t for t in ts if t['activity'] == 'ski']
-        if len(ski) >= 2:
-            jobs.append(('ski-' + content.slugify(region), region, ski, [(506, 680, 'desktop'), (390, 480, 'phone')], []))
-    h = hashlib.sha1((str(VERSION) + json.dumps([(j[0], [(t['slug'], t['title'], t['activity'], t['kind'], trip_inputs(t)) for t in j[2]],
-                                                   [(pt['key'], pt['title'], pt['trip']['title'], [d['id'] for d in pt['days']], trip_inputs(pt['trip']))
-                                                    + ((sorted((pt.get('stretches') or {}).items()),) if pt.get('stretches') else ())
-                                                    for pt in j[4]])
-                                                  for j in jobs], sort_keys=True)).encode()).hexdigest()
-    mf = os.path.join(folder, 'meta.json')
-    if not force and os.path.exists(mf) and json.load(open(mf)).get('hash') == h:
+    final = os.path.join(OUT, 'site')
+    # which maps there are and what they draw: renderkey.site_jobs, which the content checks use for the same hash
+    jobs, groups, mapped = renderkey.site_jobs(trips)
+    h = renderkey.site_hash(jobs)
+    mf = os.path.join(final, 'meta.json')
+    if not force and stored_hash(mf) == h:
         return False
-    if os.path.exists(folder):
-        shutil.rmtree(folder)
+    with drawing_into(final) as folder:
+        draw_site(folder, h, jobs, groups, mapped)
+    return True
+
+
+def draw_site(folder, h, jobs, groups, mapped):
+    """Draw every site map into `folder` (a temp folder that render_site swaps in once this has returned)."""
     set_out(folder)
     meta = {'hash': h, 'maps': {}}
     del OSM_FAILED[:]
@@ -694,20 +691,107 @@ def render_site(trips, force=False):
     if OSM_FAILED:
         meta['hash'] = None
     optimize_images(folder, meta)
-    json.dump(meta, open(mf, 'w'), indent=1, default=str)
-    return True
+    with open(os.path.join(folder, 'meta.json'), 'w') as fh:
+        json.dump(meta, fh, indent=1, default=str)
 
 
-def main():
+def pending_reason(t, force=False):
+    """Why a plain run would draw this (non-draft) trip, or None when its maps are up to date: the test render_trip
+    makes, read from content/ and rendered/ only. A trip with nothing to draw is pending only while a render is left
+    from when it had a route or a track (render_trip then removes it)."""
+    if no_route(t) or no_track(t):
+        return ('the %s has no %s now: its old render is removed' % (('goal', 'route') if no_route(t) else ('report', 'track'))
+                if os.path.exists(t['rendered']) else None)
+    if force:
+        return 'forced (--force)'
+    mf = os.path.join(t['rendered'], 'meta.json')
+    if not os.path.exists(mf):
+        return 'new: no maps drawn yet'
+    try:
+        with open(mf, encoding='utf-8') as fh:
+            meta = json.load(fh)
+        stored = meta.get('hash')
+    except (OSError, ValueError, AttributeError):
+        return 'rendered/trips/%s/meta.json cannot be read' % t['slug']
+    if stored is None or meta.get('osm_failed'):
+        return 'OSM missing last time (drawn with terrain only)'
+    if stored == trip_inputs(t):
+        return None
+    had = meta.get('inputs') if isinstance(meta.get('inputs'), dict) else {}
+    now = renderkey.input_parts(t)
+    what = [w for k, w in (('files', 'track changed'), ('fields', 'title/map/stats changed'), ('version', 'renderer changed'))
+            if k in had and had[k] != now[k]]
+    return ', '.join(what) or 'track, title, activity, kind, map: or stats changed'
+
+
+def pending_trips(trips, slugs=(), force=False):
+    """The trips a run would draw (slugs: only these), in the order given: render_trip draws exactly these. Trips with
+    nothing to draw are left out (main clears their old renders on its own)."""
+    return [t for t in trips if (not slugs or t['slug'] in slugs) and not no_route(t) and not no_track(t)
+            and pending_reason(t, force) is not None]
+
+
+def site_maps_stale(trips, force=False):
+    """Why a run would draw the site maps again, or None when they are up to date (render_site's own test)."""
+    if force:
+        return 'forced (--force)'
+    mf = os.path.join(OUT, 'site', 'meta.json')
+    if not os.path.exists(mf):
+        return 'not drawn yet'
+    try:
+        with open(mf, encoding='utf-8') as fh:
+            stored = json.load(fh).get('hash')
+    except (OSError, ValueError, AttributeError):
+        return 'rendered/site/meta.json cannot be read'
+    if stored is None:
+        return 'OSM missing last time (drawn with terrain only)'
+    return None if stored == renderkey.site_hash(renderkey.site_jobs(trips)[0]) else 'a trip on a region or ski map changed'
+
+
+def status(slugs=(), force=False, say=print):
+    """render.py --status: one line per trip a run would draw, and why, then the site maps; fetches nothing and draws
+    nothing. Returns 1 when anything is pending, else 0. Drafts are listed as skipped: render.py never draws one."""
+    try:
+        everything = content.load_all(include_drafts=True)
+    except content.ContentError as ex:
+        say('ERROR %s' % ex)
+        return 1
+    trips = [t for t in everything if not t['draft']]       # content.load_all()'s list, the one a run renders from
+    named = [t for t in everything if not slugs or t['slug'] in slugs]
+    pending = 0
+    for t in named:
+        why = 'draft, skipped (render.py leaves drafts out)' if t['draft'] else pending_reason(t, force)
+        if why:
+            say('%-44s %s' % (t['slug'], why))
+            pending += 0 if t['draft'] else 1
+    for slug in sorted(set(slugs) - {t['slug'] for t in everything}):
+        say('%-44s no such trip (no content/trips/%s/index.md)' % (slug, slug))
+    live = {t['slug'] for t in everything}
+    tdir = os.path.join(OUT, 'trips')
+    for d in ([] if slugs else render_folders(tdir)):
+        if d not in live:
+            say('%-44s no trip any more: its render is removed' % ('rendered/trips/' + d))
+            pending += 1
+    if not pending:
+        say('trips: %s up to date' % ('all %d' % len(trips) if not slugs else ', '.join(t['slug'] for t in named if not t['draft']) or 'nothing'))
+    site = site_maps_stale(trips, force and not slugs)
+    say('site maps: %s' % ('up to date' if site is None else 'stale (%s)' % site))
+    return 1 if pending or site else 0
+
+
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('slugs', nargs='*')
     ap.add_argument('--site', action='store_true', help='only region/section maps')
     ap.add_argument('--force', action='store_true')
     ap.add_argument('--no-site', action='store_true', help='skip region/section maps')
     ap.add_argument('--charts', action='store_true', help='only re-render elevation profiles / speed charts (fast, offline)')
+    ap.add_argument('--status', action='store_true', help='list what a run would draw and why, offline; draws and fetches nothing')
     ap.add_argument('--budget', type=float, help='stop starting new trips after this many seconds (run again to continue)')
     ap.add_argument('--jobs', type=int, default=1, help='render this many trips in parallel (uses fork; shares prefetched OSM)')
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
+    if a.status:
+        return status(a.slugs, a.force)
     trips = content.load_all()
     if a.charts:
         for t in trips:
@@ -724,15 +808,24 @@ def main():
                     os.remove(os.path.join(t['rendered'], f))
             json.dump(meta, open(mf, 'w'), indent=1, default=str)
             print('charts', t['slug'])
-        return
+        return 0
+    failed = []
+
+    def attempt(fn, name, *args):
+        """Run one render; an error is printed and remembered, and the run goes on with the next (its old maps stay)."""
+        try:
+            return fn(*args)
+        except Exception as ex:   # noqa: BLE001 — a failed tile or a bad file must not stop the other trips
+            print('! %s: %s' % (name, ex), flush=True)
+            failed.append(name)
+            return False
     if not a.site:
         t_start = time.time()
         for t in trips:
             if (no_route(t) or no_track(t)) and (not a.slugs or t['slug'] in a.slugs):
                 render_trip(t)   # nothing to draw: only clears a render left from when the goal had a route, or the report a track
-        pending = [t for t in trips if (not a.slugs or t['slug'] in a.slugs) and t['kind'] != 'series' and not no_route(t) and not no_track(t)
-                   and (a.force or not os.path.exists(os.path.join(t['rendered'], 'meta.json'))
-                        or json.load(open(os.path.join(t['rendered'], 'meta.json'))).get('hash') != trip_inputs(t))]
+        # the journal is drawn by the one-at-a-time loop below only, as before
+        pending = [t for t in pending_trips(trips, a.slugs, a.force) if t['kind'] != 'series']
         if len(pending) > 3:
             prefetch_osm(pending)
         if a.jobs > 1 and pending:
@@ -740,36 +833,60 @@ def main():
             from concurrent.futures import ProcessPoolExecutor, FIRST_COMPLETED, wait
             with ProcessPoolExecutor(max_workers=a.jobs, mp_context=mp.get_context('fork')) as ex:
                 todo = list(pending)
-                running = set()
+                running = {}
                 while todo or running:
                     while todo and len(running) < a.jobs and not (a.budget and time.time() - t_start > a.budget):
-                        running.add(ex.submit(render_trip, todo.pop(0), a.force))
+                        t = todo.pop(0)
+                        running[ex.submit(render_trip, t, a.force)] = t['slug']
                     if not running:
                         break
-                    done, running = wait(running, return_when=FIRST_COMPLETED)
+                    done, _ = wait(set(running), return_when=FIRST_COMPLETED)
                     for f in done:
-                        f.result()
+                        attempt(f.result, running.pop(f))
             if todo:
                 print('budget used up; %d trips left — run again to continue' % len(todo))
-                return
-            todo_all = []
+                return 1 if failed else 0
         for t in ([] if a.jobs > 1 else trips):
             if a.slugs and t['slug'] not in a.slugs:
                 continue
             if a.budget and time.time() - t_start > a.budget:
                 print('budget used up; run again to continue')
-                return
-            render_trip(t, force=a.force)
+                return 1 if failed else 0
+            attempt(render_trip, t['slug'], t, a.force)
     if not a.no_site:
-        render_site(trips, force=a.force and (a.site or not a.slugs))
+        attempt(render_site, 'site maps', trips, a.force and (a.site or not a.slugs))
     # drop renders of trips that no longer exist
     live = {t['slug'] for t in content.load_all(include_drafts=True)}
     tdir = os.path.join(OUT, 'trips')
-    for d in (os.listdir(tdir) if os.path.isdir(tdir) else []):
+    for d in render_folders(tdir):
         if d not in live:
             shutil.rmtree(os.path.join(tdir, d))
             print('removed stale render', d)
+    cache_report()
+    if failed:
+        print('%d failed, their last good maps kept: %s. Run python3 tools/render.py again for them.' % (len(failed), ', '.join(failed)))
+        return 1
+    return 0
+
+
+def cache_report():
+    """One line on the downloads behind this run (this process; with --jobs the workers count their own): tiles and
+    OpenStreetMap answers read from the cache or fetched, and the oldest and newest day an answer used was fetched (an
+    answer is never refreshed on its own: geo.overpass)."""
+    c = geo.CACHE
+    if not any(c[k] for k in ('tile_hit', 'tile_miss', 'osm_hit', 'osm_miss')):
+        return
+    dates = sorted(c['osm_dates'])
+    print('caches (%s): tiles %d cached, %d fetched; OpenStreetMap %d cached, %d fetched%s' % (
+        geo.cache_home(), c['tile_hit'], c['tile_miss'], c['osm_hit'], c['osm_miss'],
+        ('; OpenStreetMap as of %s' % dates[0] if dates[0] == dates[-1] else '; OpenStreetMap as of %s to %s' % (dates[0], dates[-1]))
+        if dates else ''))
+    if c['osm_undated']:
+        print('  %d of the OpenStreetMap answers were cached before answers carried a date: dated by their file' % c['osm_undated'])
+    if os.path.join(ROOT, '.cache') in (os.path.dirname(geo.TILE_DIR), os.path.dirname(geo.OSM_DIR)):
+        print('  the caches are still in .cache/ inside the checkout, which iCloud Drive offloads: move them once to %s '
+              '(docs/DEVELOPING.md, "Render caches")' % geo.CACHE_HOME)
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

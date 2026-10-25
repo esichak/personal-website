@@ -253,7 +253,7 @@ class OptionTests(CliFixture):
         os.remove(os.path.join(self.rendered, 'trips', 'ridge-walk', 'meta.json'))
         code, lines = self.lines()
         self.assertEqual(lines[0], 'WARNING content/trips/ridge-walk/index.md: no rendered map (rendered/trips/ridge-walk/meta.json is '
-                                   'missing); run python3 tools/render.py ridge-walk')
+                                   'missing); run python3 tools/render.py ridge-walk (until then the page shows "Map not rendered yet")')
         shutil.rmtree(self.rendered)                      # a content folder on its own: nothing is said about renders
         self.assertEqual(self.lines()[1], [CLEAN])
 

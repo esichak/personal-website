@@ -1226,7 +1226,8 @@ REGIONS = ['Eastern Sierra', 'Alps']   # every region that lists a report on the
 
 class GeneratorTests(unittest.TestCase):
     """A small site built by tools/build.py build() itself. Every root is a temp dir: content.TRIPS_DIR and
-    content.RENDERED (the trips and their rendered folders, which stay empty: no fixture trip is rendered), build.ROOT
+    content.RENDERED (the trips and their rendered folders: the two single-day reports and the multi-day trip with a
+    track get a placeholder render, render(), since a track without one has no map and no full-screen page), build.ROOT
     (a stand-in checkout holding the three asset files the bundles need), build.OUT, core.ROOT and core._SITE_META
     (rendered/site/meta.json, written here with the fixture's regions and no maps), and curation.load_manifest
     (content/home.json)."""
@@ -1283,6 +1284,22 @@ class GeneratorTests(unittest.TestCase):
         write_text(os.path.join(self.trips, 'haute-route', 'days', '02.gpx'), DAY2_GPX)
         write_text(os.path.join(self.trips, 'pacific-crest-trail-2024', 'days', '001.gpx'), JOURNAL_GPX)
         write_text(os.path.join(self.trips, 'someday-ridge', 'track.gpx'), GOAL_GPX)
+        for slug in ('west-couloir', 'basin-loop'):
+            self.render(slug, ('map-wide', 'map-col', 'map-phone'))
+        self.render('haute-route', ('overview-wide', 'overview-col', 'overview-phone'))
+
+    def render(self, slug, names):
+        """A placeholder render folder for the trip, as tools/render.py leaves one: meta.json naming the maps, each map's
+        inline fragment, its image and its base layer (empty files: the build copies them, the check finds them)."""
+        folder = os.path.join(self.root, 'rendered', 'trips', slug)
+        os.makedirs(folder, exist_ok=True)
+        meta = {'hash': '', 'maps': {}, 'charts': {}}
+        for name in names:
+            meta['maps'][name] = {'w': 718, 'h': 400, 'png': name + '.webp', 'base': name + '.base.svg'}
+            write_text(os.path.join(folder, name + '.svg.html'), '<svg width="718" height="400" viewBox="0 0 718 400"></svg>')
+            for f in (name + '.webp', name + '.base.svg'):
+                write_text(os.path.join(folder, f), '')
+        write_text(os.path.join(folder, 'meta.json'), json.dumps(meta))
 
     def generate(self):
         """build.build() into the temp output folder; returns its pages."""
@@ -1340,7 +1357,8 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(self.sc.check(self.out, self.trips), [])
         self.assertFalse(os.path.exists(os.path.join(self.out, 'trips', 'no-track', 'no-track.gpx')))
         # contract 10.2: a report without a track has no map section and no full-screen map page; the reports with a
-        # track keep theirs, rendered or not (no fixture trip is rendered), and so does the tour without day tracks
+        # track and a render keep theirs (Phase 6: a track without a render has none), and so does the tour without day
+        # tracks, whose page keeps its empty map
         out = self.sc.read(self.out)
         self.assertEqual(set(out.pages), {p.url + 'index.html' if (p.url == '' or p.url.endswith('/')) else p.url
                                           for p in pages if not p.url.endswith('.json')})

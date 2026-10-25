@@ -68,7 +68,8 @@ page links to it:
 
 - the same 341 GPX files, as `track.gpx` and `days/NN.gpx`;
 - `strava_id` in the front matter of 340 of the 352 trip and day files. No page shows it (it is in none of the
-  site's text files) and nothing but the audit reads it;
+  site's text files) and nothing but the audit and `add_trip.py --strava-export --list` (which leaves out the
+  activities it names) reads it. `add_trip.py` itself writes no `strava_id` line;
 - `start_time` in 340 of them and `timezone` in 167;
 - `rendered/trips/<slug>/meta.json` for 168 trips, each with the start point and the end point written out as
   numbers. The build does not copy these files to the site;

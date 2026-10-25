@@ -17,3 +17,8 @@ rendered/**/* [0-9][0-9][0-9]
 assets/**/* [0-9].*
 assets/**/* [0-9][0-9].*
 assets/**/* [0-9][0-9][0-9].*
+
+# tools/render.py draws into <folder>.tmp-<pid> and swaps it in when the drawing is complete (the old folder is
+# <folder>.old for a moment); a run that was killed outright can leave either behind.
+rendered/**/*.tmp-*
+rendered/**/*.old

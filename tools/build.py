@@ -2,7 +2,8 @@
 """Build the static site into _site/ (stdlib only; this is what the GitHub Action runs).
 
   python3 tools/build.py            # build
-  python3 tools/build.py --serve    # build, then serve http://localhost:8000
+  python3 tools/build.py --serve    # build (photos, maps and GPX linked, not copied), then serve http://localhost:8000
+  python3 tools/build.py --serve --open SLUG --watch   # ... open trips/SLUG/ in the browser, rebuild on every change
   python3 tools/build.py --check    # build, then check the built site: links, images, anchors, metadata, feed, GPX
   python3 tools/build.py --out DIR --only report,home --link   # fast dev build of some page modules
 """
@@ -373,15 +374,145 @@ def unsafe_out(path):
     return None
 
 
+# what --watch looks at: the sources a page is made from, and only the shared maps of rendered/ (a trip's own renders
+# are thousands of files, about half of them offloaded by iCloud Drive; stat() leaves an offloaded file where it is)
+WATCH_DIRS = ('content', 'assets', os.path.join('tools', 'sitegen'), os.path.join('tools', 'lib'), os.path.join('rendered', 'site'))
+WATCH_EVERY = 1.0    # seconds between two looks
+
+
+def watch_state(root=None):
+    """{path: (mtime_ns, size)} of every file --watch looks at, conflict copies left out. A trip's photos/ folder counts as
+    one entry, its own mtime, which changes when a photo is added, removed or renamed: its hundreds of image files are
+    not looked at one by one."""
+    root = root or ROOT
+    state = {}
+    for d in WATCH_DIRS:
+        for dirpath, dirnames, filenames in os.walk(os.path.join(root, d)):
+            # __pycache__: the child build writes bytecode there, which is no change to the site
+            dirnames[:] = sorted(n for n in dirnames if not n.startswith('.') and n != '__pycache__' and not sitecheck.conflict_copy(n))
+            if os.path.basename(dirpath) == 'photos':
+                try:
+                    st = os.stat(dirpath)
+                    state[dirpath] = (st.st_mtime_ns, 0)
+                except OSError:
+                    pass
+                dirnames[:] = []
+                continue
+            for n in filenames:
+                if n.startswith('.') or n.endswith('.pyc') or sitecheck.conflict_copy(n):
+                    continue
+                p = os.path.join(dirpath, n)
+                try:
+                    st = os.stat(p)
+                except OSError:
+                    continue          # gone between the listing and the look
+                state[p] = (st.st_mtime_ns, st.st_size)
+    return state
+
+
+def changed(before, after):
+    """The paths that are new, gone or different between two watch_state() answers, sorted."""
+    return sorted(p for p in set(before) | set(after) if before.get(p) != after.get(p))
+
+
+def rebuild(link, why='', only=None):
+    """One rebuild for --watch, in a child process: it reads the content again and also the page modules and helpers
+    in tools/, which this process imported once and would keep as they were. Prints one line, or the ERROR lines of a
+    content mistake; returns True when the build went through. The child empties the output folder first (build()), so
+    a page reloaded during the two seconds of a rebuild can be a 404: reload again."""
+    import subprocess
+    cmd = [sys.executable, os.path.abspath(__file__), '--out', OUT] + (['--link'] if link else []) + \
+        (['--only', ','.join(sorted(only))] if only else [])
+    t0 = time.time()
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode == 0:
+        print('rebuilt in %.1fs%s' % (time.time() - t0, (': ' + why) if why else ''), flush=True)
+        return True
+    errs = [ln for ln in r.stderr.splitlines() if ln.startswith('ERROR')]
+    for ln in errs or r.stderr.strip().splitlines()[-5:]:
+        print(ln, flush=True)
+    print('not rebuilt%s: %s; still serving (fix the file and save it again)'
+          % ((' (%s)' % why) if why else '',
+             'the content check stopped it, and the preview is the last good build' if errs else 'the build stopped'), flush=True)
+    return False
+
+
+def watch(link, every=WATCH_EVERY, stop=None, state=None, only=None):
+    """--watch: look every `every` seconds, rebuild when something changed. stop: a threading.Event that ends the loop
+    (the tests'); the server's thread is a daemon, so Ctrl+C ends it with the process."""
+    before = watch_state() if state is None else state
+    while not (stop and stop.is_set()):
+        time.sleep(every)
+        now = watch_state()
+        diff = changed(before, now)
+        if diff:
+            rebuild(link, '%s changed%s' % (os.path.relpath(diff[0], ROOT), (' (and %d more)' % (len(diff) - 1)) if len(diff) > 1 else ''), only)
+        # the look from before the rebuild stays the baseline: a file saved while the child was building differs from
+        # it at the next look, and is built then
+        before = now
+
+
+def page_url(port, slug):
+    """The address --open opens: the home page, or trips/<slug>/ (a report, a journal or a goal page)."""
+    return 'http://localhost:%d/%s' % (port, ('trips/%s/' % slug) if slug else '')
+
+
+def open_in_browser(url):
+    """macOS `open`; elsewhere (or without it) the address is only printed."""
+    import subprocess
+    try:
+        subprocess.Popen(['open', url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass
+
+
+def serve(port, open_slug=None, watch_link=None, server_class=None, only=None):
+    """Serve OUT on 127.0.0.1:<port> until Ctrl+C, which ends it quietly. open_slug: None, or '' for the home page, or a
+    slug, opened once the server is listening. watch_link: None for no --watch, else whether rebuilds link."""
+    import functools
+    import http.server
+    import threading
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=OUT)
+    server = (server_class or http.server.ThreadingHTTPServer)(('127.0.0.1', port), handler)
+    print('serving http://localhost:%d  (Ctrl+C to stop)' % port, flush=True)
+    if open_slug is not None:
+        if open_slug and not os.path.exists(os.path.join(OUT, 'trips', open_slug, 'index.html')):
+            print('  no page trips/%s/ in this build (a draft, or a misspelt folder name): opening the home page' % open_slug)
+            open_slug = ''
+        url = page_url(port, open_slug)
+        print('  opening %s' % url, flush=True)
+        open_in_browser(url)
+    if watch_link is not None:
+        print('  watching content/, assets/, tools/ and rendered/site/: a saved change rebuilds the site', flush=True)
+        threading.Thread(target=watch, args=(watch_link,), kwargs={'only': only}, daemon=True).start()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print('\nstopped')
+    finally:
+        server.server_close()
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--serve', action='store_true')
+    ap.add_argument('--serve', action='store_true', help='serve the build on http://localhost:<port>; links photos, maps and '
+                                                         'GPX instead of copying them (--copy to copy)')
+    ap.add_argument('--open', nargs='?', const='', metavar='SLUG', help='with --serve: open the home page, or trips/SLUG/, '
+                                                                        'in the browser once the server is up')
+    ap.add_argument('--watch', action='store_true', help='with --serve: rebuild whenever a file under content/, assets/, '
+                                                         'tools/sitegen/, tools/lib/ or rendered/site/ changes')
     ap.add_argument('--check', action='store_true')
     ap.add_argument('--port', type=int, default=8000)
     ap.add_argument('--out', help='output folder (default _site/)')
     ap.add_argument('--only', help='comma-separated page modules to build (default: all)')
     ap.add_argument('--link', action='store_true', help='symlink photos/maps/GPX instead of copying (dev builds)')
+    ap.add_argument('--copy', action='store_true', help='with --serve: copy photos, maps and GPX as the published build does')
     a = ap.parse_args(argv)
+    if (a.open is not None or a.watch) and not a.serve:
+        ap.error('--open and --watch go with --serve')
+    if a.copy and a.link:
+        ap.error('--copy and --link are opposites; give one')
     only = None
     if a.only is not None:
         only = {n.strip() for n in a.only.split(',') if n.strip()}
@@ -395,7 +526,9 @@ def main(argv=None):
         if why:
             ap.error('--out %s: a build empties its output folder first, and %s' % (a.out, why))
         OUT = os.path.abspath(a.out)
-    LINK = a.link
+    # a preview links photos, maps and GPX into the output folder (about 3 s) instead of copying 240 MB of them, which
+    # stalls for minutes when iCloud Drive has offloaded half of rendered/; CI's build (plain --check) always copies
+    LINK = a.link or (a.serve and not a.copy)
     if content_errors():
         return 1
     try:
@@ -407,11 +540,7 @@ def main(argv=None):
     if a.check and check():
         return 1
     if a.serve:
-        import functools
-        import http.server
-        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=OUT)
-        print('serving http://localhost:%d  (Ctrl+C to stop)' % a.port)
-        http.server.ThreadingHTTPServer(('127.0.0.1', a.port), handler).serve_forever()
+        return serve(a.port, a.open, LINK if a.watch else None, only=only)
     return 0
 
 

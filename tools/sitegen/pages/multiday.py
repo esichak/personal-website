@@ -380,6 +380,12 @@ def fullscreen(t):
 
 def overview_map(t, here, meta):
     maps = meta.get('maps', {})
+    if not maps and has_gpx(t):
+        # the days' tracks are there but render.py has not drawn them yet: say so (report.not_rendered_section) rather
+        # than show an empty map with its key and caption. Without any day track the empty map stays (the validator
+        # warns about that case on its own)
+        return report.not_rendered_section('Route map, all days', 'Map not rendered yet. The GPX files of the days are '
+                                           'published: use the Download all GPX button.', stats_note('rep-note-ph'))
     desk = key_items(t, ['overview-wide', 'overview-col'], 'Route by day')
     phone = key_items(t, ['overview-phone'])
     cls = 'map--report' + ('' if 'overview-wide' in maps else ' map--nowide')
@@ -736,9 +742,11 @@ def chapter(t, here, meta, d):
     xfer = ('<p class="mul-xfer"><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true">%s</svg>Road transfer before this day</p>'
             % core.KEY_SYMBOLS['transfer'][1]) if d.get('transfer_before') else ''
     prose = ('<div class="prose t-body mul-prose">%s</div>' % markdown.to_html(d['body_md'], heading_shift=3)) if d['body_md'] else ''
-    # the transfer note comes first: it happened before the day, so it reads before the day's map
-    main = ('<div class="mul-main">%s<div class="mul-dmap-w">%s%s%s</div>%s%s</div>'
-            % (xfer, mp, day_map_keys(t, d), cap, day_profile(t, here, meta, d), prose))
+    # the transfer note comes first: it happened before the day, so it reads before the day's map. A trip whose maps are
+    # not drawn yet (the overview's 'Map not rendered yet' box says so) has no day map, key or caption either
+    dmap = '' if (not meta.get('maps') and has_gpx(t)) else '<div class="mul-dmap-w">%s%s%s</div>' % (mp, day_map_keys(t, d), cap)
+    main = ('<div class="mul-main">%s%s%s%s</div>'
+            % (xfer, dmap, day_profile(t, here, meta, d), prose))
     return ('<section class="mul-day" data-day="%d" aria-labelledby="day-%d-h"><div class="wrap mul-day-in" id="day-%d">%s%s%s%s</div></section>'
             % (k, k, k, rail, main, photo_rows(t, here, d), day_pager(t, here, d)))
 
@@ -803,5 +811,8 @@ def build(site):
     out = []
     for t in site['trips']:
         if t['kind'] == 'multi-day' and t['days']:
-            out += [page(t, site), fullscreen(t)]
+            out.append(page(t, site))
+            # no full-screen page without a rendered overview (the phone map's button that leads to it needs one too)
+            if core.render_meta(t).get('maps') or not has_gpx(t):
+                out.append(fullscreen(t))
     return out

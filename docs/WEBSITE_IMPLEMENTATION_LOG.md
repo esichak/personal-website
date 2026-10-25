@@ -1181,3 +1181,128 @@ no such day.
 | Browser, local build, Map page | with the pointer on the route, 7 lines are picked out and they are the trail alone; the row reads 7 journal days and 165 mi; the route has no pin |
 
 Not run: Safari, Firefox, a real phone.
+
+## Phase 6 - Author tools (2026-10-24)
+
+The first phase of the second plan (`docs/personal-website-improvement-plan-2.md`, section 6, and the Phase 6 prompt
+of `docs/claude-code-website-prompt-2.md`), built on branch `phase-6-author-tools` from `main` at `1cb9cf2`. It needed
+no decision from Eric. Everything is in `tools/`, `tests/` and the guides; the one page change, the box for a map that
+is not drawn yet, reaches no published trip. The disk had about 21 GB free throughout, under the plan's 30 GB line:
+builds were linked into the session's scratch folder, and no worktree or copy of the checkout was made.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/lib/frontmatter.py` | `_strip_comment`: a `#` after a space ends the value outside quotes and `[...]` (YAML's rule); a quote opens a quoted value only where a value starts, so an apostrophe in plain text does not hide a note. `loads(text, first_line=1)` refuses a line indented with a tab (`line N is indented with a tab; use spaces`, N as the file numbers it). |
+| `tools/add_trip.py` | `main(argv)` returns the exit status. `force_refusal` (`--force` only over an untouched import), `--subtype` limited to the four sub-types and a Strava sub-type outside them refused, `region_problem` (a second spelling of an existing region refused, a new name announced), `day_photo_count` (.webp and .jpg, copies not counted), `bump_end_date`, `rewrite_keys` (the frontmatter round trip, refused where it would change more), `--retime`, the `.zip` input, `--strava-export --list`, the zone it used printed, a numbered checklist, `render.py --status` after a render (whose exit statuses decide the checklist's draw step), one usage line for an unreadable track or zone. |
+| `tools/lib/tracks.py` | `read` takes a `.zip` holding one `.fit`, `.fit.gz` or `.gpx` (`zip_member`: read from memory, 50 MB limit, several or none refused by name). `guess_tz` adds America/Phoenix (before Los Angeles), America/Chicago and America/New_York. |
+| `tools/lib/fit_reader.py` | `read_fit_bytes`, `read_gpx_bytes`, `read_track_bytes`; `.gz` read in any case and bounded (`GZ_MAX`); GPX bytes must be UTF-8 and hold no `<!` declaration. |
+| `tools/lib/strava.py` | `Export.not_imported(known_ids)`, newest first, unreadable rows counted in `skipped`; short rows read as empty cells. |
+| `tools/lib/renderkey.py` (new) | `VERSION`, `file_hash`, `trip_inputs`, `input_parts`, `no_route`, `no_track`, `journal_parts`, `site_jobs`, `site_hash`, `goal_has_line`, moved out of `render.py` without a change to any hash. |
+| `tools/render.py` | Imports those; `drawing_into` (temp folder, swap, old render kept on any failure or Ctrl+C); `main(argv)` goes on past a failed trip or the site maps and returns 1; `pending_reason`, `pending_trips`, `site_maps_stale`, `status` (`--status`); `inputs` in meta.json; `stored_hash` (a meta.json that does not parse is drawn again); `render_folders` (no dot-names, files, temp or old folders); `cache_report`. |
+| `tools/lib/geo.py` | Caches in `~/Library/Caches/personal-website/{tiles,osm}` (`CACHE_HOME`; the old `.cache/` folders kept in use until moved), made on the first download, not at import; `cached_answer` (an answer that does not parse is removed and fetched again, one that cannot be read is kept); new answers stored with their date; `CACHE` counts. |
+| `tools/lib/checks.py` | `_render_staleness` and `_site_hash_findings` (maps drawn from other inputs, or without OpenStreetMap data), `_offloaded`, `_inputs` (one hash per trip and run), `_cut_notes` (a note that looks like part of a value), the UTC note, the consequence added to the `no rendered map` warning. |
+| `tools/build.py` | `--serve` links unless `--copy`; `--open [SLUG]`, `--watch` (`watch_state`, `changed`, `rebuild` in a child process, `watch`), `serve` (quiet Ctrl+C), `page_url`, `open_in_browser`. |
+| `tools/sitegen/pages/report.py`, `multiday.py` | `report.not_rendered_section` (the goal page's box, now shared); a single-day report or a multi-day trip with a track and no render gets it in `#map`, no key rows, caption or map page, and the day chapters of such a trip no map, key or caption. |
+| `.gitignore` | `rendered/**/*.tmp-*`, `rendered/**/*.old`. |
+| `tests/` | New: `test_add_trip.py`, `test_strava_export.py`, `test_fit_reader.py`, `test_tracks.py`, `test_geo_cache.py`. Extended: `test_frontmatter.py`, `test_build_cli.py`, `test_render_goals.py`, `test_checks_site_maps.py`, `test_checks_more.py`, `test_report_page.py`. Changed to the new rule (a track without a render has no map and no map page): `test_report_page.py`, `test_metadata.py`, `test_sitecheck.py`, `test_build_site.py`, `test_ticklist_page.py`, whose fixtures now give a report a placeholder render where they need its map; the warning's new text in `test_checks.py` and `test_validate_cli.py`. |
+| `ADDING-TRIPS.md`, `README.md`, `docs/CONTENT_GUIDE.md`, `docs/DEVELOPING.md`, `docs/TICK_LIST_GUIDE.md`, `docs/PRIVACY_NOTES.md` | The new options and commands, the preview, the error and warning rows, the rules for developers, the Render caches section, the test list. |
+
+### Behaviour
+
+- **Front matter.** `title: Rose Knob  # a note` is the title `Rose Knob`; `#` in quotes, in `[...]` or with no space
+  before it stays. A tab-indented line stops the build naming the file and the line. A `#` that looks like part of
+  the value (`Lap #2`) is a warning. All 352 index.md and day files parse exactly as before.
+- **add_trip.py.** `--force` over a folder with a write-up, a photo description, a line an import never writes, day
+  files or a `goal.json` exits 1 and writes nothing, with a message that says what it would erase and how to get the
+  old folder back. A second spelling of a region exits 2 naming the spelling to use. `--day-of` counts the trip's day
+  photos and moves an earlier `end_date:` to the new day. `--retime SLUG [--timezone Z]` rewrites timezone, date and
+  start time from the trip's own track, offline. A Garmin `.zip` is read as it is. `--strava-export DIR --list` lists
+  what is on no trip. The run ends with a numbered checklist.
+- **Preview.** `build.py --serve --open SLUG --watch` builds linked in about 2 s, opens the page, rebuilds about 2 s
+  after a save, keeps the last good build through a content error, and stops quietly on Ctrl+C.
+- **render.py.** A failed trip keeps its last good maps, the run goes on, exit 1. `--status` lists, offline, what a run
+  would draw and why. A corrupt cached OpenStreetMap answer is fetched again. The caches move out of iCloud Drive once
+  Eric moves the old folders.
+- **validate.py.** Warns when a trip's maps, or the region and ski maps, were drawn from other inputs or without
+  OpenStreetMap data; notes a trip whose time zone is UTC.
+- **Pages.** A report or a multi-day trip with a track and no render shows "Map not rendered yet" in place of an empty
+  map with a key and a caption, and has no full-screen map page. No published trip is in that state: two builds of
+  today's content, before and after the phase, differ in no file.
+
+### Where the work departs from the prompt, and documented rules changed
+
+- **The cache folders** default to `~/Library/Caches/personal-website/`, but a checkout that still has `.cache/tiles`
+  or `.cache/osm` and no new folder keeps using the old one, and render.py says so at the end of a run. Without that,
+  the first render after the change would have downloaded every tile and answer again (about 1.3 GB, one answer about
+  200 MB) and drawn the region maps from newer OpenStreetMap data.
+- **`--force`** also refuses a `kind:`, `end_date:`, `journal_highlights:` or `conditions:` line, day files and a
+  `goal.json`: the import rewrites index.md from the track, so a goal or a multi-day folder would lose its kind.
+- **Strava sub-types** the site lacks (Canoeing, Rowing, Snowshoe, Swimming) are refused, not added to
+  `content.OTHER_SUBTYPES`: a new sub-type is a word, an icon and a menu row on the site, a choice for Eric.
+- **The site maps' hash** is checked now (the prompt allowed leaving it for Phase 15): `site_jobs` moved with it.
+- **`--watch`** rebuilds in a child process, so edits to the page modules and helpers take effect without a restart.
+- **`strava_id`.** `add_trip.py --strava-id` writes no `strava_id:` line, as before, so an activity imported that way
+  stays on the `--list`. Writing one would add a public line to every new trip, which `docs/PRIVACY_NOTES.md`,
+  decision 4, leaves to Eric; the guide says how to add it by hand.
+- **Rules changed.** `docs/DEVELOPING.md` "Existing messages are never reworded" (Content checks): the `no rendered map`
+  warning gained a consequence at its end, and every guide that quotes it was changed with it. `docs/DEVELOPING.md`
+  "No file, no control": a report with a track and no render no longer keeps an empty map section and its map page.
+  `docs/CONTENT_GUIDE.md` 7.2 says the same for the author. `ADDING-TRIPS.md` step 3's warning about a `#` note was
+  removed (the parser follows YAML now), and its multi-day and PCT steps no longer ask Eric to move `end_date:` by hand.
+
+### Review
+
+Three agents wrote the new tests from a written contract while the code was finished, and a fourth reviewed the
+diff of `tools/` read-only. Their findings, all fixed with tests: `--watch` missed a save made during a rebuild; a
+folder of zones (`--timezone America`) crashed on Python 3.9; the checklist took an old meta.json for a drawn map; a
+damaged track file (bad XML in a .zip, a broken .gz, a folder) ended in a traceback; the Strava sub-type check fired
+for `--day-of`; an unreadable (offloaded) OpenStreetMap answer would have been deleted; `.DS_Store` and the temp
+folders of another render were taken for trip renders; a meta.json that does not parse stopped every run; UTF-16 GPX
+and a gzip that unpacks without end got past the new .zip path's guards; `.FIT.GZ` in capitals read as empty; an
+unrendered multi-day trip's day chapters kept key rows; `title: Lap #2` lost its `#2` without a word.
+
+### Checks actually run
+
+All on the working tree of 2026-10-24 (the final state, after the review's fixes), Python as named.
+
+| Check | Result |
+| --- | --- |
+| `/usr/bin/python3 -W error -m unittest discover -s tests` (3.9.6) | 2,754 tests, OK, none skipped, 72 s (2,481 before the phase) |
+| `python3.12 -W error -m unittest discover -s tests` (3.12.11) | 2,754 tests, OK, none skipped, 65 s |
+| `python3 tests/run_orders.py --reverse` | 2,754 tests, OK; no region page left registered |
+| `node tests/*_harness.js` | maplist 14, series 49, ticklist 91, trips 145 checks passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 357 pages, 168 trips, link check OK, 3.2 s |
+| `diff -rq` of that build against a `--link` build of `1cb9cf2` made before any edit | no file differs |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without `goal.json`), 468 notes (467 before: the UTC note); no stale-map warning; about 0.4 s |
+| Every stored hash in `rendered/` against `renderkey` and against `1cb9cf2`'s `render.py` | 168 trip hashes and the site hash equal on both |
+| `python3 tools/render.py --status`, `curl` on PATH replaced by a script that fails and logs | `trips: all 168 up to date`, `site maps: up to date`, exit 0, curl never called, no cache folder made |
+| `python3 tools/validate.py --content <fixture>` with a wrong, then a null hash | the two new warnings, one each |
+| `build.py --serve --open matterhorn-peak-west-couloir --watch --out <scratch>`, by hand (`open` replaced by a script that logs) | serving 2.1 s after the command; `open` given `/trips/matterhorn-peak-west-couloir/`; photos linked; a save rebuilt 2.4 s later (`rebuilt in 1.8s`); a content error kept the last build serving (HTTP 200) and the fix rebuilt; Ctrl+C: `stopped`, exit 0, no traceback |
+| `add_trip.py <synthetic gpx> --slug matterhorn-peak-west-couloir --force ...` on the real trip | refused with exit 1 (`has a write-up, 7 photo descriptions and the beta, map, cover_photo, cover_focal_y and featured lines; --force would erase them ...`); index.md and track.gpx byte-identical; `content/` clean |
+| `add_trip.py --strava-export "<the current export>" --list` | 381 activities not on the site, of 721 |
+| `python3 tools/privacy_audit.py` | runs; reads no track in a guessed zone, so the wider `guess_tz` changes none of its counts |
+
+Not run: `--serve --copy` by hand (it copies about 240 MB, much of it offloaded by iCloud; the unit tests pin that
+`--copy` copies); a real render (render.py needs the internet and rewrites committed files; its new paths are tested
+with the drawing stubbed); a real Garmin `.zip` (synthetic archives only); the suite with the deploy runner's
+`html.parser` (CPython 3.12.15), which the review gate before a publication runs; a browser look at the new box (no
+published page has it, and the prompt asks for no screenshot).
+
+### Remaining issues and author inputs
+
+- **The cache move**, once, before a render and while the disk has room (about 1.4 GB afterwards):
+  `mkdir -p ~/Library/Caches/personal-website && mv .cache/tiles .cache/osm ~/Library/Caches/personal-website/`.
+  Until then renders keep using `.cache/` in iCloud Drive and say so.
+- **The workspace `../CLAUDE.md`** (outside the repository) still says render.py caches in `.cache/`; after the move
+  that line, and the iCloud gotcha's mention of the caches, can be shortened.
+- **Time zones.** One published trip carries `timezone: UTC` (`validate.py -v` names it); the trips to correct are
+  Eric's private list from `docs/IMPLEMENTATION_REPORT.md` 12.12, and `add_trip.py --retime <slug> --timezone <zone>`
+  does each in one command. Nothing was re-timed.
+- **Strava backfill.** `--list` finds 381 activities of the current export on no trip or day: the pool for later
+  imports. Whether `--strava-id` should write a `strava_id:` line (so an import leaves the list) is Eric's call
+  (`docs/PRIVACY_NOTES.md`, decision 4).
+- **Plan 2** counts 467 validator notes in Phase 9; there are 468 now (the UTC note).
+- **Interface copy for Eric to read:** "Map not rendered yet. The GPX file is published: use the Download GPX button."
+  and the multi-day variant "... The GPX files of the days are published: use the Download all GPX button."

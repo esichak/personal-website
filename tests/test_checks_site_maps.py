@@ -5,6 +5,11 @@ rendered/site/; rendered/site/meta.json lists the trips each map draws. Drafting
 its track.gpx takes its page, its download and its own map off the site at the next build, but its line stays on those
 shared maps until they are rendered again, and the build and its check pass meanwhile. The validator says so.
 Everything here is synthetic and lives in a temp dir.
+
+Phase 6 (RenderHashTests, SiteHashTests): render.py stores in rendered/trips/<slug>/meta.json and rendered/site/meta.json
+the hash of what it drew from (lib/renderkey.py), and the validator compares them with the trips as they are now. The
+fixture writes those files with renderkey's own functions, the site hash over the live trips in content.load_all's
+order (by folder, then newest first), so a clean fixture has no warning at all and each test breaks one thing.
 """
 import datetime
 import importlib
@@ -13,10 +18,13 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 import helpers
 
 checks = importlib.import_module('checks')
+content = importlib.import_module('content')
+renderkey = importlib.import_module('renderkey')
 
 TODAY = datetime.date(2026, 10, 10)
 GPX = ('<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="t" xmlns="http://www.topografix.com/GPX/1/1">\n'
@@ -142,6 +150,180 @@ class SiteMapTests(unittest.TestCase):
         shutil.rmtree(self.rendered)
         got = checks.run(self.trips, self.home, self.rendered, TODAY)
         self.assertEqual([f['text'] for f in got if 'site maps' in f['text']], [])
+
+
+# ---------------------------------------------------------------- Phase 6: maps drawn from other inputs
+
+INDEX = 'content/trips/%s/index.md'
+SITE_FILE = 'rendered/site/meta.json'
+OTHER_INPUTS = ('maps were drawn from other inputs (the track, the title, activity, kind, map: or stats changed since): run '
+                'python3 tools/render.py %s')
+NO_OSM = ('maps were drawn without OpenStreetMap data (no roads, trails or lake names); run python3 tools/render.py %s '
+          'again')
+SITE_OTHER = ('the region and ski maps were drawn from other inputs (a trip on one of them changed, was added or was taken '
+              'out since); run python3 tools/render.py --site and commit rendered/site/')
+SITE_NO_OSM = ('the region and ski maps were drawn without OpenStreetMap data; run python3 tools/render.py --site again and '
+               'commit rendered/site/')
+GPX_MOVED = GPX.replace('lat="10.002"', 'lat="10.003"')     # the same track with one point moved
+
+
+def warned(file, msg):
+    """A warning as found() gives it: (file, text), the text starting with the file it is about."""
+    return (file, '%s: %s' % (file, msg))
+
+
+class RenderHashFixture(unittest.TestCase):
+    """Three reports in one region (so a region map) with a track each, every one drawn as render.py leaves it:
+    rendered/trips/<slug>/meta.json with the hash and the inputs of the trip as it is, and rendered/site/meta.json with
+    the hash of the site maps. Folder order is not date order, so a site hash taken in any other order than
+    content.load_all's does not match."""
+    maxDiff = None
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = os.path.realpath(tmp.name)
+        self.trips = os.path.join(self.root, 'content', 'trips')
+        self.rendered = os.path.join(self.root, 'rendered')
+        self.home = os.path.join(self.root, 'content', 'home.json')
+        os.makedirs(self.trips)
+        self.write(self.home, json.dumps({'featured_slugs': []}))
+        for slug, day in (('syn-alpha', '2025-06-15'), ('syn-beta', '2025-07-01'), ('syn-gamma', '2025-06-15')):
+            self.trip(slug, date=day)
+            self.drawn(slug)
+        self.site_drawn()
+
+    def write(self, path, text):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as fh:
+            fh.write(text)
+
+    def trip(self, slug, gpx=GPX, **meta):
+        meta.setdefault('title', slug.replace('-', ' ').title())
+        meta.setdefault('region', 'Synthetic Range')
+        folder = helpers.make_trip(self.trips, slug, **meta)
+        self.write(os.path.join(folder, 'track.gpx'), gpx)
+        return folder
+
+    def live(self):
+        """The trips as content.load_all gives them: no drafts, by folder, then newest first."""
+        return helpers.load_dir(self.trips)
+
+    def meta_file(self, slug):
+        return os.path.join(self.rendered, 'trips', slug, 'meta.json')
+
+    def drawn(self, slug, **changes):
+        """rendered/trips/<slug>/meta.json as render.py writes it for the trip as it is now, with `changes` applied."""
+        t = content.load_trip(os.path.join(self.trips, slug))
+        meta = {'hash': renderkey.trip_inputs(t), 'inputs': renderkey.input_parts(t), 'slug': slug, 'kind': t['kind'],
+                'maps': {}, 'charts': {}}
+        meta.update(changes)
+        self.write(self.meta_file(slug), json.dumps(meta))
+
+    def site_drawn(self, **changes):
+        """rendered/site/meta.json as render.py writes it for the live trips as they are now, with `changes` applied."""
+        jobs, groups, mapped = renderkey.site_jobs(self.live())
+        meta = {'hash': renderkey.site_hash(jobs), 'regions': sorted(mapped), 'all_regions': sorted(groups),
+                'maps': {'%s-desktop' % j[0]: {'w': 718, 'h': 620, 'region': j[1], 'trips': [t['slug'] for t in j[2]]}
+                         for j in jobs}}
+        meta.update(changes)
+        self.write(os.path.join(self.rendered, 'site', 'meta.json'), json.dumps(meta))
+
+    def found(self):
+        """(file, text) of every warning of a run; a run of this fixture never has an error."""
+        got = checks.run(self.trips, self.home, self.rendered, TODAY)
+        self.assertEqual([f['text'] for f in checks.errors(got)], [])
+        return [(f['file'], f['text']) for f in checks.warnings(got)]
+
+
+class RenderHashTests(RenderHashFixture):
+    """A trip's rendered/trips/<slug>/meta.json against renderkey.trip_inputs of the trip as it is now."""
+
+    def test_maps_drawn_from_the_trips_as_they_are_get_no_warning(self):
+        self.assertEqual(self.found(), [])
+
+    def test_a_hash_of_other_inputs_is_named_on_the_trips_index(self):
+        self.drawn('syn-beta', hash='0' * 40)
+        self.assertEqual(self.found(), [warned(INDEX % 'syn-beta', OTHER_INPUTS % 'syn-beta')])
+
+    def test_a_track_changed_since_the_render_is_found(self):
+        self.write(os.path.join(self.trips, 'syn-gamma', 'track.gpx'), GPX_MOVED)
+        self.assertEqual(self.found(), [warned(INDEX % 'syn-gamma', OTHER_INPUTS % 'syn-gamma')])
+
+    def test_a_title_changed_since_the_render_is_found(self):
+        self.trip('syn-alpha', date='2025-06-15', title='Renamed Synthetic Alpha')
+        self.assertEqual(self.found(), [warned(INDEX % 'syn-alpha', OTHER_INPUTS % 'syn-alpha')])
+
+    def test_maps_drawn_without_osm_data_are_named(self):
+        for changes in ({'hash': None, 'osm_failed': True}, {'hash': None}, {'osm_failed': True}):
+            with self.subTest(changes=changes):
+                self.drawn('syn-alpha', **changes)
+                self.assertEqual(self.found(), [warned(INDEX % 'syn-alpha', NO_OSM % 'syn-alpha')])
+
+    def test_a_meta_json_without_a_hash_key_says_nothing(self):
+        for text in ('{}', json.dumps({'maps': {}, 'charts': {}})):
+            with self.subTest(text=text):
+                self.write(self.meta_file('syn-beta'), text)
+                self.assertEqual(self.found(), [])
+
+    def test_a_draft_says_nothing_whatever_its_render(self):
+        self.trip('syn-draft', date='2025-08-01', draft=True)
+        self.assertEqual(self.found(), [])                     # no meta.json, and no 'no rendered map' either
+        for changes in ({'hash': '0' * 40}, {'hash': None}, {}):
+            with self.subTest(changes=changes):
+                self.drawn('syn-draft', **changes)
+                self.assertEqual(self.found(), [])
+
+    def test_a_track_icloud_has_offloaded_is_not_read(self):
+        self.drawn('syn-beta', hash='0' * 40)
+        with mock.patch.object(checks, '_offloaded', return_value=True):
+            self.assertEqual(self.found(), [])
+
+
+class SiteHashTests(RenderHashFixture):
+    """rendered/site/meta.json against renderkey.site_hash(site_jobs(the live trips in content.load_all's order))."""
+
+    def test_the_site_hash_is_taken_over_the_trips_in_content_load_all_order(self):
+        live = self.live()
+        by_folder = sorted(live, key=lambda t: t['slug'])
+        self.assertNotEqual([t['slug'] for t in by_folder], [t['slug'] for t in live])
+        self.assertEqual(self.found(), [])
+        # the same trips hashed in folder order: another hash, so the maps count as drawn from other inputs
+        self.site_drawn(hash=renderkey.site_hash(renderkey.site_jobs(by_folder)[0]))
+        self.assertEqual(self.found(), [warned(SITE_FILE, SITE_OTHER)])
+
+    def test_site_maps_drawn_from_other_inputs_are_named_on_rendered_site_meta_json(self):
+        self.site_drawn(hash='0' * 40)
+        self.assertEqual(self.found(), [warned(SITE_FILE, SITE_OTHER)])
+
+    def test_a_trip_added_since_the_site_maps_were_drawn_is_found(self):
+        self.trip('syn-delta', date='2025-05-01')
+        self.drawn('syn-delta')
+        self.assertEqual(self.found(), [warned(SITE_FILE, SITE_OTHER)])
+        self.site_drawn()
+        self.assertEqual(self.found(), [])
+
+    def test_site_maps_drawn_without_osm_data_are_named(self):
+        self.site_drawn(hash=None)
+        self.assertEqual(self.found(), [warned(SITE_FILE, SITE_NO_OSM)])
+
+    def test_a_site_meta_json_without_a_hash_key_says_nothing(self):
+        self.site_drawn(hash='0' * 40)
+        with open(os.path.join(self.rendered, 'site', 'meta.json'), encoding='utf-8') as fh:
+            meta = json.load(fh)
+        del meta['hash']
+        self.write(os.path.join(self.rendered, 'site', 'meta.json'), json.dumps(meta))
+        self.assertEqual(self.found(), [])
+
+    def test_no_site_warning_while_a_trip_render_warning_is_in_the_run(self):
+        # a new title makes the trip's maps and the site maps stale: only the trip's line is given
+        self.trip('syn-gamma', date='2025-06-15', title='Renamed Synthetic Gamma')
+        self.assertEqual(self.found(), [warned(INDEX % 'syn-gamma', OTHER_INPUTS % 'syn-gamma')])
+        self.drawn('syn-gamma')                                # its own maps drawn again: the site maps' line is left
+        self.assertEqual(self.found(), [warned(SITE_FILE, SITE_OTHER)])
+        self.site_drawn(hash=None)
+        self.drawn('syn-alpha', hash=None)
+        self.assertEqual(self.found(), [warned(INDEX % 'syn-alpha', NO_OSM % 'syn-alpha')])
 
 
 if __name__ == '__main__':

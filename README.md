@@ -14,26 +14,28 @@ them. Everything is Python 3 standard library, with nothing to install except th
 Step-by-step guide: **[ADDING-TRIPS.md](ADDING-TRIPS.md)**. The short version:
 
 ```bash
-# from a Garmin (or any) FIT/GPX file, with photos
+# from a Garmin (or any) FIT/GPX file, or Garmin's "Export Original" .zip as it is, with photos
 python3 tools/add_trip.py ~/Downloads/Morning_Ski.fit --title "Rose Knob Peak" --activity ski \
     --place "Mount Rose" --region "Lake Tahoe" --party "Adam" --photos ~/Desktop/rose/
 
 # or straight from a Strava bulk export (title, stats, description and photos come along)
 python3 tools/add_trip.py --strava-export "/path/to/Strava export folder" --strava-id "<activity id>"
 
-# the next day of a trip whose index.md says kind: multi-day (starting one, and the end_date: line to change
-# afterwards: ADDING-TRIPS.md)
+# the next day of a trip whose index.md says kind: multi-day (starting one: ADDING-TRIPS.md); an end_date: line
+# earlier than the new day is moved to it
 python3 tools/add_trip.py day3.fit --day-of chamonix-zermatt-haute-route --title "Le Châble → Cabane de Prafleuri"
 ```
 
 `--activity` is one of `ski`, `climb`, `hike`, `mtb`, `other` (use `--subtype SUP|Rafting|Kayaking|Mountaineering`
 with `other`). The script creates `content/trips/<slug>/` and renders its maps, which needs the internet
-(`--no-render` skips that; run `python3 tools/render.py <slug>` later). Then:
+(`--no-render` skips that; run `python3 tools/render.py <slug>` later), and ends with a numbered list of what is left.
+It refuses a second spelling of an existing region, and `--force` over a trip someone has worked on. Then:
 
 1. Edit `content/trips/<slug>/index.md`: write the report under the front matter (Markdown), check `place`,
    `region`, `party`, add `beta:` rows, and give every photo an `alt:` description.
-2. Preview: `python3 tools/build.py --serve` and open http://localhost:8000 (the new report is also on http://localhost:8000/trips/).
-   The build checks the content first and stops with `ERROR` lines that name the file.
+2. Preview: `python3 tools/build.py --serve --open <slug> --watch` builds in a few seconds, opens the new report in the
+   browser (http://localhost:8000/trips/<slug>/) and builds again whenever you save a file; Ctrl+C stops it. The build
+   checks the content first and stops with `ERROR` lines that name the file.
 3. Publish, staging by path. First check, stage and list:
 
    ```bash
@@ -117,15 +119,24 @@ field and the research prompt are in **[docs/TICK_LIST_GUIDE.md](docs/TICK_LIST_
 python3 tools/validate.py            # check content/ without building: ERROR and WARNING lines, then a summary
 python3 tools/build.py --check       # validate the content, build _site/, then check the built site
 python3 tools/thumbs.py              # make the card-size (.th) copies of cover photos that are missing (needs cwebp)
+python3 tools/render.py --status     # what a render would draw and why (offline; exit 1 when something is to draw)
 python3 tools/render.py              # render anything whose track or map settings changed (needs internet)
 python3 tools/render.py --charts     # only elevation profiles (fast, offline)
 python3 -m unittest discover -s tests   # the generator's unit tests (see docs/DEVELOPING.md)
 ```
 
+`render.py` keeps the terrain tiles and OpenStreetMap answers it downloads in `~/Library/Caches/personal-website/`
+(outside iCloud Drive; `docs/DEVELOPING.md`, "Render caches", has the one-time move of the old `.cache/` folders). An
+answer is used for ever: to pick up newer OpenStreetMap data (a new trail, a renamed lake), delete the cache's `osm/`
+folder (or one answer in it) and run `python3 tools/render.py --site --force`. That downloads every answer again and
+can change roads and labels on every map, which the change check does not notice. A render that fails keeps the last
+good maps and ends with exit status 1.
+
 Every `build.py` run validates the content first and builds nothing when `validate.py` would report an error.
 `--check` then goes over the built site: links, images, anchors, each page's metadata, the sitemap, the feed, the
 search indexes and the GPX copies. GitHub runs the unit tests and `build.py --check` on each push to `main`.
-`docs/CONTENT_GUIDE.md`, section 5, lists the lines both commands print and what to do about each.
+`docs/CONTENT_GUIDE.md`, section 5, lists the lines both commands print and what to do about each; among the warnings
+are maps drawn from older inputs than the trip has now (`maps were drawn from other inputs ...`).
 
 ## Privacy
 

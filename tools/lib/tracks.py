@@ -13,9 +13,41 @@ except ImportError:  # Python < 3.9
     ZoneInfo = None
 
 
+TRACK_EXT = ('.fit', '.fit.gz', '.gpx')
+ZIP_MAX = 50 * 1024 * 1024   # a single recording is a few MB; a member larger than this is not one
+
+
 def read(path):
-    """[(lat, lon, ele_m|None, unix_ts|None)] from .fit, .fit.gz or .gpx."""
-    return [p for p in fit_reader.read_track(path) if p[0] is not None and p[1] is not None]
+    """[(lat, lon, ele_m|None, unix_ts|None)] from .fit, .fit.gz or .gpx, or from a .zip that holds exactly one of them
+    (Garmin Connect's 'Export Original' download), read from memory without unpacking anything to disk."""
+    if path.lower().endswith('.zip'):
+        pts = fit_reader.read_track_bytes(*zip_member(path))
+    else:
+        pts = fit_reader.read_track(path)
+    return [p for p in pts if p[0] is not None and p[1] is not None]
+
+
+def zip_member(path):
+    """(name, bytes) of the one track file in a .zip. ValueError when the archive holds none or several (named), or one
+    larger than ZIP_MAX; zipfile.BadZipFile when it is not a zip at all."""
+    import zipfile
+    with zipfile.ZipFile(path) as zf:
+        found = [i for i in zf.infolist() if not i.is_dir() and i.filename.lower().endswith(TRACK_EXT)
+                 and not i.filename.startswith('__MACOSX/') and not os.path.basename(i.filename).startswith('.')]
+        if not found:
+            raise ValueError('the .zip holds no .fit, .fit.gz or .gpx file')
+        if len(found) > 1:
+            raise ValueError('the .zip holds %d track files (%s); unzip it and give the one you mean'
+                             % (len(found), ', '.join(i.filename for i in found)))
+        info = found[0]
+        if info.file_size > ZIP_MAX:
+            raise ValueError('%s in the .zip is %d MB, more than a recording (limit %d MB)'
+                             % (info.filename, info.file_size // (1024 * 1024), ZIP_MAX // (1024 * 1024)))
+        with zf.open(info) as fh:
+            data = fh.read(ZIP_MAX + 1)   # the size the archive states is not trusted: read no more than the limit
+        if len(data) > ZIP_MAX:
+            raise ValueError('%s in the .zip is larger than a recording (limit %d MB)' % (info.filename, ZIP_MAX // (1024 * 1024)))
+        return info.filename, data
 
 
 def simplify(pts, eps_m=2.0):
@@ -85,13 +117,21 @@ def write_gpx(path, pts, name='', kind='', times=True):
 
 
 def guess_tz(lat, lon):
-    """Good enough for where Eric travels; override with `timezone:` in front matter."""
+    """Good enough for where Eric travels; override with `timezone:` in front matter (or add_trip.py --timezone). Boxes,
+    not borders: Arizona's box comes first because Arizona keeps no summer time, and a start near a state line can land
+    in the neighbour's zone. 'UTC' where no box applies."""
     if -10 < lon < 30 and lat > 35:
         return 'Europe/Zurich'
+    if 31.3 <= lat <= 37 and -114.8 <= lon <= -109:
+        return 'America/Phoenix'
     if lon < -114.5 and lat > 32:
         return 'America/Los_Angeles'
     if -114.5 <= lon < -102 and lat > 31:
         return 'America/Denver'
+    if -102 <= lon < -85 and lat > 25:
+        return 'America/Chicago'
+    if -85 <= lon < -66 and lat > 24:
+        return 'America/New_York'
     return 'UTC'
 
 

@@ -11,10 +11,33 @@ import zlib
 
 SP = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(SP, '..', '..'))
-TILE_DIR = os.environ.get('TILE_DIR') or os.path.join(ROOT, '.cache', 'tiles')
-OSM_DIR = os.environ.get('OSM_DIR') or os.path.join(ROOT, '.cache', 'osm')
-os.makedirs(TILE_DIR, exist_ok=True)
-os.makedirs(OSM_DIR, exist_ok=True)
+# The download caches live outside iCloud Drive, which offloads files in ~/Documents and would make every cached tile and
+# OpenStreetMap answer a download again (and fail offline); macOS also leaves ~/Library/Caches out of Time Machine.
+CACHE_HOME = os.path.join(os.path.expanduser('~'), 'Library', 'Caches', 'personal-website')
+
+
+def _cache_dir(env, name):
+    """TILE_DIR / OSM_DIR: the environment variable when set, else CACHE_HOME/<name>. Until the one-time move of the old
+    caches out of the checkout (docs/DEVELOPING.md), a checkout whose .cache/<name> exists while CACHE_HOME/<name> does
+    not keeps using .cache/<name>, so that no render fetches again what is already on disk."""
+    if os.environ.get(env):
+        return os.environ[env]
+    new, old = os.path.join(CACHE_HOME, name), os.path.join(ROOT, '.cache', name)
+    return old if not os.path.isdir(new) and os.path.isdir(old) else new
+
+
+TILE_DIR = _cache_dir('TILE_DIR', 'tiles')
+OSM_DIR = _cache_dir('OSM_DIR', 'osm')
+# what a render read from the caches and fetched (this process only): render.py prints it at the end of a run.
+# osm_dates: the day each OpenStreetMap answer used was fetched (an older answer without a date: its file's date)
+CACHE = {'tile_hit': 0, 'tile_miss': 0, 'osm_hit': 0, 'osm_miss': 0, 'osm_dates': set(), 'osm_undated': 0}
+
+
+def cache_home():
+    """Where the two caches are, for a message: their common folder with ~ for the home folder."""
+    home = os.path.expanduser('~')
+    where = os.path.commonpath([TILE_DIR, OSM_DIR]) if os.path.dirname(TILE_DIR) == os.path.dirname(OSM_DIR) else TILE_DIR
+    return ('~' + where[len(home):]) if where.startswith(home + os.sep) else where
 
 M_PER_DEG_LAT = 110574.0
 M_PER_DEG_LON_EQ = 111320.0
@@ -194,6 +217,8 @@ def get_tile(z, x, y):
     p = os.path.join(TILE_DIR, '%d_%d_%d.png' % (z, x, y))
 
     def fetch():
+        CACHE['tile_miss'] += 1
+        os.makedirs(TILE_DIR, exist_ok=True)   # made on the first download, not at import: tests and CI never make it
         url = TILE_URL.format(z=z, x=x, y=y)
         tmp = '%s.%d.part' % (p, os.getpid())  # write-then-rename: parallel renders never read a half-written tile
         for attempt in range(3):
@@ -205,6 +230,8 @@ def get_tile(z, x, y):
         raise RuntimeError('tile fetch failed ' + url)
     if not os.path.exists(p):
         fetch()
+    else:
+        CACHE['tile_hit'] += 1
     try:
         w, h, bpp, px = png_read(p)
     except Exception:  # noqa: BLE001 — a truncated cache file: fetch it again
@@ -458,11 +485,46 @@ def d_attr(pts, closed=False, prec=1, rel=False):
 OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter']
 
 
+def cached_answer(p):
+    """(data, fetched date or None) of a cached Overpass answer, or None when the file is missing or cannot be read. A
+    file that does not parse (cut short by a full disk or a killed run) is removed, so the answer is fetched again
+    instead of failing the same way on every run, as get_tile does for a truncated tile. An answer is stored as
+    {'fetched': 'YYYY-MM-DD', 'query', 'data'}; one cached before that is the bare answer, read as it is. A file that
+    cannot be read at all (an iCloud placeholder while offline) is left where it is."""
+    if not os.path.exists(p):
+        return None
+    try:
+        with open(p, encoding='utf-8') as fh:
+            obj = json.load(fh)
+    except OSError:
+        return None   # not readable now (an offloaded file while offline): kept, and fetched as if it were not there
+    except ValueError:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+        return None
+    if isinstance(obj, dict) and 'data' in obj and 'fetched' in obj:
+        return obj['data'], obj['fetched']
+    return obj, None
+
+
 def overpass(query):
+    """The answer of the Overpass API to `query`, from the cache when it holds it. A cached answer is used for ever: to
+    pick up newer OpenStreetMap data, delete the cache's osm/ folder (or one answer) and render with --force."""
     h = hashlib.sha1(query.encode()).hexdigest()[:16]
     p = os.path.join(OSM_DIR, h + '.json')
-    if os.path.exists(p):
-        return json.load(open(p))
+    got = cached_answer(p)
+    if got is not None:
+        CACHE['osm_hit'] += 1
+        if got[1]:
+            CACHE['osm_dates'].add(got[1])
+        else:
+            CACHE['osm_undated'] += 1
+            CACHE['osm_dates'].add(time.strftime('%Y-%m-%d', time.localtime(os.path.getmtime(p))))
+        return got[0]
+    CACHE['osm_miss'] += 1
+    os.makedirs(OSM_DIR, exist_ok=True)       # made on the first download, not at import
     last = None
     for attempt in range(4):
         ep = OVERPASS[attempt % len(OVERPASS)]
@@ -470,10 +532,12 @@ def overpass(query):
                             '--data-urlencode', 'data=' + query, ep], capture_output=True)
         try:
             d = json.loads(r.stdout.decode('utf-8'))
+            today = time.strftime('%Y-%m-%d')
             tmp = '%s.%d.part' % (p, os.getpid())
             with open(tmp, 'w') as fh:
-                json.dump(d, fh)
+                json.dump({'fetched': today, 'query': query, 'data': d}, fh)
             os.replace(tmp, p)
+            CACHE['osm_dates'].add(today)
             return d
         except Exception as ex:  # noqa
             last = r.stdout[:300]
