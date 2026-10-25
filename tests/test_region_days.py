@@ -17,8 +17,8 @@ where it crosses the map and cut off at its edge); the part's lines are a link t
 (mapkit.line_links), a run of consecutive days that starts inside the region also has a pin, and the days are recorded
 in the map's entry of rendered/site/meta.json under 'journals' ('trips' stays the region's own reports), with the name
 of the part's own drawing (render.part_glyph), which build.py publishes as an image (copy_part_drawings); (b) the
-region's list, on the Map page and on the region's page, names each part in one row after the reports, shown whether
-the list is folded or not, with that drawing; no count of reports includes it; (c) the validator refuses a region that
+region's list, on the Map page and on the region's page, names each part in one row after the reports (in a folded
+list, after the reports that stay shown), shown whether the list is folded or not, with that drawing; no count of reports includes it; (c) the validator refuses a region that
 no report is filed under and warns when a region map was drawn with other days than the block lists.
 
 Nothing here draws or fetches: the renderer tests use test_render_goals' fixture (render_map, fetch_osm and
@@ -851,7 +851,10 @@ class ListRowTests(MapPageFixture):
         folded = [li for li in rows if 'arc-more' in li.classes]
         self.assertEqual(len(folded), 4)
         self.assertEqual([li for li in folded if 'arc-row--journal' in li.classes], [])
-        self.assertEqual([li['data-key'] for li in rows[-2:]], [CREST, LOOP])
+        # right after the rows that stay shown and before the folded ones, so folding at load does not move them
+        self.assertEqual([li['data-key'] for li in rows[self.archive.SHOW:self.archive.SHOW + 2]], [CREST, LOOP])
+        self.assertEqual([li for li in rows[:self.archive.SHOW] if 'arc-more' in li.classes], [])
+        self.assertEqual(rows[self.archive.SHOW + 2:], folded)
         button = panel.find('button', cls='arc-all-btn')
         self.assertIn('Show all %d' % len(many), button.text())               # the button counts reports, as before
         # and a short list with them is not folded for their sake

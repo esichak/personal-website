@@ -64,7 +64,9 @@ the code, say so.
   the page already shows.
 - **An email address, only if you write one.** With `content/author.json` (Phase 14) the address it names is shown on
   About, in the footer and in every report's 'Ask about this trip' link, and it stays in the repository's history for
-  good. Without the file the site names no address and no profile.
+  good. Without the file the site names no address and no profile. Since 2026-10-25 the file names one address and
+  no profile: it is the author's own address, not an alias (README.md suggests an alias), given in the session that
+  built Phase 14.
 
 ## 2. What the repository adds
 

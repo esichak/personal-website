@@ -320,8 +320,12 @@ def region_panel(name, slug, ts, here, meta, first, page=False, drawn=None, site
     cap += legend(key_ts, md) + pkey
     fold = len(ts) > SHOW + 1
     rows = [region_row(t, here, i >= SHOW and fold, region=name) for i, t in enumerate(ts)]
-    # the journal rows go in after the reports: before the first planned route of the list as it was handed over
+    # the journal rows go in after the reports: before the first planned route of the list as it was handed over, and in
+    # a folded list right after the rows that stay shown, so folding at load moves nothing above them: a row after the
+    # folded ones jumped from far down the page into view, a layout shift of 0.68 on map/ at 1350 px (review gate)
     at = next((i for i, t in enumerate(ts) if t['kind'] == 'planned'), len(ts))
+    if fold:
+        at = min(at, SHOW)
     drawings = {j['key']: j.get('glyph') for j in (md.get('journals') or []) if isinstance(j, dict) and isinstance(j.get('key'), str)}
     rows = ''.join(rows[:at] + [journal_row(jt, part, here, drawings.get(part['key']), slug) for jt, part in parts] + rows[at:])
     n_pub = sum(1 for t in ts if t['kind'] != 'planned')  # 'Show all 86' matches the tab's count (a planned route is not a report)

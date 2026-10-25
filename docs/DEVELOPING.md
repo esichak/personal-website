@@ -1747,7 +1747,9 @@ on a trip that is not `kind: series` is a `content.ContentError`. A part is the 
   - `archive.journal_parts(site, name)` → `[(journal, part)]` for one region, from content, not from the map: the
     region's list (`archive.region_panel(..., site=site)`, on map/ and on the region's page) gets one
     `li.arc-row.arc-row--journal` per part (`archive.journal_row`), after the reports and before the first planned
-    route, never `arc-more` (so "Show all" does not fold it away), with the part's key as `data-key`. Its image is
+    route (in a list long enough to fold, right after the first `archive.SHOW` reports, so that folding at load moves
+    nothing above it on the screen), never `arc-more` (so "Show all" does not fold it away), with the part's key as
+    `data-key`. Its image is
     the part's own drawing when the map's entry names one and it is rendered (`archive.part_glyph`; `build.py`
     publishes it as `assets/maps/<name>.svg`, `copy_part_drawings`), else the journal's glyph. Its distance is
     the sum of the day files' `distance_km`, except that a day taken as a stretch counts with the stretch's length
