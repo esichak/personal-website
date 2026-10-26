@@ -158,6 +158,7 @@ class TickListFixture(unittest.TestCase):
         cs = g()
         cs.update(status='shortlisted', priority='high', added_at='2026-05-01', target_months=[4, 5], tags=['couloir'],
                   why='Steep and short.', time_commitment='full-day', route_scope='approach-only',
+                  objective='The choke from the apron', peaks=['Synthetic Dome', 'Example Spire'],
                   route_source={'kind': 'third-party-recording', 'url': 'https://example.test/rec', 'label': 'A recording',
                                 'checked_at': '2026-05-01', 'public_copy_approved': True, 'approximation_note': None},
                   references=[{'id': 'guide-1', 'label': 'Synthetic guidebook', 'url': 'https://example.test/guide', 'checked_at': '2026-05-02'}],
@@ -639,6 +640,32 @@ class GoalCardTests(TickListFixture):
         self.assertIn('≈ 19.8 KM', text)   # the km alternative through core.U
         self.assertNotIn('MOVING', text)
 
+    def test_stats_line_has_the_files_high_point(self):
+        text = helpers.plain_text(helpers.seen_text(self.card('couloir-short')))
+        self.assertIn('≈ 10,499 FT HIGH POINT', text)        # 3,200 m through core.U
+        self.assertNotIn('HIGH POINT', self.card('legacy-ridge').text())   # no high_m in its front matter
+
+    def test_objective_and_peaks_in_the_authors_order(self):
+        aim = self.card('couloir-short').find('dl', cls='gcard-aim')
+        self.assertIsNotNone(aim)
+        self.assertEqual([d.text() for d in aim.find_all('dt')], ['Objective', '2 peaks'])
+        dds = aim.find_all('dd')
+        self.assertEqual(dds[0].text(), 'The choke from the apron')
+        self.assertEqual([m.text().replace('\u00a0', ' ').lstrip(', ') for m in dds[1].find_all(cls='mi')], ['Synthetic Dome', 'Example Spire'])
+        for slug in ('ridge-idea', 'legacy-ridge', 'alps-someday'):
+            self.assertIsNone(self.card(slug).find('dl', cls='gcard-aim'), slug)
+        # one peak is '1 peak'; an objective alone is one row
+        g = dict(self.goals_mod.defaults(), peaks=['Lone Knob'])
+        self.assertIn('>1 peak<', core.goal_aim(g))
+        self.assertEqual(Doc(core.goal_aim(dict(self.goals_mod.defaults(), objective='Just the col'))).find_all('dt')[0].text(), 'Objective')
+        self.assertEqual(core.goal_aim(self.goals_mod.defaults()), '')
+
+    def test_objective_and_peaks_are_searchable(self):
+        text = self.card('couloir-short')['data-text']
+        self.assertIn('the choke from the apron', text)
+        self.assertIn('synthetic dome', text)
+        self.assertIn('example spire', text)
+
     def test_stats_line_omits_unknown_gain_and_says_route_not_added(self):
         legacy = self.card('legacy-ridge').text()
         self.assertIn('≈ 5.0 MI', legacy)
@@ -786,6 +813,37 @@ class GoalPageTests(TickListFixture):
         self.assertIn('recording', note)   # third-party recording
         self.assertIn('approach', note)    # approach only
         self.assertNotIn('Strava', note)
+
+    def test_stats_strip_adds_loss_beside_gain(self):
+        t = dict(self.by['couloir-short'], stats=dict(self.by['couloir-short']['stats'], loss_m=610))
+        strip = Doc(self.report.goal_strip(t)).find('dl', cls='strip')
+        self.assertEqual([d.text() for d in strip.find_all('dt')], ['Distance', 'Gain', 'Loss', 'High point'])
+        self.assertIn('2,001', strip.text())   # 610 m, marked approximate like the rest
+        # no gain (no full elevation): no loss either, whatever the front matter says
+        t = dict(self.by['legacy-ridge'], stats={'distance_km': 8.0, 'loss_m': 300})
+        self.assertEqual([d.text() for d in Doc(self.report.goal_strip(t)).find('dl', cls='strip').find_all('dt')], ['Distance'])
+
+    def test_objective_and_peaks_section_comes_first(self):
+        heads = self.headings('couloir-short')
+        self.assertLess(heads.index('Objective and peaks'), heads.index('Why'))
+        sec = self.doc('couloir-short').by_id('objective')
+        self.assertEqual([d.text() for d in sec.find_all('dt')], ['Objective', 'Peaks (2)'])
+        self.assertIn('The choke from the apron', sec.text())
+        self.assertEqual([li.text() for li in sec.find('ol', cls='goal-peaks').find_all('li')], ['Synthetic Dome', 'Example Spire'])
+        self.assertIn('in the order it reaches them', sec.find(cls='goal-peaks-note').text())
+        self.assertIsNone(self.doc('ridge-idea').by_id('objective'))
+        self.assertIsNone(self.doc('legacy-ridge').by_id('objective'))
+
+    def test_objective_or_peaks_alone_name_the_section_for_what_it_holds(self):
+        base = self.by['ridge-idea']
+        only_peaks = dict(base, goal=dict(base['goal'], peaks=['Synthetic Dome']))
+        doc = Doc(self.report.page(only_peaks, self.site).html)
+        self.assertEqual(doc.by_id('objective').find('h2').text(), 'Peaks on the route')
+        only_aim = dict(base, goal=dict(base['goal'], objective='The whole crest'))
+        doc = Doc(self.report.page(only_aim, self.site).html)
+        sec = doc.by_id('objective')
+        self.assertEqual(sec.find('h2').text(), 'Objective')
+        self.assertIsNone(sec.find(cls='goal-peaks-note'))
 
     def test_stats_strip_without_gain_for_a_legacy_goal(self):
         strip = self.doc('legacy-ridge').find('dl', cls='strip')

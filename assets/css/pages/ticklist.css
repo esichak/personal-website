@@ -25,6 +25,10 @@
 .gcard-tags { margin-top: 6px; column-gap: 8px; row-gap: 4px; }
 .gcard-tags .tag { min-height: 22px; padding: 0 6px; font-size: 12px; }
 .gcard-stats { margin-top: 8px; text-transform: uppercase; }
+/* the objective and the peaks (core.goal_aim), the author's words: a label above each, the peaks one meta line in route order */
+.gcard-aim { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.gcard-aim dd { margin-top: 2px; font: 400 14px/20px var(--sans); color: var(--ink-2); text-wrap: pretty; }
+.gcard-aim + .gcard-go { margin-top: 8px; }
 .gcard-go { margin-top: 2px; align-self: flex-start; }
 @media (min-width: 560px) {
   .tgrid .gcard { display: flex; flex-direction: column; align-items: stretch; }
@@ -39,11 +43,11 @@
 @media (min-width: 560px) { .trx--list .gcard { grid-template-columns: 160px minmax(0, 1fr); column-gap: 20px; padding: 16px 0; } }
 @media (min-width: 760px) { .trx--list .gcard { grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; } }
 /* phones: List is the scan view, as on trips/ (trips.css): the route drawing 64 px wide (4:3), the meta line, the title
-   on one line and the stats line; no tags and no 'Open the goal' link (the title is the link); about 72 px a row */
+   on one line and the stats line; no tags, objective, peaks or 'Open the goal' link (the title is the link); about 72 px a row */
 @media (max-width: 559.98px) {
   .trx--list .gcard { grid-template-columns: 64px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 6px 0; }
   .trx--list .gcard-map { aspect-ratio: 4 / 3; }
   .trx--list .gcard-t { margin-top: 2px; font: 500 16px/20px var(--sans); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .trx--list .gcard-tags, .trx--list .gcard-go { display: none; }
+  .trx--list .gcard-tags, .trx--list .gcard-aim, .trx--list .gcard-go { display: none; }
   .trx--list .gcard-stats { margin-top: 2px; }
 }

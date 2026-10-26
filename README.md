@@ -120,6 +120,8 @@ optional and is copied into the public checkout only with `--publish-track`), re
 python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity hike --gpx ~/Downloads/route.gpx --dry-run
 python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity hike --gpx ~/Downloads/route.gpx --publish-track
 python3 tools/ticklist.py update your-route-name --status shortlisted --priority high
+python3 tools/ticklist.py suggest-peaks your-route-name      # the named summits the line goes over (writes nothing)
+python3 tools/ticklist.py update your-route-name --objective "The whole ridge" --peaks "North Top, South Top"
 python3 tools/ticklist.py log-outing your-route-name --outcome completed --report-slug an-existing-report
 ```
 

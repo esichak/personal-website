@@ -1978,8 +1978,8 @@ def goal_tags(goal):
 
 
 def goal_stats_line(t):
-    """'≈ 12.3 MI · ≈ 2,100 FT GAIN' (gain only when the file had full elevation; a legacy goal shows what its front matter
-    says), 'ROUTE NOT ADDED' with no track."""
+    """'≈ 12.3 MI · ≈ 2,100 FT GAIN · ≈ 9,970 FT HIGH POINT' (gain only when the file had full elevation, the high point
+    when any point had one; a legacy goal shows what its front matter says), 'ROUTE NOT ADDED' with no track."""
     if not t['track']:
         return meta_items([nb('ROUTE NOT ADDED')])
     st = t['stats']
@@ -1989,15 +1989,31 @@ def goal_stats_line(t):
         items.append(U(caps_unit('≈ ' + mi, 'MI'), caps_unit('≈ ' + km, 'KM')))
     if st.get('gain_m') is not None:
         items.append(U(caps_unit('≈ ' + n(st['gain_m'] * FT), 'FT', 'GAIN'), caps_unit('≈ ' + n(st['gain_m']), 'M', 'GAIN')))
+    if st.get('high_m') is not None:
+        items.append(U(caps_unit('≈ ' + n(st['high_m'] * FT), 'FT', 'HIGH POINT'), caps_unit('≈ ' + n(st['high_m']), 'M', 'HIGH POINT')))
     return meta_items(items)
+
+
+def goal_aim(goal):
+    """A goal card's objective and peaks, in the author's words from goal.json: a small list of 'Objective' / '<text>' and
+    '5 peaks' / 'A · B · C' (route order, each name kept on one line), each only when set; '' with neither."""
+    rows = []
+    if goal['objective']:
+        rows.append('<div><dt class="t-label">Objective</dt><dd>%s</dd></div>' % esc(goal['objective']))
+    if goal['peaks']:
+        k = len(goal['peaks'])
+        rows.append('<div><dt class="t-label">%d %s</dt><dd>%s</dd></div>'
+                    % (k, 'peak' if k == 1 else 'peaks', meta_items([nb(esc(pk)) for pk in goal['peaks']])))
+    return ('<dl class="gcard-aim">%s</dl>' % ''.join(rows)) if rows else ''
 
 
 def goal_card(t, here):
     """A tick-list goal as a map-led card: the route tile (else 'Map not rendered yet' with a track, 'Route not added yet'
     without), REGION / PLACE · ACTIVITY, the H3 title link (described by that line), status / priority / archived tags,
-    the approximate stats line and an 'Open the goal' link. data-* carries the facets ticklist.js filters on; data-text is the
-    normalised searchable text (title, place, region, tags, why, and the opening of the planning notes, which the goal page
-    publishes). No input of any kind: the public list is read-only."""
+    the approximate stats line, the objective and the peaks (goal_aim) and an 'Open the goal' link. data-* carries the facets
+    ticklist.js filters on; data-text is the normalised searchable text (title, place, region, tags, why, objective, peaks,
+    and the opening of the planning notes, which the goal page publishes). No input of any kind: the public list is
+    read-only."""
     import content as _c
     from sitegen import search as _s
     g = t['goal']
@@ -2012,7 +2028,8 @@ def goal_card(t, here):
     meta = meta_items([(esc(loc).upper(), 'mi-w') if loc else '', nb(esc(act_word(t)).upper())])   # the place may wrap (mi-w)
     mid = 'gc-%s-m' % t['slug']
     notes = markdown.plain(t['body_md'], 600) if t.get('body_md') else ''
-    text = _s.normalize(' '.join(x for x in [t['title'], t.get('place') or '', t.get('region') or ''] + g['tags'] + [g['why'], notes] if x))
+    text = _s.normalize(' '.join(x for x in [t['title'], t.get('place') or '', t.get('region') or ''] + g['tags']
+                                 + [g['why'], g['objective']] + g['peaks'] + [notes] if x))
     data = (' data-slug="%s" data-act="%s" data-region="%s" data-status="%s" data-priority="%s" data-months="%s" data-gpx="%s"'
             ' data-archived="%s" data-added="%s" data-text="%s"'
             % (esc(t['slug']), t['activity'], _c.slugify(t['region']) if t.get('region') else '', g['status'], g['priority'],
@@ -2020,9 +2037,9 @@ def goal_card(t, here):
                g['added_at'] or '', esc(text)))
     return ('<li class="gcard"%s>%s<div class="gcard-b"><p class="t-mono-s gcard-meta" id="%s">%s</p>'
             '<h3 class="gcard-t"><a href="%s" aria-describedby="%s">%s</a></h3><div class="chips gcard-tags">%s</div>'
-            '<p class="t-mono-s gcard-stats">%s</p><a class="alink gcard-go" href="%s">Open the goal<span class="sr">: %s</span>%s</a></div></li>'
-            % (data, media, mid, meta, href, mid, title_html(t['title']), goal_tags(g), goal_stats_line(t), href, esc(t['title']),
-               icon('arrow-right', 16)))
+            '<p class="t-mono-s gcard-stats">%s</p>%s<a class="alink gcard-go" href="%s">Open the goal<span class="sr">: %s</span>%s</a></div></li>'
+            % (data, media, mid, meta, href, mid, title_html(t['title']), goal_tags(g), goal_stats_line(t), goal_aim(g), href,
+               esc(t['title']), icon('arrow-right', 16)))
 
 
 def count_items(ts, planned=0):

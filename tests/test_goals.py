@@ -30,6 +30,7 @@ SHA0 = '0' * 64
 VALID = {
     'schema_version': 1, 'status': 'shortlisted', 'priority': 'high', 'archived': False,
     'tags': ['ridge-traverse', 'scramble'], 'why': 'A long ridge I keep looking at from the road.',
+    'objective': 'The whole ridge in one day', 'peaks': ['North Synthetic Peak', 'Middle Knob', 'South Synthetic Peak'],
     'added_at': '2026-05-01', 'target_months': [6, 7, 9], 'target_year': 2027, 'time_commitment': 'full-day',
     'season_notes': 'The guidebook describes a July to September window.',
     'difficulty': {'system': 'YDS', 'value': 'Class 3', 'note': 'One short exposed step.'},
@@ -50,7 +51,7 @@ ROUTE = {'source_sha256': SHA0, 'method': 'ticklist-gpx-1', 'selected': {'type':
          'alternatives': 1, 'segments': 1, 'points': 12, 'elevation': 'full', 'times': True, 'waypoints': 0}
 ATTEMPT = {'outcome': 'attempted', 'date': '2026-07-12', 'report_slug': None, 'note': 'Turned around at the notch.'}
 DONE = {'outcome': 'completed', 'date': '2026-08-30', 'report_slug': 'synthetic-report', 'note': ''}
-DEFAULT_KEYS = {'schema_version', 'status', 'priority', 'archived', 'tags', 'why', 'added_at', 'target_months', 'target_year',
+DEFAULT_KEYS = {'schema_version', 'status', 'priority', 'archived', 'tags', 'why', 'objective', 'peaks', 'added_at', 'target_months', 'target_year',
                 'time_commitment', 'season_notes', 'difficulty', 'route_scope', 'route_source', 'references', 'field_evidence',
                 'checklist', 'outings', 'route', 'legacy'}
 
@@ -163,6 +164,7 @@ class ConstantTests(GoalsFixture):
         self.assertEqual(d['schema_version'], 1)
         self.assertEqual((d['status'], d['priority'], d['archived']), ('idea', 'normal', False))
         self.assertEqual((d['tags'], d['why'], d['added_at']), ([], '', None))
+        self.assertEqual((d['objective'], d['peaks']), ('', []))
         self.assertEqual((d['target_months'], d['target_year'], d['time_commitment']), ([], None, None))
         self.assertEqual((d['season_notes'], d['difficulty'], d['route_scope']), ('', None, 'unknown'))
         self.assertEqual(d['route_source'], {'kind': 'unknown', 'url': None, 'label': None, 'checked_at': None,
@@ -274,6 +276,25 @@ class EnumAndTypeRuleTests(GoalsFixture):
 
     def test_why_string(self):
         self.assertRejects(variant(why=['because']), 'why')
+
+    def test_objective_one_line_of_text(self):
+        self.assertRejects(variant(objective=['ridge']), 'objective')
+        self.assertRejects(variant(objective='The ridge\nand the col'), 'objective must be one line')
+        self.assertRejects(variant(objective='x' * (self.goals.OBJECTIVE_MAX + 1)), 'objective must be one line of at most 120')
+        self.assertEqual(self.validate(variant(objective='  The ridge  '))['objective'], 'The ridge')
+        self.assertEqual(self.validate(variant(objective='x' * self.goals.OBJECTIVE_MAX))['objective'], 'x' * 120)
+
+    def test_peaks_list_of_distinct_names_in_order(self):
+        self.assertRejects(variant(peaks='North Synthetic Peak'), 'peaks')
+        self.assertRejects(variant(peaks=['North Synthetic Peak', 3]), 'peaks')
+        msg = self.assertRejects(variant(peaks=['Middle Knob', 'middle knob']), 'listed twice')
+        self.assertIn("'middle knob'", msg)
+        self.assertRejects(variant(peaks=['y' * (self.goals.PEAK_MAX + 1)]), 'at most 60 characters')
+        self.assertRejects(variant(peaks=['Two\nlines']), 'peaks')
+        # the author's order is kept (route order, not sorted); blanks drop out and names are stripped
+        self.assertEqual(self.validate(variant(peaks=[' South Synthetic Peak', '', 'North Synthetic Peak ']))['peaks'],
+                         ['South Synthetic Peak', 'North Synthetic Peak'])
+        self.assertEqual(self.validate(variant(peaks=[]))['peaks'], [])
 
     def test_added_at_date(self):
         self.assertRejects(variant(added_at='2026-13-40'), 'added_at')

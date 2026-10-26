@@ -1,5 +1,5 @@
-"""Phase 2T: tools/ticklist.py, the local tick-list CLI (add, update, log-outing, review-packet, export), driven in-process
-through main(argv).
+"""Phase 2T: tools/ticklist.py, the local tick-list CLI (add, update, log-outing, review-packet, export, and since the
+objective and peaks fields suggest-peaks), driven in-process through main(argv).
 
 The content root is redirected: every module constant of tools/ticklist.py that equals content.TRIPS_DIR, and
 content.TRIPS_DIR itself, are patched to a temp dir, so each run writes there and the real content/trips/ is never touched
@@ -717,6 +717,31 @@ class UpdateTests(CliFixture):
         self.assertEqual(g['route_source']['label'], 'A recording')
         self.assertEqual(g['route_source']['checked_at'], '2026-09-01')
 
+    def test_objective_and_peaks(self):
+        out = self.ok('update', SLUG, '--objective', ' The whole ridge in a day ', '--peaks', 'North Top, Middle Knob,, South Top')
+        g = self.goal()
+        self.assertEqual(g['objective'], 'The whole ridge in a day')
+        self.assertEqual(g['peaks'], ['North Top', 'Middle Knob', 'South Top'])   # the order given, blanks dropped
+        self.assertIn('objective: The whole ridge in a day', out)
+        self.assertIn('peaks (3, in route order): North Top, Middle Knob, South Top', out)
+        self.assertIndexUnchanged()
+        # other updates leave them alone; an empty value clears each
+        self.ok('update', SLUG, '--priority', 'high')
+        self.assertEqual(self.goal()['peaks'], ['North Top', 'Middle Knob', 'South Top'])
+        self.ok('update', SLUG, '--objective', '', '--peaks', '')
+        self.assertEqual((self.goal()['objective'], self.goal()['peaks']), ('', []))
+
+    def test_a_peak_listed_twice_writes_nothing(self):
+        before = read(os.path.join(self.folder(), 'goal.json'))
+        msg = self.fails('update', SLUG, '--peaks', 'North Top, north top')
+        self.assertIn('listed twice', msg)
+        self.assertEqual(read(os.path.join(self.folder(), 'goal.json')), before)
+
+    def test_add_takes_objective_and_peaks_too(self):
+        self.add('--objective', 'The col', '--peaks', 'A Top', title='Another Ridge')
+        g = self.goal('another-ridge')
+        self.assertEqual((g['objective'], g['peaks']), ('The col', ['A Top']))
+
     def test_checklist_add_check_uncheck(self):
         self.ok('update', SLUG, '--add-check', 'Does the file include the descent?')
         cl = self.goal()['checklist']
@@ -1042,6 +1067,11 @@ class ExportTests(CliFixture):
         self.assertIn('trips/real-report/', text)   # the outing's report as a url
         self.assertIn('distance_km', text)
 
+    def test_exports_the_objective_and_peaks(self):
+        self.ok('update', SLUG, '--objective', 'The whole ridge', '--peaks', 'North Top, South Top')
+        r = json.loads(self.export())[0]
+        self.assertEqual((r['objective'], r['peaks']), ('The whole ridge', ['North Top', 'South Top']))
+
     def test_excludes_local_paths_and_proposed_evidence(self):
         text = self.export()
         self.assertNotIn(self.src, text)
@@ -1063,6 +1093,89 @@ class ExportTests(CliFixture):
         self.ok('export', '--out', out, '--dry-run')
         self.assertFalse(os.path.exists(out))
         self.assertNoRender()
+
+
+# ---------------------------------------------------------------- suggest-peaks
+
+def peak(i, lat, lon, name=None, ele=None):
+    tags = {'natural': 'peak'}
+    if name:
+        tags['name'] = name
+    if ele is not None:
+        tags['ele'] = ele
+    return {'type': 'node', 'id': i, 'lat': lat, 'lon': lon, 'tags': tags}
+
+
+class SuggestPeaksTests(CliFixture):
+    """The line is gpx_fixtures.SEG_A: 12 points due north from (38.900, -120.100), 0.001 degrees (about 111 m) apart, with
+    elevations. OpenStreetMap is a stub: no request leaves the test."""
+
+    def setUp(self):
+        super().setUp()
+        self.add('--gpx', self.gpx('single.gpx', gf.SINGLE), '--publish-track')
+        self.queries = []
+        # on the line near its end, on the line near its start (listed first: route order), 250 m off (passed nearby),
+        # 2 km off (left out), unnamed (left out), and the near-start name again further off (the closer one is kept)
+        self.answer = {'elements': [peak(1, 38.9100, -120.1000, 'Far End Top', '2045'),
+                                    peak(2, 38.9020, -120.1003, 'Start Knob', '2010 m'),
+                                    peak(3, 38.9050, -120.0971, 'Side Top', '2100'),
+                                    peak(4, 38.9050, -120.0770, 'Distant Top', '2300'),
+                                    peak(5, 38.9030, -120.1000),
+                                    peak(6, 38.9020, -120.0990, 'Start Knob')]}
+
+        def fake_overpass(query):
+            self.queries.append(query)
+            return self.answer
+        p = mock.patch.object(self.cli.geo, 'overpass', fake_overpass)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_lists_the_summits_on_the_line_in_route_order(self):
+        before = {n: read(os.path.join(self.folder(), n), 'rb') for n in self.files()}
+        out = self.ok('suggest-peaks', SLUG)
+        lines = out.splitlines()
+        over = [ln for ln in lines if ln.startswith('    ')]
+        self.assertIn('"Start Knob" (2010 m, the line 2010 m; ', over[0])
+        self.assertIn('"Far End Top" (2045 m, the line 2045 m; 0 m from the line)', over[1])
+        self.assertIn('passed nearby, not suggested:', out)
+        self.assertIn('"Side Top"', out.split('passed nearby, not suggested:')[1])
+        self.assertNotIn('Distant Top', out)
+        self.assertEqual(lines[-1], 'Next: python3 tools/ticklist.py update %s --peaks "Start Knob, Far End Top"' % SLUG)
+        # it only reads: the folder is as it was, nothing rendered, one peaks-only query over the line's box
+        self.assertEqual({n: read(os.path.join(self.folder(), n), 'rb') for n in self.files()}, before)
+        self.assertNoRender()
+        self.assertEqual(len(self.queries), 1)
+        self.assertIn('node["natural"="peak"]["name"](38.89000,-120.11000,38.92100,-120.09000)', self.queries[0])
+
+    def test_a_wider_radius_takes_the_nearby_summit_in(self):
+        out = self.ok('suggest-peaks', SLUG, '--radius', '300')
+        self.assertTrue(out.splitlines()[-1].endswith('--peaks "Start Knob, Side Top, Far End Top"'), out)
+
+    def test_peaks_along_measures_along_the_segments_without_bridging(self):
+        seg1 = [(0.0, 0.0, 100.0, None), (0.0, 0.01, 110.0, None)]
+        seg2 = [(1.0, 0.0, None, None), (1.0, 0.01, None, None)]   # far away: the gap adds nothing to the distance
+        rows = self.cli.peaks_along([seg1, seg2], [((1.0, 0.01), {'name': 'B'}), ((0.0, 0.01), {'name': 'A', 'ele': 'high'})])
+        self.assertEqual([r['name'] for r in rows], ['A', 'B'])
+        self.assertAlmostEqual(rows[0]['at_km'], rows[1]['at_km'] / 2, places=3)
+        self.assertEqual((rows[0]['ele_m'], rows[0]['line_m'], rows[1]['line_m']), (None, 110.0, None))
+        self.assertTrue(all(r['over'] for r in rows))
+
+    def test_no_summit_on_the_line(self):
+        self.answer = {'elements': [peak(4, 38.9050, -120.0770, 'Distant Top')]}
+        out = self.ok('suggest-peaks', SLUG)
+        self.assertIn('    none', out)
+        self.assertNotIn('Next:', out)
+
+    def test_a_goal_without_a_route_is_refused(self):
+        self.add(title='Name Only')
+        self.assertIn('no published route', self.fails('suggest-peaks', 'name-only'))
+        self.assertEqual(self.queries, [])
+
+    def test_no_answer_from_openstreetmap(self):
+        def down(query):
+            raise RuntimeError('overpass failed')
+        with mock.patch.object(self.cli.geo, 'overpass', down):
+            self.assertIn('OpenStreetMap did not answer', self.fails('suggest-peaks', SLUG))
 
 
 if __name__ == '__main__':

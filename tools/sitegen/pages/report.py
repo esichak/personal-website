@@ -469,7 +469,7 @@ def bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery, chart='', s
 # ---------------------------------------------------------------- tick-list goal pages (kind: planned)
 
 def goal_strip(t):
-    """The approximate numbers a goal has (distance; gain only with full elevation; the file's high point), each marked ≈,
+    """The approximate numbers a goal has (distance; gain and loss only with full elevation; the file's high point), each marked ≈,
     with a note saying where they come from and what is unknown. Never a moving time: a plan has none."""
     g, st = t['goal'], t['stats']
     cells = []
@@ -479,6 +479,9 @@ def goal_strip(t):
     if st.get('gain_m') is not None:
         v = st['gain_m']
         cells.append(('Gain', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
+        if st.get('loss_m') is not None:
+            v = st['loss_m']
+            cells.append(('Loss', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
     if st.get('high_m') is not None:
         v = st['high_m']
         cells.append(('High point', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
@@ -578,8 +581,8 @@ def _fdate(iso, style='short'):
 
 
 def goal_sections(t, here, site):
-    """Why · Planning notes · Season and commitment · Route source · References · Still to check · Outings (a completed
-    goal leads with its outings). Each only when it has content; nothing is invented to fill a slot."""
+    """Objective and peaks · Why · Planning notes · Season and commitment · Route source · References · Still to check ·
+    Outings (a completed goal leads with its outings). Each only when it has content; nothing is invented to fill a slot."""
     g = t['goal']
     by = site.get('by_slug') or {}
     secs = []
@@ -605,6 +608,16 @@ def goal_sections(t, here, site):
         sec('outings', 'Outings', '<ul class="goal-outs">%s</ul>' % ''.join(items))
     if g['status'] == 'completed':
         outings()
+    aim = []
+    if g['objective']:
+        aim.append('<div><dt>Objective</dt><dd>%s</dd></div>' % esc(g['objective']))
+    if g['peaks']:
+        aim.append('<div><dt>Peaks (%d)</dt><dd class="dl-list"><ol class="goal-peaks">%s</ol></dd></div>'
+                   % (len(g['peaks']), ''.join('<li>%s</li>' % esc(pk) for pk in g['peaks'])))
+    if aim:
+        note = '<p class="t-small goal-peaks-note">The named summits the planned line goes over, in the order it reaches them.</p>' if g['peaks'] else ''
+        sec('objective', 'Objective and peaks' if g['objective'] and g['peaks'] else ('Objective' if g['objective'] else 'Peaks on the route'),
+            '<dl class="dl-leader">%s</dl>%s' % (''.join(aim), note))
     if g['why']:
         sec('why', 'Why', '<p class="t-body goal-why">%s</p>' % esc(g['why']))
     if t['body_md']:

@@ -1,9 +1,9 @@
 """Goal sidecars for the tick list: content/trips/<slug>/goal.json beside a kind: planned trip.
 
 index.md keeps the trip's identity (title, activity, place, region, approximate stats, the planning notes); goal.json
-keeps the intent and provenance: status, priority, archived, tags, why, preferred months / target year, time commitment,
-season notes, difficulty, route scope, route source, references, field evidence, checklist, outings and the derived
-route block the importer writes. Everything here is strict: an explicit value that is not allowed stops the build with a
+keeps the intent and provenance: status, priority, archived, tags, why, the objective and the peaks on the route, preferred
+months / target year, time commitment, season notes, difficulty, route scope, route source, references, field evidence,
+checklist, outings and the derived route block the importer writes. Everything here is strict: an explicit value that is not allowed stops the build with a
 message naming the file and the field. A planned trip without a sidecar is a legacy goal and gets the defaults.
 Research is published only when its field_evidence is approved; completion only exists as an explicitly logged outing.
 """
@@ -29,10 +29,13 @@ SCOPE_LABELS = {'full-intended-route': 'the full intended route', 'approach-only
 SOURCE_LABELS = {'author-drawn': 'drawn by hand', 'planner-export': 'a planner export', 'third-party-recording': "someone else's recording",
                  'own-prior-recording': 'an earlier recording of my own', 'unknown': 'source unknown'}
 ELEVATION_LABELS = {'full': '', 'partial': 'PARTIAL ELEVATION', 'none': 'NO ELEVATION IN THE FILE'}
+OBJECTIVE_MAX = 120                        # characters: the objective is one line on a card
+PEAK_MAX = 60                              # characters in one peak's name
 _ID = re.compile(r'^[a-z0-9][a-z0-9-]*$')
 _HEX64 = re.compile(r'^[0-9a-f]{64}$')
-KEYS = ('schema_version', 'status', 'priority', 'archived', 'tags', 'why', 'added_at', 'target_months', 'target_year', 'time_commitment',
-        'season_notes', 'difficulty', 'route_scope', 'route_source', 'references', 'field_evidence', 'checklist', 'outings', 'route')
+KEYS = ('schema_version', 'status', 'priority', 'archived', 'tags', 'why', 'objective', 'peaks', 'added_at', 'target_months', 'target_year',
+        'time_commitment', 'season_notes', 'difficulty', 'route_scope', 'route_source', 'references', 'field_evidence', 'checklist', 'outings',
+        'route')
 
 
 def _error():
@@ -41,7 +44,8 @@ def _error():
 
 
 def defaults():
-    return {'schema_version': 1, 'status': 'idea', 'priority': 'normal', 'archived': False, 'tags': [], 'why': '', 'added_at': None,
+    return {'schema_version': 1, 'status': 'idea', 'priority': 'normal', 'archived': False, 'tags': [], 'why': '', 'objective': '',
+            'peaks': [], 'added_at': None,
             'target_months': [], 'target_year': None, 'time_commitment': None, 'season_notes': '', 'difficulty': None,
             'route_scope': 'unknown',
             'route_source': {'kind': 'unknown', 'url': None, 'label': None, 'checked_at': None, 'public_copy_approved': False, 'approximation_note': None},
@@ -122,6 +126,19 @@ def validate(goal, slug, track_path=None):
         g['tags'] = _strlist(goal['tags'], 'tags', slug)
     if 'why' in goal:
         g['why'] = _str(goal['why'], 'why', slug)
+    if 'objective' in goal:
+        g['objective'] = _str(goal['objective'], 'objective', slug)
+        if '\n' in g['objective'] or len(g['objective']) > OBJECTIVE_MAX:
+            raise _err(slug, 'objective must be one line of at most %d characters, got %d' % (OBJECTIVE_MAX, len(g['objective'])))
+    if 'peaks' in goal:
+        g['peaks'] = _strlist(goal['peaks'], 'peaks', slug)
+        seen = set()
+        for pk in g['peaks']:
+            if '\n' in pk or len(pk) > PEAK_MAX:
+                raise _err(slug, 'peaks: each name must be one line of at most %d characters, got %r' % (PEAK_MAX, pk))
+            if pk.casefold() in seen:
+                raise _err(slug, "peaks: '%s' is listed twice (list each summit once, in the order the route reaches it)" % pk)
+            seen.add(pk.casefold())
     if 'added_at' in goal:
         g['added_at'] = _date(goal['added_at'], 'added_at', slug)
     if 'target_months' in goal:

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "idea",
+  "priority": "normal",
+  "archived": false,
+  "tags": [],
+  "why": "",
+  "objective": "The Crystal Range traverse, Pyramid Peak to Bayview",
+  "peaks": [
+    "Pyramid Peak",
+    "Peak 9686",
+    "Mount Agassiz",
+    "Mount Price",
+    "Jacks Peak",
+    "Dicks Peak",
+    "Peak 9579",
+    "South Maggies Peak"
+  ],
+  "added_at": null,
+  "target_months": [],
+  "target_year": null,
+  "time_commitment": null,
+  "season_notes": "",
+  "difficulty": null,
+  "route_scope": "unknown",
+  "route_source": {
+    "kind": "unknown",
+    "url": null,
+    "label": null,
+    "checked_at": null,
+    "public_copy_approved": false,
+    "approximation_note": null
+  },
+  "references": [],
+  "field_evidence": {},
+  "checklist": [],
+  "outings": [],
+  "route": null
+}

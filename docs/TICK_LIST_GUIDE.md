@@ -68,6 +68,8 @@ A `goal.json` with every default, which is what `add` writes before applying you
   "archived": false,
   "tags": [],
   "why": "",
+  "objective": "",
+  "peaks": [],
   "added_at": "2026-10-09",
   "target_months": [],
   "target_year": null,
@@ -102,7 +104,7 @@ message naming the field if a value is wrong (section 9). A `goal.json` beside a
 | `draft: true` | on creation | Off the site until removed. Not a goal status and not a privacy control. |
 | `place`, `region` | no | "Desolation Wilderness", "Lake Tahoe". Reuse an existing region name so the goal joins that group; without one it sits under "No region yet". Coordinates alone never become a place name. |
 | `route_shape` | no | `loop`, `out-and-back`, `point-to-point`, when you know it. |
-| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM): on the tick list, the goal page, the Hiking page's Planned rows (the other activity pages count a planned route and do not list it) and the rows and table of the map page and of the goal's region page, where the top of the line is labelled "High point", not "GPS max". "Highest point in the file" is not "summit elevation". |
+| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM): on the tick list, the goal page, the Hiking page's Planned rows (the other activity pages count a planned route and do not list it) and the rows and table of the map page and of the goal's region page, where the top of the line is labelled "High point", not "GPS max". A tick-list card shows the distance, the gain and the high point ("≈ 28.4 MI · ≈ 13,993 FT GAIN · ≈ 9,970 FT HIGH POINT"); the goal page's strip adds the loss beside the gain. "Highest point in the file" is not "summit elevation". |
 | body | no | Planning notes, shown under the heading "Planning notes" (never "Trip report"). `add --notes` writes the first version. |
 
 **In `goal.json`:**
@@ -114,6 +116,8 @@ message naming the field if a value is wrong (section 9). A `goal.json` beside a
 | `archived` | `true` / `false` (default) | Takes the goal out of the active list, the "+ N planned route" counts (Home, the activity pages, the About page, the map page and its region's page) and the Planned rows (the Hiking page, the map page's region lists and table, its region's page); keeps its page, GPX and outcome. Separate from status, so an attempted or completed goal can be archived without losing its history. The region maps are drawings: its dashed line leaves them the next time `python3 tools/render.py --site` runs (needs internet). The same goes for a completed goal. |
 | `tags` | list of short text | `scramble`, `ridge-traverse`, `couloir`, `backpacking`, and so on. Searchable on the list. |
 | `why` | one sentence | Your reason, in your words. Nobody else writes this. |
+| `objective` | one line, at most 120 characters | The main objective: a summit, a line, a link-up ("The Desolation crest on skis, Highway 89 to Strawberry"). Shown on the goal's card and first on its page, under "Objective and peaks", and searchable on the list. A session may draft one for you; what stays is your wording. |
+| `peaks` | list of names, in route order | The named summits the route goes over, in the order it reaches them, each once and at most 60 characters. The card shows them as "5 PEAKS" and the names; the goal page numbers them, with a line saying they are the summits the planned line goes over. `suggest-peaks` (section 4.7) proposes a list from OpenStreetMap; the list in the file is the one you wrote, never a guess from the geometry alone. An unnamed top can be listed by its height ("Peak 9579"). |
 | `added_at` | `YYYY-MM-DD` or `null` | The day the goal was saved; `add` sets it to today. Not a trip date. |
 | `target_months` | unique integers 1-12 | When you would like to go. A planning window, not a statement about conditions. |
 | `target_year` | 2000-2100 or `null` | Same, by year. |
@@ -162,6 +166,8 @@ only (edit the file by hand afterwards):
 | `--priority`, `--status` | `--priority high --status researching` | `goal.json` |
 | `--tags a,b` | `--tags scramble,ridge-traverse` | `tags` |
 | `--why TEXT` | `--why "The long ridge."` | `why` |
+| `--objective TEXT` | `--objective "The whole ridge in a day"` | `objective` (`--objective ""` clears it) |
+| `--peaks "A, B"` | `--peaks "North Top, Middle Knob, South Top"` | `peaks`, in the order given (`--peaks ""` clears it; a name with a comma in it goes into `goal.json` by hand) |
 | `--months 6,7`, `--year YYYY` | `--months 6,7 --year 2027` | `target_months`, `target_year` |
 | `--commitment` | `--commitment full-day` | `time_commitment` |
 | `--scope` | `--scope approach-only` | `route_scope` |
@@ -254,6 +260,7 @@ first of the two lines is not printed with `--no-render` either, or when `render
 python3 tools/ticklist.py update your-goal-slug --status shortlisted --priority high
 python3 tools/ticklist.py update your-goal-slug --months 6,7 --year 2027 --commitment full-day
 python3 tools/ticklist.py update your-goal-slug --tags scramble,ridge-traverse --why "The long ridge."
+python3 tools/ticklist.py update your-goal-slug --objective "The whole ridge in a day" --peaks "North Top, South Top"
 python3 tools/ticklist.py update your-goal-slug --source-kind planner-export --scope full-intended-route \
   --source-url https://example.com/plan --checked-at 2026-10-09
 python3 tools/ticklist.py update your-goal-slug \
@@ -326,7 +333,7 @@ python3 tools/ticklist.py export                     # prints the JSON
 ```
 
 A JSON array of the public fields of every non-draft goal: `slug`, `url`, `title`, `activity`, `subtype`, `place`,
-`region`, `draft` (always `false`: drafts are left out), `status`, `priority`, `archived`, `tags`, `why`, `added_at`,
+`region`, `draft` (always `false`: drafts are left out), `status`, `priority`, `archived`, `tags`, `why`, `objective`, `peaks`, `added_at`,
 `target_months`, `target_year`, `time_commitment`, `route_scope`, `route_source` (kind, label, url, checked date),
 `references` (id, label, url, checked date), `approx_stats`, `route` (segments, points, elevation; `null` without a
 published route), `has_gpx`, `outings` (outcome, date, report URL, note) and `legacy` (`true` for a planned route
@@ -335,6 +342,23 @@ notes. Never a local path, never `proposed` evidence.
 
 When some planned routes still have no `goal.json`, `export` also prints one line naming them (to the error stream,
 so `export > file.json` stays clean JSON): that is the list to review and `update`.
+
+### 4.7 Suggest the peaks
+
+```bash
+python3 tools/ticklist.py suggest-peaks your-goal-slug               # summits within 100 m of the line
+python3 tools/ticklist.py suggest-peaks your-goal-slug --radius 150  # a wider net
+```
+
+Reads the goal's published `track.gpx` and asks OpenStreetMap for the named summits around it (once; the answer is
+cached beside `render.py`'s, so later runs work offline). It lists, in the order the line reaches them, each summit
+within the radius of the line: how far along the line, its mapped elevation, the line's elevation there (when the
+file has one) and how far the line passes from it. Summits up to 400 m away are listed under "passed nearby, not
+suggested". The last line is the `update --peaks` command that would write the suggested list.
+
+It writes nothing. A line can pass a few metres from a summit it skirts, a map can name a top differently from your
+guidebook, and an unnamed top is never listed, so read the list against your plan, then write your own with `update
+--peaks`. A goal without a published route has nothing to look along and is refused.
 
 ## 5. Review and publish
 
@@ -545,6 +569,8 @@ without building; it and the build report every broken goal in one run.
 | `status` / `priority` / `time_commitment` / `route_scope` / `route_source.kind` not one of the allowed values | A typo, or a value from a different field | Use the exact lowercase values in section 3 (`full-day`, not `Full day`). |
 | `target_months` not unique or outside 1-12; `target_year` outside 2000-2100 | | Integers only: `[6, 7]`, `2027`. |
 | `archived` not a boolean, `tags` not a list of text, `why` / `season_notes` not text | A wrong type | `true`/`false` without quotes; `["a", "b"]`; `"…"`. |
+| `objective must be one line of at most 120 characters` | The objective is long or holds a line break | Say the target in one line; the reasons go in `why`, the details in the planning notes. |
+| `peaks: '…' is listed twice`, or a name over 60 characters | A summit the route meets twice, or a sentence in place of a name | List each summit once, where the route first reaches it; put the detail in the planning notes. |
 | `references`: duplicate `id`, `id` not `a-z0-9-`, `url` not http/https | | Rename the id (lowercase, digits, hyphens); give every reference an `https://` or `http://` URL. |
 | `field_evidence`: unknown source id, empty `source_ids`, or `status` not `proposed`/`approved` | The evidence names a reference that is not in `references` | Add the reference first, or fix the id. |
 | `difficulty` or a non-empty `season_notes` without approved evidence | Research not yet reviewed | Add `field_evidence` for that field with `"status": "approved"` once you have checked the source, or empty the field. |

@@ -4,6 +4,8 @@
   python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity hike --dry-run
   python3 tools/ticklist.py add --title "YOUR ROUTE NAME" --activity hike --gpx ~/Downloads/route.gpx --select trk:0 --publish-track --no-render
   python3 tools/ticklist.py update YOUR-GOAL-SLUG --status shortlisted --priority high --months 6,7
+  python3 tools/ticklist.py suggest-peaks YOUR-GOAL-SLUG
+  python3 tools/ticklist.py update YOUR-GOAL-SLUG --objective "The north ridge" --peaks "First Peak, Second Peak"
   python3 tools/ticklist.py log-outing YOUR-GOAL-SLUG --outcome completed --date 2027-07-04 --report-slug an-existing-report
   python3 tools/ticklist.py review-packet YOUR-GOAL-SLUG --out ~/Desktop/goal-review.md
   python3 tools/ticklist.py export --out ~/Desktop/tick-list.json
@@ -13,13 +15,15 @@ Everything is local and file-backed: the commands write content/trips/<slug>/ind
 that line. The GPX is somebody's plan or recording, not a trip: routes and tracks are kept apart, segments are kept,
 alternatives need an explicit choice, no elevation means no gain, and timestamps are never a date. A local path never
 reaches a public file. --publish-track approves copying the file into the public checkout; it is not a push, a deploy
-or a judgement about the route. See docs/TICK_LIST_GUIDE.md.
+or a judgement about the route. suggest-peaks only reads: it lists the named OpenStreetMap summits the published line
+passes over, for you to check before you write them with update --peaks. See docs/TICK_LIST_GUIDE.md.
 """
 import argparse
 import datetime
 import glob
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -29,12 +33,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
 import content  # noqa: E402
 import frontmatter  # noqa: E402
+import geo  # noqa: E402
 import goals  # noqa: E402
 import gpxroute  # noqa: E402
 
 TRIPS = content.TRIPS_DIR          # patched by the tests
 RENDER = os.path.join(ROOT, 'tools', 'render.py')
 ACTIVITIES = ('ski', 'climb', 'hike', 'mtb', 'other')
+PEAK_RADIUS_M = 100       # suggest-peaks: a summit this close to the line is one the line goes over
+PEAK_NEAR_M = 400         # ... and one this close is listed as passed nearby, not suggested
 _SLUG = re.compile(r'^[a-z0-9][a-z0-9-]{0,79}$')
 
 
@@ -217,6 +224,10 @@ def apply_intent(g, a):
             g[k] = v
     if getattr(a, 'tags', None) is not None:
         g['tags'] = list_arg(a.tags) or []
+    if getattr(a, 'objective', None) is not None:
+        g['objective'] = a.objective.strip()
+    if getattr(a, 'peaks', None) is not None:
+        g['peaks'] = list_arg(a.peaks) or []
     if getattr(a, 'months', None) is not None:
         g['target_months'] = months_arg(a.months) or []
     if getattr(a, 'archived', None) is not None:
@@ -418,6 +429,10 @@ def cmd_update(a):
     g = validated(g, a.slug, track_path=os.path.join(folder, 'track.gpx'))
     say('Goal:', meta.get('title'), '(%s)%s' % (a.slug, '' if existed else ' — no goal.json yet; creating it'))
     say('  status %s · priority %s · archived %s' % (g['status'], g['priority'], g['archived']))
+    if g['objective']:
+        say('  objective: %s' % g['objective'])
+    if g['peaks']:
+        say('  peaks (%d, in route order): %s' % (len(g['peaks']), ', '.join(g['peaks'])))
     if a.reopen:
         say('  reopened on %s: the earlier outings stay in the history' % today())
     write_goal(folder, g, a.dry_run)
@@ -478,6 +493,7 @@ def public_record(slug, meta, g, track):
     return {'slug': slug, 'url': 'trips/%s/' % slug, 'title': meta.get('title'), 'activity': meta.get('activity'), 'subtype': meta.get('subtype'),
             'place': meta.get('place'), 'region': meta.get('region'), 'draft': bool(meta.get('draft')),
             'status': g['status'], 'priority': g['priority'], 'archived': g['archived'], 'tags': g['tags'], 'why': g['why'],
+            'objective': g['objective'], 'peaks': g['peaks'],
             'added_at': g['added_at'], 'target_months': g['target_months'], 'target_year': g['target_year'],
             'time_commitment': g['time_commitment'], 'route_scope': g['route_scope'],
             'route_source': {k: g['route_source'][k] for k in ('kind', 'label', 'url', 'checked_at')},
@@ -504,6 +520,10 @@ def cmd_review_packet(a):
     missing = [k for k in ('place', 'region') if not meta.get(k)]
     if not g['why']:
         missing.append('why')
+    if not g['objective']:
+        missing.append('objective')
+    if not g['peaks']:
+        missing.append('peaks (suggest-peaks lists the named summits on the line)' if track else 'peaks')
     if not g['target_months']:
         missing.append('target_months')
     if not g['time_commitment']:
@@ -576,6 +596,86 @@ def cmd_export(a):
     return 0
 
 
+# ---------------------------------------------------------------- suggest-peaks
+
+def peaks_along(segments, nodes, radius=PEAK_RADIUS_M, near=PEAK_NEAR_M):
+    """Named summits beside a line, in the order the line reaches them: [{name, ele_m, off_m, at_km, line_m, over}] where
+    off_m is the summit's distance from the closest point of the line, at_km how far along the line (segments added up,
+    never bridged) that point is, line_m the line's elevation there (None without one) and over whether off_m is within
+    radius. Summits further than near are left out; a name met twice keeps its closest summit. nodes: [((lat, lon), tags)]
+    as geo.osm_nodes gives them."""
+    pts, along, done = [], [], 0.0
+    for seg in segments:
+        cum = geo.cumdist([(p[0], p[1]) for p in seg]) if len(seg) > 1 else [0.0]
+        pts.extend(seg)
+        along.extend(done + c for c in cum)
+        done += cum[-1]
+    if not pts:
+        return []
+    found = {}
+    for (lat, lon), tags in nodes:
+        name = (tags.get('name') or '').strip()
+        if not name:
+            continue
+        k = min(range(len(pts)), key=lambda i: (pts[i][0] - lat) ** 2 + ((pts[i][1] - lon) * math.cos(math.radians(lat))) ** 2)
+        off = geo.hav((lat, lon), (pts[k][0], pts[k][1]))
+        if off > near or (name in found and found[name]['off_m'] <= off):
+            continue
+        try:
+            ele = float(str(tags.get('ele', '')).replace('m', '').strip())
+        except ValueError:
+            ele = None
+        found[name] = {'name': name, 'ele_m': ele, 'off_m': off, 'at_km': along[k] / 1000.0, 'line_m': pts[k][2], 'over': off <= radius}
+    return sorted(found.values(), key=lambda r: (r['at_km'], r['name']))
+
+
+def cmd_suggest_peaks(a):
+    """Read-only: the named OpenStreetMap summits the goal's published line goes over, then the update command that
+    would list them. Nothing is written; the OpenStreetMap answer is cached beside render.py's."""
+    folder, meta, _body = load_goal_trip(a.slug)
+    path = os.path.join(folder, 'track.gpx')
+    if not os.path.exists(path):
+        raise Fail('%s has no published route (track.gpx): there is no line to look along' % a.slug)
+    try:
+        segments = [s for c in gpxroute.candidates(gpxroute.inspect(path)) for s in c['segments']]
+    except gpxroute.GpxError as ex:
+        raise Fail('track.gpx: %s' % ex)
+    pts = [p for seg in segments for p in seg]
+    if not pts:
+        raise Fail('track.gpx holds no points')
+    pad = 0.01
+    bb = '%.5f,%.5f,%.5f,%.5f' % (min(p[0] for p in pts) - pad, min(p[1] for p in pts) - pad,
+                                  max(p[0] for p in pts) + pad, max(p[1] for p in pts) + pad)
+    try:
+        data = geo.overpass('[out:json][timeout:60];node["natural"="peak"]["name"](%s);out;' % bb)
+    except RuntimeError as ex:
+        raise Fail('OpenStreetMap did not answer (%s); this needs the internet once, then the answer is cached' % ex)
+    rows = peaks_along(segments, geo.osm_nodes(data, lambda t: t.get('natural') == 'peak' and t.get('name')),
+                       radius=a.radius, near=max(PEAK_NEAR_M, a.radius))
+    say('Goal:', meta.get('title'), '(%s)' % a.slug)
+    say('  named summits in OpenStreetMap the line passes over (within %d m), in route order:' % a.radius)
+
+    def row(r):
+        ele = ('%d m' % round(r['ele_m'])) if r['ele_m'] is not None else 'no elevation'
+        line = (', the line %d m' % round(r['line_m'])) if r['line_m'] is not None else ''
+        return '    %5.1f km  %s (%s%s; %d m from the line)' % (r['at_km'], gpxroute.printable(r['name'], 60), ele, line, round(r['off_m']))
+    over = [r for r in rows if r['over']]
+    for r in over:
+        say(row(r))
+    if not over:
+        say('    none')
+    nearby = [r for r in rows if not r['over']]
+    if nearby:
+        say('  passed nearby, not suggested:')
+        for r in nearby:
+            say(row(r))
+    say('  This is a suggestion from map data: check each summit against your plan (a line can skirt a top, and a map can')
+    say('  name a summit differently), then write the list yourself. Unnamed tops are not listed.')
+    if over:
+        say('Next: python3 tools/ticklist.py update %s --peaks "%s"' % (a.slug, ', '.join(r['name'].replace('"', '') for r in over)))
+    return 0
+
+
 # ---------------------------------------------------------------- cli
 
 def build_parser():
@@ -587,6 +687,8 @@ def build_parser():
         p.add_argument('--priority', choices=goals.PRIORITIES)
         p.add_argument('--tags', help='comma-separated')
         p.add_argument('--why', help='one sentence, in your words')
+        p.add_argument('--objective', help='the main objective, one line in your words ("" clears it)')
+        p.add_argument('--peaks', help='the named summits the route goes over, comma-separated, in route order ("" clears)')
         p.add_argument('--months', help='preferred months, e.g. 6,7')
         p.add_argument('--year', dest='target_year', type=int)
         p.add_argument('--commitment', dest='time_commitment', choices=goals.COMMITMENTS)
@@ -637,6 +739,10 @@ def build_parser():
     p.add_argument('--out', required=True)
     p.add_argument('--dry-run', action='store_true')
     p.set_defaults(fn=cmd_review_packet)
+    p = sub.add_parser('suggest-peaks', help='list the named summits the published line passes over (reads only)')
+    p.add_argument('slug')
+    p.add_argument('--radius', type=int, default=PEAK_RADIUS_M, help='metres from the line (default %d)' % PEAK_RADIUS_M)
+    p.set_defaults(fn=cmd_suggest_peaks)
     p = sub.add_parser('export', help='the public tick-list data as JSON')
     p.add_argument('--out')
     p.add_argument('--dry-run', action='store_true')

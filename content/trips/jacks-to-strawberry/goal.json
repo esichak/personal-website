@@ -5,6 +5,14 @@
   "archived": false,
   "tags": [],
   "why": "",
+  "objective": "The Desolation crest on skis, Highway 89 to Strawberry",
+  "peaks": [
+    "South Maggies Peak",
+    "Mount Tallac",
+    "Dicks Peak",
+    "Jacks Peak",
+    "Pyramid Peak"
+  ],
   "added_at": "2026-10-26",
   "target_months": [],
   "target_year": null,
@@ -15,7 +23,7 @@
   "route_source": {
     "kind": "third-party-recording",
     "url": null,
-    "label": "Strava recording",
+    "label": "a Strava recording",
     "checked_at": null,
     "public_copy_approved": true,
     "approximation_note": null

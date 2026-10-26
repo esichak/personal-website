@@ -813,7 +813,10 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     `goals.EVENTS` adds `reopened`, written by `ticklist.py update --reopen`, after which the status may be anything but
     completed until a new completed outing.
   - `core.goal_card(t, here)` is the one goal card (`data-slug / act / region / status / priority / months / gpx / archived /
-    added / text`); the route tile is its image, with 'Map not rendered yet' / 'Route not added yet' fallbacks.
+    added / text`); the route tile is its image, with 'Map not rendered yet' / 'Route not added yet' fallbacks. Its stats
+    line (`core.goal_stats_line`) is the ≈ distance, gain and high point; under it `core.goal_aim(goal)` lists the
+    author's `objective` and `peaks` (route order, one meta line), each only when set, and both are in `data-text`. The
+    phone list view hides them with the tags.
   - ticklist.js state keys: `q, activity, region, status, priority, month, gpx (1), scope (active | shortlisted | completed
     | archived | all), sort (priority | added | name), view (cards | list)`; filtering is entirely from the cards' data
     attributes (no index fetch); the history rules are trips.js's (`Explore.historyStep`, with the page's own
@@ -830,9 +833,15 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     (`ticklist.with_form(site)`); below that the page lists the active goals alone, with no controls, and an address
     with `?status=` or `?scope=` changes nothing (ticklist.js finds no form and returns).
   - A goal page (`report.goal_page`) says Planned route and Planning notes, never Trip report: an approximate stats strip
-    (≈, gain only with full elevation, never a moving time, a note naming the source kind and scope), the rendered map or
-    an honest fallback, Why · Planning notes · Season and commitment (only approved field_evidence is published) · Route
-    source · References · Still to check (read-only) · Outings. The download is the published source bytes.
+    (≈, gain and loss only with full elevation, never a moving time, a note naming the source kind and scope), the
+    rendered map or an honest fallback, Objective and peaks (the author's objective and numbered peaks, the heading
+    naming only what is there) · Why · Planning notes · Season and commitment (only approved field_evidence is
+    published) · Route source · References · Still to check (read-only) · Outings. The download is the published source
+    bytes.
+  - `ticklist.py suggest-peaks <slug>` only reads: `peaks_along` finds the named OpenStreetMap summits (one peaks-only
+    Overpass query over the line's box, cached by `geo.overpass` like the render's) within `--radius` (100 m) of the
+    published line, in the order the line reaches them, segments added up and never bridged; it prints the `update
+    --peaks` command and writes nothing. `peaks` itself is author content, never derived at build time.
   - `render.py` draws a goal from `gpxroute.as_tracks` (one Track per segment, routes included) so gaps stay gaps, on its
     own map and on the region maps (`goal_lines`, `start_of`, `site_tracks`); goals get no elevation chart. A goal without
     a GPX (`no_route(t)`) is skipped, and a render left from an earlier route is removed; region maps draw active goals

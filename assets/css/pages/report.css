@@ -289,13 +289,17 @@ body.p-report:not(:has(.bbar)) .site-f { padding-bottom: 0; }
   html:has(.bbar) { scroll-padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
 }
 
-/* ---------------------------------------------------------------- tick-list goal pages (p-goal): Why · Planning notes · Season · Source · References · Checklist · Outings */
+/* ---------------------------------------------------------------- tick-list goal pages (p-goal): Objective · Why · Planning notes · Season · Source · References · Checklist · Outings */
 .rep-tick { margin-top: 16px; display: flex; align-items: center; gap: 8px; }
 .rep-tick a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; color: var(--ink); }
 .goal-sec { max-width: 720px; }
 .goal-sec + .goal-sec { margin-top: 40px; }
 .goal-sec .rep-h { margin-bottom: 16px; }
 .goal-why { max-width: 620px; }
+/* Objective and peaks: the peaks numbered in route order inside the leader list's value */
+.goal-peaks { list-style: decimal; padding-left: 1.6em; text-align: left; }
+.goal-peaks li::marker { font: 400 13px var(--mono); color: var(--ink-3); }
+.goal-peaks-note { margin-top: 12px; }
 .goal-season { margin-top: 16px; }
 .goal-src { display: inline-block; margin-left: 6px; }
 .goal-src a, .goal-refs a, .goal-rep { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; color: var(--ink); }
