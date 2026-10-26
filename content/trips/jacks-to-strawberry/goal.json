@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "status": "idea",
+  "priority": "normal",
+  "archived": false,
+  "tags": [],
+  "why": "",
+  "added_at": "2026-10-26",
+  "target_months": [],
+  "target_year": null,
+  "time_commitment": null,
+  "season_notes": "",
+  "difficulty": null,
+  "route_scope": "unknown",
+  "route_source": {
+    "kind": "third-party-recording",
+    "url": null,
+    "label": "Strava recording",
+    "checked_at": null,
+    "public_copy_approved": true,
+    "approximation_note": null
+  },
+  "references": [],
+  "field_evidence": {},
+  "checklist": [],
+  "outings": [],
+  "route": {
+    "source_sha256": "1cb332000f3db49036aff0c4afef7f511512a3a6e365c32699f9ce55f851167e",
+    "method": "ticklist-gpx-1",
+    "selected": {
+      "type": "trk",
+      "index": 0,
+      "name": "Jacks to Strawberry"
+    },
+    "alternatives": 1,
+    "segments": 1,
+    "points": 59463,
+    "elevation": "full",
+    "times": false,
+    "waypoints": 0
+  }
+}

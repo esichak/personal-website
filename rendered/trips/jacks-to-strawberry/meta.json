@@ -1,0 +1,61 @@
+{
+ "hash": "b5927db427111d46afb0fa8c1367a59b0ace51f8",
+ "inputs": {
+  "fields": "d910564bd9f79c6b1f4e3bdb32e9438cacdec752",
+  "files": "519e85332ba998bcba02b220ec27411c6bd89606",
+  "version": 8
+ },
+ "slug": "jacks-to-strawberry",
+ "kind": "planned",
+ "maps": {
+  "map-wide": {
+   "w": 1440,
+   "h": 800,
+   "png": "map-wide.webp",
+   "base": "map-wide.base.svg",
+   "interval_ft": 500,
+   "outbound_only": null,
+   "base_gz_kb": 33.9
+  },
+  "map-col": {
+   "w": 718,
+   "h": 500,
+   "png": "map-col.webp",
+   "base": "map-col.base.svg",
+   "interval_ft": 1000,
+   "outbound_only": null,
+   "base_gz_kb": 14.5
+  },
+  "map-phone": {
+   "w": 390,
+   "h": 336,
+   "png": "map-phone.webp",
+   "base": "map-phone.base.svg",
+   "interval_ft": 2000,
+   "outbound_only": null,
+   "base_gz_kb": 4.8
+  }
+ },
+ "charts": {},
+ "start": [
+  38.975646,
+  -120.100125
+ ],
+ "end": [
+  38.808069,
+  -120.136528
+ ],
+ "bbox": [
+  38.808069,
+  -120.158045,
+  38.975981,
+  -120.098059
+ ],
+ "renderer": {
+  "version": 8,
+  "python": "3.9.6",
+  "cwebp": "1.5.0",
+  "date": "2026-10-26",
+  "osm": "fetched"
+ }
+}

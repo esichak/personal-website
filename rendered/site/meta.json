@@ -1,5 +1,5 @@
 {
- "hash": "2eca64f7c217be537b1d93087f58482bf105fb7e",
+ "hash": "9becbd706093a776c0ce20b715a8886a9d7f2b42",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
@@ -95,7 +95,8 @@
     "jakes-peak",
     "avy-1-field-day",
     "one-hell-of-a-first-ski-tour",
-    "crystal-range-to-bayview"
+    "crystal-range-to-bayview",
+    "jacks-to-strawberry"
    ],
    "clusters": [
     {
@@ -172,14 +173,15 @@
     {
      "x": 319.84854917974553,
      "y": 317.12644472047276,
-     "n": 6,
+     "n": 7,
      "keys": [
       "paddle-near-tahoma",
       "jakes-peak-x-2",
       "jakes-peak-to-emerald-bay",
       "scoping-out-the-emerald-bay-chutes",
       "hike-near-tahoma",
-      "jakes-peak"
+      "jakes-peak",
+      "jacks-to-strawberry"
      ]
     },
     {
@@ -465,7 +467,8 @@
     "jakes-peak",
     "avy-1-field-day",
     "one-hell-of-a-first-ski-tour",
-    "crystal-range-to-bayview"
+    "crystal-range-to-bayview",
+    "jacks-to-strawberry"
    ],
    "clusters": [
     {
@@ -534,14 +537,15 @@
     {
      "x": 167.2022803195281,
      "y": 229.05747689839697,
-     "n": 6,
+     "n": 7,
      "keys": [
       "paddle-near-tahoma",
       "jakes-peak-x-2",
       "jakes-peak-to-emerald-bay",
       "scoping-out-the-emerald-bay-chutes",
       "hike-near-tahoma",
-      "jakes-peak"
+      "jakes-peak",
+      "jacks-to-strawberry"
      ]
     },
     {
@@ -750,7 +754,8 @@
     "aiare-2",
     "jakes-peak",
     "avy-1-field-day",
-    "one-hell-of-a-first-ski-tour"
+    "one-hell-of-a-first-ski-tour",
+    "jacks-to-strawberry"
    ],
    "clusters": [
     {
@@ -806,7 +811,7 @@
     {
      "x": 268.51114149564523,
      "y": 377.9434644327277,
-     "n": 7,
+     "n": 8,
      "keys": [
       "return-to-emerald-chute",
       "emerald-chute-y-chute-combo",
@@ -814,7 +819,8 @@
       "y-chute-solo",
       "jakes-peak-to-emerald-bay",
       "scoping-out-the-emerald-bay-chutes",
-      "jakes-peak"
+      "jakes-peak",
+      "jacks-to-strawberry"
      ]
     },
     {
@@ -927,7 +933,8 @@
     "aiare-2",
     "jakes-peak",
     "avy-1-field-day",
-    "one-hell-of-a-first-ski-tour"
+    "one-hell-of-a-first-ski-tour",
+    "jacks-to-strawberry"
    ],
    "clusters": [
     {
@@ -952,7 +959,7 @@
     {
      "x": 214.84293704445378,
      "y": 262.24919095653524,
-     "n": 13,
+     "n": 14,
      "keys": [
       "mount-tallac-2026-02-15",
       "return-to-emerald-chute",
@@ -966,7 +973,8 @@
       "y-chute-solo",
       "jakes-peak-to-emerald-bay",
       "scoping-out-the-emerald-bay-chutes",
-      "jakes-peak"
+      "jakes-peak",
+      "jacks-to-strawberry"
      ]
     },
     {
@@ -1813,7 +1821,7 @@
     },
     {
      "x": 176.24926923110993,
-     "y": 30.07806780299612,
+     "y": 30.078067802996124,
      "n": 1,
      "keys": [
       "teton-canyon"
@@ -1881,7 +1889,7 @@
     },
     {
      "x": 176.24926923110993,
-     "y": 30.07806780299612,
+     "y": 30.078067802996124,
      "n": 1,
      "keys": [
       "teton-canyon"
@@ -2621,7 +2629,7 @@
      ]
     },
     {
-     "x": 366.899944072144,
+     "x": 366.8999440721441,
      "y": 203.16033695175184,
      "n": 1,
      "keys": [
@@ -2745,9 +2753,9 @@
  ],
  "renderer": {
   "version": 8,
-  "python": "3.12.11",
+  "python": "3.9.6",
   "cwebp": "1.5.0",
-  "date": "2026-10-25",
+  "date": "2026-10-26",
   "osm": "cached"
  }
 }
