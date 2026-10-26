@@ -12,11 +12,13 @@ python3 tools/validate.py                                    # content checks, n
 python3 -m unittest discover -s tests                        # unit tests (one module: -p test_report_page.py)
 python3 tools/build.py --out <scratch folder> --link --check # build and check the built site, in a few seconds
 python3 tools/check.py                                       # all three, the suite on both Pythons, before a push of code
+python3 tools/reflow.py <scratch folder>                     # a linked build at 320 and 375 px in Chrome: nothing scrolls sideways
 ```
 
 Run the suite on both Pythons with `-W error` before a change to `tools/`, `tests/` or `assets/` goes in: the Mac's
-`/usr/bin/python3` is 3.9, CI runs 3.12. Keep the tools 3.9-compatible. `python3 tools/doctor.py` is a read-only look
-at the checkout and the Mac.
+`/usr/bin/python3` is 3.9, CI runs 3.12. Keep the tools 3.9-compatible. After a change to a stylesheet or to what a
+page writes, run `tools/reflow.py` on a linked build (`--all` for every page); CI never runs it. `python3
+tools/doctor.py` is a read-only look at the checkout and the Mac.
 
 ## Publishing
 

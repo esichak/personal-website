@@ -152,6 +152,7 @@ python3 tools/render_sheet.py --all  # after a render: every changed map beside 
 python3 tools/size_report.py         # what the repository and the site weigh, and how fast they grow
 python3 -m unittest discover -s tests   # the generator's unit tests (see docs/DEVELOPING.md)
 python3 tools/smoke.py ~/Library/Caches/personal-website/site   # a few pages in headless Chrome (CI runs it too)
+python3 tools/reflow.py ~/Library/Caches/personal-website/site  # does any page scroll sideways at 320 or 375 px? (Chrome, by hand)
 ```
 
 A plain `python3 tools/build.py --check` writes the published build into `_site/` (about 240 MB of copies; CI uses

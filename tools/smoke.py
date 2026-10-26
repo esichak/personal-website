@@ -9,7 +9,8 @@ installed, and CI runs it as a job of its own that never blocks the deploy (.git
 
 Chrome only: Safari, Firefox, a real phone and screen readers are not covered by this, or by anything else that runs
 on its own. The cases name today's content (a region, a ski season, a report with photos): when that content changes,
-change CASES.
+change CASES. Its sibling tools/reflow.py measures sideways scrolling at phone widths, on this server (serve(site,
+handler)), by hand only.
 """
 import argparse
 import functools
@@ -73,10 +74,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass        # Chrome hung up mid-answer: a request it no longer wanted, or the end of its run
 
-def serve(site):
-    httpd = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Handler, directory=site))
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+
+def serve(site, handler=Handler):
+    httpd = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(handler, directory=site))
+    threading.Thread(target=httpd.serve_forever, kwargs={'poll_interval': 0.05}, daemon=True).start()   # a quick shutdown()
     return httpd
 
 

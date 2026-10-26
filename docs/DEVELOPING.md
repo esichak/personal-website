@@ -35,6 +35,8 @@ tools/check.py                    before a push that changes code: validate.py, 
 tools/doctor.py                   one read-only look at the Mac and the checkout: disk, .git/index, git state, conflict copies, offloads, tools
 tools/tidy.py                     lists iCloud conflict copies; --delete removes those of generated files (rendered/, _site/)
 tools/smoke.py                    a few built pages in headless Chrome (dumped DOM, console errors); CI runs it as a job that never gates
+tools/reflow.py                   sideways scrolling: a page of each kind (--all: every page) at 320 and 375 px in headless Chrome,
+                                  naming what sticks out past the right edge; by hand, never in CI
 tools/lib/checks.py               the content rules: run() -> findings (error | warning | note) for every broken file in one pass
 tools/sitegen/sitecheck.py        the built-site rules behind build.py --check: links, anchors, ids, ARIA references, heading order, head
                                   metadata, sitemap, feed, search indexes, published GPX bytes
@@ -1989,9 +1991,11 @@ regenerated, `UPDATE_GOLDEN=1 python3 -m unittest discover -s tests -p test_mapk
 renders synthetic trips end to end with the network stubbed and builds their pages; it runs on CI (`CI=true`) and
 locally with `RENDER_TESTS=1`, and is skipped otherwise because it takes about a minute.
 
-By hand before a publication, beside the checks: the pages at 320, 390 and 1280 px; a report, map/ and a region page
-at 200 % text-only zoom in Firefox (View > Zoom > Zoom Text Only); Chrome's touch emulation on the multi-day day bar
-and the journal's month bar (nothing stays highlighted after a tap); and a report's print preview (Phase 13B).
+By hand before a publication, beside the checks: the pages at 320, 390 and 1280 px (`tools/reflow.py`, below,
+measures whether any scrolls sideways at 320 and 375 px; how they look is still a person's call); a report, map/ and a
+region page at 200 % text-only zoom in Firefox (View > Zoom > Zoom Text Only); Chrome's touch emulation on the
+multi-day day bar and the journal's month bar (nothing stays highlighted after a tap); and a report's print preview
+(Phase 13B).
 
 `python3 tools/check.py` is the command to run before such a push: `validate.py`, then the suite on `/usr/bin/python3`
 and on `python3.12` with `-W error` (without python3.12 one line says `brew install python@3.12` and the run goes on;
@@ -2096,6 +2100,33 @@ run), lacks its own sign (`CASES`: the explorer's count for a search, the Oregon
 on, the photo viewer, the journal's written days), or whose Chrome log has an `Uncaught` error on a `CONSOLE` line. It
 exits 0 with a notice where Chrome is not installed. `CASES` name today's content: change them when it changes. It is
 Chrome only: Safari, Firefox, a real phone and screen readers are not exercised by anything that runs on its own.
+
+`python3 tools/reflow.py [SITE]` (by hand; CI never runs it) measures what no other check sees: whether a page scrolls
+sideways on a phone (WCAG 1.4.10). It serves a build as smoke.py does and opens `PAGES`, a page of each kind and the
+two explorers' list views (`trips/?view=list`, `tick-list/?view=list`), at 320 and 375 px. A page fails at a width
+when its `document.documentElement.scrollWidth` is larger than its `clientWidth`, and the report names the outermost
+elements past the right edge that no box clips (an element, its text, or its `::before` / `::after`): the right edge,
+the width, the first words and up to three boxes around it, such as `span.mi  right 361 (241 wide)  "SAT, JAN 17,
+2026"  in span.ml < header.rep-head`. `--all` checks every page of the build (365 on 2026-10-26, about two minutes),
+`--page PATH` the pages named (`--page 'trips/?q=tallac'`), `--width PX` other widths, `--km` the pages in kilometers
+(the stored choice) and `--no-js` the pages without their scripts. A frame whose `<html>` shows other units, or another
+script state, than asked counts as not measured. Run it on a linked build outside iCloud Drive (`python3 tools/build.py
+--out ~/Library/Caches/personal-website/site --link`) after a change to a stylesheet or to what a page writes, and
+before a publication. Without Chrome it exits 0 with a notice. `PAGES` name today's content: change them when it
+changes.
+
+How it measures. Chrome draws nothing narrower than its smallest window (`--headless=new --window-size=390,…` gave a
+blank page), so each page loads in a same-origin `<iframe>` of the phone's width, inside a page of frames that the
+server answers outside the prefix (`/__reflow__/N.html`). Each Chrome run takes eight pages, with every frame at the
+window's top left, where none is offscreen. `--dump-dom --virtual-time-budget=10000` prints what that page measured
+once each frame has loaded, its fonts are in and its scripts have had 300 ms. `--hide-scrollbars` is needed: without
+it a 15 px scrollbar narrows every frame. An element is named only when no box on its chain of containing blocks clips
+it. An absolutely placed `.sr` span inside a scroll box that is not positioned gets out of that box and widens the page
+all the same, so the verdict is the page's `scrollWidth` and the names only help to find the cause. The text is
+measured in Chrome's metrics on the Mac. Safari, a real phone and a larger text size can differ by a few pixels, so a
+line that ends a few pixels inside the edge here is not proven safe there. `REFLOW_TESTS=1 python3 -m unittest
+discover -s tests -p test_reflow.py` runs the measuring script in Chrome on a page of each kind of fault, and on
+decoys that must pass.
 
 render.py (Phase 6; tests/test_render_goals.py, with the drawing and fetching stubbed): `render_trip` and `render_site`
 draw into `<folder>.tmp-<pid>` (`render.drawing_into`; `t['rendered']` points there while the trip is drawn) and swap
@@ -2275,6 +2306,10 @@ What the test files cover:
   words of the text below a trip's or a day's front matter stand in a test file, and names the two files and the line,
   not the words. Reword the test's sentence when it fires. Its check of the real `content/` is skipped where that
   folder is absent.
+- The phone-width check (2026-10-26): `tests/test_reflow.py`, with Chrome replaced by a stand-in that fetches the page
+  of frames from the real server (the frames and their widths, each verdict, a page not measured or not in the build,
+  `--all` in batches, `--page`, `--width`, `--km`, `--no-js`, and node's parse of the measuring script); its
+  `ChromeTests` run the script in Chrome with `REFLOW_TESTS=1`.
 
 ## Render caches
 
