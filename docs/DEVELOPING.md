@@ -841,7 +841,10 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   - `ticklist.py suggest-peaks <slug>` only reads: `peaks_along` finds the named OpenStreetMap summits (one peaks-only
     Overpass query over the line's box, cached by `geo.overpass` like the render's) within `--radius` (100 m) of the
     published line, in the order the line reaches them, segments added up and never bridged; it prints the `update
-    --peaks` command and writes nothing. `peaks` itself is author content, never derived at build time.
+    --peaks` command and writes nothing. Map names are untrusted: the report prints them through `gpxroute.printable`,
+    and the command holds only `offerable` names (letters, digits, spaces and `' ’ - . ( ) & /`, NFC, nothing
+    `printable` would escape), joined and `shlex.quote`d; the rest are listed as left out. `peaks` itself is author
+    content, never derived at build time.
   - `render.py` draws a goal from `gpxroute.as_tracks` (one Track per segment, routes included) so gaps stay gaps, on its
     own map and on the region maps (`goal_lines`, `start_of`, `site_tracks`); goals get no elevation chart. A goal without
     a GPX (`no_route(t)`) is skipped, and a render left from an earlier route is removed; region maps draw active goals

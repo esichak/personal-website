@@ -15,6 +15,7 @@ import importlib
 import io
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -1140,7 +1141,7 @@ class SuggestPeaksTests(CliFixture):
         self.assertIn('passed nearby, not suggested:', out)
         self.assertIn('"Side Top"', out.split('passed nearby, not suggested:')[1])
         self.assertNotIn('Distant Top', out)
-        self.assertEqual(lines[-1], 'Next: python3 tools/ticklist.py update %s --peaks "Start Knob, Far End Top"' % SLUG)
+        self.assertEqual(lines[-1], "Next: python3 tools/ticklist.py update %s --peaks 'Start Knob, Far End Top'" % SLUG)
         # it only reads: the folder is as it was, nothing rendered, one peaks-only query over the line's box
         self.assertEqual({n: read(os.path.join(self.folder(), n), 'rb') for n in self.files()}, before)
         self.assertNoRender()
@@ -1149,7 +1150,7 @@ class SuggestPeaksTests(CliFixture):
 
     def test_a_wider_radius_takes_the_nearby_summit_in(self):
         out = self.ok('suggest-peaks', SLUG, '--radius', '300')
-        self.assertTrue(out.splitlines()[-1].endswith('--peaks "Start Knob, Side Top, Far End Top"'), out)
+        self.assertTrue(out.splitlines()[-1].endswith("--peaks 'Start Knob, Side Top, Far End Top'"), out)
 
     def test_peaks_along_measures_along_the_segments_without_bridging(self):
         seg1 = [(0.0, 0.0, 100.0, None), (0.0, 0.01, 110.0, None)]
@@ -1159,6 +1160,37 @@ class SuggestPeaksTests(CliFixture):
         self.assertAlmostEqual(rows[0]['at_km'], rows[1]['at_km'] / 2, places=3)
         self.assertEqual((rows[0]['ele_m'], rows[0]['line_m'], rows[1]['line_m']), (None, 110.0, None))
         self.assertTrue(all(r['over'] for r in rows))
+
+    def test_map_names_never_reach_the_command_line_or_the_terminal_raw(self):
+        # OpenStreetMap names are anybody's text: each of these sits on the line, and only the plain ones may be offered
+        hostile = ['Top $(touch pwned)', 'Back`id`tick', 'Comma, Peak', 'Esc\x1b[2J Top', 'Bell\x07 Top', 'Mirror\u202eTop',
+                   'Quote "Top"', 'Slash\\Top', 'Bang! Top', 'Tab\tTop', 'e\u0301cart', 'x' * 61]
+        plain = ["Janine's Peak", 'Peak 9579', 'Pic de l\u2019Example', 'Mont Bl\u00e9 (Nord)']
+        # the plain names on points 0, 2, 4 and 6 of the line (so their order is the route's), the rest between them
+        self.answer = {'elements': [peak(100 + i, 38.900 + 0.002 * i, -120.1000, n) for i, n in enumerate(plain)]
+                       + [peak(200 + i, 38.9005 + 0.0008 * i, -120.1000, n) for i, n in enumerate(hostile)]}
+        out = self.ok('suggest-peaks', SLUG)
+        for raw in ('\x1b', '\x07', '\u202e', '\t', '\u0301'):
+            self.assertNotIn(raw, out)                       # escaped wherever a map name is printed
+        nxt = out.splitlines()[-1]
+        self.assertTrue(nxt.startswith('Next: '), nxt)
+        argv = shlex.split(nxt[len('Next: '):])
+        self.assertEqual(argv[:5], ['python3', 'tools/ticklist.py', 'update', SLUG, '--peaks'])
+        self.assertEqual(len(argv), 6)                      # one quoted value: nothing spills into further arguments
+        self.assertEqual(argv[5].split(', '), plain)        # in route order, and nothing else
+        held = out.split('left out of the command below')[1].split('Next:')[0]
+        for needle in ('$(touch pwned)', 'Back`id`tick', 'Comma, Peak', 'Esc\\u001b[2J Top', 'Mirror\\u202eTop', 'Quote \\"Top\\"'):
+            self.assertIn(needle, held)
+        # what it offers is exactly what update accepts
+        self.ok('update', SLUG, '--peaks', argv[5])
+        self.assertEqual(self.goal()['peaks'], plain)
+
+    def test_offerable(self):
+        for name in ("Janine's Peak", 'Peak 9579', 'Mount Price', 'Crête (Sud)', 'Rock & Roll Spire', 'A/B Col', 'Mt. Tom'):
+            self.assertTrue(self.cli.offerable(name), name)
+        for name in ('', ' Lead', 'Two  spaces', 'a,b', 'a$b', 'a`b', 'a\\b', 'a!b', 'a"b', 'a;b', 'a|b', 'a\x00b', 'a\u200bb',
+                     'e\u0301', '\u05d0\u05d1', 'x' * 61):
+            self.assertFalse(self.cli.offerable(name), repr(name))
 
     def test_no_summit_on_the_line(self):
         self.answer = {'elements': [peak(4, 38.9050, -120.0770, 'Distant Top')]}

@@ -356,6 +356,12 @@ within the radius of the line: how far along the line, its mapped elevation, the
 file has one) and how far the line passes from it. Summits up to 400 m away are listed under "passed nearby, not
 suggested". The last line is the `update --peaks` command that would write the suggested list.
 
+Map names are anybody's text, so they are handled like a GPX's (section 6): every name the report prints is quoted
+and escaped, and only a plain name goes into that command line: letters, digits, spaces and `' ’ - . ( ) & /`, at
+most 60 characters, quoted for the shell. A name with anything else in it (a comma, which would split the list; `$`,
+a backtick, a backslash, `!` or a double quote, which a shell could act on; control, invisible or right-to-left
+characters) is listed above the command as left out, for you to type yourself if it is right.
+
 It writes nothing. A line can pass a few metres from a summit it skirts, a map can name a top differently from your
 guidebook, and an unnamed top is never listed, so read the list against your plan, then write your own with `update
 --peaks`. A goal without a published route has nothing to look along and is refused.

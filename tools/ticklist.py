@@ -26,8 +26,10 @@ import json
 import math
 import os
 import re
+import shlex
 import subprocess
 import sys
+import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib'))
@@ -42,6 +44,7 @@ RENDER = os.path.join(ROOT, 'tools', 'render.py')
 ACTIVITIES = ('ski', 'climb', 'hike', 'mtb', 'other')
 PEAK_RADIUS_M = 100       # suggest-peaks: a summit this close to the line is one the line goes over
 PEAK_NEAR_M = 400         # ... and one this close is listed as passed nearby, not suggested
+_PEAK_PUNCT = frozenset(" '\u2019-.()&/")   # besides letters and digits, what a name in the printed command may hold
 _SLUG = re.compile(r'^[a-z0-9][a-z0-9-]{0,79}$')
 
 
@@ -629,6 +632,19 @@ def peaks_along(segments, nodes, radius=PEAK_RADIUS_M, near=PEAK_NEAR_M):
     return sorted(found.values(), key=lambda r: (r['at_km'], r['name']))
 
 
+def offerable(name):
+    """Whether a summit's OpenStreetMap name may go into the update command suggest-peaks prints for copying: one plain
+    line of letters, digits, spaces and ' \u2019 - . ( ) & / only, in NFC, at most goals.PEAK_MAX characters. Map data is
+    anybody's text: a comma would split the --peaks list, $ ` \\ ! or a quote could reach the shell, and control, format,
+    combining and right-to-left characters can drive the terminal or hide and reorder what the line shows. Such a name
+    is left for the author to type."""
+    if not name or len(name) > goals.PEAK_MAX or name != name.strip() or '  ' in name:
+        return False
+    if gpxroute.printable(name, goals.PEAK_MAX + 1) != '"%s"' % name:   # nothing printable() would escape or change
+        return False
+    return all(ch in _PEAK_PUNCT or unicodedata.category(ch)[0] in 'LN' for ch in name)
+
+
 def cmd_suggest_peaks(a):
     """Read-only: the named OpenStreetMap summits the goal's published line goes over, then the update command that
     would list them. Nothing is written; the OpenStreetMap answer is cached beside render.py's."""
@@ -671,8 +687,14 @@ def cmd_suggest_peaks(a):
             say(row(r))
     say('  This is a suggestion from map data: check each summit against your plan (a line can skirt a top, and a map can')
     say('  name a summit differently), then write the list yourself. Unnamed tops are not listed.')
-    if over:
-        say('Next: python3 tools/ticklist.py update %s --peaks "%s"' % (a.slug, ', '.join(r['name'].replace('"', '') for r in over)))
+    offered = [r['name'] for r in over if offerable(r['name'])]
+    held = [r['name'] for r in over if not offerable(r['name'])]
+    if held:
+        say('  left out of the command below, because the name holds characters a command line could misread (type it')
+        say('  yourself if it is right): %s' % ', '.join(gpxroute.printable(n, 60) for n in held))
+    if offered:
+        # the slug passed folder_of's pattern; the names are plain (offerable) and quoted for the shell all the same
+        say('Next: python3 tools/ticklist.py update %s --peaks %s' % (a.slug, shlex.quote(', '.join(offered))))
     return 0
 
 
