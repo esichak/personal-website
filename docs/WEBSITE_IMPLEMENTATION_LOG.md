@@ -3783,3 +3783,147 @@ Not run: Safari, Firefox and a real phone; a screen reader; `tools/check.py` as 
 - **For Phase 20:** trips/ in the list view scrolls sideways by 2 px at 305 and 320 px, as it did before this phase.
 - **Next:** Phase 20, the review gate before publication, run on these four branches; nothing is pushed until you say
   so there.
+
+## Review gate before publication (2026-10-26)
+
+Phase 20 of `docs/redesign-c/PROMPT.md`: the gate of `docs/claude-code-website-prompt-2.md` ('Review gate before each
+publication') with the prompt pack's additions, run at Eric's word ("Yes") on the four branches of Phases 16 to 19.
+
+### Starting point
+
+`git log --oneline origin/main..HEAD` at 06:37 PDT on branch `redesign-19-lists`: the four commits of Phases 16 to 19
+(`edcddc9`, `7f45b59`, `b8c3aa0`, `dc71936`); `origin/main` and `main` at `6106f0a`. `git status --short`: the two
+Plan 2 documents and the prompt pack `docs/redesign-c/` (never committed), ten render files iCloud put back (untracked,
+as at the last gate), and iCloud conflict copies. Python 3.9.6 (`/usr/bin/python3`) and 3.12.11, Node 25.8.2, Chrome
+(headless), Lighthouse 13 through the Chrome DevTools tools. Free disk 16 GB, so no worktree: the public commit was
+extracted with `git archive origin/main` into the session's scratch folder (230 MB) and deleted after the comparisons.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `assets/css/pages/region.css` | The region head's activities line lies above the map in paint order (commit `894d711`). |
+| `assets/css/pages/archive.css` | So does the map's legend, on map/ and the region pages. |
+| `tests/test_phase19.py` | The two rules. |
+
+### Behaviour
+
+- Nothing a visitor sees moves. A map line that runs off its map (the PCT journal's on the Eastern Sierra page) has a
+  box reaching up over the region head's activity links and down over the legend, though its drawing is clipped, and
+  Lighthouse's target-size audit counted the first link covered: 22.7 px of 188 clear, accessibility 97 on the Eastern
+  Sierra page on desktop. axe 4.10 finds the same on the public build (22.3 px), and the legend's ski button covered at
+  1024 px on both builds; Lighthouse's own run passed the public page. Lifted above the map, neither is covered: axe
+  finds no target-size violation on the eight region pages and map/ at 390, 768, 1024, 1350 and 1440 px, and the
+  Eastern Sierra page scores 100 in all four categories on desktop and mobile.
+
+### Compatibility with the public site
+
+- **Baseline.** The live home, trips/, the Matterhorn report, the Haute Route, the PCT, map/, the Lake Tahoe region
+  page, the tick list, About and the 404 page (`curl`) are byte-identical to the build of `origin/main` made with its
+  own code (365 pages, 168 trips, link check OK).
+- **Paths.** Public build 3,610 files, new build 3,607 (365 pages, 168 trips, link check OK). Seven are gone, all from
+  Phase 16: the old design's four font files (Archivo, Source Serif 4 and its italic, Geist Mono) and their three
+  licence texts, since the pages load Instrument Serif, Inter and IBM Plex Mono from Google's stylesheet until
+  `tools/fonts.py` runs (decision 4). Four are new only locally: map PNGs copied from the untracked render files iCloud
+  put back (CI builds from the commit, which does not hold them).
+- **Unchanged:** all 351 GPX files byte-identical; every write-up (the `.prose` text of every trip page) identical;
+  every trip's H1 and BlogPosting headline; every canonical; every JSON-LD block; no documented anchor missing
+  (`#latest-h`, `#act-h`, `#day-N`, `#region-<slug>`, `#yr-YYYY`, `#y-YYYY`, `#season-…`, `#arc-row-<slug>` and the
+  rest); the feed's 30 guids; the sitemap's 186 addresses.
+- **Ids.** Only the home page loses ids (17): the old activity tiles' `act-<activity>-c` and `-n`, the old lead card's
+  `fc-pacific-crest-trail-2024-m` and the recent-outing cards' `rc-<slug>-m`, which Phase 17 replaced with the figures,
+  the hero and the rows (`rw-` and `rr-`); 27 are new. None is a documented anchor.
+- **Visible text** (the `<main>` text of every page, whitespace folded): 169 pages differ in order or case, and 168 in
+  their words.
+  - **167 trip pages:** they lose only one copy of their date. The old head wrote the date twice, in the chip row and in
+    the place line, one hidden at each width; the new line writes it once, in sentence case (`Sat, Jan 17, 2026` where
+    `SAT, JAN 17, 2026` showed; Phase 18).
+  - **The home page:** it changes as Phase 17 describes. Gone: the old By activity tiles (each activity's `Latest`
+    title and date, its `INCL. N MULTI-DAY` count, the Other tile's sub-types); the buttons under the statement,
+    `Browse all trips` and `Explore the map` (the header and the plates' `Open the map` lead to the same pages); the
+    cards' `Read the report` links (the titles are the links); the PCT lead card's `150 RECORDED DAYS` and `3,167 MI
+    RECORDED`, which the hero does not show (the PCT page does); and the old site statement as the `<h1>` (now a
+    paragraph under the hero). New: the hidden `<h1>` 'Eric Sichak: trip reports', the
+    hero's overline, By the numbers with its year sentence, 'Recent written reports' and
+    'Recent recordings' with each row's stats and its write-up's opening, and the region plates' links.
+  - **Nothing else:** no difference outside the interface copy the four log entries list, the computed sentences and the
+    moved statement.
+
+### Checks actually run
+
+| Check | Result (build or tree it ran on) |
+| --- | --- |
+| `python3 tools/doctor.py` | WARN disk 17 GB, 13 stray `.git/index N`, 254 iCloud copies (one under `content/`: `author 2.json`), branch not `main`; OK otherwise (tracked files on the disk, 4 ahead and 0 behind `origin/main`) |
+| Both Pythons, `-W error`, `RENDER_TESTS=1` (before the gate's fix) | 3,285 tests OK on 3.9.6 (219.5 s) and 3.12.11 (164.6 s), 1 skipped each |
+| `python3 tools/check.py` (after the fix, the tree as committed) | validate, the suite on 3.9.6 (3,286 tests, 130.0 s) and on 3.12 (116.2 s), the linked build check: all passed |
+| `tests/run_orders.py` (after the fix) | `--reverse` on 3.9 (3,286 tests, 127.4 s) and `--shuffle 26` on 3.12 (123.9 s): OK, no region page left registered |
+| Node harnesses (Node 25.8.2) | maplist 46, profile 35, series 58, ticklist 103, trips 167, viewer 50 checks passed |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without a goal.json), 346 notes |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `python3 tools/tidy.py` | 201 copies (`_site` 2, `assets` 11, `content` 1, `rendered` 187) and the `.git/index N` files |
+| `python3 tools/share_preview.py --site <new build>` | 363 pages, 186 indexable: 62 no og:image, 0 descriptions cut, 123 titles over 60, 124 WebP images, 30 portrait (as at the last gate) |
+| `python3 tools/size_report.py` | site 244.3 MB, repository 278.5 MB stored, largest file 0.8 MB |
+| `python3 tools/render.py --status` | all 168 trips up to date, site maps up to date |
+| `python3 tools/smoke.py <new build>` | all 5 pages OK |
+| CI rehearsal | the 5,506 files of `dc71936` (`git archive`), Python 3.12.11 alone on the path with Node 25.8.2 and no cwebp, `TZ=UTC`, `LANG=C`, the workflow's two commands: 3,285 tests OK (112.2 s, 12 skipped without `CI`), then with `CI=true RENDER_TESTS=1` 3,285 OK (165.0 s, 1 skipped); `build.py --check` 365 pages, 168 trips, link check OK, 3,603 files (the local build less the four untracked PNGs) |
+| Lighthouse 13, the 15 pages, mobile and desktop | accessibility, best practices and SEO 100 in all 30 runs after the gate's fix (before it, the Eastern Sierra page on desktop was 97: above); agentic browsing 100 in 29, and 78 on the Lake Tahoe page on mobile (below). Weight-0 `label-content-name-mismatch` on the home page's, Ski's, Hiking's and Mountain biking's rows and on map/'s and Lake Tahoe's focusable cluster, as on the public site; layout shift 0.042 on map/ mobile (as on the public site) and 0.05 on the goal page desktop. Performance is not in this tool |
+| The Lake Tahoe page, mobile | agentic browsing 78 (the public site: 100): a layout shift of 0.221. A trace names IBM Plex Mono arriving from Google's servers: with the fallback mono the head's activities line wraps to three rows of 44 px, with Plex Mono to two (its second row is 401 px in the one and 402 in the other, at the 380 px line's edge), so the map and all under it move up 44 px. The public site serves its own fonts. `tools/fonts.py` (decision 4) is the remedy; not run |
+| Replays (real key presses, clicks and touch; the same scripts on both builds at 1440, 1024 and 390 px) | the explorer (search, a facet, the sort by type-ahead, the view switch, the Filters button, zero results, Clear, Back, Back, Forward; the search, zero-result and Clear steps three times each with a wait for the script: all 27 agree), the header search (the menu's box on a phone), the 404's search, the tick list's filter, the journal (a month tab, the write-ups filter, the first written entry, Back, Continue reading), map/'s cluster and legend, a region page's pin, the units switch: identical outcomes, but for the phone header's units switch, which the public site does not have (Phase 16) |
+| Replays, part 2 (both builds) | the viewer (open, a key, a swipe on a phone, Back, the error state of a photo that does not load), the phone menu (its Units row first, Home among the links, Escape), the profile readout (`6.0 MI · 10,866 FT`), the km default for a German browser, the full-screen map opening on the route's start without scripting (in the box at 390 and 1440 px), forced colours with more contrast (no sideways scroll), `site.js` blocked (the no-script header, links shown, no copy control): identical on both builds |
+| Console sweep | the 15 pages and the full-screen map at 1440, 1024 and 390 px on each build: 48 loads each, no console error, page exception or failed request |
+| Screenshots | 16 pages at 390, 768, 1024, 1180 and 1440 px of each build (160), paired in `.cache/review/gate-2026-10-26/index.html` with links to the four phases' contact sheets and the Lighthouse reports; no pair byte-identical (the redesign changes every page); no sideways scroll in any capture |
+| Print preview | the Matterhorn report (5 pages) and the PCT page (67): the title and its line in ink, the photo, the strip, the write-up, the map and the chart, no chrome |
+| Privacy | `privacy_audit.py --site` gives the same summary for both trees but for the site's file counts (three licence texts and four fonts gone, four local PNGs); no personal path, address or outside-repository name in the change |
+
+Not run: Safari and Firefox; real phones; a screen reader (the VoiceOver script is yours); the share preview paste,
+Search Console, the Rich Results Test and the W3C feed validator (after a deploy, with your accounts); Node 22 (the
+workflow's; Node 25 here); a case-sensitive volume for the rehearsal; `fonts.py` (decision 4).
+
+### What a push makes public
+
+- **The repository:** 55 files change. New: `tests/test_phase16.py` to `tests/test_phase19.py` (synthetic trips only).
+  Deleted: `assets/css/fonts.css`, the four font files and their three licence texts. Changed: the generator's page
+  modules, `core.py`, `build.py`, `fonts.py`, `mapkit.py`, `checks.py`, every stylesheet, `README.md`,
+  `docs/DEVELOPING.md` (its Design section rewritten as "Alpine"), `docs/CONTENT_GUIDE.md`, this log, and the tests that
+  name the old look. No content file, no render and no GPX file changes.
+- **Not in the push:** `docs/redesign-c/` (the prompt pack). The Phase 20 prompt lists it, but its `PROMPT.md` names the
+  local path of the checkout, with the macOS user name, where no tracked file carries one (tests/test_ticklist_page.py
+  even guards a goal file against local paths). Its reference pages name only published trips. It can go in, with that
+  line reworded, on your word.
+- **New on the site:** the Alpine look of every page; the home page's new order and its computed lines ('167 reports
+  since 2021.', the year bars, the PCT sentence); the report head's date line in sentence case; the lead paragraph;
+  4:5 'More like this' cards; the section Featured block as a photo card beside a map panel; the journal opening over
+  its lead photo; the footer's `GPS RECORDINGS VIA STRAVA`. No new fact about the author: every word is from the
+  content or the interface copy the four entries list.
+- **New requests from visitors' browsers:** every page loads its fonts from Google's stylesheet
+  (`fonts.googleapis.com`, `fonts.gstatic.com`) until `tools/fonts.py` runs (decision 4). The site that is public now
+  serves its own fonts; after this push a visitor's browser contacts Google on every page. Running `fonts.py` before
+  the push keeps the fonts on the site.
+- **Choices made for you:** decision 1 (the PCT journal leads the home page); decision 2 (the lead paragraph); decision
+  4 (Google's stylesheet until you say go); decisions 5 and 6 (By the numbers with the year bars; recent recordings
+  kept); the interface copy each entry lists; the two `sizes` strings against PROMPT 2.7 (`REL_SIZES`, `FEAT_SIZES`);
+  the phone hero's 800 px copy under the frozen `HERO_SIZES`; the departures each entry lists.
+
+### Open points
+
+- **Yours:** the four contact sheets and this gate's screenshots (`.cache/review/gate-2026-10-26/index.html`); the
+  VoiceOver script; the real-phone look (the phone hero's sharpness above all); after a deploy, the share preview paste,
+  Search Console, the Rich Results Test and the W3C feed validator.
+- **Carried from Phases 16 to 19:** `fonts.py`; decision 1; decision 2's look; the two `sizes` strings; the phone hero;
+  the journal's highlights as text cards and the sort as a select; `trips/?view=list` scrolls 2 px at 305 and 320 px
+  (as on the public site).
+- **Carried from the last gate:** the hero frame (Phase 10), the gap1-01 and qa-04 sheets (Phase 12), profile links, the
+  79 places, 24 retitles and the merges (Phase 9), `strava_id`, the ten titles that keep the old form (Phase 14), the
+  rehearsal push and dispatch test (Phase 8), the checkout and cache moves, `git gc`, the workflow actions' majors, the
+  maps' `aria-label`s in miles only.
+- **The checkout:** 13 stray `.git/index N` files and 201 iCloud conflict copies (`tools/tidy.py`), among them
+  `content/author 2.json` and ` 2` copies of the deleted font files under `assets/` that iCloud put back; untracked,
+  never staged, yours to delete after a look.
+
+### Going back
+
+Written before the push. The durable path: `git revert --no-edit edcddc9^..<last commit>` on `main` (or a revert of one
+phase's commit), then `git push origin main`: live in about three minutes, as a push with code. The temporary path: `gh
+run rerun` of the last good run, run 40252016062 of `6106f0a` (the site of `48c7008`), within 30 days deploys that site
+until the next push (ADDING-TRIPS.md, "When something goes wrong"). Never a forced push. Either way the history keeps
+everything the inventory lists.
