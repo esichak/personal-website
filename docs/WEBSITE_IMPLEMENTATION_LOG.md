@@ -3946,3 +3946,32 @@ phase's commit), then `git push origin main`: live in about three minutes, as a 
 run rerun` of the last good run, run 40252016062 of `6106f0a` (the site of `48c7008`), within 30 days deploys that site
 until the next push (ADDING-TRIPS.md, "When something goes wrong"). Never a forced push. Either way the history keeps
 everything the inventory lists.
+
+## Publication (2026-10-26)
+
+Eric's word in the session: "Run fonts.py, recheck the Lake Tahoe page and the suites, then push to main. Leave
+docs/redesign-c out." The fonts and their checks are in the gate's entry above (Fonts, at Eric's word).
+
+- `main` was fast-forwarded through the four branches in phase order (`redesign-16-foundations` …
+  `redesign-19-lists`; each `git merge --ff-only`, no merge commit) to `52421f3`, and pushed at 07:40:22 PDT:
+  `6106f0a..52421f3`. `docs/redesign-c/` stayed out: no file under it is in any commit.
+- Run 40341792125 ('Deploy site', on the push): build with the unit tests 14:40:27 to 14:45:55 UTC, deploy 14:45:59 to
+  14:47:04, smoke test in Chrome 14:45:58 to 14:47:08; all three green. The site was live about 6 minutes 42 seconds
+  after the push. The annotations are the last publication's: the pinned actions target the deprecated Node.js 20,
+  and `ubuntu-latest` moves to Ubuntu 26 (DEVELOPING.md, Yearly upkeep, items 2 and 3).
+- **The live site against the build:** `curl -I` of `assets/site.css?v=194669a1`: 200, `text/css`, `max-age=600`;
+  `assets/site.js?v=62aa2242` 200. The live home, trips/, the Matterhorn report, the Haute Route, the PCT, map/, the
+  Lake Tahoe and Eastern Sierra region pages, Ski, Hiking, Mountain biking, the tick list, About, the bare ride, the
+  goal page and the 404 page are byte-identical to the local build of the gate, and so are the stylesheet, the feed
+  and the sitemap. The five font files and the Inter licence answer 200 (`font/woff2`), byte-identical to the
+  committed files; the old design's Archivo and Source Serif 4 files answer 404; the home page names no Google host.
+  The Matterhorn GPX download is byte-identical to its `track.gpx`; an untracked `map-wide.png` iCloud put back is
+  not on the site (404), while its committed `map-wide.webp` is (200).
+- **Lighthouse on the live site (mobile):** home, the Matterhorn report and the Lake Tahoe region page 100 in
+  accessibility, best practices, SEO and agentic browsing (the weight-0 audit on the home page's rows and the Lake
+  Tahoe map's cluster, as before); the Matterhorn report with no failed audit.
+- **Not done (Eric's):** the sitemap submission in Search Console, the Rich Results Test, the W3C feed validator and
+  the share preview paste (README.md lists them); the VoiceOver script; the real-phone look, the phone hero's
+  sharpness above all; the open points of the gate's entry.
+- This entry is a later commit on `main`, pushed on its own at Eric's word ("Push the publication log entry to
+  main."). The log is on `pages.yml`'s ignore list, so that push starts no run.
