@@ -2158,11 +2158,12 @@ _ASSET_VERSION = {}
 _SELF_FONTS = [False]
 _AUTHOR = [None]      # content/author.json as sitegen.author.load read it (register_site): the contact rows, or None
 # fonts preloaded when they are the site's own (tools/fonts.py has run): the serif roman and Inter, the two faces the
-# first screen needs (docs/redesign-c/PROMPT.md 2.3). Inert while the pages load Google's stylesheet. Re-measure once the
-# files are the site's own: on 2026-10-25 (25 desktop runs, the phone profile's median of 3) preloading Datum's two faces
-# (Archivo and Source Serif 4, 138 KB) left desktop first paint where it was and held the phone's largest paint back
-# 780 ms (2,524 against 1,740 ms), the fonts taking the slow line from the lead image; if Alpine's do the same, set ()
-FONT_PRELOADS = ('assets/fonts/instrument-serif-latin.woff2', 'assets/fonts/inter-latin.woff2')
+# first screen needs (docs/redesign-c/PROMPT.md 2.3), and Plex Mono 400. Inert while the pages load Google's stylesheet.
+# Measured on 2026-10-26 with Alpine's files: with the first two alone, the Lake Tahoe region page on the phone profile
+# shifted 0.221 when the mono face arrived late and rewrapped the head's activities line; with Plex Mono 400 preloaded
+# it shifts 0, its throttled largest paint 3,728 ms against 3,320 with Google's stylesheet. On 2026-10-25 preloading
+# Datum's two faces had held the phone's largest paint back 780 ms: weigh the shift against the paint before dropping one
+FONT_PRELOADS = ('assets/fonts/instrument-serif-latin.woff2', 'assets/fonts/inter-latin.woff2', 'assets/fonts/ibm-plex-mono-400-latin.woff2')
 # search engines' site-verification tags, (name, content) pairs written into every head, e.g.
 # ('google-site-verification', '<token>') and ('msvalidate.01', '<token>') (seo-12; README.md 'Search Console'). The
 # tokens are public values. Empty: no tag.

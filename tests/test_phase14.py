@@ -210,11 +210,12 @@ class FontHeadTests(unittest.TestCase):
             html_ = core.document('trips/syn-x/', 'Synthetic', '<p>Synthetic.</p>')
         self.assertNotIn('fonts.googleapis.com', html_)
         self.assertNotIn('fonts.gstatic.com', html_)
-        # the two faces the first screen needs, the serif roman and Inter (Phase 16, core.FONT_PRELOADS), once they are the
-        # site's own; none while the pages load Google's stylesheet (above)
+        # the serif roman and Inter, the two faces the first screen needs (Phase 16), and Plex Mono 400 (core.FONT_PRELOADS),
+        # once they are the site's own; none while the pages load Google's stylesheet (above)
         pre = Doc(html_).find('head').find_all('link', attrs={'rel': 'preload'})
         self.assertEqual([(ln['href'], ln['as'], 'crossorigin' in ln) for ln in pre],
-                         [('../../assets/fonts/instrument-serif-latin.woff2', 'font', True), ('../../assets/fonts/inter-latin.woff2', 'font', True)])
+                         [('../../assets/fonts/instrument-serif-latin.woff2', 'font', True), ('../../assets/fonts/inter-latin.woff2', 'font', True),
+                          ('../../assets/fonts/ibm-plex-mono-400-latin.woff2', 'font', True)])
         self.assertEqual(set(f.split('/')[-1] for f in core.FONT_PRELOADS) <= set(f[3] for f in importlib.import_module('fonts').FACES), True)
         with mock.patch.object(core, '_SELF_FONTS', [True]), mock.patch.object(core, 'FONT_PRELOADS', ('assets/fonts/x.woff2',)):
             pre = Doc(core.document('trips/syn-x/', 'Synthetic', '<p>Synthetic.</p>')).find('head').find_all('link', attrs={'rel': 'preload'})

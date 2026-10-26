@@ -127,7 +127,7 @@ class FontTests(unittest.TestCase):
         self.assertEqual([f[0] for f in fonts.FACES], ['Instrument Serif', 'Instrument Serif', 'Inter', 'IBM Plex Mono', 'IBM Plex Mono'])
         files = {f[3] for f in fonts.FACES}
         self.assertEqual(len(files), len(fonts.FACES))
-        self.assertEqual([p.split('/')[-1] for p in core.FONT_PRELOADS], ['instrument-serif-latin.woff2', 'inter-latin.woff2'])
+        self.assertEqual([p.split('/')[-1] for p in core.FONT_PRELOADS], ['instrument-serif-latin.woff2', 'inter-latin.woff2', 'ibm-plex-mono-400-latin.woff2'])
         self.assertTrue(all(p.split('/')[-1] in files for p in core.FONT_PRELOADS))
         self.assertEqual(set(f[4] for f in fonts.FACES), set(fonts.LICENSES))
         # base.css names the same three families first in its stacks

@@ -3867,7 +3867,7 @@ extracted with `git archive origin/main` into the session's scratch folder (230 
 | `python3 tools/smoke.py <new build>` | all 5 pages OK |
 | CI rehearsal | the 5,506 files of `dc71936` (`git archive`), Python 3.12.11 alone on the path with Node 25.8.2 and no cwebp, `TZ=UTC`, `LANG=C`, the workflow's two commands: 3,285 tests OK (112.2 s, 12 skipped without `CI`), then with `CI=true RENDER_TESTS=1` 3,285 OK (165.0 s, 1 skipped); `build.py --check` 365 pages, 168 trips, link check OK, 3,603 files (the local build less the four untracked PNGs) |
 | Lighthouse 13, the 15 pages, mobile and desktop | accessibility, best practices and SEO 100 in all 30 runs after the gate's fix (before it, the Eastern Sierra page on desktop was 97: above); agentic browsing 100 in 29, and 78 on the Lake Tahoe page on mobile (below). Weight-0 `label-content-name-mismatch` on the home page's, Ski's, Hiking's and Mountain biking's rows and on map/'s and Lake Tahoe's focusable cluster, as on the public site; layout shift 0.042 on map/ mobile (as on the public site) and 0.05 on the goal page desktop. Performance is not in this tool |
-| The Lake Tahoe page, mobile | agentic browsing 78 (the public site: 100): a layout shift of 0.221. A trace names IBM Plex Mono arriving from Google's servers: with the fallback mono the head's activities line wraps to three rows of 44 px, with Plex Mono to two (its second row is 401 px in the one and 402 in the other, at the 380 px line's edge), so the map and all under it move up 44 px. The public site serves its own fonts. `tools/fonts.py` (decision 4) is the remedy; not run |
+| The Lake Tahoe page, mobile | agentic browsing 78 (the public site: 100): a layout shift of 0.221. A trace names IBM Plex Mono arriving from Google's servers: with the fallback mono the head's activities line wraps to three rows of 44 px, with Plex Mono to two (its second row is 401 px in the one and 402 in the other, at the 380 px line's edge), so the map and all under it move up 44 px. The public site serves its own fonts. `tools/fonts.py` (decision 4) is the remedy: run at Eric's word (Fonts, below) |
 | Replays (real key presses, clicks and touch; the same scripts on both builds at 1440, 1024 and 390 px) | the explorer (search, a facet, the sort by type-ahead, the view switch, the Filters button, zero results, Clear, Back, Back, Forward; the search, zero-result and Clear steps three times each with a wait for the script: all 27 agree), the header search (the menu's box on a phone), the 404's search, the tick list's filter, the journal (a month tab, the write-ups filter, the first written entry, Back, Continue reading), map/'s cluster and legend, a region page's pin, the units switch: identical outcomes, but for the phone header's units switch, which the public site does not have (Phase 16) |
 | Replays, part 2 (both builds) | the viewer (open, a key, a swipe on a phone, Back, the error state of a photo that does not load), the phone menu (its Units row first, Home among the links, Escape), the profile readout (`6.0 MI · 10,866 FT`), the km default for a German browser, the full-screen map opening on the route's start without scripting (in the box at 390 and 1440 px), forced colours with more contrast (no sideways scroll), `site.js` blocked (the no-script header, links shown, no copy control): identical on both builds |
 | Console sweep | the 15 pages and the full-screen map at 1440, 1024 and 390 px on each build: 48 loads each, no console error, page exception or failed request |
@@ -3877,13 +3877,34 @@ extracted with `git archive origin/main` into the session's scratch folder (230 
 
 Not run: Safari and Firefox; real phones; a screen reader (the VoiceOver script is yours); the share preview paste,
 Search Console, the Rich Results Test and the W3C feed validator (after a deploy, with your accounts); Node 22 (the
-workflow's; Node 25 here); a case-sensitive volume for the rehearsal; `fonts.py` (decision 4).
+workflow's; Node 25 here); a case-sensitive volume for the rehearsal.
+
+### Fonts, at Eric's word
+
+Eric's word in the session: "Run fonts.py, recheck the Lake Tahoe page and the suites, then push to main. Leave
+docs/redesign-c out."
+
+- `python3 tools/fonts.py` wrote the five Latin files (Instrument Serif roman 15,040 bytes and italic 15,684, Inter
+  48,432, IBM Plex Mono 400 10,052 and 500 10,060), the three OFL texts and `assets/css/fonts.css` (five `@font-face`
+  rules, `font-display: swap`); `--check` OK. The build is 3,615 files (the 3,607 above and these eight), and no page
+  or stylesheet names `fonts.googleapis.com` or `fonts.gstatic.com`.
+- With the serif and Inter preloaded, as Phase 16 left `core.FONT_PRELOADS`, the Lake Tahoe page on mobile was still
+  78: Plex Mono, not preloaded, came after the first paint and rewrapped the activities line as before. With Plex Mono
+  400 preloaded too, agentic browsing is 100 and a throttled trace's layout shift 0.00 (largest paint 3,728 ms, against
+  3,320 with Google's stylesheet). `FONT_PRELOADS` names the three files now; its comment, `fonts.py`'s docstring,
+  `docs/DEVELOPING.md` and the two tests that name the preloads (`test_phase14`, `test_phase16`) say so.
+- Lighthouse 13 again on the 15 pages, mobile and desktop: 100 in accessibility, best practices, SEO and agentic
+  browsing in all 30 runs; the same weight-0 `label-content-name-mismatch` as above and the 0.042 shift on map/
+  mobile; none now on the goal page desktop. Reports in `.cache/review/gate-2026-10-26/lh/fonts/`.
+- `python3 tools/check.py`: validate, the suite on Python 3.9.6 (127.2 s) and 3.12.11 (114.6 s) with `-W error`, and
+  `build.py --check`: all passed. `fonts.py --check` OK.
 
 ### What a push makes public
 
-- **The repository:** 55 files change. New: `tests/test_phase16.py` to `tests/test_phase19.py` (synthetic trips only).
-  Deleted: `assets/css/fonts.css`, the four font files and their three licence texts. Changed: the generator's page
-  modules, `core.py`, `build.py`, `fonts.py`, `mapkit.py`, `checks.py`, every stylesheet, `README.md`,
+- **The repository:** 63 files change (55 at the gate, and Alpine's eight font files). New: `tests/test_phase16.py` to
+  `tests/test_phase19.py` (synthetic trips only). Replaced: the four font files and their three licence texts by
+  Alpine's five files and three texts, and `assets/css/fonts.css` by theirs (Fonts, above). Changed: the generator's
+  page modules, `core.py`, `build.py`, `fonts.py`, `mapkit.py`, `checks.py`, every stylesheet, `README.md`,
   `docs/DEVELOPING.md` (its Design section rewritten as "Alpine"), `docs/CONTENT_GUIDE.md`, this log, and the tests that
   name the old look. No content file, no render and no GPX file changes.
 - **Not in the push:** `docs/redesign-c/` (the prompt pack). The Phase 20 prompt lists it, but its `PROMPT.md` names the
@@ -3895,21 +3916,19 @@ workflow's; Node 25 here); a case-sensitive volume for the rehearsal; `fonts.py`
   4:5 'More like this' cards; the section Featured block as a photo card beside a map panel; the journal opening over
   its lead photo; the footer's `GPS RECORDINGS VIA STRAVA`. No new fact about the author: every word is from the
   content or the interface copy the four entries list.
-- **New requests from visitors' browsers:** every page loads its fonts from Google's stylesheet
-  (`fonts.googleapis.com`, `fonts.gstatic.com`) until `tools/fonts.py` runs (decision 4). The site that is public now
-  serves its own fonts; after this push a visitor's browser contacts Google on every page. Running `fonts.py` before
-  the push keeps the fonts on the site.
-- **Choices made for you:** decision 1 (the PCT journal leads the home page); decision 2 (the lead paragraph); decision
-  4 (Google's stylesheet until you say go); decisions 5 and 6 (By the numbers with the year bars; recent recordings
-  kept); the interface copy each entry lists; the two `sizes` strings against PROMPT 2.7 (`REL_SIZES`, `FEAT_SIZES`);
-  the phone hero's 800 px copy under the frozen `HERO_SIZES`; the departures each entry lists.
+- **New requests from visitors' browsers:** none. `tools/fonts.py` ran before the push (Fonts, above), so the fonts stay
+  the site's own, as on the site that is public now.
+- **Choices made for you:** decision 1 (the PCT journal leads the home page); decision 2 (the lead paragraph); decisions
+  5 and 6 (By the numbers with the year bars; recent recordings kept); the interface copy each entry lists; the two
+  `sizes` strings against PROMPT 2.7 (`REL_SIZES`, `FEAT_SIZES`); the phone hero's 800 px copy under the frozen
+  `HERO_SIZES`; the departures each entry lists.
 
 ### Open points
 
 - **Yours:** the four contact sheets and this gate's screenshots (`.cache/review/gate-2026-10-26/index.html`); the
   VoiceOver script; the real-phone look (the phone hero's sharpness above all); after a deploy, the share preview paste,
   Search Console, the Rich Results Test and the W3C feed validator.
-- **Carried from Phases 16 to 19:** `fonts.py`; decision 1; decision 2's look; the two `sizes` strings; the phone hero;
+- **Carried from Phases 16 to 19:** decision 1; decision 2's look; the two `sizes` strings; the phone hero;
   the journal's highlights as text cards and the sort as a select; `trips/?view=list` scrolls 2 px at 305 and 320 px
   (as on the public site).
 - **Carried from the last gate:** the hero frame (Phase 10), the gap1-01 and qa-04 sheets (Phase 12), profile links, the

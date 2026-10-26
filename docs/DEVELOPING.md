@@ -121,7 +121,7 @@ never the only cue (always with icon + word), never under text. `color-scheme` i
 on what it sits on (the Phase 16 log lists the pairs). `@media (prefers-contrast: more)` gives `--ink-3` the value of
 `--ink-2` and darkens `--rule` to `#767676`; `@media (forced-colors: active)` keeps the rules below.
 
-Families (Google Fonts through `core.FONTS` until `tools/fonts.py` makes them the site's own files):
+Families (the site's own files since `tools/fonts.py` ran on 2026-10-26, fetched from Google Fonts through `core.FONTS`):
 `--serif` Instrument Serif, roman and italic, 400 only: display only, never under 22 px, never body text, never a label
 (page and report titles, section heads, card and row titles, the lead paragraph, the pager's titles, the footer's name,
 the menu's site links; its italic draws the maps' water labels). `--sans` Inter 400 / 500 / 600: body text, the
@@ -1499,13 +1499,15 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   stylesheet and its preconnects and preloads `core.FONT_PRELOADS`. Deleting fonts.css goes back to Google Fonts.
   Phase 16 (Alpine) did that: Datum's fonts.css and its four files (Archivo, Source Serif 4 roman and italic, Geist
   Mono) were deleted, `FACES` names Alpine's five files (Instrument Serif roman and italic, Inter as one variable file
-  for 400-600, IBM Plex Mono 400 and 500; checked against Google's answer on 2026-10-25), and the pages load Google's
-  stylesheet until Eric says go for `python3 tools/fonts.py`. `fonts.py --check` reports a fonts.css that names other
-  faces than `FACES`. `FONT_PRELOADS` names the serif roman and Inter, as the specification asks; it is inert until the
-  fonts are the site's own. Measured on 2026-10-25 with Datum's files, the site's own fonts moved desktop first paint
-  from 316 to 56 ms on home and 312 to 48 ms on the Matterhorn report (medians of 25 cold runs), and preloading two
-  faces gained nothing there while holding the phone profile's largest paint 780 ms behind the lead image: measure
-  again once Alpine's files are the site's own, and empty `FONT_PRELOADS` if the phone pays the same.
+  for 400-600, IBM Plex Mono 400 and 500; checked against Google's answer on 2026-10-25). `python3 tools/fonts.py` ran
+  on 2026-10-26, so the pages use the site's own files. `fonts.py --check` reports a fonts.css that names other faces
+  than `FACES`. `FONT_PRELOADS` names the serif roman and Inter, as the specification asks, and Plex Mono 400. Measured
+  on 2026-10-25 with Datum's files, the site's own fonts moved desktop first paint from 316 to 56 ms on home and 312 to
+  48 ms on the Matterhorn report (medians of 25 cold runs), and preloading two faces held the phone profile's largest
+  paint 780 ms behind the lead image. Measured on 2026-10-26 with Alpine's, the Lake Tahoe region page on the phone
+  profile shifted 0.221 with the serif and Inter preloaded, as Plex Mono arrived late and rewrapped the head's
+  activities line, and 0 with Plex Mono 400 preloaded too (throttled largest paint 3,728 ms, against 3,320 with
+  Google's stylesheet). Weigh both before dropping a preload.
 - The Ski page preloads its first panel region map's hillshade and base layer like the other section pages' featured
   maps (perf-07), each pair under the media where section.css shows it (`section.SKI_MEDIA`: the desktop render at
   560-759 px and from 1200 px in a window at least 760 px tall, the phone render elsewhere; `core.map_preloads(media=)`);

@@ -6,11 +6,11 @@
 
 It asks Google Fonts for the stylesheet core.FONTS names (as a current browser would, so the answer is woff2), keeps
 the Latin file of each face the Alpine design uses (Phase 16: Instrument Serif roman and italic, Inter as one variable
-file for 400 to 600, IBM Plex Mono 400 and 500), saves them under fixed names (core.FONT_PRELOADS names two of them)
+file for 400 to 600, IBM Plex Mono 400 and 500), saves them under fixed names (core.FONT_PRELOADS names three of them)
 with the three SIL Open Font License texts beside them, and writes assets/css/fonts.css: one @font-face per face with
 Google's own ranges and unicode-range, font-display: swap, and the address of the copy (bundled into assets/site.css,
 so 'fonts/<file>'). Nothing is written unless every file arrived. From the next build on, build.py puts fonts.css first
-in the bundle and copies assets/fonts/, and every page preloads the two faces the first screen needs instead of loading
+in the bundle and copies assets/fonts/, and every page preloads the faces core.FONT_PRELOADS names instead of loading
 Google's stylesheet. To go back, delete assets/css/fonts.css (and assets/fonts/).
 """
 import argparse
