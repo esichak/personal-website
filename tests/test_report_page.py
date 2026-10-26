@@ -3856,13 +3856,13 @@ class PhoneShapeTests(ReportFixture):
     def test_a_string_without_the_full_width_slot_is_untouched(self):
         phone_sizes = need(self, core, 'phone_sizes')
         home, trips = load_module(self, 'sitegen.pages.home'), load_module(self, 'sitegen.pages.trips')
-        for sizes in (core.RELATED_SIZES, trips.TRX_SIZES, home.RECENT_SIZES, '50vw', '100vw', '', core.PHONE_SLOT,
+        for sizes in (core.RELATED_SIZES, trips.TRX_SIZES, '50vw', '100vw', '', core.PHONE_SLOT,
                       '(min-width: 760px) 50vw, 55vw', '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 80px) * 0.333), 50vw'):
             self.assertNotIn(core.PHONE_FULL, sizes)
             for p in ({'w': 1600, 'h': 1200}, {'w': 1200, 'h': 1600}, {'w': 1000, 'h': 1000}, {'w': 3810, 'h': 1600}, {}):
                 with self.subTest(sizes=sizes, p=p):
                     self.assertEqual(phone_sizes(sizes, p), sizes)
-        for sizes in (self.report.HERO_SIZES, home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES):      # ... and these are not
+        for sizes in (self.report.HERO_SIZES, home.HERO_SIZES, home.BIG_SIZES, home.SIDE_SIZES, home.PAIR_SIZES):      # ... and these are not
             self.assertIn(core.PHONE_FULL, sizes)
             self.assertEqual(phone_sizes(sizes, {'w': 1200, 'h': 1600}), sizes.replace(core.PHONE_FULL, '100vw'))
             self.assertTrue(phone_sizes(sizes, {'w': 1200, 'h': 1600}).endswith(', 100vw'))
@@ -3956,13 +3956,13 @@ class PhoneShapeTests(ReportFixture):
             self.assertEqual([ln for ln in self.preloads(slug) if '/photos/' in ln['href']], [])
 
     def test_the_home_page_strings_follow_the_cover_too(self):
-        # the home page's featured cards go through core.cover_img: a portrait cover there is told 100vw, a landscape the
-        # slot. 10.5: neither lists its .th copy and neither is wrapped: these are full-width strings, not a card's
+        # the home page's hero and featured cards go through core.cover_img (Phase 17: HERO_SIZES and the grid's three):
+        # a portrait cover there is told 100vw, a landscape the slot. 10.5: neither lists its .th copy and neither is wrapped: these are full-width strings, not a card's
         home = load_module(self, 'sitegen.pages.home')
         tall, wide = self.cover('portrait-home', PORTRAIT), self.cover('landscape-home', LANDSCAPE, date='2025-06-21')
         tall = self.by[tall['slug']]
         self.assertEqual((tall['cover']['photo']['th'], wide['cover']['photo']['th']), ('photos/01.th.webp', 'photos/01.th.webp'))
-        for sizes in (home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES):
+        for sizes in (home.HERO_SIZES, home.BIG_SIZES, home.SIDE_SIZES, home.PAIR_SIZES):
             with self.subTest(sizes=sizes):
                 self.assertEqual(Doc(core.cover_img(tall, '', sizes)).find('img')['sizes'], sizes.replace(core.PHONE_FULL, '100vw'))
                 self.assertEqual(Doc(core.cover_img(wide, '', sizes)).find('img')['sizes'], sizes)
@@ -3972,7 +3972,7 @@ class PhoneShapeTests(ReportFixture):
                         self.assertNotIn('.th.', got)
                         self.assertTrue(got.startswith('<img class="cover-img" ') and got.endswith('>') and got.count('<') == 1, got)
         base = 'trips/%s/photos/' % tall['slug']
-        self.assertEqual(Doc(core.cover_img(tall, '', home.LEAD_SIZES)).find('img')['srcset'], '%s01.sm.webp 600w, %s01.webp 1200w' % (base, base))
+        self.assertEqual(Doc(core.cover_img(tall, '', home.HERO_SIZES)).find('img')['srcset'], '%s01.sm.webp 600w, %s01.webp 1200w' % (base, base))
 
 
 # ---------------------------------------------------------------- Phase 4: the card-size copy (contract-phase4.md 5.3, 10.5)
@@ -4105,8 +4105,8 @@ class CoverSrcsetTests(ReportFixture):
         two = '%s01.sm.webp 800w, %s01.webp 1600w' % (base, base)
         self.assertEqual(need(self, core, '_cover_srcset')(t, p, t['url']), (base + '01.webp', two))
         home, trips = load_module(self, 'sitegen.pages.home'), load_module(self, 'sitegen.pages.trips')
-        full = (self.report.HERO_SIZES, home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES, core.PHONE_FULL, core.PHONE_SLOT)
-        cards = (core.RELATED_SIZES, trips.TRX_SIZES, home.RECENT_SIZES)
+        full = (self.report.HERO_SIZES, home.HERO_SIZES, home.BIG_SIZES, home.SIDE_SIZES, home.PAIR_SIZES, core.PHONE_FULL, core.PHONE_SLOT)
+        cards = (core.RELATED_SIZES, trips.TRX_SIZES)
         for sizes in full + cards:
             for eager in (False, True):
                 with self.subTest(sizes=sizes, eager=eager):
@@ -4173,7 +4173,7 @@ class CoverSrcsetTests(ReportFixture):
         self.assertEqual([pick((320, 600, 1200), slot, dpr) for dpr in (1, 2, 2.75, 3, 3.75)], [320, 320, 320, 600, 600])
         self.assertEqual([pick((320, 600, 1200), declared, dpr) for dpr in (1, 2, 2.75, 3, 3.75)], [320, 320, 320, 320, 600])
         # From 560 px up the <source> does not apply and the <img> decides. Its slot grows to 400 px on a desktop
-        # (RELATED_SIZES / TRX_SIZES / RECENT_SIZES: '(min-width: 1200px) 400px'), and its list is the 800 px copy and the
+        # (RELATED_SIZES / TRX_SIZES: '(min-width: 1200px) 400px'), and its list is the 800 px copy and the
         # full file: 800 at 1x and at 2x, the full file at 3x, as before Phase 4.
         self.assertIn('(min-width: 1200px) 400px, ', core.RELATED_SIZES)
         self.assertEqual([pick((800, 1600), 400, dpr) for dpr in (1, 2, 3)], [800, 800, 1600])
@@ -4275,8 +4275,8 @@ class CardSourceTests(ReportFixture):
     def strings(self):
         """(the card strings, strings that are not a card's)."""
         home, trips = load_module(self, 'sitegen.pages.home'), load_module(self, 'sitegen.pages.trips')
-        cards = (core.RELATED_SIZES, trips.TRX_SIZES, home.RECENT_SIZES)
-        others = (self.report.HERO_SIZES, home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES, core.PHONE_FULL, '100vw', '',
+        cards = (core.RELATED_SIZES, trips.TRX_SIZES)
+        others = (self.report.HERO_SIZES, home.HERO_SIZES, home.BIG_SIZES, home.SIDE_SIZES, home.PAIR_SIZES, core.PHONE_FULL, '100vw', '',
                   '(min-width: 1200px) 400px, 100vw', '112px', '(min-width: 560px) 50vw,112px', '(min-width: 560px) 50vw, 112px ',
                   '112px, 100vw', '(min-width: 560px) 50vw, 1112px', '(min-width: 560px) 50vw, 112PX')
         return cards, others

@@ -43,44 +43,57 @@ class CardMediaTests(unittest.TestCase):
         self.by = self.site['by_slug']
 
     def feat(self, slugs_):
+        """The home page's hero and feature grid (Phase 17: the first featured trip is the hero, the others the grid)."""
         self.site['featured'] = [self.by[s] for s in slugs_]
-        return home.featured(self.site)
+        return home.hero(self.site) + home.features(self.site)
 
     def test_multiday_card_keeps_the_day_label_above_its_excerpt(self):
-        html_ = self.feat(['hut-route'])
-        self.assertIn('<p class="t-label hom-card-exl">DAY 2 · FORESTER PASS</p>', html_)
+        html_ = self.feat(['ski-report', 'hut-route'])
+        self.assertIn('<p class="t-label hom-f-exl">DAY 2 · FORESTER PASS</p>', html_)
         self.assertIn(DAY_PROSE, html_)
-        self.assertLess(html_.index('hom-card-exl'), html_.index('hom-card-ex">'))
+        self.assertLess(html_.index('hom-f-exl'), html_.index('hom-f-ex">'))
 
     def test_card_without_photo_or_tile_is_marked_nophoto(self):
-        html_ = self.feat(['track-only'])
-        self.assertIn('hom-card--nophoto', html_)
-        self.assertNotIn('<img class="cover-img', html_)
+        html_ = self.feat(['ski-report', 'track-only'])
+        grid = html_[html_.index('hom-feats'):]
+        self.assertIn('hom-f--nophoto', grid)
+        self.assertNotIn('<img class="cover-img', grid)
+        # a first feature without a cover is a title block on white, not a hero over a photo
+        plain = self.feat(['track-only'])
+        self.assertIn('hom-hero hom-hero--plain', plain)
+        self.assertNotIn('<img', plain)
 
     def test_card_with_photo_has_one_cover_image_and_is_not_nophoto(self):
-        html_ = self.feat(['ski-report'])
-        self.assertNotIn('hom-card--nophoto', html_)
-        self.assertEqual(html_.count('<img class="cover-img'), 1)
-        self.assertIn('alt="The couloir"', html_)
+        html_ = self.feat(['track-only', 'ski-report'])
+        grid = html_[html_.index('hom-feats'):]
+        self.assertNotIn('hom-f--nophoto', grid)
+        self.assertEqual(grid.count('<img class="cover-img'), 1)
+        self.assertIn('alt="The couloir"', grid)
 
     def test_lead_card_cover_is_eager_and_supporting_covers_are_lazy(self):
         html_ = self.feat(['ski-report', 'no-dims'])
-        lead, sub = html_.split('hom-card--sub', 1)
+        lead, sub = html_.split('hom-feats', 1)
         self.assertIn('fetchpriority="high"', lead)
-        self.assertNotIn('loading="lazy"', lead.split('</li>')[0])
+        self.assertNotIn('loading="lazy"', lead)
         self.assertIn('loading="lazy"', sub)
 
     def test_action_links_name_their_trip_for_link_lists(self):
-        html_ = self.feat(['ski-report', 'track-only'])
-        self.assertIn('Read the report<span class="sr">: West Couloir</span>', html_)
-        self.assertIn('View the trip<span class="sr">: Quick Lap</span>', html_)
+        self.assertIn('Read the report<span class="sr">: West Couloir</span>', self.feat(['ski-report']))
+        self.assertIn('View the trip<span class="sr">: Quick Lap</span>', self.feat(['track-only']))
 
-    def test_recent_cards_show_the_cover_and_describe_titles_by_their_meta_line(self):
+    def test_recent_rows_show_the_cover_and_name_their_links_by_title_and_meta_line(self):
+        # Recent written reports (Phase 17): list rows (core.trip_row) with the cover as the thumbnail, for a write-up of
+        # 100 characters or more (core.written_report); the shorter ones are Recent recordings, with their route tile
+        helpers.make_trip(self.tmp, 'long-report', title='Long Couloir', activity='ski', date='2026-02-01', body=' '.join([WRITEUP] * 3),
+                          track=True, photos=[photo('photos/01.webp', LANDSCAPE, alt='The long couloir', sm=True)])
+        self.site = helpers.make_site(helpers.load_dir(self.tmp))
         self.site['featured'] = []
         html_ = home.recent(self.site)
         self.assertIn('<img class="cover-img', html_)
-        self.assertIn('id="rc-ski-report-m"', html_)
-        self.assertIn('aria-describedby="rc-ski-report-m"', html_)
+        self.assertIn('id="tm-rw-long-report"', html_)
+        self.assertIn('aria-labelledby="tt-rw-long-report tm-rw-long-report"', html_)
+        self.assertNotIn('ski-report', html_)
+        self.assertIn('data-key="ski-report"', home.recent_recordings(self.site))
 
     def test_page_uses_the_lead_cover_as_share_image_and_preloads_it(self):
         self.site['featured'] = [self.by['ski-report']]
@@ -88,14 +101,15 @@ class CardMediaTests(unittest.TestCase):
             html_ = home.page(self.site).html
         self.assertIn('<meta property="og:image" content="%strips/ski-report/photos/01.webp">' % core.SITE_URL, html_)
         self.assertIn('<link rel="preload" as="image" href="trips/ski-report/photos/01.webp" imagesrcset=', html_)
-        self.assertIn('hom-card--lead', html_)
+        self.assertIn('class="hom-hero"', html_)
 
     def test_page_without_features_has_no_share_image(self):
         self.site['featured'] = []
         with mock.patch.object(home, 'where', return_value=''):
             html_ = home.page(self.site).html
         self.assertNotIn('og:image', html_)
-        self.assertNotIn('hom-featured', html_)
+        self.assertNotIn('hom-hero', html_)
+        self.assertNotIn('hom-feats', html_)
 
 
 class TripCardMetaLineTests(unittest.TestCase):

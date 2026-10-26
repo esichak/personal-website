@@ -2184,7 +2184,10 @@ class LegacyShapeTests(unittest.TestCase):
             I('spontaneous-ride', 'no place'), I('spontaneous-ride', 'no write-up'), I('spontaneous-ride', 'no photos'),
             I('evening-paddle', 'no place'), I('evening-paddle', 'no write-up'), I('evening-paddle', 'no photos'),
             I('ski-course', 'no place'), I('ski-course', 'no write-up'), I('ski-course', 'no photos'),
-            D('ski-course', '01', 'no title'), D('ski-course', '02', 'no title')]))
+            D('ski-course', '01', 'no title'), D('ski-course', '02', 'no title'),
+            # the first featured trip has no photo: the home page has no hero photo (Phase 17)
+            H("the first of featured_slugs, 'ski-course', has no photo, so the home page shows it as a title on white, without the "
+              'hero photo; give it a photo or put a trip that has one first')]))
         self.assertEqual(counts, {'trips': 4, 'photos': 0, 'gpx': 5})
 
 

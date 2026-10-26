@@ -1,182 +1,146 @@
-/* Home (/) — hero, featured trips (content/home.json), recent outings, by activity, where I've been.
-   Phone < 760: everything stacks, every card keeps its photo. Tablet 760–1199: the lead card spans the row, the two
-   supporting cards sit beneath it. Desktop ≥ 1200: the lead card takes 7 of 12 columns, the supporting cards stack
-   beside it with their photo next to the copy. No carousel, no overlays on photos, no height matching. */
+/* Home (/), Alpine (Phase 17): the hero (the first featured trip's cover full width, its words on the scrim), the
+   statement, By the numbers, the other features as a grid, Recent written reports and Recent recordings as rows, Where
+   I've been. The shared parts (rows, the section head, the map block, the key row) are base.css's. */
 
 /* ---------------------------------------------------------------- hero */
-.hom-top { padding-top: 16px; }
-.hom-kicker { display: block; }
-.hom-h1 { margin-top: 8px; }
-@media (min-width: 360px) { .hom-l { display: block; } }
-.hom-lead { margin-top: 12px; max-width: 480px; }   /* with .t-lede */
-/* both actions stay visible on every width; they wrap when the line is too narrow */
-.hom-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.hom-hero { position: relative; display: flex; align-items: flex-end; min-height: 500px; overflow: hidden; background: var(--ink);
+  color: var(--on-photo); }
+.hom-hero-m { position: absolute; inset: 0; }
+.hom-hero-m .cover-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hom-scrim { position: absolute; inset: 0; background: var(--scrim); }
+/* the words' band: full width, its own dark ground from the top of the words down (the photo's scrim alone left the
+   overline on snow at 2:1). --hero-pt is the band's top padding: the ground reaches 0.68 where the overline starts, so
+   white text has 6:1 and more on the brightest pixel under it */
+.hom-hero-f { --hero-pt: 96px; position: relative; width: 100%;
+  background: linear-gradient(180deg, rgba(17, 17, 17, 0) 0, rgba(17, 17, 17, 0.3) calc(var(--hero-pt) * 0.5),
+    rgba(17, 17, 17, 0.68) var(--hero-pt), rgba(17, 17, 17, 0.78) 100%); }
+.hom-hero-b { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: var(--hero-pt) 0 28px; }
+/* the focus ring over the photo is white, as on the viewer's dark bar */
+.hom-hero:not(.hom-hero--plain) :focus-visible { outline-color: var(--on-photo); }
+.hom-hero-o { color: var(--on-photo); }
+.hom-hero-t { max-width: 14ch; }
+.hom-hero-t a { color: inherit; }
+@media (hover: hover) { .hom-hero-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 6px; } }
+.hom-hero-l { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; max-width: 60ch; font: 400 16px/1.5 var(--sans); }
+.hom-hero-s { font: 400 14px/20px var(--mono); letter-spacing: 0.04em; }
+.hom-hero-s .unit, .hom-hero .t-mono-s { color: inherit; }
+.hom-hero-go { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: 500 15px/20px var(--sans); color: inherit; }
+@media (hover: hover) { .hom-hero-go:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
+/* the photo's own scrim is light: it only softens the top of the words' band */
+.hom-hero .hom-scrim { background: linear-gradient(180deg, rgba(17, 17, 17, 0) 45%, rgba(17, 17, 17, 0.2) 100%); }
 @media (min-width: 760px) {
-  .hom-top { padding-top: 40px; }
-  .hom-h1 { margin-top: 20px; }
-  .hom-lead { margin-top: 20px; }
-  .hom-cta { margin-top: 28px; }
-}
-/* ≥ 1000: the lead and the actions sit beside the headline, bottom-aligned with it */
-@media (min-width: 1000px) {
-  .hom-hero { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
-  .hom-kicker { grid-column: 1 / -1; }
-  .hom-h1 { grid-column: 1 / span 7; }
-  .hom-hero-b { grid-column: 8 / -1; align-self: end; padding-bottom: 4px; }
-  .hom-lead { margin-top: 0; }
-  .hom-cta { margin-top: 24px; }
+  .hom-hero { min-height: 600px; }
+  .hom-hero-f { --hero-pt: 128px; }
+  .hom-hero-b { gap: 16px; padding-bottom: 48px; }
+  .hom-hero-l { font-size: 18px; }
 }
 @media (min-width: 1200px) {
-  .hom-top { padding-top: 56px; }
-  .hom-h1 { margin-top: 24px; font-size: clamp(44px, 3.4vw, 48px); line-height: 1.084; }
+  .hom-hero { min-height: 720px; }
+  .hom-hero-b { gap: 18px; padding-bottom: 56px; }
 }
+/* a short window: the hero leaves the next section in view */
+@media (min-width: 760px) and (max-height: 800px) { .hom-hero { min-height: min(720px, calc(100svh - var(--header-h) - 40px)); } }
+/* a first feature without a cover: its parts as a title block on white. Two classes, so the sizes above (one class,
+   later in the sheet) do not win; nothing clipped, so the focus ring under the last link shows */
+.hom-hero.hom-hero--plain { min-height: 0; overflow: visible; background: none; color: var(--ink); }
+.hom-hero--plain .hom-hero-f { background: none; }
+.hom-hero--plain .hom-hero-b { padding: 40px 0 8px; }
+.hom-hero--plain .hom-hero-o { color: var(--ink-3); }
 
-/* ---------------------------------------------------------------- featured trips */
-.hom-featured { margin-top: 40px; }
-.hom-cards { margin-top: 16px; display: grid; row-gap: 36px; }
-.hom-card { display: flex; flex-direction: column; min-width: 0; }
-.hom-card-img { display: block; position: relative; background: var(--sunk); overflow: hidden; }
-.hom-card-img .cover-img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
-@media (hover: hover) { .hom-card-img:hover :is(.cover-img, .gl) { filter: brightness(1.04); } }
-/* no photo: the route tile on the paper tone (a cached SVG), the same slot */
-.hom-card-img--tile { aspect-ratio: 3 / 2; display: flex; align-items: center; justify-content: center; background: var(--map-paper); border: 0; }
-.hom-card-img--tile .gl { width: 100%; height: 100%; object-fit: contain; }   /* the tile fills the slot (visual-01) */
-.hom-card-b { display: flex; flex-direction: column; padding-top: 14px; min-width: 0; }
-.hom-card-chips { row-gap: 8px; }
-.hom-card-t { margin-top: 10px; }
-.hom-card-t a { color: var(--ink); }
-@media (hover: hover) { .hom-card-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
-.hom-card-meta { margin-top: 6px; text-transform: uppercase; }
-.hom-card-data { margin-top: 2px; text-transform: uppercase; color: var(--ink-2); }
-.hom-card-exl { margin-top: 12px; }
-.hom-card-ex { margin-top: 12px; max-width: 620px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.hom-card-exl + .hom-card-ex { margin-top: 4px; }
-.hom-card-go { margin-top: 6px; align-self: flex-start; }
-.hom-card--lead .hom-card-t { font-size: 24px; line-height: 30px; }
-/* phones (< 560): the lead photo bleeds to the screen edges, as the maps do */
-@media (max-width: 559.98px) {
-  .hom-card--lead .hom-card-img { margin-inline: calc(-1 * var(--m)); }
-}
-/* tablet: a 12-column grid — the lead spans the row (a wider crop), supporting cards two to a row */
-@media (min-width: 760px) {
-  .hom-featured { margin-top: var(--sec); }
-  .hom-cards { margin-top: 24px; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); row-gap: 40px; align-items: start; }
-  .hom-card { grid-column: span 6; }
-  .hom-card--lead { grid-column: 1 / -1; }
-  .hom-card--lead .hom-card-img .cover-img { aspect-ratio: 2 / 1; }
-  .hom-card--lead .hom-card-t { font-size: 30px; line-height: 36px; }
-  .hom-card-b { padding-top: 16px; }
-  .hom-card--lead .hom-card-b { padding-top: 20px; }
-}
-/* desktop: the lead on the left (7 columns, both rows); supporting cards stack on the right, photo beside the copy */
+/* ---------------------------------------------------------------- the statement */
+.hom-intro { margin-top: 56px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.hom-state { max-width: 18ch; }
+.hom-dek { max-width: 52ch; text-wrap: pretty; }
+@media (min-width: 760px) { .hom-intro { margin-top: 72px; gap: 20px; } }
+@media (min-width: 1200px) { .hom-intro { margin-top: 88px; } }
+
+/* ---------------------------------------------------------------- by the numbers */
+.hom-figs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+.hom-figs > li { display: flex; }   /* the figure fills its cell: one row's rules line up when a word wraps */
+.hom-fig { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 44px; padding: 20px 0 16px; border-bottom: 1px solid var(--rule);
+  color: var(--ink); }
+.hom-fig-n { font: 400 44px/0.9 var(--serif); letter-spacing: -0.02em; font-variant-numeric: lining-nums; }
+.hom-fig-l { display: flex; align-items: center; gap: 8px; color: var(--ink-2); }
+.hom-fig-d { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@media (hover: hover) { .hom-fig:hover .hom-fig-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 6px; } }
+@media (min-width: 760px) { .hom-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 1200px) {
-  /* row 1 fits the first supporting card, row 2 takes the rest: the second card sits right under the first, not halfway
-     down the lead card */
-  .hom-cards { grid-template-rows: auto 1fr; }
-  .hom-card--lead { grid-column: 1 / span 7; grid-row: 1 / span 2; }
-  .hom-card--lead .hom-card-img .cover-img { aspect-ratio: 3 / 2; }
-  .hom-card--lead .hom-card-t { font-size: 32px; line-height: 38px; }
-  .hom-card--sub { grid-column: 8 / -1; display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; align-items: start; }
-  .hom-card--sub .hom-card-img .cover-img { aspect-ratio: 4 / 5; }
-  .hom-card--sub .hom-card-img--tile { aspect-ratio: 4 / 5; }
-  .hom-card--sub .hom-card-b { padding-top: 0; }
-  .hom-card--sub .hom-card-t { font-size: 22px; line-height: 28px; }
-  .hom-card--sub .hom-card-ex { -webkit-line-clamp: 3; }
-  /* a supporting card with no photo and no route tile: its copy takes the whole cell, not the photo column */
-  .hom-card--sub.hom-card--nophoto { display: flex; flex-direction: column; align-items: stretch; }
-  /* one card: the lead alone, photo beside the copy (and no empty second row) */
-  .hom-cards--1 { grid-template-rows: auto; }
-  .hom-cards--1 .hom-card--lead { grid-column: 1 / -1; grid-row: auto; display: grid; grid-template-columns: 7fr 5fr; column-gap: var(--gap); align-items: start; }
-  .hom-cards--1 .hom-card--lead .hom-card-b { padding-top: 0; }
-  /* four to six cards: the cards after the first three run three to a row, photo on top */
-  .hom-card--sub:nth-child(n+4) { grid-column: span 4; display: flex; flex-direction: column; align-items: stretch; }
-  .hom-card--sub:nth-child(n+4) .hom-card-img .cover-img, .hom-card--sub:nth-child(n+4) .hom-card-img--tile { aspect-ratio: 3 / 2; }
-  .hom-card--sub:nth-child(n+4) .hom-card-b { padding-top: 14px; }
+  .hom-figs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .hom-fig { padding: 24px 0 18px; gap: 12px; }
+  .hom-fig-n { font-size: 64px; }
 }
+/* the reports by year: one plain block per year, its count above and its year under it, the latest year in ink */
+.hom-years-w { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 24px 56px; padding-top: 32px; }
+.hom-years-t { flex: 1 1 260px; display: flex; flex-direction: column; gap: 8px; }
+.hom-years-n { font: 400 15px/1.5 var(--sans); color: var(--ink-2); text-wrap: pretty; max-width: 40ch; }
+.hom-years { flex: 999 1 380px; display: flex; align-items: flex-end; gap: 12px; min-height: 150px; }
+.hom-yr { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hom-yr-n { font: 400 12px/16px var(--mono); color: var(--ink); }
+.hom-yr-b { display: block; width: 100%; max-width: 56px; background: var(--ink); }
+.hom-yr-y { font: 400 12px/16px var(--mono); letter-spacing: 0.06em; color: var(--ink-2); }
+.hom-yr--last .hom-yr-y { color: var(--ink); }
+@media (min-width: 760px) { .hom-years { gap: 16px; } }
+@media (forced-colors: active) { .hom-yr-b { background: CanvasText; } }
 
-/* ---------------------------------------------------------------- recent outings (core.trip_card: base.css .tcard) */
-.hom-rcards { margin-top: 16px; display: grid; row-gap: 20px; }
-.hom-all { margin-top: 24px; }
-@media (min-width: 560px) { .hom-rcards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
-@media (min-width: 760px) { .hom-rcards { margin-top: 24px; } .hom-all { margin-top: 32px; } }
-@media (min-width: 1200px) { .hom-rcards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-
-/* ---------------------------------------------------------------- by activity */
-.hom-tile { min-height: 64px; padding: 12px 0; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--rule); color: var(--ink); }
-@media (hover: hover) { .hom-tile:hover { color: var(--ink); } }
-@media (hover: hover) { .hom-tile:hover .hom-tile-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
-.hom-tile-top { display: contents; }
-.hom-tile-top .hom-arr { display: none; }
-.hom-tile-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.hom-tile-n { font: 600 17px/22px var(--sans); }
-.hom-tile-sub { font: 400 13px/18px var(--sans); color: var(--ink-3); }
-.hom-tile-sub .ml { --ml-sep: 0.9em; }
-.hom-tile-latest { display: none; }
-.hom-tile-count { flex-shrink: 0; display: flex; align-items: center; }
-.hom-tile-c { display: flex; gap: 0.5ch; font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
-.hom-tile-s { display: none; }
-.hom-tile-s .ml-br { display: block; }  /* 'INCL. 1 SERIES' and '+ 1 PLANNED ROUTE' on their own lines */
-.hom-tile > .hom-chev { color: var(--ink-3); }
-
-/* tablet: one row per activity — disc · name · latest · count · arrow */
+/* ---------------------------------------------------------------- the other features */
+.hom-fgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px 24px; }
+.hom-f { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.hom-f-img { display: block; aspect-ratio: 3 / 2; overflow: hidden; background: var(--surface); }
+.hom-f-img .cover-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hom-f-img--tile { display: flex; align-items: center; justify-content: center; background: var(--map-paper); }
+.hom-f-img--tile .gl { width: 100%; height: 100%; object-fit: contain; }
+@media (hover: hover) { .hom-f-img:hover :is(.cover-img, .gl) { filter: brightness(1.04); } }
+.hom-f-b { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hom-f-t { font: 400 28px/1.05 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
+.hom-f-t a { color: var(--ink); }
+@media (hover: hover) { .hom-f-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
+.hom-f-pl { font: 400 15px/1.5 var(--sans); color: var(--ink-2); }
+.hom-f-pl .ml { --ml-sep: 1.4em; }
+.hom-f-pl .mi:first-child { white-space: normal; }
+.hom-f-ex { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; max-width: 60ch; }
+.hom-f-exl + .hom-f-ex { margin-top: -4px; }
+/* phones: the large photo runs to the screen's edges */
+@media (max-width: 559.98px) { .hom-f--big .hom-f-img { margin-inline: calc(-1 * var(--m)); } }
 @media (min-width: 760px) {
-  .hom-tile { display: grid; grid-template-columns: 32px minmax(0, 10fr) minmax(0, 17fr) minmax(0, 11fr) 20px; column-gap: 24px;
-    align-items: center; padding: 20px 0; min-height: 0; }
-  .hom-tile-top .disc { grid-column: 1; grid-row: 1; }
-  .hom-tile-top .hom-arr { display: block; grid-column: 5; grid-row: 1; }
-  .hom-tile > .hom-chev { display: none; }
-  .hom-tile-name { grid-column: 2; grid-row: 1; }
-  .hom-tile-n { font: 600 22px/28px var(--sans); font-stretch: 104%; letter-spacing: -0.01em; }
-  .hom-tile-latest { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .hom-tile-t { font: 500 15px/20px var(--sans); color: var(--ink); overflow: hidden;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .hom-tile-latest--none .hom-tile-t { color: var(--ink-3); }
-  .hom-tile-count { grid-column: 4; grid-row: 1; flex-direction: column; align-items: flex-start; gap: 4px; }
-  .hom-tile-c { align-items: baseline; gap: 8px; }
-  .hom-tile-num { font: 500 30px/34px var(--mono); letter-spacing: -0.02em; color: var(--ink); }
-  .hom-tile-u { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; color: var(--ink-3); }
-  .hom-tile-c--none { font: 500 15px/20px var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink-2); white-space: normal; }
-  .hom-tile-s { display: block; text-transform: uppercase; letter-spacing: 0; }
-  .hom-tile-s:empty { display: none; }
-  @media (hover: hover) { .hom-tile:hover .hom-arr { color: var(--ink); } }
+  .hom-fgrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .hom-f--big { grid-column: 1 / span 4; grid-row: 1 / span 2; }
+  .hom-f--side { grid-column: 5 / span 2; }
+  .hom-f--pair { grid-column: span 3; }
+  .hom-fgrid--1 .hom-f--big { grid-column: 1 / -1; grid-row: auto; }
+  .hom-f--big .hom-f-t { font-size: 34px; }
+  .hom-f--side .hom-f-t { font-size: 26px; }
 }
-
-@media (min-width: 760px) and (max-width: 999.98px) {
-  .hom-tile { grid-template-columns: 32px minmax(0, 13fr) minmax(0, 14fr) minmax(0, 11fr) 20px; column-gap: 20px; }
-  .hom-tile-n { font-size: 20px; line-height: 26px; }
-}
-
-/* desktop: five tiles in a row (Main artboard) */
 @media (min-width: 1200px) {
-  .hom-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
-  .hom-tiles li + li .hom-tile { border-left: 1px solid var(--rule); padding-left: 20px; }
-  .hom-tile { height: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 24px 20px 24px 0; border-bottom: 0; }
-  .hom-tiles li:last-child .hom-tile { padding-right: 0; }
-  .hom-tile-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .hom-tile-name { flex: none; margin-top: 16px; }
-  .hom-tile-n { font-size: 24px; line-height: 30px; white-space: nowrap; }
-  .hom-tile-sub { display: none; }
-  .hom-tile-latest { margin-top: 16px; }
-  .hom-tile-t { min-height: 40px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .hom-tile-count { margin-top: 24px; }
-  .hom-tile-num { font-size: 36px; line-height: 40px; }
-  .hom-tile-s:empty { display: block; min-height: 18px; }
+  .hom-f--big .hom-f-t { font-size: 40px; }
+  .hom-f--side .hom-f-t { font-size: 30px; }
+  .hom-f--pair .hom-f-t { font-size: 34px; }
 }
+
+/* ---------------------------------------------------------------- recent written reports and recordings */
+.hom-all { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 500 13px/16px var(--sans); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.hom-all .ic { width: 16px; height: 16px; }
+@media (hover: hover) { .hom-all:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
+.hom-recent .shead, .hom-where .shead { align-items: center; padding-bottom: 6px; }
+.hom-rows { border-top: 0; }
+.hom-recs { margin-top: 64px; }
 
 /* ---------------------------------------------------------------- where I've been */
-.hom-regions { margin-top: 12px; display: grid; gap: 32px; }
-.hom-reg-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; row-gap: 2px; padding-bottom: 8px; }
-.hom-reg-n { grid-column: 1; font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.hom-regions { margin-top: 24px; display: grid; gap: 32px; }
+.hom-reg { display: flex; flex-direction: column; min-width: 0; }
+/* the plate's caption under the map: the serif name, its count, and 'Open the map' at the right */
+.hom-reg-h { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 16px; row-gap: 2px; padding-top: 12px; }
+.hom-reg-n { font: 400 30px/34px var(--serif); letter-spacing: -0.01em; }
 /* the name opens the region's own page. The link is 44 px tall itself (a11y-03: a tester measures the element, not a
-   pseudo-element): its 16 px line with 14 px of padding above and below, taken back by margins of -14 px, so no box
-   of the caption moves. It lies above the count line under the name, which is positioned and would otherwise take
-   the lower part */
-.hom-reg-n a { display: inline-block; padding-block: 14px; margin-block: -14px; position: relative; z-index: 1; color: inherit; }
-@media (hover: hover) { .hom-reg-n a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
-.hom-reg-c { grid-column: 1; text-transform: uppercase; }
-.hom-reg-a { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;
-  font: 500 14px/20px var(--sans); color: var(--ink); white-space: nowrap; }
+   pseudo-element): its 34 px line with 5 px of padding above and below, taken back by margins of -5 px, so no box of
+   the caption moves. It lies above the count line beside it, which is positioned (.ml > .mi) */
+.hom-reg-n a { display: inline-block; padding-block: 5px; margin-block: -5px; position: relative; z-index: 1; color: inherit; }
+@media (hover: hover) { .hom-reg-n a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
+.hom-reg-c { text-transform: uppercase; }
+.hom-reg-a { margin-left: auto; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font: 500 14px/20px var(--sans);
+  color: var(--ink); white-space: nowrap; }
 .hom-reg-a .ic { width: 16px; height: 16px; }
+@media (hover: hover) { .hom-reg-a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 /* one key row under both region maps (activity discs, planned line, cluster), 12 above the credit line */
 .hom-rkey { padding-top: 12px; }
 .keyrow .hom-key-cl { width: 20px; height: 20px; }
@@ -185,12 +149,12 @@
 .hom-also { margin-top: 8px; display: flex; align-items: flex-start; column-gap: 20px; }
 .hom-also > .t-mono-s { flex-shrink: 0; display: flex; align-items: center; min-height: 44px; }
 .hom-also ul { display: flex; flex-wrap: wrap; column-gap: 20px; min-width: 0; }
-.hom-also a { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font: 500 14px/20px var(--sans); color: var(--ink); }
+.hom-also a { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font: 400 14px/20px var(--sans); color: var(--ink-2); }
 /* a link narrower than 44 px still answers over 44 px, as the browse links of the Trips page do: the hit area is out of
    the flow and wider than the link by the same amount on each side, so no link moves (links are 20 px apart) */
 .hom-also a { position: relative; }
 .hom-also a::before { content: ""; position: absolute; inset: 0 min(0px, (100% - 44px) / 2); }
-.hom-also-w { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.hom-also-w { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .hom-also-c { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 @media (max-width: 559.98px) {
   .hom-reg .map { margin-inline: calc(-1 * var(--m)); }
@@ -200,25 +164,10 @@
 }
 @media (min-width: 560px) and (max-width: 759.98px) { .hom-reg { max-width: 718px; } }
 @media (min-width: 760px) {
-  .hom-regions { margin-top: 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--gap); }
-  /* keep both maps on one baseline when one caption wraps */
-  .hom-reg { display: flex; flex-direction: column; }
-  .hom-reg-h { flex: 1; align-content: end; }
-  .hom-reg-a { align-self: end; }
+  .hom-regions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--gap); }
 }
 /* two tablet columns are too narrow for the 718px desktop render: use the 390px phone render there */
 @media (min-width: 760px) and (max-width: 1199.98px) {
   .hom-reg .mv--desktop { display: none; }
   .hom-reg .mv--phone { display: block; }
-}
-/* desktop: one caption line per map — REGION · count … Open the map → (Main artboard) */
-@media (min-width: 1200px) {
-  .hom-reg-h { display: flex; align-items: baseline; padding-bottom: 12px; }
-  /* the region name never wraps; the count gives way (ellipsis) first, so both heads stay one line */
-  .hom-reg-n { flex: none; white-space: nowrap; }
-  .hom-reg-c { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .hom-reg-a { margin-left: auto; margin-block: -14px; }
-  /* the head is one line here and the map starts 13 px under the name: the link reaches 2 px higher, still 44 px, so
-     that it ends above the map */
-  .hom-reg-n a { padding-block: 16px 12px; margin-block: -16px -12px; }
 }

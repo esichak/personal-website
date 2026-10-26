@@ -32,10 +32,13 @@ import helpers  # noqa: E402
 
 TODAY = '2026-10-10'
 DAY = datetime.date(2026, 10, 10)
-CLEAN = 'content: 0 errors, 0 warnings, 4 notes (2 trips, 0 photos, 2 GPX files)'
+CLEAN = 'content: 0 errors, 0 warnings, 5 notes (2 trips, 0 photos, 2 GPX files)'
 NO_HOME = ('WARNING content/home.json: the file is missing, so the home page falls back to the newest featured report; create it '
            'to choose the featured trips (see docs/CONTENT_GUIDE.md)')
-NOTES = ['NOTE content/trips/quiet-lap/index.md: no photos', 'NOTE content/trips/quiet-lap/index.md: no place',
+# the first featured trip has no photo, so the home page has no hero photo (Phase 17): a note of content/home.json
+HERO_NOTE = ("NOTE content/home.json: the first of featured_slugs, 'ridge-walk', has no photo, so the home page shows it as a title on "
+             'white, without the hero photo; give it a photo or put a trip that has one first')
+NOTES = [HERO_NOTE, 'NOTE content/trips/quiet-lap/index.md: no photos', 'NOTE content/trips/quiet-lap/index.md: no place',
          'NOTE content/trips/quiet-lap/index.md: no write-up', 'NOTE content/trips/ridge-walk/index.md: no photos']
 BAD_TITLE = 'ERROR content/trips/quiet-lap/index.md: title must be text, got 7'
 BAD_PLACE = 'ERROR content/trips/ridge-walk/index.md: place must be text, got 9000'
@@ -171,7 +174,7 @@ class OutputAndExitTests(CliFixture):
                 code, lines = self.lines(flag)
                 self.assertEqual(code, 0)
                 # sorted by file; within a file errors, then warnings, then notes
-                self.assertEqual(lines, [NO_HOME] + NOTES + ['content: 0 errors, 1 warnings, 4 notes (2 trips, 0 photos, 2 GPX files)'])
+                self.assertEqual(lines, [NO_HOME] + NOTES[1:] + ['content: 0 errors, 1 warnings, 4 notes (2 trips, 0 photos, 2 GPX files)'])   # no home.json, no hero note
         self.assertEqual([ln for ln in self.lines()[1] if ln.startswith('NOTE')], [])
 
     def test_the_report_goes_to_stdout_and_nothing_to_stderr(self):
@@ -205,7 +208,7 @@ class JsonTests(CliFixture):
         code, out, err = self.main('--json')
         self.assertEqual(code, 1)
         self.assertIn('Tête Blanche', out)
-        self.assertEqual(json.loads(out)[0]['text'], "content/trips/quiet-lap/index.md: place must be text, got ['Tête Blanche']")
+        self.assertEqual([f['text'] for f in json.loads(out) if f['level'] == 'error'], ["content/trips/quiet-lap/index.md: place must be text, got ['Tête Blanche']"])
 
     def test_json_exit_status_follows_the_same_rules(self):
         self.assertEqual(self.main('--json')[0], 0)

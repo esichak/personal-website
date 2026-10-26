@@ -685,6 +685,27 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
   .trow--brief .trow-t { font-size: 26px; line-height: 1.05; }
   .trow--brief .trow-stats { margin-top: 12px; }
 }
+/* a photo thumbnail in the tile's place (trip_row(photo=True)): 4:3, cropped round its focal point */
+.trow-tile--photo { aspect-ratio: 4 / 3; overflow: hidden; background: var(--surface); }
+.trow-tile--photo .cover-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* a wide list (Alpine's row, Phase 17: home's recent rows): from 760 px a 132 px thumbnail beside the title column, the
+   stats under the title; from 1000 px the stats stand at the row's right in a 384 px column (four of 96 px, a row with
+   fewer cells right-aligned in it), each with its label (no column header names them here). Under 1000 px the stats'
+   column would leave the title too narrow for the date line (768 px: 116 px) */
+@media (min-width: 760px) {
+  .tlist--wide .trow-a { grid-template-columns: 132px minmax(0, 1fr); column-gap: 28px; }
+  .tlist--wide .trow-tile { width: 132px; align-self: start; }   /* the tile keeps its own height beside a taller text column */
+  .tlist--wide .trow--brief .trow-tile { width: 120px; }
+}
+@media (min-width: 1000px) {
+  .tlist--wide .trow-a { grid-template-columns: 132px minmax(0, 1fr) 384px; row-gap: 0; align-items: center; }
+  .tlist--wide .trow-tile { grid-column: 1; grid-row: 1 / span 6; align-self: center; }
+  .tlist--wide .trow-body { display: contents; }
+  .tlist--wide .trow-body > * { grid-column: 2; }
+  .tlist--wide .trow-stats { grid-column: 3; grid-row: 1 / span 6; align-self: center; margin-top: 0;
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 96px; column-gap: 0; justify-content: end; text-align: right; }
+  .tlist--wide .trow-stats .sc { align-items: flex-end; }
+}
 /* phones: a 96px tile beside the meta line, title and Mono-S stats line (the stat grid goes); tags, day ruler and excerpt
    run full width under them. The tile's extra height goes below the stats line (row 3 is the flexible one). */
 @media (max-width: 559.98px) {

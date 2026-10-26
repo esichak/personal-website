@@ -1079,16 +1079,16 @@ class BoundaryTests(TickListFixture):
                          + archive.dist_line(report))
         self.assertIn('GPS max', core.stats_cells(report))
 
-    def test_home_activity_tile_and_map_head_count_active_goals_only(self):
+    def test_the_home_band_counts_no_goal_and_the_map_head_counts_active_goals_only(self):
         home = load_module(self, 'sitegen.pages.home')
         archive = load_module(self, 'sitegen.pages.archive')
-        # Hiking: ridge-idea and tile-goal are active, done-traverse is completed
-        tile = Doc(home.activity_tile(self.site, 'hike', 'Hiking')).text().replace('\xa0', ' ')
-        self.assertIn('+ 2 PLANNED ROUTES', tile)
-        self.assertNotIn('3 PLANNED', tile)
-        # Mountain biking: its only goal is archived, so the tile counts no planned route at all
-        mtb = Doc(home.activity_tile(self.site, 'mtb', 'Mountain Biking')).text().replace('\xa0', ' ')
-        self.assertNotIn('PLANNED', mtb)
+        # the home page's By the numbers band (Phase 17, in place of the activity tiles) counts published reports only: no
+        # goal, active or not, is a figure or a bar
+        band = Doc(home.numbers(self.site)).text().replace('\xa0', ' ')
+        self.assertNotIn('PLANNED', band.upper())
+        pub = [t for t in self.site['published']]
+        self.assertEqual(dict((act, k) for act, _lab, k in home.activity_counts(self.site)),
+                         dict((act, sum(1 for t in pub if t['activity'] == act)) for act, _lab in core.NAV))
         head = Doc(archive.head_block(self.site, [], core._SITE_META[0])).text().replace('\xa0', ' ')
         self.assertIn('2 REPORTS', head)
         self.assertIn('+ 5 PLANNED ROUTES', head)

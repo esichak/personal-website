@@ -84,7 +84,8 @@ published: [ADDING-TRIPS.md](ADDING-TRIPS.md), "Changing a trip that is on the s
 
 ## Feature a trip on the home page
 
-`content/home.json` lists the featured trips, in order (the first is the lead card; up to six):
+`content/home.json` lists the featured trips, in order, up to six: the first is the hero across the top of the home
+page (its cover, with the title over it), the others the grid under it:
 
 ```json
 {"featured_slugs": ["pacific-crest-trail-2024", "matterhorn-peak-west-couloir", "peak-bagging-szn"]}

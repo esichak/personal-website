@@ -1,20 +1,22 @@
-"""Phase 1: the home page's featured cards and recent shelf (sitegen.pages.home.featured / recent).
+"""The home page (sitegen.pages.home), as Phase 17 (Alpine, docs/redesign-c/PROMPT.md 2.6) builds it: the hero (the first
+trip content/home.json features), the statement and its computed sentence, By the numbers, the feature grid (the other
+features), Recent written reports and Recent recordings (list rows), and Where I've been.
 
 site['featured'] is set directly here (the build gets it from curation.featured_for). Fixture slugs deliberately match
 no real trip, so nothing under rendered/trips/ is ever consulted, and core's copy of rendered/site/meta.json is a
 synthetic one without region maps for the length of each test (core._SITE_META, with core.ROOT in the temp dir), so
 home.page() builds without reading the real rendered/site/.
 
-Phase 4 (contract-phase4.md), in HomePageTests: the page's share image is core.share_photo of the lead card's trip, with
-its recorded size and alt text, and there is none without a feature (4.1); the lead image and its preload name the
-same candidates and sizes; the three feature-card sizes strings end with core.PHONE_FULL (5.2); a recent card's cover
-that has a card-size .th copy offers it to phones in a <source> of its own, and no <img> and no preload on the page
-lists it (5.3 as replaced by 10.5; a .th file is an empty placeholder the test writes).
+Phase 4 (contract-phase4.md), in HomePageTests: the page's share image is core.share_photo of the hero's trip, with its
+recorded size and alt text, and there is none without a feature (4.1); the hero image and its preload name the same
+candidates and sizes; every size string of a photo across the page's width ends with core.PHONE_FULL (5.2); a
+written row's cover that has a card-size .th copy offers it in a <source> of its own, and no <img> and no preload on
+the page lists it (10.5; a .th file is an empty placeholder the test writes).
 
-Review gate (fix A), in LatestAnchorTests and LatestAnchorBuiltTests: the 'Recent outings' section carries
-id="latest-h", the id the public home page's 'Latest reports' list had, so that a saved address ending in #latest-h
-lands on the newest reports again. The id is on the page once and only while the section is; on a site built from
-the synthetic fixture of tests/test_build_site.py the site checks find no id twice and a link to it resolves.
+Review gate (fix A), in LatestAnchorTests and LatestAnchorBuiltTests: the Recent written reports section carries
+id="latest-h", the id the old home page's 'Latest reports' list had, so that a saved address ending in #latest-h lands
+on the newest reports again. The id is on the page once and only while the section is; on a site built from the
+synthetic fixture of tests/test_build_site.py the site checks find no id twice and a link to it resolves.
 """
 import json
 import os
@@ -36,23 +38,25 @@ from helpers import Doc, PCT_PROSE, photo, LANDSCAPE, PORTRAIT  # noqa: E402
 
 tearDownModule = helpers.no_region_pages_left      # this module registers a site: no region page may stay registered after it
 
-H3 = re.compile(r'<h3\b[^>]*>(.*?)</h3>', re.S)
+TITLES = re.compile(r'<h[23]\b[^>]*>(.*?)</h[23]>', re.S)
 HREF = re.compile(r'href="([^"]*)"')
 TRIP_HREF = re.compile(r'href="trips/([^/"]+)/"')
-LEAD = re.compile(r'(?<![\w-])hom-card--lead(?![\w-])')
-SUB = re.compile(r'(?<![\w-])hom-card--sub(?![\w-])')
 
-WRITEUP = 'Skinned up from the lake before dawn and skied the couloir on firm, edgeable snow.'
+# a write-up of more than 100 characters: core.written_report, so the report is one of Recent written reports
+WRITEUP = ('Skinned up from the lake before dawn and skied the couloir on firm, edgeable snow. '
+           'Synthetic second sentence of the fixture write-up.')
 BRIEFS = [('brief-a', '2025-11-01'), ('brief-b', '2025-10-01'), ('brief-c', '2025-09-01'),
           ('brief-d', '2025-07-01'), ('brief-e', '2025-06-01'), ('brief-f', '2025-05-01')]
 
 
-def h3_hrefs(html_):
-    """The first href inside each <h3>, in document order (None for an h3 without a link)."""
+def title_hrefs(html_):
+    """The first href inside each title (the hero's h2, a grid card's h3), in document order; a heading without a link
+    (the grid's visually hidden h2) is left out."""
     out = []
-    for inner in H3.findall(html_):
+    for inner in TITLES.findall(html_):
         hs = HREF.findall(inner)
-        out.append(hs[0] if hs else None)
+        if hs:
+            out.append(hs[0])
     return out
 
 
@@ -63,6 +67,11 @@ def trip_slugs(html_):
         if s not in out:
             out.append(s)
     return out
+
+
+def row_slugs(html_):
+    """The data-key of every list row (core.trip_row), in order."""
+    return [li['data-key'] for li in Doc(html_).find_all('li', cls='trow')]
 
 
 class HomeFixture(unittest.TestCase):
@@ -93,168 +102,213 @@ class HomeFixture(unittest.TestCase):
         self.published = helpers.slugs(self.site['published'])     # newest first
 
     def feat(self, featured_slugs):
+        """The hero and the feature grid of the home page with these features."""
         self.site['featured'] = [self.site['by_slug'][s] for s in featured_slugs]
-        return home.featured(self.site)
+        return home.hero(self.site) + home.features(self.site)
+
+    def reload(self):
+        """Load the temp folder again (after a test added a trip or a file to it)."""
+        self.trips = helpers.load_dir(self.tmp)
+        self.site = helpers.make_site(self.trips)
+        self.published = helpers.slugs(self.site['published'])
 
 
 class HomeTests(HomeFixture):
 
-    # ------------------------------------------------------------ featured
+    # ------------------------------------------------------------ the hero and the feature grid
 
-    def test_featured_lists_title_links_in_manifest_order(self):
+    def test_the_hero_is_the_first_feature_and_the_grid_the_rest_in_manifest_order(self):
         order = ['loop-hike', 'journal-series', 'ski-report']
         html_ = self.feat(order)
-        self.assertIsInstance(html_, str)
-        self.assertEqual(h3_hrefs(html_), ['trips/%s/' % s for s in order])
+        self.assertEqual(title_hrefs(html_), ['trips/%s/' % s for s in order])
+        hero = Doc(home.hero(self.site)).find('section', cls='hom-hero')
+        self.assertEqual(hero.find('h2')['id'], 'hero-t')
+        self.assertEqual(hero.find('h2').find('a')['href'], 'trips/loop-hike/')
+        self.assertEqual([li.find('h3').find('a')['href'] for li in Doc(home.features(self.site)).find_all('li', cls='hom-f')],
+                         ['trips/journal-series/', 'trips/ski-report/'])
         # a different order renders in that order: the manifest decides, not dates
         reordered = ['ski-report', 'loop-hike', 'journal-series']
-        self.assertEqual(h3_hrefs(self.feat(reordered)), ['trips/%s/' % s for s in reordered])
+        self.assertEqual(title_hrefs(self.feat(reordered)), ['trips/%s/' % s for s in reordered])
 
-    def test_featured_empty_list_gives_empty_string(self):
+    def test_no_feature_no_hero_and_no_grid(self):
         self.assertEqual(self.feat([]), '')
 
-    def test_featured_renders_1_2_3_and_6_cards(self):
+    def test_one_feature_is_the_hero_alone(self):
+        self.assertTrue(self.feat(['loop-hike']).startswith('<section class="hom-hero"'))
+        self.assertEqual(home.features(self.site), '')
+
+    def test_the_grid_places_two_to_six_features(self):
         pool = ['ski-report', 'journal-series', 'loop-hike', 'track-only', 'brief-a', 'brief-b']
-        for k in (1, 2, 3, 6):
-            with self.subTest(cards=k):
-                html_ = self.feat(pool[:k])
-                self.assertTrue(html_.strip())
-                self.assertEqual(h3_hrefs(html_), ['trips/%s/' % s for s in pool[:k]])
-                self.assertEqual(len(LEAD.findall(html_)), 1)
-                self.assertEqual(len(SUB.findall(html_)), k - 1)
-
-    def test_lead_card_carries_lead_class_and_the_others_sub(self):
-        html_ = self.feat(['ski-report', 'journal-series', 'loop-hike'])
-        self.assertEqual(len(LEAD.findall(html_)), 1)
-        self.assertEqual(len(SUB.findall(html_)), 2)
-        lead_at, first_sub = LEAD.search(html_).start(), SUB.search(html_).start()
-        self.assertLess(lead_at, first_sub)
-        lead_card = html_[lead_at:first_sub]
-        self.assertIn('href="trips/ski-report/"', lead_card)
-        self.assertNotIn('trips/journal-series/', lead_card)
-        self.assertNotIn('trips/loop-hike/', lead_card)
-
-    def test_single_card_is_the_lead(self):
-        html_ = self.feat(['loop-hike'])
-        self.assertEqual(len(LEAD.findall(html_)), 1)
-        self.assertEqual(SUB.findall(html_), [])
+        want = {2: ['big'], 3: ['big', 'side'], 4: ['big', 'side', 'side'], 6: ['big', 'side', 'side', 'pair', 'pair']}
+        for k, sizes in want.items():
+            with self.subTest(features=k):
+                self.feat(pool[:k])
+                cards = Doc(home.features(self.site)).find_all('li', cls='hom-f')
+                self.assertEqual([[c for c in li.classes if c.startswith('hom-f--') and c != 'hom-f--nophoto'][0][len('hom-f--'):] for li in cards], sizes)
+                # each card's overline numbers it as the manifest does (the hero is 01)
+                self.assertEqual([li.find('p', cls='hom-f-o').text().split(',')[0].split('\xa0')[0][:2] for li in cards],
+                                 ['%02d' % (i + 2) for i in range(len(cards))])
+                self.assertIn('hom-fgrid--%d' % (k - 1), home.features(self.site))
 
     def test_card_hrefs_are_relative_from_the_home_page(self):
-        for href in h3_hrefs(self.feat(['ski-report', 'journal-series', 'loop-hike'])):
+        for href in title_hrefs(self.feat(['ski-report', 'journal-series', 'loop-hike'])):
             self.assertTrue(href.startswith('trips/'), href)
             self.assertFalse(href.startswith(('/', './', '../', 'http')), href)
 
-    def test_series_card_shows_journal_facts_and_no_day_prose(self):
+    def test_a_journal_hero_shows_its_dates_and_no_stats_and_no_day_prose(self):
         t = self.site['by_slug']['journal-series']
         self.assertTrue(any(d['body_md'] for d in t['days']))
-        html_ = self.feat(['journal-series'])
+        html_ = home.hero(dict(self.site, featured=[t]))
+        text = Doc(html_).text().replace('\xa0', ' ')
         self.assertIn('Open the journal', html_)
-        self.assertIn('Journal', html_)
-        # the facts (recorded-day count), however the card sets them: as a sentence or as caps meta items with nbsp
-        self.assertIn('recorded days', html_.replace('\xa0', ' ').lower())
+        self.assertIn('FEATURED, JOURNAL, ' + helpers.plain_text(core.trip_date(t)).replace('\xa0', ' '), helpers.plain_text(Doc(html_).find('p', cls='hom-hero-o').text()).replace('\xa0', ' '))
+        self.assertIsNone(Doc(html_).find('span', cls='hom-hero-s'))          # a series has no stats line
         self.assertNotIn(PCT_PROSE, html_)
         self.assertNotIn('afternoon heat', html_)
-        self.assertNotIn('Read the report', html_)
-        self.assertNotIn('View the trip', html_)
+        self.assertNotIn('Read the report', text)
+        self.assertNotIn('View the trip', text)
 
-    def test_writeup_card_says_read_the_report(self):
-        html_ = self.feat(['ski-report'])
-        self.assertIn('Read the report', html_)
-        self.assertNotIn('View the trip', html_)
-        self.assertNotIn('Open the journal', html_)
+    def test_each_hero_carries_the_one_verb_of_its_destination(self):
+        for slug, verb in (('ski-report', 'Read the report'), ('track-only', 'View the trip'), ('journal-series', 'Open the journal')):
+            with self.subTest(slug):
+                html_ = home.hero(dict(self.site, featured=[self.site['by_slug'][slug]]))
+                go = Doc(html_).find('a', cls='hom-hero-go')
+                self.assertEqual(go.children[0], verb)
+                self.assertEqual(go.find('span', cls='sr').text(), ': ' + self.site['by_slug'][slug]['title'])
+                for other in {'Read the report', 'View the trip', 'Open the journal'} - {verb}:
+                    self.assertNotIn(other, html_)
 
-    def test_track_only_card_says_view_trip(self):
-        t = self.site['by_slug']['track-only']
-        self.assertFalse(t['has_writeup'])
-        self.assertTrue(t['track'])
-        html_ = self.feat(['track-only'])
-        self.assertIn('View the trip', html_)
-        self.assertNotIn('Read the report', html_)
-        self.assertNotIn('Open the journal', html_)
+    def test_the_hero_states_place_region_and_stats_from_the_content(self):
+        html_ = home.hero(dict(self.site, featured=[self.site['by_slug']['ski-report']]))
+        doc = Doc(html_)
+        self.assertEqual(doc.find('span', cls='hom-hero-p').text(), 'Sawtooth Ridge, Eastern Sierra')
+        self.assertEqual(doc.find('h2').find('a').text(), 'West Couloir')
+        self.assertIn('FEATURED', doc.find('p', cls='hom-hero-o').text())
+        self.assertIn('BACKCOUNTRY SKIING', doc.find('p', cls='hom-hero-o').text().replace('\xa0', ' '))
 
-    def test_mixed_cards_each_carry_their_own_link_text(self):
-        html_ = self.feat(['journal-series', 'ski-report', 'track-only'])
-        self.assertIn('Open the journal', html_)
-        self.assertIn('Read the report', html_)
-        self.assertIn('View the trip', html_)
-
-    # ------------------------------------------------------------ recent
-
-    def test_recent_excludes_featured_and_caps_at_six_newest_first(self):
-        self.assertEqual(len(self.published), 10)
-        featured = ['ski-report', 'journal-series']
-        self.assertEqual(self.published[0], 'ski-report')          # the newest published trip is featured
-        self.site['featured'] = [self.site['by_slug'][s] for s in featured]
-        html_ = home.recent(self.site)
-        self.assertIsInstance(html_, str)
-        expected = [s for s in self.published if s not in featured][:6]
-        self.assertEqual(len(expected), 6)
-        self.assertEqual(trip_slugs(html_), expected)
-        for s in featured:
-            self.assertNotIn('trips/%s/' % s, html_)
-
-    def test_recent_with_nothing_featured_is_the_six_newest(self):
-        self.site['featured'] = []
-        self.assertEqual(trip_slugs(home.recent(self.site)), self.published[:6])
-
-    def test_recent_never_includes_a_planned_route(self):
-        self.assertEqual(self.site['trips'][0]['slug'], 'planned-route')  # newest of all, but planned
-        self.assertNotIn('planned-route', self.published)
-        self.site['featured'] = []
-        html_ = home.recent(self.site)
-        self.assertNotIn('planned-route', trip_slugs(html_))
-        self.assertNotIn('Someday Ridge', html_)
-        self.site['featured'] = [self.site['by_slug'][s] for s in self.published[:5]]
-        self.assertNotIn('planned-route', trip_slugs(home.recent(self.site)))
-
-    def test_recent_lists_everything_when_fewer_than_six_remain(self):
-        keep = ['ski-report', 'loop-hike', 'track-only', 'planned-route']
-        site2 = helpers.make_site([self.site['by_slug'][s] for s in keep])
-        site2['featured'] = [site2['by_slug']['ski-report']]
-        self.assertEqual(trip_slugs(home.recent(site2)), ['track-only', 'loop-hike'])
-
-    def test_recent_is_empty_when_every_published_trip_is_featured(self):
-        site2 = helpers.make_site([self.site['by_slug'][s] for s in ('ski-report', 'loop-hike', 'planned-route')])
-        site2['featured'] = list(site2['published'])
-        self.assertEqual(home.recent(site2), '')
-
-    # ------------------------------------------------------------ recent cards: the write-up's opening, a repeated title (Phase 7)
-
-    def recent_cards(self):
-        return {li['data-slug']: li for li in Doc(home.recent(self.site)).find_all('li', cls='tcard')}
-
-    def test_a_written_recent_card_opens_its_write_up_and_a_track_only_one_stays_bare(self):
-        self.site['featured'] = []
-        cards = self.recent_cards()
-        ex = cards['loop-hike'].find('p', cls='tcard-ex')
-        self.assertIsNotNone(ex)
-        self.assertEqual(ex.text(), core.card_summary(self.site['by_slug']['loop-hike'])['text'])
+    def test_a_grid_card_opens_its_write_up_and_a_journal_card_shows_no_facts_line_as_a_summary(self):
+        self.feat(['track-only', 'loop-hike', 'journal-series'])
+        cards = {li.find('h3').find('a')['href']: li for li in Doc(home.features(self.site)).find_all('li', cls='hom-f')}
+        ex = cards['trips/loop-hike/'].find('p', cls='hom-f-ex')
+        self.assertEqual(ex.text(), core.card_summary(self.site['by_slug']['loop-hike'], 230)['text'])
         self.assertEqual(ex.text(), 'A loop over three summits with a long scree descent.')        # the write-up, verbatim
-        for slug in ('track-only', 'brief-a'):
-            self.assertEqual(cards[slug].find_all('p', cls='tcard-ex') + cards[slug].find_all('p', cls='tcard-exl'), [], slug)
+        self.assertIsNone(cards['trips/journal-series/'].find('p', cls='hom-f-ex'))               # a facts-only summary is left out
+        # the title link is described by the overline (its number, activity and date)
+        a = cards['trips/loop-hike/'].find('h3').find('a')
+        self.assertEqual(a['aria-describedby'], 'fc-loop-hike-m')
+        self.assertEqual(cards['trips/loop-hike/'].find('p', cls='hom-f-o')['id'], 'fc-loop-hike-m')
 
-    def test_a_title_two_cards_carry_names_the_date_in_its_link(self):
-        helpers.make_trip(self.tmp, 'quick-lap-again', title='Quick Lap', activity='ski', date='2025-12-02', track=True)
-        self.site = helpers.make_site(helpers.load_dir(self.tmp))
-        self.site['featured'] = []
-        cards = self.recent_cards()
-        for slug in ('track-only', 'quick-lap-again'):
-            t = self.site['by_slug'][slug]
-            link_ = cards[slug].find('h3').find('a')
-            self.assertEqual([sp.text() for sp in link_.find_all('span', cls='sr')], [', ' + helpers.plain_text(core.trip_date(t, caps=False, short=True))])
-            self.assertTrue(link_.text().startswith('Quick Lap, '))
-        # a title of its own does not
-        own = [slug for slug in cards if slug not in ('track-only', 'quick-lap-again')]
-        self.assertTrue(own)
-        for slug in own:
-            self.assertEqual(cards[slug].find('h3').find('a').find_all('span', cls='sr'), [], slug)
+    # ------------------------------------------------------------ the statement and By the numbers
 
-    def test_a_recent_card_that_repeats_a_featured_title_names_its_date_too(self):
-        helpers.make_trip(self.tmp, 'couloir-again', title='West Couloir', activity='ski', date='2025-11-15', track=True)
-        self.site = helpers.make_site(helpers.load_dir(self.tmp))
+    def test_the_statement_counts_the_reports_and_their_first_year(self):
+        html_ = home.statement(self.site)
+        reports = [t for t in self.site['published']]
+        first = min(t['date'].year for t in reports if t['date'])
+        self.assertIn('%d reports since %d.' % (len(reports), first), html_)
+        self.assertIn(home.STATEMENT, html_)
+        self.assertIn(core.TAGLINE, html_)
+        # nothing published: no sentence
+        self.assertNotIn('since', home.statement(helpers.make_site([self.site['by_slug']['planned-route']])))
+
+    def test_the_figures_count_every_report_and_each_activity_most_first(self):
+        doc = Doc(home.numbers(self.site))
+        figs = doc.find('ul', cls='hom-figs').find_all('a', cls='hom-fig')
+        pub = self.site['published']
+        self.assertEqual(figs[0]['href'], 'trips/')
+        self.assertEqual(figs[0].find('span', cls='hom-fig-n').text(), str(len(pub)))
+        counts = [(a['href'], int(a.find('span', cls='hom-fig-n').text())) for a in figs[1:]]
+        self.assertEqual(len(counts), len(core.NAV))
+        self.assertEqual([k for _h, k in counts], sorted((k for _h, k in counts), reverse=True))
+        for act, lab in core.NAV:
+            self.assertIn((core.section_url(act), sum(1 for t in pub if t['activity'] == act)), counts)
+        # ties keep core.NAV's order: hiking and climbing, say, both 0 here, in that order
+        ties = [h for h, k in counts if k == 0]
+        self.assertEqual(ties, [core.section_url(a) for a, _l in core.NAV if core.section_url(a) in ties])
+        # each figure is a link whose name is its number and its words
+        self.assertEqual(figs[1].find('span', cls='hom-fig-n').text(), str(counts[0][1]))
+        self.assertTrue(figs[1].find('span', cls='hom-fig-l').text().endswith(' reports'))
+
+    def test_one_bar_per_year_counts_each_report_once_in_the_year_of_its_date(self):
+        doc = Doc(home.numbers(self.site))
+        years = doc.find('ol', cls='hom-years').find_all('li', cls='hom-yr')
+        dated = [t['date'].year for t in self.site['published'] if t['date']]
+        self.assertEqual([int(li.find('span', cls='hom-yr-y').text()) for li in years], list(range(min(dated), max(dated) + 1)))
+        got = {int(li.find('span', cls='hom-yr-y').text()): int(helpers.plain_text(li.find('span', cls='hom-yr-n').text()).split(':')[1].split()[0])
+               for li in years}
+        self.assertEqual(got, {y: dated.count(y) for y in range(min(dated), max(dated) + 1)})
+        # the tallest bar is BAR_MAX px; a screen reader hears 'YYYY: N reports' once per year, the year below is hidden
+        heights = [int(re.search(r'height:(\d+)px', li.find('span', cls='hom-yr-b')['style']).group(1)) for li in years]
+        self.assertEqual(max(heights), home.BAR_MAX)
+        self.assertEqual({li.find('span', cls='hom-yr-y')['aria-hidden'] for li in years}, {'true'})
+        self.assertIn('hom-yr--last', years[-1].classes)
+        # the journal counts once, in its start year, and has its sentence
+        self.assertIn('2024 is the Long Trail: one journal, Mexico to Canada, counted once.', doc.text())
+
+    def test_the_band_names_its_years_and_no_planned_route(self):
+        html_ = home.numbers(self.site)
+        dated = [t['date'].year for t in self.site['published'] if t['date']]
+        self.assertIn('%d\xa0–\xa0%d' % (min(dated), max(dated)), html_)
+        self.assertNotIn('Someday Ridge', html_)
+        self.assertNotIn('PLANNED', html_.upper())
+        self.assertEqual(home.numbers(helpers.make_site([self.site['by_slug']['planned-route']])), '')
+
+    # ------------------------------------------------------------ Recent written reports and Recent recordings
+
+    def test_written_reports_are_the_six_newest_of_them_featured_or_not(self):
+        for i in range(7):
+            helpers.make_trip(self.tmp, 'written-%d' % i, title='Synthetic Written %d' % i, activity='hike', date='2024-0%d-01' % (i + 1),
+                              body=WRITEUP, track=True)
+        self.reload()
         self.site['featured'] = [self.site['by_slug']['ski-report']]
-        link_ = self.recent_cards()['couloir-again'].find('h3').find('a')
-        self.assertEqual(len(link_.find_all('span', cls='sr')), 1)
+        want = [t['slug'] for t in self.site['published'] if core.written_report(t)][:6]
+        self.assertEqual(len(want), 6)
+        self.assertEqual(want[0], 'ski-report')                    # featured, and still listed
+        self.assertEqual(row_slugs(home.recent(self.site)), want)
+        self.assertNotIn('planned-route', row_slugs(home.recent(self.site)))
+
+    def test_recordings_are_the_six_newest_trips_that_are_not_written_reports(self):
+        self.site['featured'] = []
+        got = row_slugs(home.recent_recordings(self.site))
+        want = [t['slug'] for t in self.site['published'] if not core.written_report(t)][:6]
+        self.assertEqual(got, want)
+        self.assertEqual(got, ['track-only', 'brief-a', 'brief-b', 'brief-c', 'loop-hike', 'brief-d'])
+        self.assertNotIn('journal-series', got)                    # a written journal is a written report
+        self.assertNotIn('planned-route', got)
+        # between them, the two lists hold the newest published trips
+        written = row_slugs(home.recent(self.site))
+        self.assertEqual(sorted(written + got), sorted(self.published[:len(written + got)]))
+
+    def test_a_multi_day_trip_without_a_write_up_is_a_recording(self):
+        # the old Recent outings took any published trip: a GPX-only trip of two days published today leads the list
+        helpers.make_trip(self.tmp, 'two-days', title='Synthetic Two Days', activity='hike', kind='multi-day',
+                          date='2026-02-01', end_date='2026-02-02', days=[{'date': '2026-02-01'}, {'date': '2026-02-02'}])
+        self.reload()
+        self.site['featured'] = []
+        t = self.site['by_slug']['two-days']
+        self.assertEqual((t['kind'], core.written_report(t)), ('multi-day', False))
+        self.assertEqual(row_slugs(home.recent_recordings(self.site))[0], 'two-days')
+        self.assertNotIn('two-days', row_slugs(home.recent(self.site)))
+
+    def test_the_rows_are_the_shared_list_rows_with_the_written_ones_photos(self):
+        html_ = home.recent(self.site)
+        doc = Doc(html_)
+        (row,) = doc.find_all('li', cls='trow')
+        self.assertEqual(row['data-key'], 'ski-report')
+        self.assertIn('trow-tile--photo', html_)
+        self.assertEqual(row.find('img', cls='cover-img')['sizes'], core.ROW_THUMB_SIZES)
+        self.assertEqual(row.find('a', cls='trow-a')['aria-labelledby'], 'tt-rw-ski-report tm-rw-ski-report')
+        self.assertIn('tlist--wide', doc.find('ol')['class'])
+        # 'All N reports' in the section's head, the count computed
+        self.assertIn('All %d reports' % len(self.site['published']), html_)
+        rec = Doc(home.recent_recordings(self.site))
+        self.assertEqual(rec.find_all('li', cls='trow')[0].find('a', cls='trow-a')['aria-labelledby'], 'tt-rr-track-only tm-rr-track-only')
+        self.assertNotIn('trow-tile--photo', home.recent_recordings(self.site))
+
+    def test_without_a_written_report_the_section_is_absent(self):
+        site2 = helpers.make_site([self.site['by_slug'][s] for s in ('loop-hike', 'track-only', 'planned-route')])
+        self.assertEqual(home.recent(site2), '')
+        self.assertEqual(row_slugs(home.recent_recordings(site2)), ['track-only', 'loop-hike'])
+        self.assertEqual(home.recent_recordings(helpers.make_site([self.site['by_slug']['planned-route']])), '')
 
 
 def share_meta(doc):
@@ -270,7 +324,7 @@ def share_meta(doc):
 
 
 class HomePageTests(HomeFixture):
-    """home.page(site): the head's share image and preload, and what the cards' images tell a browser to load."""
+    """home.page(site): the head's share image and preload, and what the page's images tell a browser to load."""
 
     PHONE_FULL = '(min-width: 560px) 100vw, 55vw'    # contract-phase4.md 5.2: core.PHONE_FULL, written out
 
@@ -281,18 +335,23 @@ class HomePageTests(HomeFixture):
         p = home.page(self.site)
         return p, Doc(p.html)
 
-    def reload(self):
-        """Load the temp folder again (after a test added a file to it)."""
-        self.trips = helpers.load_dir(self.tmp)
-        self.site = helpers.make_site(self.trips)
-
     def lead_img(self, doc):
-        return doc.by_id('main').find('li', cls='hom-card--lead').find('img', cls='cover-img')
+        return doc.by_id('main').find('section', cls='hom-hero').find('img', cls='cover-img')
 
     def preloads(self, doc):
         return doc.find('head').find_all('link', attrs={'rel': 'preload', 'as': 'image'})
 
-    # ------------------------------------------------------------ the share image (4.1)
+    # ------------------------------------------------------------ the heading and the share image (4.1)
+
+    def test_one_h1_for_screen_readers_then_the_heros_h2(self):
+        _p, doc = self.page(['ski-report', 'loop-hike'])
+        main = doc.by_id('main')
+        (h1,) = doc.find_all('h1')
+        self.assertEqual((h1.text(), h1.classes), (home.H1, ['sr']))
+        self.assertIs(main.elements()[0], h1)                   # the page's first heading
+        levels = [int(n.tag[1]) for n in main.walk() if n.tag in ('h1', 'h2', 'h3', 'h4')]
+        self.assertEqual(levels[:2], [1, 2])
+        self.assertTrue(all(b - a <= 1 for a, b in zip(levels, levels[1:])), levels)
 
     def test_the_share_image_is_the_share_photo_of_the_lead(self):
         # 4.1 and 10: home passes core.share_photo(lead): the cover of the first featured trip, with the size and the
@@ -304,9 +363,8 @@ class HomePageTests(HomeFixture):
         self.assertEqual(share_meta(doc), {'og:image': core.SITE_URL + share['path'], 'og:image:type': 'image/webp',
                                            'og:image:width': '1600', 'og:image:height': '1200', 'og:image:alt': 'The couloir',
                                            'twitter:card': 'summary_large_image', 'twitter:image:alt': 'The couloir'})
-        self.assertEqual(share_meta(doc)['og:image'], core.SITE_URL + 'trips/ski-report/photos/02.webp')
         self.assertIn(core._share_tags(share), p.html.split('</head>', 1)[0])
-        # it is the photo the lead card shows, and what the site-level pages share (core.site_share)
+        # it is the photo the hero shows, and what the site-level pages share (core.site_share)
         self.assertEqual(self.lead_img(doc)['src'], share['path'])
         self.assertEqual(core.site_share(), share)
         # the lead decides, not the newest or the last feature
@@ -315,7 +373,6 @@ class HomePageTests(HomeFixture):
         self.assertEqual((share_meta(doc)['og:image:alt'], share_meta(doc)['twitter:image:alt']), ('The basin', 'The basin'))
 
     def test_a_journal_lead_shares_its_day_cover(self):
-        # the cover of a journal is a day's photo: its size and alt text come from that day file
         _p, doc = self.page(['journal-series'])
         lead = self.site['by_slug']['journal-series']
         self.assertEqual(lead['cover']['source'], 'day')
@@ -324,25 +381,26 @@ class HomePageTests(HomeFixture):
                                            'twitter:card': 'summary_large_image', 'twitter:image:alt': 'Ridge view, day 1'})
 
     def test_no_share_image_without_a_feature(self):
-        # 4.1: nothing is featured, nothing is shared: no og:image and none of its properties, the small card
         p, doc = self.page([])
         self.assertEqual(share_meta(doc), {'twitter:card': 'summary'})
         self.assertNotIn('og:image', p.html)
         self.assertNotIn('twitter:image', p.html)
         self.assertIsNone(core.site_share())
         self.assertEqual(self.preloads(doc), [])
+        self.assertIsNone(doc.find('section', cls='hom-hero'))
 
-    def test_a_lead_without_a_photo_shares_none(self):
-        # the second feature's photo is not borrowed for the page
+    def test_a_lead_without_a_photo_shares_none_and_is_a_title_block(self):
+        # the second feature's photo is not borrowed for the page, and the hero becomes a title block on white
         p, doc = self.page(['track-only', 'ski-report'])
         self.assertIsNone(self.site['by_slug']['track-only']['cover'])
-        self.assertIsNone(core.share_photo(self.site['by_slug']['track-only']))
         self.assertEqual(share_meta(doc), {'twitter:card': 'summary'})
         self.assertNotIn('og:image', p.html)
         self.assertEqual(self.preloads(doc), [])
+        hero = doc.find('section', cls='hom-hero')
+        self.assertIn('hom-hero--plain', hero.classes)
+        self.assertEqual(hero.find_all('img'), [])
 
     def test_one_title_one_description_one_canonical(self):
-        # the page around the share tags is as it was
         p, doc = self.page(['ski-report'])
         head = doc.find('head')
         self.assertEqual([t.text() for t in head.find_all('title')], [home.TITLE])
@@ -351,10 +409,10 @@ class HomePageTests(HomeFixture):
         self.assertEqual([m['content'] for m in head.find_all('meta', attrs={'property': 'og:url'})], [core.SITE_URL])
         self.assertEqual(p.url, '')
 
-    # ------------------------------------------------------------ the lead image and its preload (5.2)
+    # ------------------------------------------------------------ the hero image and its preload (5.2)
 
     def test_the_lead_image_and_its_preload_agree(self):
-        # the head preloads exactly what the lead card's <img> will ask for: the same file, candidates and sizes, for a
+        # the head preloads exactly what the hero's <img> will ask for: the same file, candidates and sizes, for a
         # cover with every copy (the .th file exists: 10.5 keeps it out of both), with the .sm copy alone, and for a
         # cover that has neither
         helpers.make_trip(self.tmp, 'th-lead', title='Thumb Lead', activity='hike', date='2025-03-03', track=True,
@@ -373,155 +431,104 @@ class HomePageTests(HomeFixture):
                 self.assertEqual((links[0]['fetchpriority'], img['fetchpriority']), ('high', 'high'))
                 self.assertNotIn('loading', img)
                 self.assertEqual(img['srcset'] is not None, has_srcset)
-                self.assertEqual(img['sizes'], home.LEAD_SIZES if has_srcset else None)
-                self.assertIn(core.cover_preload(self.site['by_slug'][slug], '', home.LEAD_SIZES), p.html.split('</head>', 1)[0])
-                # the lead image is never wrapped, and neither it nor its preload names a .th file
-                self.assertEqual(img.parent.tag, 'a')
+                self.assertEqual(img['sizes'], home.HERO_SIZES if has_srcset else None)
+                self.assertIn(core.cover_preload(self.site['by_slug'][slug], '', home.HERO_SIZES), p.html.split('</head>', 1)[0])
+                # the hero image is never wrapped, and neither it nor its preload names a .th file
+                self.assertEqual(img.parent.classes, ['hom-hero-m'])
                 self.assertNotIn('.th.', (img['srcset'] or '') + (links[0]['imagesrcset'] or '') + links[0]['href'])
-                self.assertEqual(doc.by_id('main').find('ul', cls='hom-cards').find_all('picture'), [])
-        self.assertEqual(self.site['by_slug']['th-lead']['cover']['photo']['th'], 'photos/01.th.webp')
+                self.assertEqual(doc.find('section', cls='hom-hero').find_all('picture'), [])
         _p, doc = self.page(['th-lead', 'track-only'])
         self.assertEqual(self.lead_img(doc)['srcset'], 'trips/th-lead/photos/01.sm.webp 800w, trips/th-lead/photos/01.webp 1600w')
 
-    def test_feature_card_sizes_end_with_the_phone_slot(self):
-        # 10: LEAD_SIZES, SUB_SIZES and WIDE_SUB_SIZES end with core.PHONE_FULL in place of a bare 100vw; the recent cards'
-        # string (a 112 px thumbnail on a phone) is unchanged
+    def test_every_photo_across_the_width_ends_with_the_phone_slot(self):
+        # 10: the hero's and the grid's strings end with core.PHONE_FULL in place of a bare 100vw
         self.assertEqual(core.PHONE_FULL, self.PHONE_FULL)
-        want = {'LEAD_SIZES': '(min-width: 1200px) 718px, (min-width: 760px) calc(100vw - 80px), ',
-                'SUB_SIZES': '(min-width: 1200px) 200px, (min-width: 760px) calc((100vw - 104px) / 2), ',
-                'WIDE_SUB_SIZES': '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 104px) / 2), '}
+        want = {'HERO_SIZES': '(min-width: 760px) 100vw, ',
+                'BIG_SIZES': '(min-width: 1400px) 891px, (min-width: 760px) calc((100vw - 104px) * 2 / 3), ',
+                'SIDE_SIZES': '(min-width: 1400px) 445px, (min-width: 760px) calc((100vw - 104px) / 3), ',
+                'PAIR_SIZES': '(min-width: 1400px) 668px, (min-width: 760px) calc((100vw - 104px) / 2), '}
         for name, start in want.items():
             with self.subTest(name):
-                self.assertTrue(hasattr(home, name), 'home.%s is missing' % name)
                 sizes = getattr(home, name)
                 self.assertEqual(sizes, start + self.PHONE_FULL)
-                self.assertTrue(sizes.endswith(', ' + core.PHONE_FULL))
-                entries = re.split(r', (?=\(|\d)', sizes)           # the entries (a calc() holds no ', ')
-                self.assertEqual(entries[-1], core.PHONE_SLOT)       # the unconditional fallback is the slot ...
-                self.assertNotIn('100vw', entries)                   # ... and no entry is a bare 100vw
+                entries = re.split(r', (?=\(|\d)', sizes)
+                self.assertEqual(entries[-1], core.PHONE_SLOT)
+                self.assertNotIn('100vw', entries[-1:])
                 self.assertTrue(all(e.startswith('(min-width: ') for e in entries[:-1]), entries)
-        self.assertEqual(home.RECENT_SIZES, '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px')
+        for name in ('LEAD_SIZES', 'SUB_SIZES', 'WIDE_SUB_SIZES', 'RECENT_SIZES'):
+            self.assertFalse(hasattr(home, name), name)            # the old cards' strings are gone with the cards
 
-    def test_each_feature_card_uses_its_own_sizes(self):
-        # the lead card, a supporting card and one of cards 4-6 (three to a row), for a cover with an .sm copy
-        t = self.site['by_slug']['ski-report']
-        got = [Doc(home.card(t, **kw)).find('img', cls='cover-img')['sizes'] for kw in ({'lead': True}, {}, {'wide': True})]
-        self.assertEqual(got, [home.LEAD_SIZES, home.SUB_SIZES, home.WIDE_SUB_SIZES])
-        self.assertEqual(len(set(got)), 3)
-        # on the page, with six features: the lead, a supporting card (2-3) and a card of the second row (4-6)
+    def test_each_grid_card_uses_its_own_sizes(self):
         for slug in ('sub-photo', 'wide-photo'):
             helpers.make_trip(self.tmp, slug, activity='hike', date='2025-02-02', track=True,
                               photos=[photo('photos/01.webp', LANDSCAPE, alt='A synthetic view', sm=True)])
         self.reload()
-        _p, doc = self.page(['ski-report', 'sub-photo', 'track-only', 'wide-photo', 'brief-a', 'brief-b'])
-        cards = doc.by_id('main').find('ul', cls='hom-cards').find_all('li', cls='hom-card')
-        self.assertEqual(len(cards), 6)
+        _p, doc = self.page(['loop-hike', 'ski-report', 'sub-photo', 'track-only', 'wide-photo', 'brief-a'])
+        cards = doc.by_id('main').find('ul', cls='hom-fgrid').find_all('li', cls='hom-f')
+        self.assertEqual(len(cards), 5)
         sizes = [c.find('img', cls='cover-img') and c.find('img', cls='cover-img')['sizes'] for c in cards]
-        self.assertEqual(sizes, [home.LEAD_SIZES, home.SUB_SIZES, None, home.WIDE_SUB_SIZES, None, None])
+        self.assertEqual(sizes, [home.BIG_SIZES, home.SIDE_SIZES, None, home.PAIR_SIZES, None])
 
     # ------------------------------------------------------------ the card-size copy (5.3, 10.5)
 
     PICTURE = re.compile(r'<picture class="cover-pic">(<source [^>]*>)(<img [^>]*>)</picture>')
 
     def unwrap(self, html_):
-        """The markup with every card cover's <picture class="cover-pic"> taken off: the <img> it holds, alone."""
+        """The markup with every cover's <picture class="cover-pic"> taken off: the <img> it holds, alone."""
         return self.PICTURE.sub(lambda m: m.group(2), html_)
 
-    def test_recent_cards_offer_the_card_size_copy_to_phones_only(self):
-        # 10.5 (it replaces 5.3, under which the .th copy led the <img>'s own srcset): a recent-outing card (core.trip_card
-        # at RECENT_SIZES) whose cover has the copy is wrapped in <picture class="cover-pic"> with one phone-only <source>
-        # that lists the copy first; its <img> is the <img> of the card without the file
+    def test_a_written_rows_thumbnail_offers_the_card_size_copy_in_a_source_of_its_own(self):
+        # Phase 17: a Recent written reports row (core.trip_row(photo=True)) whose cover has the copy is wrapped in
+        # <picture class="cover-pic"> with one <source> (no media query: the slot is 160 px at most at every width) that
+        # lists the copy first; its <img> is the <img> of the row without the file
         base = 'trips/ski-report/photos/'
         two = '%s02.sm.webp 800w, %s02.webp 1600w' % (base, base)
-        self.site['featured'] = []
         before = home.recent(self.site)
-        img = Doc(before).find('li', attrs={'data-slug': 'ski-report'}).find('img')
-        self.assertEqual(img['srcset'], two)                                                            # no .th file: as before
+        img = Doc(before).find('li', attrs={'data-key': 'ski-report'}).find('img')
+        self.assertEqual(img['srcset'], two)
         self.assertNotIn('<picture', before)
-        _p, doc = self.page([])
-        page_before = _p.html
         helpers.touch(os.path.join(self.tmp, 'ski-report', 'photos', '02.th.webp'))
         self.reload()
-        self.assertEqual([p['th'] for p in self.site['by_slug']['ski-report']['photos']], [None, 'photos/02.th.webp'])
-        self.site['featured'] = []
         after = home.recent(self.site)
-        cards = Doc(after)
-        card = cards.find('li', attrs={'data-slug': 'ski-report'})
-        img = card.find('img')
-        self.assertEqual(img['srcset'], two)                                                            # with the file: the same
-        self.assertEqual(img['sizes'], home.RECENT_SIZES)
-        self.assertEqual((img['src'], img['loading']), (base + '02.webp', 'lazy'))
-        pic = card.find('picture')
-        self.assertEqual((pic.classes, [n.tag for n in pic.elements()], pic.parent.classes), (['cover-pic'], ['source', 'img'], ['tcard-img']))
+        row = Doc(after).find('li', attrs={'data-key': 'ski-report'})
+        img = row.find('img')
+        self.assertEqual((img['srcset'], img['sizes'], img['loading']), (two, core.ROW_THUMB_SIZES, 'lazy'))
+        pic = row.find('picture')
+        self.assertEqual((pic.classes, [n.tag for n in pic.elements()], pic.parent.classes),
+                         (['cover-pic'], ['source', 'img'], ['trow-tile', 'trow-tile--photo']))
         source = pic.find('source')
-        # the source declares 106 px (core.CARD_PHONE_SIZES, contract-phase5.md section 5), the <img> string still ends
-        # with the real 112 px slot
-        self.assertEqual((source['media'], source['sizes'], source['srcset']),
-                         ('(max-width: 559.98px)', '106px', '%s02.th.webp 427w, %s' % (base, two)))
-        self.assertEqual((source['sizes'], img['sizes'].rsplit(', ', 1)[1]), (core.CARD_PHONE_SIZES, core.CARD_PHONE_SLOT))
+        self.assertEqual((source['media'], source['sizes'], source['srcset']), (None, core.ROW_THUMB_SIZES, '%s02.th.webp 427w, %s' % (base, two)))
         self.assertEqual((after.count('<picture'), after.count('.th.')), (1, 1))
         self.assertEqual(self.unwrap(after), before)
-        # a cover without an .sm copy stays a plain src, unwrapped
-        plain = cards.find('li', attrs={'data-slug': 'loop-hike'}).find('img')
-        self.assertEqual((plain['src'], plain['srcset'], plain['sizes']), ('trips/loop-hike/photos/01.webp', None, None))
-        self.assertEqual(cards.find('li', attrs={'data-slug': 'loop-hike'}).find_all('picture'), [])
-        # ... and on the built page the same card carries the same picture, the page being otherwise what it was
-        p, doc = self.page([])
-        on_page = doc.by_id('main').find('ul', cls='hom-rcards').find('li', attrs={'data-slug': 'ski-report'})
-        self.assertEqual((on_page.find('img')['srcset'], on_page.find('img')['sizes']), (img['srcset'], img['sizes']))
-        self.assertEqual(on_page.find('source')['srcset'], source['srcset'])
-        self.assertEqual(p.html.count(core.cover_img(self.site['by_slug']['ski-report'], '', home.RECENT_SIZES)), 1)
-        self.assertEqual(self.unwrap(p.html), page_before)
-        self.assertNotEqual(p.html, page_before)
 
-    def test_a_feature_card_is_never_wrapped_and_no_img_or_preload_names_the_copy(self):
-        # 10.5: the featured cards' strings are full-width ones (they end with the phone slot, not ', 112px'), and the
-        # lead card is the page's lead image: none of them gets a source, with every copy on disk. Only the recent
-        # shelf's cards do
-        for slug, day in (('sub-photo', '2026-12-01'), ('wide-photo', '2026-12-02')):       # the two newest: on the recent shelf
-            helpers.make_trip(self.tmp, slug, activity='hike', date=day, track=True,
+    def test_the_hero_and_the_grid_are_never_wrapped_and_no_img_or_preload_names_the_copy(self):
+        for slug, day in (('sub-photo', '2026-12-01'), ('wide-photo', '2026-12-02')):
+            helpers.make_trip(self.tmp, slug, activity='hike', date=day, track=True, body=WRITEUP,
                               photos=[photo('photos/01.webp', LANDSCAPE, alt='A synthetic view', sm=True)])
         for slug, name in (('ski-report', '02'), ('sub-photo', '01'), ('wide-photo', '01')):
             helpers.touch(os.path.join(self.tmp, slug, 'photos', name + '.th.webp'))
         self.reload()
-        featured = ['ski-report', 'sub-photo', 'track-only', 'wide-photo', 'brief-a', 'brief-b']
-        for slug in ('ski-report', 'sub-photo', 'wide-photo'):
-            self.assertTrue(self.site['by_slug'][slug]['cover']['photo']['th'], slug)
-        p, doc = self.page(featured)
+        p, doc = self.page(['ski-report', 'sub-photo', 'track-only', 'wide-photo', 'brief-a', 'brief-b'])
         main = doc.by_id('main')
-        self.assertEqual(main.find('ul', cls='hom-cards').find_all('picture') + main.find('ul', cls='hom-cards').find_all('source'), [])
+        for cls in ('hom-hero', 'hom-feats'):
+            sec = main.find('section', cls=cls)
+            self.assertEqual(sec.find_all('picture') + sec.find_all('source'), [], cls)
         for img in doc.find_all('img'):
             self.assertNotIn('.th.', (img['srcset'] or '') + (img['src'] or ''))
         for ln in doc.find('head').find_all('link'):
             self.assertNotIn('.th.', (ln['imagesrcset'] or '') + (ln['href'] or ''))
-        # the lead and its preload: the same two candidates
         lead, links = self.lead_img(doc), self.preloads(doc)
         self.assertEqual([(ln['href'], ln['imagesrcset'], ln['imagesizes']) for ln in links], [(lead['src'], lead['srcset'], lead['sizes'])])
-        self.assertEqual(lead['srcset'], 'trips/ski-report/photos/02.sm.webp 800w, trips/ski-report/photos/02.webp 1600w')
-        # every .th file the page names is named by the source of a recent card whose report has it, and is on disk
+        # every .th file the page names is named by the source of a written row whose report has it, and is on disk
         sources = doc.find_all('source')
         self.assertEqual(p.html.count('.th.'), len(sources))
-        self.assertEqual(len(doc.find_all('picture')), len(sources))
+        self.assertEqual(sorted(s.parent.parent.parent.parent['data-key'] for s in sources), ['ski-report', 'sub-photo', 'wide-photo'])
         for source in sources:
-            card = source.parent.parent.parent
-            self.assertIn('tcard', card.classes)
-            self.assertIs(source.parent.parent.parent.parent, main.find('ul', cls='hom-rcards'))
-            t = self.site['by_slug'][card['data-slug']]
-            first = source['srcset'].split(', ')[0].split(' ')[0]
-            self.assertEqual(first, t['url'] + t['cover']['photo']['th'])
+            row = source.parent.parent.parent.parent
+            self.assertIn('trow', row.classes)
+            t = self.site['by_slug'][row['data-key']]
+            self.assertEqual(source['srcset'].split(', ')[0].split(' ')[0], t['url'] + t['cover']['photo']['th'])
             self.assertTrue(os.path.isfile(os.path.join(self.tmp, t['slug'], t['cover']['photo']['th'])))
-        # the recent shelf lists the reports that are not featured: none of the three with a copy is among them here
-        shelf = [c['data-slug'] for c in main.find('ul', cls='hom-rcards').find_all('li', cls='tcard')]
-        self.assertEqual(sorted(s['srcset'].split('/')[1] for s in sources), sorted(x for x in shelf if x in ('ski-report', 'sub-photo', 'wide-photo')))
-        # with nothing featured the shelf holds the newest reports, and each of them that has the copy is wrapped
-        p, doc = self.page([])
-        rcards = doc.by_id('main').find('ul', cls='hom-rcards')
-        shelf = [c['data-slug'] for c in rcards.find_all('li', cls='tcard')]
-        wrapped = [pic.parent.parent['data-slug'] for pic in rcards.find_all('picture')]
-        self.assertEqual(wrapped, [x for x in shelf if x in ('ski-report', 'sub-photo', 'wide-photo')])
-        self.assertIn('sub-photo', wrapped)
-        self.assertIn('wide-photo', wrapped)
-        self.assertEqual(p.html.count('.th.'), len(wrapped))
 
 
 # ---------------------------------------------------------------- Phase 5: the links to a region's own page
@@ -554,8 +561,11 @@ def legacy_also_items(site):
 
 
 def legacy_where(site):
-    """home.where as it was at commit fb425ab, copied line for line (with legacy_also_items for its Also row). Phase 12
-    gave the phone map of each region with a panel on map/ its full-screen button (map/<slug>/), and the copy follows."""
+    """home.where without the region pages (Phase 5's links): each name as plain text. A copy of the section as Phase 17
+    (Alpine) writes it (the map first in each plate, the caption under it, 'Open the map' to the region's panel, and the
+    section's own 'Open the map' to map/), with legacy_also_items for its Also row, so that the tests below still hold
+    a site with region pages against one without. Phase 12 gave the phone map of each region with a panel on map/ its
+    full-screen button (map/<slug>/), and the copy follows."""
     esc, link, icon, HERE = core.esc, core.link, core.icon, home.HERE
     meta = core.site_meta().get('maps', {})
     blocks = []
@@ -569,25 +579,25 @@ def legacy_where(site):
         drawn += [x for x in (dk, ph) if x in meta]
         slugs = (meta.get(dk) or meta.get(ph)).get('trips', [])
         bits = home.region_counts(site, slugs)
-        line = home.meta_line(bits[:1])
-        spoken = ', '.join(b.replace(' ', ' ').replace('+ ', '') for b in bits).lower()
+        line = core.meta_items(bits[:1])
+        spoken = ', '.join(b.replace('\u00a0', ' ').replace('+ ', '') for b in bits).lower()
         aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
         mp = core.map_block(None, HERE, [(dk, 'desktop'), (ph, 'phone')], 'assets/maps/', 'rg-' + rs, site_maps=True, attrib=False,
                             fullscreen_href=link(HERE, 'map/%s/' % rs) if rs in panels else None)
-        blocks.append('<div class="hom-reg"><div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
+        blocks.append('<div class="hom-reg">%s<div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
                       '<span class="t-mono-s hom-reg-c">%s</span>'
-                      '<a class="hom-reg-a" href="%s" aria-label="%s">Open the map%s</a></div>%s</div>'
-                      % (esc(region), line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16), mp))
+                      '<a class="hom-reg-a" href="%s" aria-label="%s">Open the map%s</a></div></div>'
+                      % (mp, esc(region), line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16)))
     if not blocks:
         return ''
     also = legacy_also_items(site)
     also_html = ('<div class="hom-also"><span class="t-mono-s" id="also-l">ALSO</span><ul aria-labelledby="also-l">%s</ul></div>'
                  % ''.join(also)) if also else ''
-    head_meta = home.plural(sum(1 for t in site['published'] if home.is_report(t)), 'REPORT')
+    head = ('<div class="shead"><h2 class="shead-t" id="where-h">Where I’ve been</h2>'
+            '<a class="hom-all" href="%s">Open the map%s</a></div>' % (link(HERE, 'map/'), icon('arrow-right', 16)))
     return ('<section class="wrap sec hom-where" aria-labelledby="where-h">%s<div class="hom-regions">%s</div>'
             '%s<p class="t-small hom-attr">North up · %s</p>%s</section>'
-            % (core.section_head("Where I’ve been", head_meta, id_='where-h'), ''.join(blocks), home.region_key(site, meta, drawn),
-               esc(home.ATTRIB), also_html))
+            % (head, ''.join(blocks), home.region_key(site, meta, drawn), esc(home.ATTRIB), also_html))
 
 
 class RegionLinkTests(HomeFixture):
@@ -980,7 +990,8 @@ def holders(doc, id_):
 
 
 class LatestAnchorTests(HomeFixture):
-    """home.recent(site) and home.page(site): where the old id is, how often, and when it is not there at all."""
+    """home.recent(site) and home.page(site): where the old id is, how often, and when it is not there at all (Phase 17: on
+    Recent written reports, the section that holds the newest reports with a write-up)."""
 
     def page(self, featured_slugs, site=None):
         site = site or self.site
@@ -995,12 +1006,13 @@ class LatestAnchorTests(HomeFixture):
         self.assertTrue(html_.startswith(SECTION), html_[:120])
         (sec,) = Doc(html_).root.elements()                      # the section is the whole of what recent() returns
         self.assertEqual((sec.tag, sec['id'], sec['aria-labelledby'], sec.classes), ('section', OLD_ID, 'recent-h', ['wrap', 'sec', 'hom-recent']))
-        # its label is still its own heading, under the id it had
+        # its label is still its own heading, under the id it had (Phase 17: Recent written reports)
         (h2,) = holders(sec, 'recent-h')
-        self.assertEqual((h2.tag, h2.text()), ('h2', 'Recent outings'))
-        # and it is the element that holds the newest reports: an address to it lands on them
-        cards = sec.find('ul', cls='hom-rcards').find_all('li', cls='tcard')
-        self.assertEqual([c['data-slug'] for c in cards], self.published[:6])
+        self.assertEqual((h2.tag, h2.text()), ('h2', 'Recent written reports'))
+        # and it is the element that holds the newest written reports: an address to it lands on them
+        rows = sec.find('ol', cls='hom-rows').find_all('li', cls='trow')
+        self.assertEqual([r['data-key'] for r in rows], [t['slug'] for t in self.site['published'] if core.written_report(t)][:6])
+        self.assertTrue(rows)
         self.assertEqual(holders(sec, OLD_ID), [])               # nothing inside it has the id as well
         self.assertEqual(html_.count(OLD_ID), 1)
 
@@ -1017,7 +1029,8 @@ class LatestAnchorTests(HomeFixture):
                 main = doc.by_id('main')
                 self.assertIs(sec.parent, main)
                 order = [n['aria-labelledby'] or n['aria-label'] for n in main.elements() if n.tag == 'section']
-                self.assertEqual(order, ['Introduction'] + (['feat-h'] if featured else []) + ['recent-h', 'act-h'])
+                self.assertEqual(order, (['hero-t'] if featured else []) + ['Introduction', 'act-h'] + (['feat-h'] if len(featured) > 1 else [])
+                                 + ['recent-h', 'recs-h'])
                 # and the page uses no id twice
                 ids = [n['id'] for n in doc.root.walk() if n['id']]
                 self.assertEqual(sorted(i for i in set(ids) if ids.count(i) > 1), [])
@@ -1032,28 +1045,29 @@ class LatestAnchorTests(HomeFixture):
         self.assertEqual([n.tag for n in doc.find_all('h2') if n['id'] == OLD_ID], [])
         # the heading keeps recent-h, which the section names: the section's accessible name is unchanged
         self.assertEqual(doc.by_id(OLD_ID)['aria-labelledby'], 'recent-h')
-        self.assertEqual(doc.by_id('recent-h').text(), 'Recent outings')
+        self.assertEqual(doc.by_id('recent-h').text(), 'Recent written reports')
 
-    def test_without_a_recent_row_the_section_and_the_id_are_absent(self):
-        # every published report is featured: nothing is left for the shelf, so there is no section to carry the id
-        site2 = helpers.make_site([self.site['by_slug'][s] for s in ('ski-report', 'loop-hike', 'planned-route')])
-        site2['featured'] = list(site2['published'])
-        self.assertEqual(home.recent_trips(site2), [])
+    def test_without_a_written_report_the_section_and_the_id_are_absent(self):
+        # no written report (core.written_report): no section to carry the id; the recordings are listed all the same
+        site2 = helpers.make_site([self.site['by_slug'][s] for s in ('loop-hike', 'track-only', 'planned-route')])
+        self.assertEqual(home.written(site2), [])
         self.assertEqual(home.recent(site2), '')
-        p, doc = self.page(['ski-report', 'loop-hike'], site2)
+        p, doc = self.page(['loop-hike', 'track-only'], site2)
         self.assertNotIn(OLD_ID, p.html)
         self.assertNotIn('recent-h', p.html)
-        self.assertNotIn('hom-recent', p.html)
+        self.assertNotIn('hom-recent"', p.html)
         self.assertEqual(holders(doc, OLD_ID), [])
         self.assertIsNotNone(doc.by_id('feat-h'))                 # the page is otherwise there
+        self.assertIsNotNone(doc.by_id('recs-h'))
         # nor on a site with nothing published at all
         site3 = helpers.make_site([self.site['by_slug']['planned-route']])
         p, doc = self.page([], site3)
         self.assertEqual(home.recent(site3), '')
         self.assertNotIn(OLD_ID, p.html)
-        # one report that is not featured is enough for the section, and the id, to be there
-        p, doc = self.page(['ski-report'], site2)
-        self.assertEqual([c['data-slug'] for c in doc.by_id(OLD_ID).find_all('li', cls='tcard')], ['loop-hike'])
+        # one written report, featured or not, is enough for the section, and the id, to be there
+        site4 = helpers.make_site([self.site['by_slug'][s] for s in ('ski-report', 'loop-hike')])
+        p, doc = self.page(['ski-report'], site4)
+        self.assertEqual([r['data-key'] for r in doc.by_id(OLD_ID).find_all('li', cls='trow')], ['ski-report'])
         self.assertEqual(p.html.count('id="%s"' % OLD_ID), 1)
 
     def test_a_link_to_the_old_address_resolves_on_this_page_and_not_without_the_id(self):
@@ -1102,8 +1116,8 @@ class LatestAnchorBuiltTests(unittest.TestCase):
         self.assertEqual((html_.count(SECTION), html_.count('id="latest-h"'), html_.count(OLD_ID)), (1, 1, 1))
         doc = Doc(html_)
         sec = doc.by_id(OLD_ID)
-        self.assertEqual((sec.tag, sec['aria-labelledby'], doc.by_id('recent-h').text()), ('section', 'recent-h', 'Recent outings'))
-        self.assertGreater(len(sec.find_all('li', cls='tcard')), 0)
+        self.assertEqual((sec.tag, sec['aria-labelledby'], doc.by_id('recent-h').text()), ('section', 'recent-h', 'Recent written reports'))
+        self.assertGreater(len(sec.find_all('li', cls='trow')), 0)
         self.assertIn(OLD_ID, sitecheck.read(self.out).ids('index.html'))
         # no other page of the site has the id: the address is the home page's
         out = sitecheck.read(self.out)

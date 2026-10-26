@@ -542,9 +542,11 @@ class OutputTests(BuiltCase):
             with self.subTest(page=url or '(home)'):
                 found = [m['content'] for m in self.doc(url).find_all('meta', attrs={'property': 'og:image'})]
                 self.assertEqual(found, [want])
-        feat = self.doc('').find('section', cls='hom-featured')
-        self.assertIsNotNone(feat, 'the home page has no featured section')
-        links = [a['href'] for a in feat.find_all('a') if (a['href'] or '').startswith('trips/')]
+        # the first featured trip is the hero, the others the grid under it (Phase 17)
+        hero, grid = self.doc('').find('section', cls='hom-hero'), self.doc('').find('section', cls='hom-feats')
+        self.assertIsNotNone(hero, 'the home page has no hero')
+        self.assertIsNotNone(grid, 'the home page has no feature grid')
+        links = [a['href'] for sec in (hero, grid) for a in sec.find_all('a') if (a['href'] or '').startswith('trips/')]
         self.assertEqual(sorted(set(links), key=links.index), ['trips/synb-story/', 'trips/synb-tour/'])
 
     def test_core_is_left_as_it_was(self):
@@ -2121,9 +2123,22 @@ class CardCopyBuildTests(BuiltCase):
         found = self.sources()
         pages = sorted({rel for rel, _node in found})
         # the Trips explorer lists every report; a report page lists synb-story under 'More like this' when it is
-        # related; the home page shows it as its lead (never wrapped), so not on its recent shelf
+        # related; the home page shows it as its hero (never wrapped) and, since Phase 17, as a row of Recent written
+        # reports, whose photo thumbnail offers the copy in a <source> of its own (core._thumb_source: no media query)
         self.assertIn('trips/index.html', pages)
         self.assertGreaterEqual(len(found), 2)
+        rows = [(rel, node) for rel, node in found if 'media' not in node.attrs]
+        self.assertEqual([rel for rel, _node in rows], ['index.html'])
+        for rel, node in rows:
+            pic = node.parent
+            self.assertEqual((pic.tag, pic.classes, [n.tag for n in pic.elements()]), ('picture', ['cover-pic'], ['source', 'img']))
+            self.assertEqual(pic.parent.classes, ['trow-tile', 'trow-tile--photo'])
+            self.assertEqual((sorted(node.attrs), node['sizes']), (['sizes', 'srcset'], core.ROW_THUMB_SIZES))
+            base = 'trips/synb-story/photos/'
+            self.assertEqual(node['srcset'], '%s01.th.webp 427w, %s01.sm.webp 800w, %s01.webp 1600w' % (base, base, base))
+            img = pic.find('img')
+            self.assertEqual((img['srcset'], img['sizes'], img['loading']), ('%s01.sm.webp 800w, %s01.webp 1600w' % (base, base), core.ROW_THUMB_SIZES, 'lazy'))
+        found = [(rel, node) for rel, node in found if 'media' in node.attrs]
         for rel, node in found:
             with self.subTest(page=rel):
                 pic = node.parent
@@ -2151,10 +2166,11 @@ class CardCopyBuildTests(BuiltCase):
             for card in Doc(read(self.path(rel))).find_all('li', attrs={'data-slug': 'synb-story'}):
                 if 'tcard' in card.classes:
                     self.assertEqual(len(card.find_all('picture')), 1, rel)
-        # ... and no other report's card is: none of them has the copy
+        # ... and no other report's card or row is: none of them has the copy
         for rel in self.html_files():
             for pic in Doc(read(self.path(rel))).find_all('picture'):
-                self.assertEqual(pic.parent.parent['data-slug'], 'synb-story', rel)
+                holder = pic.parent.parent if pic.parent.parent['data-slug'] else pic.parent.parent.parent    # li.tcard, or li.trow
+                self.assertEqual(holder['data-slug'] or holder['data-key'], 'synb-story', rel)
 
     def test_no_img_and_no_preload_of_the_site_names_a_th_file(self):
         seen = 0
@@ -2183,7 +2199,7 @@ class CardCopyBuildTests(BuiltCase):
     def test_a_lead_photo_and_its_preload_carry_the_same_candidates(self):
         # the home page's lead card and the report's own lead photo: the cover that has every copy, never wrapped, two
         # candidates, and the head's preload repeats the <img>
-        cases = (('', 'hom-card--lead', 'trips/synb-story/photos/'), ('trips/synb-story/', 'rep-hero', '../../trips/synb-story/photos/'))
+        cases = (('', 'hom-hero', 'trips/synb-story/photos/'), ('trips/synb-story/', 'rep-hero', '../../trips/synb-story/photos/'))
         for url, cls, base in cases:
             with self.subTest(page=url or '(home)'):
                 doc = self.doc(url)
@@ -2397,8 +2413,8 @@ class StoppedBuildTests(unittest.TestCase):
         with self.assertWarns(UserWarning) as cm:
             out, _pages = run_build(self.root)
         self.assertIn('content/home.json is missing', str(cm.warning))
-        feat = Doc(read(os.path.join(out, 'index.html'))).find('section', cls='hom-featured')
-        self.assertIsNotNone(feat, 'the home page has no featured section')
+        feat = Doc(read(os.path.join(out, 'index.html'))).find('section', cls='hom-hero')
+        self.assertIsNotNone(feat, 'the home page has no hero')
         links = {a['href'] for a in feat.find_all('a') if (a['href'] or '').startswith('trips/')}
         self.assertEqual(links, {'trips/synb-two/'})          # the report flagged `featured: true`, not the newest one
 

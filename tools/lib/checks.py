@@ -1149,10 +1149,16 @@ def _home_findings(home_json, by_slug, trips_dir, rendered_dir, out):
                                       'create it to choose the featured trips (see docs/CONTENT_GUIDE.md)')
             return
         _unknown_keys(manifest, HOME_KEYS, curation.FILE, '', out)
-        curation.resolve_featured({'by_slug': by_slug, 'published': []}, manifest, trips_dir=trips_dir)
+        featured = curation.resolve_featured({'by_slug': by_slug, 'published': []}, manifest, trips_dir=trips_dir)
     except curation.CurationError as ex:
         out.append(_raised(str(ex), curation.FILE))
         return
+    # the first featured trip is the home page's hero (Phase 17): its cover across the page, the title over it. A note, as
+    # the redesign asked ('warn in the validator's notes'): the page copes. Only a trip that loaded is asked (a broken one
+    # is a stand-in without a cover, and has its own error)
+    if featured and 'cover' in featured[0] and featured[0]['cover'] is None:
+        _note(out, curation.FILE, "the first of featured_slugs, '%s', has no photo, so the home page shows it as a title on "
+                                  'white, without the hero photo; give it a photo or put a trip that has one first' % featured[0]['slug'])
     if 'region_maps' in manifest and rendered_dir:
         try:
             with open(os.path.join(rendered_dir, 'site', 'meta.json'), encoding='utf-8') as fh:

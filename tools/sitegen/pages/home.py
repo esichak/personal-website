@@ -1,10 +1,11 @@
-"""Home page — / (index.html).
+"""Home page — / (index.html), Alpine (Phase 17, docs/redesign-c/PROMPT.md 2.6 "Home").
 
-Sections: hero · featured trips (the cards content/home.json names, in its order) · recent outings (six, skipping the
-featured ones) · by activity · where I've been (region maps).
-Every count, stat and summary is computed from the content; nothing here is written about Eric beyond the site lead.
+From the top: the hero (the first trip content/home.json features, its cover full width with the title over it) · the
+site statement and one computed sentence · By the numbers (the published reports and each activity's count, the
+reports by year) · the other features as a grid · Recent written reports and Recent recordings as list rows · Where
+I've been (the region maps). Every count, stat and summary is computed from the content; nothing here is written about
+Eric beyond the site's statement and tagline.
 """
-import os
 import re
 
 from sitegen import core
@@ -12,22 +13,25 @@ from sitegen.core import esc, U, n, link, icon
 from sitegen.pages import archive
 
 HERE = ''
-LABEL = 'Trip reports · GPX'
-# Headline + lead from the approved Main artboard (one line per span; the spans stack on wider screens).
-HEADLINE = ('Trip reports from', 'the Sierra, the Alps', 'and beyond.')
+# the site's statement (the lede of the home page since Phase 1) and its tagline
+STATEMENT = 'Trip reports from the Sierra, the Alps and beyond.'
 LEAD = core.TAGLINE  # the one site tagline (dek, meta description, RSS channel)
+# the page's own heading, read by screen readers only: the hero's title is the first heading seen (Phase 17 log)
+H1 = 'Eric Sichak: trip reports'
 ATTRIB = 'Terrain: AWS Terrain Tiles · Map data © OpenStreetMap contributors · Not for navigation'
 HOME_REGIONS = ('Lake Tahoe', 'Eastern Sierra')   # unless content/home.json names others ("region_maps", home_regions)
 RECENT_N = 6
-# the width each cover is drawn at (so srcset picks the 800 px copy where it is enough): the lead card is 7 of 12 columns
-# from 1200, the full row on tablets; supporting cards sit beside their copy from 1200 (200 px) and two to a row on
-# tablets; recent cards are 3 / 2 / 1 to a row (a 112 px thumbnail on phones)
-# below 760 px the cards are a full-width column; phones are told core.PHONE_FULL (the 800 px copy, not the full file)
-LEAD_SIZES = '(min-width: 1200px) 718px, (min-width: 760px) calc(100vw - 80px), ' + core.PHONE_FULL
-SUB_SIZES = '(min-width: 1200px) 200px, (min-width: 760px) calc((100vw - 104px) / 2), ' + core.PHONE_FULL
-WIDE_SUB_SIZES = '(min-width: 1200px) 400px, (min-width: 760px) calc((100vw - 104px) / 2), ' + core.PHONE_FULL  # cards 4-6: three to a row
-RECENT_SIZES = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+# the width each cover is drawn at, so srcset picks the right copy. The hero runs the full width: the 1600 px file from
+# 760 px; below 560 px a landscape is declared at core.PHONE_SLOT (the 800 px copy) and core.phone_sizes gives a
+# portrait, a square or a panorama its real width
+HERO_SIZES = '(min-width: 760px) 100vw, ' + core.PHONE_FULL
+# the feature grid inside the 1360 px column: the large card two thirds of the row, the stacked ones the last third, a
+# fifth and sixth half each; one column below 760 px
+BIG_SIZES = '(min-width: 1400px) 891px, (min-width: 760px) calc((100vw - 104px) * 2 / 3), ' + core.PHONE_FULL
+SIDE_SIZES = '(min-width: 1400px) 445px, (min-width: 760px) calc((100vw - 104px) / 3), ' + core.PHONE_FULL
+PAIR_SIZES = '(min-width: 1400px) 668px, (min-width: 760px) calc((100vw - 104px) / 2), ' + core.PHONE_FULL
 TITLE = 'Eric Sichak · Trip reports: backcountry skiing, climbing, hiking and more'
+BAR_MAX = 96          # px: the tallest year's bar
 
 
 # ---------------------------------------------------------------- small helpers
@@ -41,183 +45,241 @@ def is_report(t):
     return t['kind'] != 'planned'
 
 
-def meta_line(bits):
-    """Mono-S 'A · B · C' as the shared .ml line (core.meta_items): CSS draws the dots, so a wrapped line never ends with
-    one and an item never splits (a place item may wrap at its comma)."""
-    return core.meta_items(bits)
-
-
 def slug(s):
     return core.content.slugify(s)
 
 
-# ---------------------------------------------------------------- hero
-
-def hero():
-    h1 = ' '.join('<span class="hom-l">%s</span>' % esc(x) for x in HEADLINE)
-    # both actions stay visible on every width (they wrap on narrow phones)
-    return ('<div class="hom-hero">'
-            '<p class="t-label hom-kicker">%s</p>'
-            '<h1 class="t-d2 hom-h1">%s</h1>'
-            '<div class="hom-hero-b"><p class="hom-lead t-lede">%s</p>'
-            '<div class="hom-cta">'
-            '<a class="btn btn--ink" href="%s">Browse all trips%s</a>'
-            '<a class="btn" href="%s">%sExplore the map</a></div></div></div>'
-            % (esc(LABEL), h1, esc(LEAD), link(HERE, 'trips/'), icon('arrow-right', 18), link(HERE, 'map/'), icon('map', 18)))
+def reports(site):
+    return [t for t in site['published'] if is_report(t)]
 
 
-# ---------------------------------------------------------------- featured trips (content/home.json)
-
-def card_tags(t):
-    """Status tags for a card: a series is a 'Journal' here (its link says 'Open the journal'); multi-day keeps its
-    day count; single-day trips carry none (the chip and the meta line say enough)."""
-    if t['kind'] == 'series':
-        return core.tag('Journal')
-    return core.trip_tags(t, shape=False)
-
-
-def card_place(t):
-    """The place, or the region when there is no place (as the list rows do); never the party."""
-    loc = t.get('place') or t.get('region') or ''
-    return core.nb(esc(loc).upper()) if loc else ''
-
-
-def card_data(t):
-    """At most two data points, Mono-S, as meta_items() items. A series says what it is: recorded days and recorded
-    distance ('150 RECORDED DAYS · 3,167 MI RECORDED'), never a trail length or days on trail. Everything else is
-    distance · gain (core.plain_stats: no gain for climbs or flat water)."""
-    if t['kind'] == 'series':
-        k = sum(1 for d in t['days'] if d.get('track'))
-        items = [core.nb('%s RECORDED DAY%s' % (n(k), '' if k == 1 else 'S'))] if k else []
-        mi, km = core.dist_vals(t['stats'].get('distance_km'))
-        if mi:
-            items.append(U(core.caps_unit(mi, 'MI', 'RECORDED'), core.caps_unit(km, 'KM', 'RECORDED')))
-        return items[:2]
-    return core.plain_stats(t, items=True)[:2]
+def first_year(site):
+    """The earliest year a published report is dated, or None."""
+    ys = [t['date'].year for t in reports(site) if t.get('date')]
+    return min(ys) if ys else None
 
 
 def card_action(t):
+    """The destination link's one verb (copy-12)."""
     if t['kind'] == 'series':
         return 'Open the journal'
     return 'Read the report' if t['has_writeup'] else 'View the trip'
 
 
-def card(t, lead=False, wide=False):
-    """One featured card: cover (the title link names the card, so the photo link is skipped by keyboards and readers),
-    activity chip + tags, H3 title link, DATE · PLACE line, up to two data points, the card summary (an explicit
-    card_summary, else the write-up's opening, else a labelled day excerpt for a multi-day trip) and the action link.
-    No carousel, no overlay text on the photo."""
-    href = link(HERE, t['url'])
-    img = core.cover_img(t, HERE, LEAD_SIZES if lead else (WIDE_SUB_SIZES if wide else SUB_SIZES), eager=lead)
-    if img:
-        media = '<a class="hom-card-img" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, img)
-    else:
-        tile = core.card_tile(t, HERE)
-        media = ('<a class="hom-card-img hom-card-img--tile" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, tile)) if tile else ''
-    chips = '<div class="chips hom-card-chips">%s%s</div>' % (core.chip(t, href=link(HERE, core.section_url(t['activity']))), card_tags(t))
-    meta = meta_line([core.trip_date(t), card_place(t)])
-    data = meta_line(card_data(t))
-    summ = core.card_summary(t, 230)
-    ex = ''
-    # a 'facts' summary (a series, or a multi-day trip with no writing) repeats the DATE · PLACE and data lines above
-    # it, so the card leaves it out: the lines already say what the trip is, and nothing is invented to fill the slot
-    if summ['text'] and summ['source_kind'] != 'facts':
-        ex = ((('<p class="t-label hom-card-exl">%s</p>' % summ['source_label']) if summ['source_label'] else '')
-              + '<p class="t-excerpt hom-card-ex">%s</p>' % esc(summ['text']))
-    mid = 'fc-%s-m' % t['slug']
-    return ('<li class="hom-card %s%s">%s<div class="hom-card-b">%s'
-            '<h3 class="t-h3 hom-card-t"><a href="%s"%s>%s</a></h3>%s%s%s'
-            '<a class="alink hom-card-go" href="%s">%s<span class="sr">: %s</span>%s</a></div></li>'
-            % ('hom-card--lead' if lead else 'hom-card--sub', '' if media else ' hom-card--nophoto', media, chips,
-               href, (' aria-describedby="%s"' % mid) if meta else '', core.title_html(t['title']),
-               ('<p class="t-mono-s hom-card-meta" id="%s">%s</p>' % (mid, meta)) if meta else '',
-               ('<p class="t-mono-s hom-card-data">%s</p>' % data) if data else '',
-               ex, href, card_action(t), esc(t['title']), icon('arrow-right', 16)))
+def place_words(t):
+    """'Sawtooth Ridge, Eastern Sierra': the place and the region as written, either alone when the other is missing,
+    the region left out when the place already is it."""
+    bits = [x for x in (t.get('place'), t.get('region')) if x]
+    if len(bits) == 2 and bits[0].strip().casefold() == bits[1].strip().casefold():
+        bits = bits[:1]
+    return ', '.join(bits)
 
 
-def featured(site):
-    """The curated features (site['featured'], from content/home.json), the first as the lead card. '' when the manifest
-    lists none: an explicit empty list hides the section rather than showing some other trip."""
+def stat_items(t, caps=False):
+    """The facts line's numbers, through core.U: distance · gain · moving time ('19.9 mi · 7,546 ft · 9:55 moving'; in
+    Mono-S caps with caps=True). No gain for a climb or flat water (core.plain_stats' rule), nothing for a series (its
+    line is its date range), nothing a trip does not record."""
+    if t['kind'] == 'series':
+        return []
+    st = t['stats'] or {}
+    out = []
+    mi, km = core.dist_vals(st.get('distance_km'))
+    if mi:
+        out.append(U(core.caps_unit(mi, 'MI'), core.caps_unit(km, 'KM')) if caps else U(core.nb(mi), core.nb(km), ' mi', ' km'))
+    if t['activity'] != 'climb' and not core.is_flat(t) and (st.get('gain_m') or 0) > 30:
+        ft, m = n(st['gain_m'] * core.FT), n(st['gain_m'])
+        out.append((U(core.caps_unit(ft, 'FT'), core.caps_unit(m, 'M')) if caps else U(ft, m, ' ft', ' m'))
+                   + '<span class="sr"> gain</span>')
+    if st.get('moving_s'):
+        out.append(core.nb(core.hm(st['moving_s']) + (' MOVING' if caps else ' moving')))
+    return out
+
+
+# ---------------------------------------------------------------- the hero
+
+def hero(site):
+    """The first featured trip, its cover full width with the scrim and the words over it: FEATURED · ACTIVITY · DATE, the
+    title (an h2: the page's h1 is H1, for screen readers), the place and region and, in mono, the stats, then the one
+    destination link. A trip without a cover keeps the same parts as a title block on white (the validator warns)."""
     feats = site.get('featured') or []
     if not feats:
         return ''
-    cards = ''.join(card(t, lead=(i == 0), wide=(i >= 3)) for i, t in enumerate(feats))
-    return ('<section class="wrap sec hom-featured" aria-labelledby="feat-h">%s<ul class="hom-cards hom-cards--%d">%s</ul></section>'
-            % (core.section_head('Featured trips', plural(len(feats), 'TRIP'), id_='feat-h'), len(feats), cards))
+    t = feats[0]
+    href = link(HERE, t['url'])
+    img = core.cover_img(t, HERE, HERO_SIZES, eager=True, cls='hom-hero-img')
+    over = core.meta_items([core.nb('FEATURED'), core.nb(esc('JOURNAL' if t['kind'] == 'series' else core.act_word(t).upper())),
+                            core.trip_date(t)])
+    long_ = ' t-d1--long' if len(t['title']) > 28 else ''
+    stats = core.meta_items(stat_items(t, caps=True))
+    where_ = place_words(t)
+    line = ''
+    if where_ or stats:
+        line = ('<p class="hom-hero-l">%s%s</p>'
+                % (('<span class="hom-hero-p">%s</span>' % esc(where_)) if where_ else '',
+                   ('<span class="hom-hero-s">%s</span>' % stats) if stats else ''))
+    return ('<section class="hom-hero%s" aria-labelledby="hero-t">%s'
+            '<div class="hom-hero-f"><div class="hom-hero-b wrap"><p class="t-mono-s hom-hero-o">%s</p>'
+            '<h2 class="t-d1%s hom-hero-t" id="hero-t"><a href="%s">%s</a></h2>%s'
+            '<a class="hom-hero-go" href="%s">%s<span class="sr">: %s</span>%s</a></div></div></section>'
+            % ('' if img else ' hom-hero--plain',
+               ('<div class="hom-hero-m">%s<span class="hom-scrim" aria-hidden="true"></span></div>' % img) if img else '',
+               over, long_, href, core.title_html(t['title']), line, href, card_action(t), esc(t['title']), icon('arrow-right', 18)))
 
 
-# ---------------------------------------------------------------- recent outings
+# ---------------------------------------------------------------- the statement
 
-def recent_trips(site):
-    """The six newest published trips that are not featured above (they stay on the Trips page); planned routes are never
-    in site['published']. Ordered by trip date, as the whole site is."""
-    skip = {t['slug'] for t in (site.get('featured') or [])}
-    return [t for t in site['published'] if t['slug'] not in skip][:RECENT_N]
+def statement(site):
+    """The site's statement, its tagline and one computed sentence: '167 reports since 2021.' (the count of published
+    reports and the year of the earliest date; nothing typed)."""
+    k, y = len(reports(site)), first_year(site)
+    since = (' %s since %d.' % (plural(k, 'report', 'reports'), y)) if (k and y) else ''
+    return ('<section class="wrap hom-intro" aria-label="Introduction"><p class="t-d2 hom-state">%s</p>'
+            '<p class="t-dek hom-dek">%s%s</p></section>'
+            % (esc(STATEMENT), esc(LEAD), ('<span class="hom-since">%s</span>' % esc(since)) if since else ''))
 
 
-def rcard(t, repeated=()):
-    """A recent-outing card: the shared core.trip_card (cover photo, else route tile, else activity disc; DATE · PLACE;
-    the H3 title link; activity + stats), with the opening of Eric's write-up where the trip has one (trip_card leaves out
-    a facts-only summary, so a track-only outing has no excerpt and carries the Track only tag). repeated: the titles more than one trip on the page carries
-    (core.repeated_titles), whose links also name the date."""
-    return core.trip_card(t, HERE, RECENT_SIZES, ns='rc', summary=True, repeated=repeated)
+# ---------------------------------------------------------------- by the numbers
+
+def activity_counts(site):
+    """[(act, label, count)] of the five activities, most published reports first, ties in core.NAV order."""
+    pub = reports(site)
+    rows = [(act, lab, sum(1 for t in pub if t['activity'] == act)) for act, lab in core.NAV]
+    order = {act: i for i, (act, _lab) in enumerate(core.NAV)}
+    return sorted(rows, key=lambda r: (-r[2], order[r[0]]))
+
+
+def year_counts(site):
+    """[(year, count)] from the earliest dated report's year to the latest, a year without one counted 0. A series or a
+    multi-day trip counts once, in the year of its date."""
+    ys = [t['date'].year for t in reports(site) if t.get('date')]
+    if not ys:
+        return []
+    return [(y, ys.count(y)) for y in range(min(ys), max(ys) + 1)]
+
+
+def series_line(site):
+    """One sentence per published series, from its fields: '2024 is the Pacific Crest Trail: one journal, Mexico to
+    Canada, counted once.' (the start year; the title, less a trailing start year it repeats; the place)."""
+    out = []
+    for t in reports(site):
+        if t['kind'] != 'series' or not t.get('date'):
+            continue
+        y = t['date'].year
+        name = re.sub(r'\s+%d$' % y, '', t['title'].strip())
+        out.append('%d is the %s: one journal%s, counted once.' % (y, name, (', ' + t['place']) if t.get('place') else ''))
+    return ' '.join(out)
+
+
+def numbers(site):
+    """'By the numbers' (decision 5): the published reports (to trips/) and each activity's count (to its page), then
+    one bar per year. Every number is counted from site['published'] at build time; no script."""
+    pub = reports(site)
+    if not pub:
+        return ''
+    years = year_counts(site)
+    span = ('%d – %d' % (years[0][0], years[-1][0])) if len(years) > 1 else (str(years[0][0]) if years else '')
+    meta = core.meta_items([core.nb(span) if span else '', core.nb('COUNTED FROM THE PUBLISHED REPORTS')])
+    fig = ('<li><a class="hom-fig" href="%s"><span class="hom-fig-n">%s</span><span class="t-label hom-fig-l">%s</span></a></li>')
+    figs = [fig % (link(HERE, 'trips/'), n(len(pub)), 'Reports')]
+    for act, lab, k in activity_counts(site):
+        dot = '<span class="hom-fig-d" style="background:%s" aria-hidden="true"></span>' % core.ACT[act][3]
+        figs.append(fig % (link(HERE, core.section_url(act)), n(k), '%s%s<span class="sr"> reports</span>' % (dot, esc(lab))))
+    bars = ''
+    if years:
+        top = max(k for _y, k in years) or 1
+        last = years[-1][0]
+        cells = ''.join('<li class="hom-yr%s"><span class="hom-yr-n"><span class="sr">%d: </span>%d<span class="sr"> %s</span></span>'
+                        '<span class="hom-yr-b" style="height:%dpx" aria-hidden="true"></span>'
+                        '<span class="hom-yr-y" aria-hidden="true">%d</span></li>'
+                        % (' hom-yr--last' if y == last else '', y, k, 'report' if k == 1 else 'reports',
+                           max(1, round(k * BAR_MAX / top)) if k else 0, y)
+                        for y, k in years)
+        note = series_line(site)
+        bars = ('<div class="hom-years-w"><div class="hom-years-t"><p class="t-label" id="yr-l">Reports by year</p>%s</div>'
+                '<ol class="hom-years" aria-labelledby="yr-l">%s</ol></div>'
+                % (('<p class="hom-years-n">%s</p>' % esc(note)) if note else '', cells))
+    # id="act-h": the address of the old home page's By activity section, which this band replaces
+    return ('<section class="wrap sec hom-nums" aria-labelledby="act-h">%s<ul class="hom-figs">%s</ul>%s</section>'
+            % (core.section_head('By the numbers', meta, id_='act-h'), ''.join(figs), bars))
+
+
+# ---------------------------------------------------------------- the other features
+
+def feature(t, i, size):
+    """One card of the grid: the cover (the title link names the card, so the photo link is skipped by keyboards and
+    readers), else the route tile; '02 · HIKING · SEP 20, 2026'; the serif title; the place and the stats; the card
+    summary (core.card_summary: an explicit card_summary, the write-up's opening, a labelled day excerpt), never a
+    facts-only one."""
+    href = link(HERE, t['url'])
+    sizes = {'big': BIG_SIZES, 'side': SIDE_SIZES, 'pair': PAIR_SIZES}[size]
+    img = core.cover_img(t, HERE, sizes)
+    if img:
+        media = '<a class="hom-f-img" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, img)
+    else:
+        tile = core.card_tile(t, HERE)
+        media = ('<a class="hom-f-img hom-f-img--tile" href="%s" tabindex="-1" aria-hidden="true">%s</a>' % (href, tile)) if tile else ''
+    mid = 'fc-%s-m' % t['slug']
+    over = core.meta_items([core.nb('%02d' % i), core.nb(esc('JOURNAL' if t['kind'] == 'series' else core.act_word(t).upper())),
+                            core.trip_date(t, short=True)])
+    facts = core.meta_items([core.nb(esc(t.get('place') or t.get('region') or ''))] + stat_items(t))
+    summ = core.card_summary(t, 230)
+    ex = ''
+    if summ['text'] and summ['source_kind'] != 'facts':
+        ex = ((('<p class="t-label hom-f-exl">%s</p>' % summ['source_label']) if summ['source_label'] else '')
+              + '<p class="t-excerpt hom-f-ex">%s</p>' % esc(summ['text']))
+    return ('<li class="hom-f hom-f--%s%s">%s<div class="hom-f-b"><p class="t-mono-s hom-f-o" id="%s">%s</p>'
+            '<h3 class="hom-f-t"><a href="%s" aria-describedby="%s">%s</a></h3>%s%s</div></li>'
+            % (size, '' if media else ' hom-f--nophoto', media, mid, over, href, mid, core.title_html(t['title']),
+               ('<p class="hom-f-pl">%s</p>' % facts) if facts else '', ex))
+
+
+def features(site):
+    """site['featured'][1:] (the first is the hero): the second large, two thirds of the row; the third and fourth
+    stacked in the last third; a fifth and sixth a row of two. '' with one featured trip or none."""
+    rest = (site.get('featured') or [])[1:]
+    if not rest:
+        return ''
+    cards = ''.join(feature(t, i + 2, 'big' if i == 0 else ('side' if i < 3 else 'pair')) for i, t in enumerate(rest))
+    return ('<section class="wrap sec hom-feats" aria-labelledby="feat-h"><h2 class="sr" id="feat-h">More featured trips</h2>'
+            '<ul class="hom-fgrid hom-fgrid--%d">%s</ul></section>' % (len(rest), cards))
+
+
+# ---------------------------------------------------------------- recent reports and recordings
+
+def written(site):
+    """The six newest published trips that are written reports (core.written_report: a write-up of 100 characters or
+    more, the trip's and its days'), featured or not."""
+    return [t for t in site['published'] if core.written_report(t)][:RECENT_N]
+
+
+def recordings(site):
+    """The six newest published trips that are not written reports (a track alone, photos, a line under the track; a
+    single day or several): the outings Recent written reports leaves out, so a visitor who found the latest outing on
+    the old home page's Recent outings (any published trip) still finds it here or in the list above."""
+    return [t for t in site['published'] if not core.written_report(t)][:RECENT_N]
 
 
 def recent(site):
-    rows = recent_trips(site)
+    rows = written(site)
     if not rows:
         return ''
-    total = sum(1 for t in site['published'] if is_report(t))
-    repeated = core.repeated_titles(rows + list(site.get('featured') or []))
+    total = len(reports(site))
+    more = '<a class="hom-all" href="%s">All %d reports%s</a>' % (link(HERE, 'trips/'), total, icon('arrow-right', 16))
     # id="latest-h": the address of the old home page's 'Latest reports' list (and of its hero button), kept so that a
     # saved link to it still lands on the newest reports
-    return ('<section class="wrap sec hom-recent" id="latest-h" aria-labelledby="recent-h">%s<ul class="hom-rcards tgrid">%s</ul>'
-            '<a class="btn hom-all" href="%s">All %d reports%s</a></section>'
-            % (core.section_head('Recent outings', 'NEWEST FIRST', id_='recent-h'), ''.join(rcard(t, repeated) for t in rows),
-               link(HERE, 'trips/'), total, icon('arrow-right', 18)))
+    return ('<section class="wrap sec hom-recent" id="latest-h" aria-labelledby="recent-h">'
+            '<div class="shead"><h2 class="shead-t" id="recent-h">Recent written reports</h2>%s</div>'
+            '<ol class="tlist tlist--wide hom-rows">%s</ol></section>'
+            % (more, ''.join(core.trip_row(t, HERE, ns='rw-', photo=True) for t in rows)))
 
 
-# ---------------------------------------------------------------- by activity
-
-def activity_tile(site, act, label):
-    pub = [t for t in site['published'] if t['activity'] == act]
-    reps = [t for t in pub if is_report(t)]
-    planned = [t for t in site.get('active_goals', site['planned']) if t['activity'] == act]  # the live tick-list goals
-    # core.count_items after the report count: 'INCL. 2 MULTI-DAY, 1 SERIES', then '+ 1 PLANNED ROUTE' (never a report),
-    # one per line
-    sub = core.count_items(reps, planned)[1:]
-    if reps:
-        count = ('<div class="hom-tile-c"><span class="hom-tile-num">%d</span> <span class="hom-tile-u">%s</span></div>'
-                 % (len(reps), 'Report' if len(reps) == 1 else 'Reports'))
-    else:
-        count = '<div class="hom-tile-c hom-tile-c--none">First reports coming</div>'
-    last = pub[0] if pub else None
-    if last:
-        latest_ = ('<div class="hom-tile-latest"><span class="t-label">Latest</span><span class="hom-tile-t">%s</span>'
-                   '<span class="t-mono-s">%s</span></div>' % (core.title_html(last['title']), core.trip_date(last, short=True)))
-    else:
-        latest_ = '<div class="hom-tile-latest hom-tile-latest--none"><span class="t-label">Latest</span><span class="hom-tile-t">No reports yet</span></div>'
-    subtypes = ''
-    if act == 'other':
-        # only the sub-types that have reports (core.other_subtypes, as the menu's Other row), most reports first:
-        # one .ml line, 'Paddleboarding · Rafting'
-        words = [core.SUB_WORD.get(s, s) for s in core.other_subtypes(pub)]
-        line = core.meta_items([core.nb(esc(w)) for w in words])
-        subtypes = ('<span class="hom-tile-sub">%s</span>' % line) if line else ''
-    # the link's name is the activity; the count block is its description (the Latest title stays out of both)
-    return ('<li><a class="hom-tile" href="%s" aria-labelledby="act-%s-n" aria-describedby="act-%s-c">'
-            '<div class="hom-tile-top">%s%s</div>'
-            '<div class="hom-tile-name"><h3 class="hom-tile-n" id="act-%s-n">%s</h3>%s</div>'
-            '%s'
-            '<div class="hom-tile-count" id="act-%s-c">%s <span class="t-mono-s hom-tile-s">%s</span></div>%s</a></li>'
-            % (link(HERE, core.section_url(act)), act, act, core.disc(act, 32), icon('arrow-right', 20, 'hom-arr'),
-               act, esc(label), subtypes, latest_, act, count, core.meta_items(sub, br_after=0), icon('chevron-right', 20, 'hom-chev')))
-
-
-def by_activity(site):
-    tiles = ''.join(activity_tile(site, act, lab) for act, lab in core.NAV)
-    return ('<section class="wrap sec hom-acts" aria-labelledby="act-h">%s<ul class="hom-tiles">%s</ul></section>'
-            % (core.section_head('By activity', plural(len(core.NAV), 'ACTIVITY', 'ACTIVITIES'), id_='act-h'), tiles))
+def recent_recordings(site):
+    rows = recordings(site)
+    if not rows:
+        return ''
+    return ('<section class="wrap sec hom-recs" aria-labelledby="recs-h">%s<ol class="tlist tlist--wide hom-rows">%s</ol></section>'
+            % (core.section_head('Recent recordings', 'NEWEST FIRST', id_='recs-h'),
+               ''.join(core.trip_row(t, HERE, ns='rr-') for t in rows)))
 
 
 # ---------------------------------------------------------------- where I've been
@@ -277,6 +339,9 @@ def home_regions(site):
 
 
 def where(site):
+    """The one or two region maps as plates: the render, then the region's name (to its own page when it has one), its
+    count and 'Open the map' (to its panel on map/); one key row and the credit under both, the Also line, and the
+    section's own 'Open the map', to map/."""
     meta = core.site_meta().get('maps', {})
     blocks = []
     drawn = []
@@ -291,7 +356,7 @@ def where(site):
         bits = region_counts(site, slugs)
         # the caption shows the count only ('86 REPORTS'); the multi-day / planned breakdown lives on map/, and the link's
         # aria-label keeps the full spoken text
-        line = meta_line(bits[:1])
+        line = core.meta_items(bits[:1])
         spoken = ', '.join(b.replace('\u00a0', ' ').replace('+ ', '') for b in bits).lower()
         aria = ('%s: %s. Open the map' % (region, spoken)) if bits else '%s: open the map' % region
         # the phone map's corner button opens the region's full-screen page, map/<slug>/ (qa-06), which the Map page writes
@@ -301,20 +366,20 @@ def where(site):
         # the name opens the region's own page when it has one; 'Open the map' still goes to its panel on map/
         own = core.region_page_href(HERE, region)
         name = ('<a href="%s">%s</a>' % (own, esc(region))) if own else esc(region)
-        blocks.append('<div class="hom-reg"><div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
+        blocks.append('<div class="hom-reg">%s<div class="hom-reg-h"><h3 class="hom-reg-n">%s</h3>'
                       '<span class="t-mono-s hom-reg-c">%s</span>'
-                      '<a class="hom-reg-a" href="%s" aria-label="%s">Open the map%s</a></div>%s</div>'
-                      % (name, line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16), mp))
+                      '<a class="hom-reg-a" href="%s" aria-label="%s">Open the map%s</a></div></div>'
+                      % (mp, name, line, link(HERE, 'map/#region-' + rs), esc(aria), icon('arrow-right', 16)))
     if not blocks:
         return ''
     also = also_items(site)
     also_html = ('<div class="hom-also"><span class="t-mono-s" id="also-l">ALSO</span><ul aria-labelledby="also-l">%s</ul></div>'
                  % ''.join(also)) if also else ''
-    head_meta = plural(sum(1 for t in site['published'] if is_report(t)), 'REPORT')
+    head = ('<div class="shead"><h2 class="shead-t" id="where-h">Where I’ve been</h2>'
+            '<a class="hom-all" href="%s">Open the map%s</a></div>' % (link(HERE, 'map/'), icon('arrow-right', 16)))
     return ('<section class="wrap sec hom-where" aria-labelledby="where-h">%s<div class="hom-regions">%s</div>'
             '%s<p class="t-small hom-attr">North up · %s</p>%s</section>'
-            % (core.section_head("Where I’ve been", head_meta, id_='where-h'), ''.join(blocks), region_key(site, meta, drawn),
-               esc(ATTRIB), also_html))
+            % (head, ''.join(blocks), region_key(site, meta, drawn), esc(ATTRIB), also_html))
 
 
 # ---------------------------------------------------------------- page
@@ -322,11 +387,11 @@ def where(site):
 def page(site):
     feats = site.get('featured') or []
     lead = feats[0] if feats else None
-    body = ['<section class="wrap hom-top" aria-label="Introduction">%s</section>' % hero(),
-            featured(site), recent(site), by_activity(site), where(site)]
-    # the lead card's cover is the share image and the first-screen image: preloaded, never lazy (core.cover_img eager)
+    body = ['<h1 class="sr">%s</h1>' % esc(H1), hero(site), statement(site), numbers(site), features(site), recent(site),
+            recent_recordings(site), where(site)]
+    # the hero's cover is the share image and the first-screen image: preloaded, never lazy (core.cover_img eager)
     img = core.share_photo(lead)
-    head = core.cover_preload(lead, HERE, LEAD_SIZES) if lead else ''
+    head = core.cover_preload(lead, HERE, HERO_SIZES) if lead else ''
     doc = core.document(HERE, core.SITE_NAME, ''.join(body), LEAD, active=None, image=img, body_cls='p-home', full_title=TITLE,
                         extra_head=head)
     return core.Page(HERE, doc, core.SITE_NAME)

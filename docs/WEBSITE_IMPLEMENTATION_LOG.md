@@ -3317,3 +3317,165 @@ reader; `tools/check.py` as one command (its three parts ran one by one).
   otherwise.
 - **Carried:** everything the publication of 2026-10-25 left open (VoiceOver, the real-phone look, the account checks
   after a deploy, the actions' bump, `git gc`).
+
+## Phase 17 - Home (2026-10-25)
+
+Phase 17 of `docs/redesign-c/PROMPT.md`, built on branch `redesign-17-home` from `redesign-16-foundations` at `edcddc9`,
+in the same session as Phase 16 ("run Phases 16 to 19 without pausing"). One commit, 'Phase 17: Home', with the code,
+the tests, the docs and this entry. Nothing pushed, merged or rendered.
+
+### Author inputs
+
+- **Decision 1, the hero:** not answered; the default stands: the cover of the first slug of `content/home.json`, the
+  PCT journal's `d059-01.webp`. Moving `matterhorn-peak-west-couloir` to the front of `featured_slugs` would put the
+  mock-up's photo there (a content edit of yours).
+- **Decision 5, By the numbers:** the default, the six figures and the year bars.
+- **Decision 6, recent recordings:** the default, kept, as rows under the written reports (with a wider meaning than
+  "track-only": below).
+- **Interface copy to read:** the section heads 'By the numbers', 'Recent written reports', 'Recent recordings' and
+  'Where I’ve been' (kept); the band's line `2021 – 2026 · COUNTED FROM THE PUBLISHED REPORTS` and its label 'Reports
+  by year'; the computed sentences '167 reports since 2021.' and '2024 is the Pacific Crest Trail: one journal, Mexico
+  to Canada, counted once.' (the journal's title less its trailing year, its place); the hero's overline `FEATURED ·
+  JOURNAL · APR 22 – SEP 21, 2024` (`FEATURED · <ACTIVITY> · <DATE>` for a trip); a grid card's `02 · BACKCOUNTRY
+  SKIING · JAN 17, 2026`; 'All 167 reports'; the screen-reader texts 'Eric Sichak: trip reports' (the page's h1),
+  'More featured trips' (the grid's heading), 'YYYY: N reports' per bar and ' reports' after each figure's word; the
+  validator's new note (below).
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/home.py` | Rewritten to section 2.6: `hero` (the first feature's cover full width under the scrim, its overline, title, place and stats, one verb), `statement` (with '<N> reports since <year>.'), `numbers` (`activity_counts`, `year_counts`, `series_line`), `features` (the other features as a grid of big, side and pair cards), `recent` (Recent written reports, `written`), `recent_recordings` (`recordings`), `where` (the region plates); the old cards, recent cards and activity tiles are gone, with their size strings. |
+| `assets/css/pages/home.css` | Rewritten: the hero (500 / 600 / 720 px, shorter in a short window), the statement, the figures and bars, the grid, the plates. |
+| `tools/sitegen/core.py` | `trip_row(..., photo=True)` (the cover as a 4:3 thumbnail, `ROW_THUMB_SIZES`), `_thumb_source` (its `.th` copy in a `<source>`, never the `<img>`), `cover_img(..., thumb=True)`. |
+| `assets/css/base.css` | `.trow-tile--photo`; `.tlist--wide` (Alpine's row: the 132 px thumbnail beside the title from 760 px, the stats in a right-aligned column at the right from 1000 px). |
+| `tools/lib/checks.py` | A note when the first featured trip has no photo. |
+| `README.md`, `docs/CONTENT_GUIDE.md`, `docs/DEVELOPING.md` | How the featured list places trips now (the first is the hero, the rest the grid), what the home page shows and counts, the note in section 5.1's table, the home page's anatomy, the rows' photo option, the size strings. |
+| `tests/test_home.py` | Rewritten for the new page (the hero, the grid, the statement, the band, the two lists, the share image and preload, the sizes, the `.th` copy, `#latest-h`); the region-link tests keep their rule with the new markup. |
+| `tests/test_cards_extra.py`, `test_build_site.py`, `test_report_page.py`, `test_ticklist_page.py`, `test_region_page.py`, `test_a11y_static.py`, `test_checks.py`, `test_validate_cli.py` | The old home's classes and size strings replaced by the new ones; the plate's caption (map first, then name, count and 'Open the map'); the row thumbnail's `<source>` beside the cards'; the new note in two fixtures. |
+| `tests/test_phase17.py` | New: the note, the row thumbnail and its fallback, the wide row's two steps, the hero's ground, focus ring and plain form, the hidden 'gain', the band's counts, zero years and figures. |
+
+### Behaviour
+
+- From the top: the PCT's cover fills the width (720 px tall on a desktop, 600 on a tablet, 500 on a phone), with
+  `FEATURED · JOURNAL · APR 22 – SEP 21, 2024`, 'Pacific Crest Trail 2024' in the serif, 'Mexico to Canada, Pacific
+  Crest Trail' and 'Open the journal' over the darkened foot of the photo. The words sit on a dark band of their own,
+  full width, that fades in above the overline; the focus ring over the photo is white.
+- The statement, centred: 'Trip reports from the Sierra, the Alps and beyond.', the tagline and '167 reports since
+  2021.'
+- By the numbers: 167 reports (to trips/), then Mountain Biking 61, Backcountry Skiing 51, Hiking 33, Climbing 13,
+  Other 9 (to their pages); bars for 2021 to 2026 (35, 21, 12, 5, 36, 58) and the PCT sentence. It replaces the five
+  activity tiles.
+- The grid: the Matterhorn report large, PEAK BAGGING SZN beside it.
+- Recent written reports (with 'All 167 reports'): six rows with photo thumbnails, the stats under the title from 760
+  px and in a column at the right from 1000 px. Recent recordings: six rows with route tiles. Where I've been: the two maps as plates with the region's name in the serif
+  under each, its count and 'Open the map'; the key, the credit and the Also line under them.
+- The home page against today's (the before build, `edcddc9`), trip by trip:
+
+  | Today | After Phase 17 |
+  | --- | --- |
+  | Featured: the PCT journal (lead), the Matterhorn report, PEAK BAGGING SZN | the PCT journal (hero); the Matterhorn report and PEAK BAGGING SZN (grid) |
+  | Recent outings: Tallac (Sep 24), Tahoe Mountain Loop (Sep 23, track only), Tallac (Sep 17), Tahoe Mountain Loop (Sep 15), a track-only ride (Sep 11), White Salmon Rafting (Sep 9) | Recent written reports: PEAK BAGGING SZN, Tahoe Mountain Loop (Sep 15), Tallac with some extras, Cal Trans Wall climbing with Adam, Divided Sky, Lover's Leap: Pop Bottle & Surrealistic Pillar. Recent recordings: Tallac (Sep 24), Tahoe Mountain Loop (Sep 23), Tallac (Sep 17), the ride of Sep 11, White Salmon Rafting, Tamolich Blue Pool |
+  | By activity: the five activities | By the numbers: the five activities and the total |
+  | Where I've been: Lake Tahoe and Eastern Sierra; Also: Santa Cruz, Bay Area, Boise, Alps, Tetons, Oregon, 6 more regions, the PCT | the same, in the same order |
+
+  Every trip and region of today's home is on the new one. Every count was checked against a recount from the
+  content (167 reports since 2021; 61 / 51 / 33 / 13 / 9; 35 / 21 / 12 / 5 / 36 / 58).
+- The other 362 pages are as Phase 16 left them (the comparison below).
+
+### Where the work departs from the prompt
+
+- **The heading:** the page's `<h1>` is visually hidden, 'Eric Sichak: trip reports', and the hero's title is an
+  `<h2>`: the hero comes first, and an `<h2>` before the `<h1>` would fail the site check's heading rule ('h2 is the
+  first heading'). Keeping today's text ('Trip reports from the Sierra, the Alps and beyond.') as the hidden heading
+  would have had a screen reader hear the statement twice. The statement is a paragraph in `t-d2`.
+- **Recent recordings** are the newest published trips that are not written reports, of one day or several, not only
+  the track-only ones: three of today's six recent outings have photos or a line of text and no written report (two
+  Tallac laps and White Salmon Rafting), and with track-only alone they would have left the home page. A multi-day
+  trip without a write-up is a recording too, as today's Recent outings would list it.
+- **Recent written reports include featured trips** (the spec does not leave them out); PEAK BAGGING SZN is in the grid
+  and the first row.
+- **Each plate keeps its own 'Open the map'** to the region's panel on map/ (today's home has it, and so does the
+  region-page contract of Phase 5), beside the section's 'Open the map' to map/ that the spec asks for. The name links
+  to the region's page when it has one, as before.
+- **The latest year's label is in ink**, where the spec says the current year's: the current year would be the day of
+  the build, which the site shows nowhere but the footer's ©.
+- **The scrim** is a band behind the words rather than the photo's gradient alone (section 2.2 allows a stronger scrim
+  for a light photo): it reaches 0.68 where the overline starts and 0.78 at the foot, so the 12 px overline has 6.5:1 on
+  the brightest pixel of the PCT cover's snow. The foot of the photo is darker than in the mock-up.
+- **Rows:** the wide row (`.tlist--wide`) is a list's choice, not the default, until Phase 19 sets the lists of the
+  other pages (a ski list beside its map is too narrow for the stats at the right). Its stats stand at the right only
+  from 1000 px: at 768 px that column left the title 116 px and cut the date. The rows keep their `DATE · PLACE ·
+  SHAPE` line above the title (the line their link is named by) rather than a place line under it.
+- **The hero's sizes** serve the full file from 760 px and declare `PHONE_SLOT` (the 800 px copy) below 560 px for a
+  landscape; between 560 and 759 px `PHONE_FULL` says 100vw, so a 2x tablet takes the full file there.
+- **The note** is a note (listed with `-v`), as the prompt says ('warn in the validator's notes').
+
+### Review
+
+An independent read-only review of the change ran on a fresh build: 365 pages, link check OK, both Pythons. It
+recounted every figure and checked that every trip and region on today's home page is still on the new one. It found
+five defects and one probable one. All are fixed in the commit and were measured again afterwards:
+
+- **Hero focus ring.** The ring over the photo was the ink outline, about 1:1 against the scrim. It is white over the
+  photo now, as on the viewer's dark bar, and stays ink on the plain form.
+- **Hero contrast.** The 12 px overline had about 2:1 on the brightest pixels of the PCT cover's snow at 1440 px, and
+  the title was under 3:1 at its brightest. The words now sit on a band of their own (above, "Where the work departs").
+  Measured on the pixels behind each line with the words hidden, the worst pixel now gives 6.5:1 for the overline, 6.9:1
+  for the title and 9.3:1 or more for the place line and the link, at 390, 1024 and 1440 px.
+- **Dates cut off in the wide rows.** Between 760 and about 786 px (768 is an upright iPad), the stats' column left the
+  title 116 px and cut the date in every row. The stats now stand at the right only from 1000 px. At 768, 1000, 1024
+  and 1440 px every row's date sits on one line, inside its column.
+- **The hero without a photo.** It kept the photo hero's height, because the sizes came later in the sheet at the same
+  specificity, and it clipped its last link's focus ring. Its rule has two classes now and clips nothing: 260 to 369
+  px tall, nothing hidden, the ring in ink.
+- **Multi-day trips without a write-up.** These had dropped off the home page, where today's Recent outings would list
+  them. They are recordings now, with a test of a two-day trip without one. Today's six recordings are unchanged, since
+  no such trip is recent enough.
+- **Rows with three stats.** Climbing rows ended 96 px short of the right edge. The cells now fill a 384 px column from
+  the right, so every row's last cell ends at the row's edge.
+- **Smaller ones.** The hero's and the cards' gain now say 'gain' to a screen reader in caps too. Each figure fills
+  its grid cell, so one row's rules line up when a word wraps; measured at 305 to 1440 px. DEVELOPING.md now says the
+  row thumbnail offers the `.th` copy at every width. Kept as they are, and listed under remaining issues: the activity
+  discs in forced colours and the old tiles' planned-route counts.
+
+A check of the fixes at 768 px found one more thing: a written report without a photo had its route tile stretched to
+the row's height. The wide row's tile keeps its own height now (91 to 100 px at 768 and 1024 px).
+
+### Checks actually run
+
+| Check | Result (build or tree it ran on) |
+| --- | --- |
+| Both Pythons, `-W error` | 3,261 tests OK on 3.9.6 (128.9 s) and 3.12.11 (107.5 s), 12 skipped, no warning printed, on the tree after the review's fixes. One line of `base.css` changed during that run (the wide row's tile height), so test_phase17, test_a11y_static and test_home ran again on both Pythons: OK |
+| Node harnesses (in the suite, Node 25.8.2) | trips, ticklist, series, maplist, profile and viewer: passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without a goal.json), 346 notes; the new note does not fire, since the first featured trip has a cover |
+| Before (`edcddc9`) and after builds compared (a scratch script) | 363 pages each, none gone or new. Only `index.html` differs: its ids, its H1 and its `<main>` text, as intended. Fragment links, JSON-LD and `.prose` text are identical on every page, and so are ids, H1s and `<main>` text on the other 362 |
+| Counts recomputed from the content (a scratch script) | 167 reports since 2021; 61 / 51 / 33 / 13 / 9 by activity; 35 / 21 / 12 / 5 / 36 / 58 by year: as the page shows |
+| Hero contrast (headless Chrome, the words hidden, the pixels behind each line) | worst pixel: overline 6.5:1, title 6.9:1, place line 9.3:1, link 9.9:1 or more, at 390, 1024 and 1440 px |
+| Row geometry (headless Chrome) | at 768, 1000, 1024 and 1440 px every row's date sits on one line inside its column; from 1000 px every row's last stat ends at the row's edge; tiles 91 to 100 px tall |
+| Plain hero (the cover removed in the browser) | 260 / 329 / 369 px tall at 390 / 1024 / 1440, nothing clipped, ink focus ring |
+| Width sweep (headless Chrome) | home at 305, 320, 390, 768, 1024, 1200 and 1440 px: no sideways scroll; the figures' rules line up in every row |
+| Lighthouse 13 (Chrome DevTools) | home after the fixes, mobile: 100 in accessibility, best practices, SEO and agentic browsing. Before the fixes: mobile and desktop, 100 in all four. The weight-0 `label-content-name-mismatch` names the rows (see below) |
+| Contact sheet | `.cache/redesign/17/index.html`: home at 1440, 1024 and 390 px before and after, without a script at 1440 and 390, forced colours at 1440 and 390 (the "after" and forced shots taken again after the fixes); Lighthouse reports beside it |
+
+Not run: Safari, Firefox and a real phone; a screen reader; `tools/check.py` as one command (its three parts ran one by
+one); Lighthouse desktop after the fixes (the fixes are CSS and one list's members; the mobile run covers the same
+audits).
+
+### Remaining issues and author inputs
+
+- **Yours:** whether the Matterhorn couloir should lead (decision 1: reorder `featured_slugs`); a look at
+  `.cache/redesign/17/index.html` (its "after" shots were taken again after the review's fixes), and the hero's darker
+  foot in particular; the interface copy above.
+- **Smaller losses, kept:** the old activity tiles' '+N planned route' counts and their latest titles are not on the
+  home page (both were text, the section pages carry them); in forced colours the figures' activity discs go, as the
+  site's rule says for a disc beside its own word (the words stay).
+- **Lighthouse's weight-0 `label-content-name-mismatch`** now names the home page's rows (a row's link is named by its
+  title and its date line, `aria-labelledby`, as on the section pages) where it named the activity tiles before; the
+  category scores are 100 either way.
+- **The hero on a phone** is 500 px tall, so a landscape cover is cropped to fill it and the 800 px copy a phone takes
+  is drawn about 1.7 times larger than in today's 4:3 frame (about 1.2 device pixels per photo pixel on a 3x phone).
+  The Storage budget's 1200 px copy for cover and lead photos ("only once a 3x phone shows the 800 px copy visibly
+  short") is the remedy if a real phone shows it soft; nothing was added here.
+- **Carried:** the fonts' go-ahead (Phase 16), and everything listed there.

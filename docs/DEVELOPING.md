@@ -422,9 +422,9 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   first trip photo; else the same three steps over the day photos, days in order; `core.cover_img` /
   `core.cover_preload` draw it with its focal point) and its text from `core.card_summary` (explicit `card_summary` →
   the write-up's opening → a labelled day excerpt for multi-day trips → a neutral facts line for a series). A series
-  never shows one day's excerpt as if it were the whole journal. The home card leaves a 'facts' result off (its DATE ·
-  PLACE and data lines already say it), and so do the recent cards (`core.trip_card`, `ns='rc'`, `summary=True`): a
-  written outing shows its write-up's opening, a track-only one stays bare. Every automatic excerpt
+  never shows one day's excerpt as if it were the whole journal. The home page's feature grid leaves a 'facts' result
+  off (its overline and place line already say it): a written trip shows its write-up's opening, a track-only one stays
+  bare. Every automatic excerpt
   (`core.card_summary` rule 2, `core.excerpt_parts`, the report's meta description, the feed) comes from
   `markdown.plain_sentences(text, limit, floor=1/3)`: the longest prefix that ends a sentence (`.`, `!` or `?`, closing
   quotes and brackets kept, then a space or the end) when it is at least `floor × limit` long (60 of a card's 180), with no ellipsis; else
@@ -434,7 +434,31 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   under 100 characters (measured on `core.excerpt(t, 400)`, which is whole below 400).
 - Home features come only from `site['featured']` (content/home.json), never from dates or the `featured` flag, once
   the file exists; a missing file falls back to the legacy flag/date pick with a warning.
-- Lists: `core.trip_row` is the one index row and `core.trip_card` the one card (explorer and Recent outings); a single-day
+- The home page (Phase 17, Alpine; `tools/sitegen/pages/home.py`), from the top: a visually hidden `<h1>` (`home.H1`,
+  "Eric Sichak: trip reports"); the hero, `site['featured'][0]`: its cover full width under `--scrim` (`HERO_SIZES`,
+  preloaded, the focal point kept), the overline `FEATURED · <ACTIVITY or JOURNAL> · <date>`, the title as the `<h2>`
+  `#hero-t`, the place and region and the stats in mono (none for a series), and the one destination verb; a first
+  feature without a cover is the same parts on white (`.hom-hero--plain`) and the validator notes it. The statement
+  (`home.STATEMENT`), the tagline and `N reports since YYYY.` (`len(site['published'])` and the earliest date's year).
+  By the numbers (`#act-h`, the old By activity section's id): the published reports (to trips/) and each activity's
+  count, most first, ties in `core.NAV` order (`home.activity_counts`), then one bar per year from the earliest dated
+  report to the latest (`home.year_counts`: a series or a multi-day trip counts once, in the year of its date), the
+  tallest `BAR_MAX` px, each read as 'YYYY: N reports', and one sentence per published series (`home.series_line`).
+  The feature grid, `site['featured'][1:]` (`#feat-h`, a visually hidden h2): the second large (`BIG_SIZES`), the third
+  and fourth beside it (`SIDE_SIZES`), a fifth and sixth a pair (`PAIR_SIZES`), each with `0N · ACTIVITY · DATE`, the
+  title, the place and stats, and the card summary unless it is facts only. Recent written reports (`#latest-h`, the
+  old home page's address, and `#recent-h`): the six newest published trips for which `core.written_report` is true,
+  featured or not, as `core.trip_row(..., photo=True)` in `ol.tlist.tlist--wide`, with `All N reports` to trips/.
+  Recent recordings (`#recs-h`): the six newest published trips that are not written reports (a track alone, photos,
+  a line under the track; one day or several), so every outing the old Recent outings showed (any published trip not
+  featured) is in one of the two lists or the grid. Where I've been, as
+  before but as plates: the render, then the region's name in the serif (a link to its page when it has one), its
+  count and `Open the map` to its panel on map/; the section's own `Open the map` goes to map/.
+- Lists: `core.trip_row` is the one index row and `core.trip_card` the one card (the explorer, More like this, a region
+  page's Featured row); `trip_row(..., photo=True)` puts the cover in the tile's place as a 4:3 thumbnail
+  (`core.ROW_THUMB_SIZES`; its `.th` copy offered in a `<source>` of its own, `core._thumb_source`, never by the
+  `<img>`), and `ol.tlist--wide` sets a row as Alpine's: from 760 px a 132 px thumbnail beside the title column, from
+  1000 px also the stats in a 384 px column at the right, right-aligned, each with its label. A single-day
   row with no excerpt is `.trow--brief` (120px tile in the same column, tighter row), and phones show a Mono-S stats
   line (`.trow-ps`) instead of the stat grid. `core.trip_tags` writes `Multi-day · 1 day` for a trip with one day file
   and `Multi-day · N days` otherwise, and `Track only` for a single-day report with neither a write-up nor a photo
@@ -547,8 +571,8 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     `data-writeup` (`1` | `0`), `data-photos` (the number of the trip's and its days' photos), `data-km`
     (`%.1f` of the distance, `''` without one), `data-gain` (whole metres, `''` without), `data-date` (ISO or `''`).
     `repeated` is `core.repeated_titles(trips)`, the case-folded titles more than one card of the page carries: such a
-    card's title link ends in `<span class="sr">, <short date></span>` (the explorer, the home page's recent cards with
-    its features, a region page's Featured row). `list_sizes` (the explorer's `trips.LIST_SIZES`) gives a cover that
+    card's title link ends in `<span class="sr">, <short date></span>` (the explorer and a region page's Featured
+    row; the home page's rows are named by their title and their date line, `aria-labelledby`). `list_sizes` (the explorer's `trips.LIST_SIZES`) gives a cover that
     has a .th copy `data-srcset-list` (the .th copy at its width, then the card's own candidates) and
     `data-sizes-list`; trips.js `listImages(on)` swaps them in for `srcset` / `sizes` while the list view is on and
     puts the card's back (kept in `data-srcset-card` / `data-sizes-card`) when it is off, so a list row's thumbnail of
@@ -1129,8 +1153,9 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     `width` / `height` only when both `w` and `h` are recorded; with `full=False` (the journal's written days) it lists
     the `.th` copy, when there is one, and the `.sm` copy, and takes the `.sm` copy for `src`. `core._cover_srcset(t, p, here)`, behind
     `core.cover_img` and `core.cover_preload`, lists the same two for a cover. The `.th` copy is never a candidate of
-    an `<img>` or a preload. It is offered to phones only: for a card cover (a `sizes` string that ends with
-    `core.CARD_PHONE_SLOT`, 112 px: `trips.TRX_SIZES`, `core.RELATED_SIZES`, `home.RECENT_SIZES`) whose photo has the
+    an `<img>` or a preload. A row thumbnail (`trip_row(..., photo=True)`) offers it at every width, in a `<source>` with
+    no `media` (`core._thumb_source`), since the slot is 132 px at most. Otherwise it is offered to phones only: for a card cover (a `sizes` string that ends with
+    `core.CARD_PHONE_SLOT`, 112 px: `trips.TRX_SIZES`, `core.RELATED_SIZES`) whose photo has the
     file, `core.cover_img` wraps the image in `<picture class="cover-pic">` with the `<source>` of
     `core._card_source`: `media="(max-width: 559.98px)"` (`core.CARD_PHONE_MEDIA`), the three copies as candidates and
     `sizes="106px"` (`core.CARD_PHONE_SIZES`, `core.THUMB_EDGE // 3`). The slot is 112 px wide and the source
@@ -1146,7 +1171,7 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     A lead image (`eager=True`) and a full-width slot are never wrapped. `core.thumb_width(p)` is
     `round(w * 320 / min(w, h))` (427 for a 1600 x 1200 photo, 320 for a 1200 x 1600 one) and must equal the width
     `photos.thumb_size(w, h)` writes; tests/test_thumbs.py holds the two to each other.
-  - `sizes`: `core.PHONE_FULL` ends `report.HERO_SIZES`, home's `LEAD_SIZES`, `SUB_SIZES` and `WIDE_SUB_SIZES`, the
+  - `sizes`: `core.PHONE_FULL` ends `report.HERO_SIZES`, home's `HERO_SIZES`, `BIG_SIZES`, `SIDE_SIZES` and `PAIR_SIZES`, the
     default of `core.photo`, the three `core.photo_rows` strings (a portrait shown two to a row on a phone keeps
     `50vw`; below 760 a landscape keeps its own shape, `--ar`, and a photo alone on its row its own shape down to
     `core.PHONE_SOLO_MIN_AR`, 0.6, `--arp`, where the phone grid cropped both square until Phase 10), `report.aside_photo` and `section.featured`. `core.phone_sizes(sizes, p)` returns the string as it is when
@@ -1728,12 +1753,11 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     `.tgrid`, `.tcard`, `.shead`, `.alink`, `.trx-bgroup`). archive.css gained `.arc-reg-a { margin-top: 4px; }` for
     the link on map/, and `.arc-all-btn:not([hidden]) { margin-right: 24px; }`: a shown "Show all" button keeps 24 px
     to its right, so the link stands beside it, and wraps flush left where the column is too narrow for both. home.css
-    gained `.hom-reg-n a { display: inline-block; position: relative; z-index: 1; color: inherit; }`, an underline on
-    hover and `::before { inset: -14px 0; }`. The link is as high as its 16 px line and its hit area is 44 px high,
-    with no box changed. From 1200 px the rule is `.hom-reg-n a::before { inset: -16px 0 -12px; }`: the head is one
-    line there and the map starts 13 px under the name, so the area, still 44 px high, sits 2 px higher and ends above
-    the map. The `z-index` keeps the area above the count line under the name, whose items are positioned (`.ml >
-    .mi`) and come later in the page.
+    gained `.hom-reg-n a { display: inline-block; position: relative; z-index: 1; color: inherit; }` and an underline
+    on hover; since Phase 13C the link's own box is 44 px (padding taken back by margins), and since Phase 17 (the
+    plates: the caption under the map) its 34 px serif line takes 5 px above and below, the 5 px above ending inside
+    the caption's 12 px of padding under the map. The `z-index` keeps the link above the count line beside it, whose
+    items are positioned (`.ml > .mi`) and come later in the page.
   - URLs and anchors: nothing that existed moved. Every `map/#region-<slug>` anchor is still on map/ (the panel of a
     region with a map, or the region's entry under "Not on a region map"), `core.region_map_href` is unchanged, and
     map/'s panels and table are what they were, apart from the one new link per panel. Phase 5 changed nothing under

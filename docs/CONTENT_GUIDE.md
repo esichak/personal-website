@@ -17,8 +17,10 @@ Adding a trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); how the generator wor
 ```
 
 - A slug is the trip's folder name under `content/trips/` (also the end of its URL, `…/trips/peak-bagging-szn/`).
-- Order is display order. The first slug is the lead card; the rest are supporting cards.
-- Zero to six slugs. `{"featured_slugs": []}` hides the featured section; the build never swaps in another trip. With
+- Order is display order. The first slug is the hero: its cover across the top of the home page with its title over
+  it. The rest make the grid under By the numbers: the second large, the third and fourth beside it, a fifth and sixth
+  side by side (Phase 17, the Alpine design).
+- Zero to six slugs. `{"featured_slugs": []}` hides the hero and the grid; the build never swaps in another trip. With
   no features the home page has no share image, and neither do About, Map, Trips and Tick list (section 9).
 - This file alone picks the homepage. `featured: true` in a trip's front matter still drives the Featured block
   on that trip's section page (Climb, Hike, MTB, Other; the Ski page has no Featured block; single-day trips with a
@@ -59,20 +61,26 @@ git add content/home.json && git commit -m "Feature Peak Bagging SZN" && git pus
 **Reorder:** move the slugs around in the array. Nothing else changes.
 
 **Remove:** delete the slug from the array. The trip stays on its section page, on the Trips page and in Recent
-outings if it is recent enough; only the homepage feature goes. Taking the trip itself off the site is in 7.10.
+written reports or Recent recordings if it is recent enough; only the homepage feature goes. Taking the trip itself off
+the site is in 7.10.
 
 **What the homepage shows**
 
-- One card per slug, in order. With the three slugs above: a lead card for the PCT and two supporting cards.
-  The section renders cleanly with 0, 1, 2, 3 or 6 cards.
-- Each card: the cover (section 3), the trip's original title as the link, an activity or "Journal" label, the
-  date and place, a couple of stats, the summary (section 4), and a link: "Open the journal" for the PCT,
-  "Read the report" for a trip with a write-up, "View the trip" for a track-only trip (Phase 13C settled these words
-  across the site; "Explore the journal" and "View trip" were the 2026-10-08 plan's).
-- The lead card's cover is also the page's share image (section 9).
-- "Recent outings" below the features lists the six newest published trips that are *not* in `featured_slugs`,
-  so a featured trip never shows twice. Planned routes never appear there. Adding a new trip never bumps a
-  feature off the homepage; only the list does.
+- The hero, from the first slug: its cover across the page (the focal point kept, a darker band at the foot), and on
+  it `FEATURED · <ACTIVITY> · <DATE>` (a journal: `JOURNAL` and its date range), the trip's original title, the place
+  and region with the distance, gain and moving time (none for a journal), and one link: "Open the journal" for the
+  PCT, "Read the report" for a trip with a write-up, "View the trip" for a track-only trip (the words Phase 13C
+  settled across the site). A first trip without a photo shows the same lines as a title on white, and
+  `validate.py -v` notes it (section 5.1).
+- The grid, from the other slugs, in order: each card the cover (section 3), `02 · <ACTIVITY> · <DATE>`, the title as
+  the link, the place and stats, and the summary (section 4). With one slug there is no grid.
+- The hero's cover is also the page's share image (section 9).
+- Under the grid, "Recent written reports" lists the six newest published trips with a write-up of 100 characters or
+  more (featured or not), and "Recent recordings" the six newest trips without one (a track alone, photos, a line
+  under the track; one day or several). Planned routes never appear there. Adding a new trip never bumps a feature off the
+  homepage; only the lists change.
+- Every number on the page (the reports since a year, By the numbers, the bars by year, the region counts) is counted
+  from the published trips when the site is built; nothing to edit.
 
 ## 3. Covers
 
@@ -221,7 +229,7 @@ section 9).
 | --- | --- | --- |
 | `ERROR` | a value the generator cannot use, or a file that a page needs and is not there | the build stops; exit status 1 |
 | `WARNING` | optional metadata left incomplete; the pages cope | the build goes on; exit status 0 |
-| `NOTE` | an optional field that is simply absent: no place, no write-up, no photos, a day without a title; photos without a caption, counted in one line for the whole site (`398 photos without a caption, in 143 files ...`); a title that names a summit or a feature (Peak, Mount, Mountain, Couloir, Chute, Bowl, Lake) with no `map: peaks:` line, whose name would label the map and be found by the search (not for a Strava default such as `Hike near <a lake town>`, which the content report flags instead) (6, "What makes a report findable"); and a trip whose `timezone:` is `UTC` (`timezone is UTC, so start_time is a UTC clock; set the zone with python3 tools/add_trip.py --retime <slug> --timezone <zone>`: the tool's guess falls back to UTC where it knows no zone, and the page's Start time is then a UTC clock) | counted in the summary; listed only with `-v` |
+| `NOTE` | an optional field that is simply absent: no place, no write-up, no photos, a day without a title; photos without a caption, counted in one line for the whole site (`398 photos without a caption, in 143 files ...`); a title that names a summit or a feature (Peak, Mount, Mountain, Couloir, Chute, Bowl, Lake) with no `map: peaks:` line, whose name would label the map and be found by the search (not for a Strava default such as `Hike near <a lake town>`, which the content report flags instead) (6, "What makes a report findable"); and a trip whose `timezone:` is `UTC` (`timezone is UTC, so start_time is a UTC clock; set the zone with python3 tools/add_trip.py --retime <slug> --timezone <zone>`: the tool's guess falls back to UTC where it knows no zone, and the page's Start time is then a UTC clock); and a first featured trip without a photo (`content/home.json: the first of featured_slugs, '<slug>', has no photo, so the home page shows it as a title on white, without the hero photo; give it a photo or put a trip that has one first`, Phase 17) | counted in the summary; listed only with `-v` |
 
 | Flag | Effect |
 | --- | --- |

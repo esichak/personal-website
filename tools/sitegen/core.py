@@ -1169,6 +1169,19 @@ def _cover_srcset(t, p, here):
     return src, ''
 
 
+def _thumb_source(t, p, here, sizes):
+    """The <source> of a list row's photo thumbnail (trip_row(photo=True), Phase 17): the .th copy first, then the .sm copy
+    and the full file, at every width (the slot is ROW_THUMB_SIZES, 160 px at most, so even a 1x screen is served about
+    three source pixels per screen pixel). As for a card's phone source, the copy is named by the <source> only, never by
+    the <img> or a preload. '' without both copies and a recorded size."""
+    if not (p.get('th') and p.get('sm') and p.get('w') and p.get('h')):
+        return ''
+    base = link(here, t['url'])
+    small_w = int(round(p['w'] * 800.0 / max(p['w'], p['h'])))
+    return ('<source srcset="%s %dw, %s %dw, %s %dw" sizes="%s">'
+            % (base + p['th'], thumb_width(p), base + p['sm'], small_w, base + p['file'], p['w'], sizes))
+
+
 def _card_source(t, p, here, sizes):
     """The <source> that offers a card cover's .th copy to phones, or ''. A card's slot is CARD_PHONE_SLOT wide below
     560 px, and there the .th copy (427 px wide for a landscape cover, 320 px for a portrait or square one) is plenty;
@@ -1184,7 +1197,7 @@ def _card_source(t, p, here, sizes):
             % (CARD_PHONE_MEDIA, base + p['th'], thumb_width(p), base + p['sm'], small_w, base + p['file'], p['w'], CARD_PHONE_SIZES))
 
 
-def cover_img(t, here, sizes, eager=False, cls='', list_sizes=None):
+def cover_img(t, here, sizes, eager=False, cls='', list_sizes=None, thumb=False):
     """The trip's cover (content.resolve_cover) as one <img class="cover-img">, cropped by CSS (object-fit: cover) around
     its focal point. eager=True marks the page's lead image (no lazy loading, fetchpriority high; pair with
     cover_preload()). A card cover that has a .th copy is wrapped in <picture class="cover-pic"> with the phone-only
@@ -1192,7 +1205,8 @@ def cover_img(t, here, sizes, eager=False, cls='', list_sizes=None):
     view, whose thumbnail is at most 200 px wide; the image then also carries data-srcset-list (the .th copy, the .sm copy
     and the full file) and data-sizes-list, which trips.js puts in place of srcset and sizes while the list view is on,
     and takes back for the cards. The card view's own candidates stay as they are (the .th copy is never one of them:
-    a 400 px card slot would take it and look soft). '' when the trip has no photo."""
+    a 400 px card slot would take it and look soft). thumb=True: a list row's thumbnail (trip_row(photo=True)), whose
+    <picture> offers the .th copy in a <source> of its own (_thumb_source). '' when the trip has no photo."""
     c = t.get('cover')
     if not c:
         return ''
@@ -1209,7 +1223,7 @@ def cover_img(t, here, sizes, eager=False, cls='', list_sizes=None):
     img = ('<img class="cover-img%s" src="%s"%s%s alt="%s" decoding="async"%s%s%s>'
            % ((' ' + cls) if cls else '', src, (' srcset="%s" sizes="%s"' % (srcset, sizes)) if srcset else '', wh,
               esc(p.get('alt') or ''), ' fetchpriority="high"' if eager else ' loading="lazy"', pos, listed))
-    source = '' if eager else _card_source(t, p, here, sizes)
+    source = '' if eager else (_thumb_source(t, p, here, sizes) if thumb else _card_source(t, p, here, sizes))
     return ('<picture class="cover-pic">%s%s</picture>' % (source, img)) if source else img
 
 
@@ -1686,7 +1700,11 @@ def row_stats_line(t):
     return meta_items(plain_stats(t, items=True))
 
 
-def trip_row(t, here, ns='', filter_key=None, cls='', level=3):
+# a list row's photo thumbnail (trip_row(photo=True)): 132 px from 760 (Alpine's row), the row's tile column below it
+ROW_THUMB_SIZES = '(min-width: 760px) 132px, (min-width: 560px) 160px, 96px'
+
+
+def trip_row(t, here, ns='', filter_key=None, cls='', level=3, photo=False):
     """Index list row (one component everywhere): 200×152 tile · Mono-S meta (date · place · route shape, a meta_items()
     line: phones drop the shape, 560–1199 break after the date) · H3 · status tags · activity-aware stats · day ruler
     (multi-day) · two-line excerpt. The region lives in breadcrumbs, table title cells and map tabs, so the row names
@@ -1694,7 +1712,8 @@ def trip_row(t, here, ns='', filter_key=None, cls='', level=3):
     A single-day or planned row with no excerpt is .trow--brief: a 120px tile in the same column (titles keep one x) and a
     tighter row. Phones (< 560) show a Mono-S stats line (.trow-ps) instead of the stat grid. The link is named by the
     title, then the meta line, so repeated titles ('Morning Ride') stay distinct. level: the title's heading level, 3 in
-    a list under an H2, 4 in a year under its H3 (a11y-08); the look stays .t-h3."""
+    a list under an H2, 4 in a year under its H3 (a11y-08); the look stays .t-h3. photo=True (home's Recent written
+    reports, Phase 17): the cover photo in the tile's place, 4:3, when the trip has one (cover_img, its .th copy first)."""
     href = link(here, t['url'])
     k = ns + t['slug']
     date_ = 'PLANNED ROUTE' if t['kind'] == 'planned' else trip_date(t)
@@ -1708,12 +1727,13 @@ def trip_row(t, here, ns='', filter_key=None, cls='', level=3):
     brief = not ex and t['kind'] in ('trip', 'planned')
     c = ' '.join(x for x in (cls.strip(), 'trow--brief' if brief else '') if x)
     ps = row_stats_line(t)
+    thumb = cover_img(t, here, ROW_THUMB_SIZES, thumb=True) if photo else ''
     return ('<li class="trow%s" data-key="%s"%s><a class="trow-a" href="%s" aria-labelledby="tt-%s tm-%s">'
-            '<div class="trow-tile" aria-hidden="true">%s</div><div class="trow-body">'
+            '<div class="trow-tile%s" aria-hidden="true">%s</div><div class="trow-body">'
             '<p class="t-mono-s trow-meta" id="tm-%s">%s</p><h%d class="t-h3 trow-t" id="tt-%s">%s</h%d>%s'
             '<div class="trow-tags">%s</div><dl class="trow-stats">%s</dl>%s%s</div></a></li>'
             % ((' ' + c) if c else '', t['slug'], (' data-f="%s"' % esc(filter_key)) if filter_key is not None else '',
-               href, k, k, tile(t, here), k, meta, level, k, title_html(t['title']), level,
+               href, k, k, ' trow-tile--photo' if thumb else '', thumb or tile(t, here), k, meta, level, k, title_html(t['title']), level,
                ('<p class="t-mono-s trow-ps">%s</p>' % ps) if ps else '',
                trip_tags(t, shape=False, status=t['kind'] != 'planned'), stats_cells(t), day_ruler(t), exh))
 
