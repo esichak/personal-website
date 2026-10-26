@@ -41,7 +41,7 @@ body.p-multiday { --dnav-h: 48px; }
 /* a short viewport (a phone on its side) cannot give the header, this bar and the bottom bar 170 px: the bar scrolls away
    under 500 px of height, where a phone's header does too (base.css, phone-10) */
 @media (max-height: 500px) { .mul-dnav { position: static; } }
-.mul-dn-in { width: min(1248px, 100% - 2 * var(--m)); margin-inline: auto; height: var(--dnav-h); display: flex;
+.mul-dn-in { width: min(1360px, 100% - 2 * var(--m)); margin-inline: auto; height: var(--dnav-h); display: flex;
   background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .mul-dn-i { position: relative; min-width: 0; padding: 0 16px; display: flex; flex-direction: column; justify-content: center;
   gap: 2px; color: var(--ink); }
@@ -68,7 +68,7 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-dn-c { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 }
 .mul-dn-i[aria-current] .mul-dn-d, .mul-dn-i[aria-current] .mul-dn-dist { color: var(--ink); font-weight: 600; }
-.mul-dn-i[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--route); }
+.mul-dn-i[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink); }
 .mul-sp svg { width: 64px; height: 16px; }
 .mul-sp .sp-c { display: none; }
 .mul-dn-i[aria-current] .mul-sp .sp-n { display: none; }
@@ -124,9 +124,9 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-st .mul-st-r a { display: inline-flex; align-items: center; min-height: 44px; text-wrap: balance; }
 .mul-st .c-date--link a { color: var(--ink); }
 .mul-st-sub { display: none; text-transform: uppercase; }
-.mul-tag { display: inline-flex; align-items: center; min-height: 20px; padding: 0 6px; border-radius: 2px; background: var(--sunk);
+.mul-tag { display: inline-flex; align-items: center; min-height: 20px; padding: 0 6px; border-radius: 0; background: var(--sunk);
   font: 500 12px/16px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
-.mul-dl-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 2px; color: var(--ink-2); }
+.mul-dl-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 0; color: var(--ink-2); }
 @media (hover: hover) { .mul-dl-btn:hover { color: var(--ink); background: var(--sunk); } }
 .mul-st tfoot th, .mul-st tfoot td { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
 .mul-st tfoot th { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
@@ -179,7 +179,7 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-di-r { font: 400 14px/20px var(--sans); color: var(--ink-2); }
 .mul-di-m { text-transform: uppercase; }
 .mul-sp--96 svg { width: 72px; height: 18px; }
-@media (max-width: 759.98px) { .mul-ov .shead-t { font-size: 20px; line-height: 26px; } }
+@media (max-width: 759.98px) { .mul-ov .shead-t { font-size: 26px; line-height: 1.05; } }
 
 /* ---------------------------------------------------------------- day chapters */
 .mul-day { padding-top: var(--sec); }
@@ -239,7 +239,7 @@ body.p-multiday { --dnav-h: 48px; }
 @media (max-width: 759.98px) {
   .mul-dpager { margin-top: 24px; border: 0; }
   .mul-dpager .prev { display: none; }
-  .mul-dpager .next { min-height: 48px; padding: 0 16px; border: 1px solid var(--rule-strong); border-radius: 2px; justify-content: center;
+  .mul-dpager .next { min-height: 48px; padding: 0 16px; border: 1px solid var(--rule-strong); border-radius: 0; justify-content: center;
     align-items: center; }
   .mul-dpager .next .pager-n, .mul-dpager .next .t-mono-s { display: none; }
   .mul-dpager .next .pager-l { font: 500 15px/20px var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink); }

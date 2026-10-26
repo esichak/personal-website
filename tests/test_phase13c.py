@@ -118,7 +118,8 @@ class StylesheetTests(unittest.TestCase):
 
     def test_more_contrast_raises_the_third_ink_and_the_map_labels(self):
         root = self.decls(':root', 'prefers-contrast')
-        self.assertEqual(root, [{'--ink-3': 'var(--ink-2)', '--rule-strong': '#5F5D57'}])
+        # Alpine (Phase 16): the strong rule is ink already, so the hairlines darken instead
+        self.assertEqual(root, [{'--ink-3': 'var(--ink-2)', '--rule': '#767676'}])
         for sel in ('svg .pf-ax', 'svg .mk-lbl'):
             self.assertEqual(self.decls(sel, 'prefers-contrast'), [{'fill': 'var(--ink-2)'}], sel)
 

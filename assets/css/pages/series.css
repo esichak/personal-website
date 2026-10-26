@@ -1,7 +1,8 @@
 /* Series (kind: series) — one log of recorded days, e.g. Pacific Crest Trail 2024. Title block + strip come from report.css.
    Day rows: cards on phone/tablet (< 1000px), a table-like grid with a column header per month from 1000px up. */
-/* track-only bars: #8C8A83 (3:1 on paper, readable as a bar); write-up bars ink */
-body.p-series { --ser-track: var(--rule-strong); --ser-nav-h: 52px; }
+/* track-only bars: #949494 (3:1 on white, readable as a bar); write-up bars ink. Its own grey since Phase 16: Alpine's
+   strong rule is ink, which would draw the two kinds of day alike */
+body.p-series { --ser-track: #949494; --ser-nav-h: 52px; }
 @media (min-width: 760px) { body.p-series { --ser-nav-h: 64px; } }
 
 /* the lead photo (report.hero, styled in report.css .rep-hero) sits between the title block and the strip */
@@ -101,7 +102,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-only-l { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font: 500 15px/20px var(--sans);
   color: var(--ink); white-space: nowrap; }
 .ser-only input { -webkit-appearance: none; appearance: none; flex-shrink: 0; margin: 0; width: 20px; height: 20px; display: grid;
-  place-content: center; background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 2px; cursor: pointer; }
+  place-content: center; background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 0; cursor: pointer; }
 .ser-only input::before { content: ""; width: 10px; height: 5px; margin-top: -3px; border: solid var(--paper); border-width: 0 0 2px 2px;
   transform: rotate(-45deg); opacity: 0; }
 .ser-only input:checked { background: var(--ink); border-color: var(--ink); }
@@ -121,7 +122,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-mn-m { font: 500 15px/20px var(--sans); }
 .ser-mn-s { font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); }
 .ser-mnav a[aria-current] { color: var(--ink); }
-.ser-mnav a[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--route); }
+.ser-mnav a[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink); }
 /* a month without a write-up while the filter is on (series.js .is-empty, with ', no write-ups' read out): lighter, but
    still a link: pressing it reveals the month (a11y-07) */
 .ser-mnav a.is-empty { color: var(--ink-3); }
@@ -187,7 +188,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-sp { grid-area: sp; align-self: center; }
 .ser-sp svg { width: 64px; height: 16px; }
 .ser-gpx { grid-area: x; width: 44px; height: 44px; margin-top: 2px; display: flex; align-items: center; justify-content: center;
-  border-radius: 2px; color: var(--ink-2); }
+  border-radius: 0; color: var(--ink-2); }
 @media (hover: hover) { .ser-gpx:hover { color: var(--ink); background: var(--sunk); } }
 
 .ser-body { padding: 6px 0 32px; }

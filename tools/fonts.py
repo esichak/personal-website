@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Make the site's three typefaces its own files (perf-02): run once on the Mac, with the internet.
+"""Make the site's three typefaces its own files (perf-02): run once on the Mac, with the internet and Eric's go-ahead.
 
   python3 tools/fonts.py           # download into assets/fonts/ and write assets/css/fonts.css
-  python3 tools/fonts.py --check   # offline: does every @font-face in fonts.css name a file in assets/fonts/?
+  python3 tools/fonts.py --check   # offline: does fonts.css hold exactly the faces of FACES, each file in assets/fonts/?
 
 It asks Google Fonts for the stylesheet core.FONTS names (as a current browser would, so the answer is woff2), keeps
-the Latin file of each of the four faces the site uses (Archivo, Source Serif 4 roman and italic, Geist Mono), saves
-them under fixed names (core.FONT_PRELOADS names two of them) with the three SIL Open Font License texts beside them,
-and writes assets/css/fonts.css: one @font-face per face with Google's own ranges and unicode-range, font-display: swap,
-and the address of the copy (bundled into assets/site.css, so 'fonts/<file>'). Nothing is written unless every file
-arrived. From the next build on, build.py puts fonts.css first in the bundle and copies assets/fonts/, and every page
-preloads the two faces the first screen needs instead of loading Google's stylesheet. To go back, delete
-assets/css/fonts.css (and assets/fonts/).
+the Latin file of each face the Alpine design uses (Phase 16: Instrument Serif roman and italic, Inter as one variable
+file for 400 to 600, IBM Plex Mono 400 and 500), saves them under fixed names (core.FONT_PRELOADS names two of them)
+with the three SIL Open Font License texts beside them, and writes assets/css/fonts.css: one @font-face per face with
+Google's own ranges and unicode-range, font-display: swap, and the address of the copy (bundled into assets/site.css,
+so 'fonts/<file>'). Nothing is written unless every file arrived. From the next build on, build.py puts fonts.css first
+in the bundle and copies assets/fonts/, and every page preloads the two faces the first screen needs instead of loading
+Google's stylesheet. To go back, delete assets/css/fonts.css (and assets/fonts/).
 """
 import argparse
 import os
@@ -23,15 +23,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 from sitegen import core  # noqa: E402
 
-# (family as Google names it, font-style, the file it is saved as, its licence's file name)
-FACES = [('Archivo', 'normal', 'archivo-latin.woff2', 'OFL-archivo.txt'),
-         ('Source Serif 4', 'normal', 'source-serif-4-latin.woff2', 'OFL-source-serif-4.txt'),
-         ('Source Serif 4', 'italic', 'source-serif-4-italic-latin.woff2', 'OFL-source-serif-4.txt'),
-         ('Geist Mono', 'normal', 'geist-mono-latin.woff2', 'OFL-geist-mono.txt')]
+# (family as Google names it, font-style, font-weight as Google's block states it, the file it is saved as, its
+# licence's file name). Inter is asked for as a range (core.FONTS: wght@400..600), so Google answers with one block and
+# one variable file; IBM Plex Mono has no variable file, so its two weights are two blocks and two files
+FACES = [('Instrument Serif', 'normal', '400', 'instrument-serif-latin.woff2', 'OFL-instrument-serif.txt'),
+         ('Instrument Serif', 'italic', '400', 'instrument-serif-italic-latin.woff2', 'OFL-instrument-serif.txt'),
+         ('Inter', 'normal', '400 600', 'inter-latin.woff2', 'OFL-inter.txt'),
+         ('IBM Plex Mono', 'normal', '400', 'ibm-plex-mono-400-latin.woff2', 'OFL-ibm-plex-mono.txt'),
+         ('IBM Plex Mono', 'normal', '500', 'ibm-plex-mono-500-latin.woff2', 'OFL-ibm-plex-mono.txt')]
 # the licence of each family, from the repository Google Fonts publishes them from
-LICENSES = {'OFL-archivo.txt': 'https://raw.githubusercontent.com/google/fonts/main/ofl/archivo/OFL.txt',
-            'OFL-source-serif-4.txt': 'https://raw.githubusercontent.com/google/fonts/main/ofl/sourceserif4/OFL.txt',
-            'OFL-geist-mono.txt': 'https://raw.githubusercontent.com/google/fonts/main/ofl/geistmono/OFL.txt'}
+LICENSES = {'OFL-instrument-serif.txt': 'https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/OFL.txt',
+            'OFL-inter.txt': 'https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt',
+            'OFL-ibm-plex-mono.txt': 'https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/OFL.txt'}
 # Google answers with woff2 only to a browser it knows
 AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) '
          'Chrome/124.0.0.0 Safari/537.36')
@@ -43,7 +46,7 @@ _SRC = re.compile(r'url\(([^)]+)\)')
 
 
 FONT_HOST = 'https://fonts.gstatic.com/'      # where Google's stylesheet keeps the files; nothing else is fetched
-MAX_BYTES = 2 * 1024 * 1024                    # far above any of the four files (about 90 KB at most)
+MAX_BYTES = 2 * 1024 * 1024                    # far above any of the five files (Inter's, the largest, is under 0.5 MB)
 
 
 def fetch(url):
@@ -63,11 +66,11 @@ def faces(css):
 def latin(css):
     """The Latin block of each face in FACES, in that order: {file: descriptors}. Raises when one is missing."""
     out = {}
-    for family, style, name, _lic in FACES:
+    for family, style, weight, name, _lic in FACES:
         hit = [d for sub, d in faces(css) if sub == 'latin' and d.get('font-family', '').strip('\'"') == family
-               and d.get('font-style', 'normal') == style]
+               and d.get('font-style', 'normal') == style and d.get('font-weight', '400') == weight]
         if len(hit) != 1:
-            raise ValueError('%d Latin blocks for %s %s in the stylesheet (expected 1)' % (len(hit), family, style))
+            raise ValueError('%d Latin blocks for %s %s %s in the stylesheet (expected 1)' % (len(hit), family, style, weight))
         out[name] = hit[0]
     return out
 
@@ -101,14 +104,18 @@ def check(root):
     for u in names:
         if not u.startswith('fonts/') or not os.path.isfile(os.path.join(root, 'assets', u)):
             found.append('%s names %s, which is not in %s' % (FONTS_CSS, u, FONTS_DIR))
-    for lic in sorted(set(f[3] for f in FACES)):
+    # a fonts.css written for another design (FACES changed since it ran): the pages would wear the old faces
+    want = sorted('fonts/' + f[3] for f in FACES)
+    if names and sorted(names) != want:
+        found.append('%s names other faces than FACES (%s): run python3 tools/fonts.py' % (FONTS_CSS, ', '.join(f[3] for f in FACES)))
+    for lic in sorted(set(f[4] for f in FACES)):
         if not os.path.isfile(os.path.join(root, FONTS_DIR, lic)):
             found.append('%s is missing from %s' % (lic, FONTS_DIR))
     return found
 
 
 def download(root, get=fetch):
-    """Fetch the stylesheet, the four files and the three licences; write them only once all of them arrived."""
+    """Fetch the stylesheet, the five files and the three licences; write them only once all of them arrived."""
     blocks = latin(get(core.FONTS).decode('utf-8'))
     files = {}
     for name, d in blocks.items():

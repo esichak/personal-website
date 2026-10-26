@@ -3156,3 +3156,164 @@ Eric's word in the session: "Yes push now", after the inventory and the rollback
 - This entry and the two checklist lines are a later commit on `main`, not pushed. The log is on `pages.yml`'s
   ignore list but `docs/DEVELOPING.md` is not (its `*.md` matches only files at the top), so pushing them starts a
   content-only run (no unit tests, about a minute) that publishes the same site.
+
+## Phase 16 - Foundations of the Alpine design (2026-10-25)
+
+Phase 16 of prompt pack 3, `docs/redesign-c/PROMPT.md` (the "Alpine" redesign, Concept C), built on branch
+`redesign-16-foundations` from `main` at `6106f0a`, in the session Eric opened with "Read docs/redesign-c/PROMPT.md in
+full, then run Phases 16 to 19 without pausing." One commit, 'Phase 16: Foundations of the Alpine design', holding the
+code, the tests, the docs and this entry. Nothing pushed, merged or rendered.
+
+### Author inputs
+
+- **Decision 3, the route colour:** not answered; the default stands, `#D2381A` (the maps' label red `#B8300F` was
+  chosen against it).
+- **Decision 4, self-hosted fonts:** not run. Standing rule 4 says never to run `tools/fonts.py` without Eric's go-ahead
+  in the session, and the decision's own default is "when you say go"; the session's message asked for the phases with
+  the defaults, which I did not read as that go-ahead. So that the pages wear Alpine's families meanwhile, Datum's
+  `assets/css/fonts.css` and its seven files (four woff2, three licences) are deleted, and every page loads Google's
+  stylesheet for Instrument Serif, Inter and IBM Plex Mono (the mechanism DEVELOPING.md documented: "Deleting fonts.css
+  goes back to Google Fonts"). `FACES` was checked against Google's live answer for the new `core.FONTS` (one read of the
+  stylesheet, nothing written): all five Latin blocks are there, so `python3 tools/fonts.py` will write the five files
+  and three licences when Eric says go; commit `assets/fonts/` and `assets/css/fonts.css` then.
+- **Decision 7, the name in the header:** applied as the rule it is (sans 600 15 px, nothing under it; the serif name
+  only in the footer).
+- **Disk:** 19 GB free at the start, under the 30 GB of standing rule 5; no worktree was made (none was needed).
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `assets/css/base.css` | Alpine: the tokens (one for one, plus `--scrim` and `--on-photo`), the families, the type classes, `.wrap` 1360 and the margins, `--header-h` 56 / 64 / 72; the header (name, caps links with 32 px gaps, the bare search box, the units as two tabs, `.site-h-u`), the menu (activities in sans 15 px, the site's links in the serif at 32 px), the footer (serif name, `.f-facts`), square chips, tags and filter chips, cards without fills and with serif titles, the ghost and filled buttons, the map frame (`.mv::after` from 560 px), sans key rows and captions, the charts (ink line, hairline grid), the stats strip (number over label, one ink rule under it), photos, rows (serif titles, no hover fill), the table, the pager (serif titles), the tab fade, the viewer's backdrop, `prefers-contrast` (`--rule` darkens). Every id, class a script reads, ARIA and data attribute, no-script rule and twin, sticky rule and forced-colours rule kept. |
+| `assets/css/pages/*.css` (archive, multiday, report, section, series, trips, about, notfound) | Token follow-ups only: radii 2 px to 0; the 3 px route-red current bars to 2 px ink (map/'s and the Ski page's tabs, the day bar, the month bar, the bottom bar); Eric's words on About, the 404 line and the section prose from the serif to the sans (the serif is never body text); a chosen segment's count and the band's fade off Datum's paper; the journal's track-only bars a grey of their own (`#949494`, 3:1), since `--rule-strong` is ink now. |
+| `assets/css/fonts.css`, `assets/fonts/*` | Deleted: Datum's faces (decision 4 above). |
+| `tools/sitegen/core.py` | `FONTS` (Instrument Serif roman and italic, Inter 400..600, IBM Plex Mono 400 and 500), `FONT_PRELOADS` (the serif roman and Inter), the header's tagline gone (`HOME_COORDS` removed) and a second units switch beside the menu button, the footer's facts line (`.f-facts`, with `GPS RECORDINGS VIA <SERVICE>` from `site_via`), `site_via`, `frag` turning the renders' inline mono and profile fill into tokens, `theme-color` `#FFFFFF`. |
+| `tools/fonts.py` | `FACES` with a weight per face (five files), `LICENSES` for the three families, `check()` reports a fonts.css written for other faces; the docstring. |
+| `tools/lib/mapkit.py`, `tools/build.py` | `SANS` is Alpine's stack; the bundle turns it into `var(--sans)` as well as Datum's (whose replacement stays as it was). |
+| `docs/DEVELOPING.md` | "Design: Datum" rewritten as "Design: Alpine" (tokens table, families, type classes, the 12/16 rule and its exceptions, links, components, layout); the fonts paragraph; the crumbs' hit area; the `t-lede` line; the fonts tool's line. |
+| `tests/test_a11y_static.py`, `test_phase13c.py`, `test_phase14.py`, `test_metadata.py` | Pinned Datum values moved to Alpine's: the header's 32 px gaps and 64 px tablet height, the hover's 4 px offset, `t-label` 500, `t-lede`, `prefers-contrast`, the fonts' table and preloads, `theme-color`; the units switch counts (the header has two); a check that the phone's switch shows exactly where the row does not and never without a script. |
+| `tests/test_phase16.py` | New: `site_via` and the footer line, `frag`'s rewrites, the bundle's map rules, the fonts table against the preloads, every text token at 4.5:1 or more. |
+
+### Behaviour
+
+- Every page is white, with Instrument Serif titles and heads, Inter for reading and IBM Plex Mono for numbers; no
+  fills behind cards or rows, no rounded corners, hairline rules, ink current bars.
+- The header: the name alone at the left; TRIPS, TICK LIST, MAP, PCT, ABOUT in caps; a bare search box; MI and KM as
+  two tabs. Below 1000 px the tabs sit beside the menu button as well (the menu keeps its Units row).
+- The footer: the serif name over `BASED IN LAKE TAHOE · AVALANCHE TRAINING: AIARE 2 · GPS RECORDINGS VIA STRAVA`
+  (every published recording names Strava today), then the lists and the note as before.
+- Report strips show the number above its label; charts draw the elevation line in ink over a light grey area; maps
+  have a hairline frame from 560 px; the maps' cluster numbers and labels are in the new mono without a redraw.
+- No page, id, anchor, H1, JSON-LD block or word of `<main>` changed (the comparison below).
+
+### Contrast (every text colour on what it sits on)
+
+| Text | On | Ratio |
+| --- | --- | --- |
+| `--ink` `#111111` | `--paper`, `--surface` / `--map-paper`, `--sunk` / `--profile-fill` | 18.9, 17.6, 16.4 |
+| `--ink-2` `#5E5E5E` | the same three | 6.5, 6.0, 5.6 |
+| `--ink-3` `#6B6B6B` | the same three | 5.3, 5.0, 4.6 |
+| `--paper` (white words on `.btn--ink`, chosen chips and segments, the skip link) | `--ink`; `#000` under the pointer | 18.9; 21.0 |
+| `#C4C4C4` (a chosen chip's or segment's count; the viewer's counter) | `--ink`; the viewer's backdrop (`#111` at 96 % over white) | 10.8; 9.9 |
+| `#E0E0E0` (the viewer's caption) | the viewer's backdrop | 13.1 |
+| `--on-photo` `#FFFFFF` | `--scrim`'s darkest stop over the lightest photo there is (white): `#454545` | 9.6 |
+
+No text sits on an activity colour: the discs carry icons (graphics, 3:1: ski 3.5, hike 4.1, the others 4.9 to 8.9),
+the table's and the map list's activity marks are icons with the word read from the title, and the maps' day numbers
+are white on ink. `--route` on white is 4.9 and the journal's track-only grey 3.0 (lines, not text). The spec's figures
+for `--ink-2` (7.0) and `--ink-3` (5.3) were rounder than the computed 6.5 and 5.3; both pass.
+
+### Text still at 11 px
+
+Unchanged from Datum, all outside the 12/16 phone rule: SVG text drawn on maps and charts (mapkit's `.mk-*` and
+`.pf-*`), the full-screen scale (`.fs-sc-t`), the hut numbers (`.mul-hut text`), the day bar's photo count
+(`.mul-dn-c`) and the journal's column heads (`.ser-cols`, not shown on a phone). Nothing new is under 12 px.
+
+### Where the work departs from the prompt
+
+- **Fonts:** not fetched (above); Datum's files deleted rather than left behind a fonts.css that would have kept the
+  old faces on every page. `core.FONTS` asks for Inter as the range `wght@400..600` (the spec wrote `400;500;600`), so
+  Google answers with one block and the one variable file `FACES` expects; IBM Plex Mono has no variable file, so the
+  faces are five files, not four.
+- **`FONT_PRELOADS`** names the serif roman and Inter, as asked, although Phase 14 measured that preloading Datum's two
+  faces held the phone's largest paint back 780 ms; it is inert until the fonts are the site's own, and the comment and
+  DEVELOPING.md say to measure again then.
+- **11 px:** `t-label` and `t-mono-s` stay 12/16 on phones (the spec's own 2.3 note: phone-15 keeps 12/16 for labels
+  and Mono-S lines; the 11 px column is used nowhere).
+- **The stats strip stays two by two on a phone**, not four across: a 390 px phone gives each of four cells about 85
+  px, less than `11,952 ft` needs at the data size, and the mock-up fits only by moving the unit into the label, which
+  would change what a screen reader hears (Phase 13C's unit words).
+- **`.btn` and `.btn--ink` keep their names:** `.btn` is drawn as the spec's ghost button and `.btn--ink` as its filled
+  one; renaming them would have changed every page module and script that uses them.
+- **The footer's facts line sits under the name**, not at its right: the name's 44 px hit area is an in-flow block of a
+  flex column (tests/test_a11y_static.py `test_the_footer_brand`), and a facts line beside it would have lain inside
+  that area. The third item is computed (`core.site_via`) and left out unless every published recording names one
+  service.
+- **Cards and rows keep their markup and geometry:** a card keeps its `DATE · PLACE` line (the line its title link is
+  described by, pinned by the cards' tests) and its activity chip and Mono-S stats under the title; a row keeps its
+  200 / 160 px tile column and its stats under the title. Both took Alpine's type, rules and fills. The spec's row (a
+  132 px thumbnail, the stats at the right) needs the section pages' column headers moved with it, and fits only a wide
+  list (a ski list beside its map is about 500 px wide): Phases 17 and 19 do it where it fits.
+- **`theme-color`** went from `#F2F1EC` to `#FFFFFF`: a meta tag section 2.7 lists as unchanged, but its value is the
+  page's colour, and Datum's warm tint over a white page would be a stray.
+- **Page sheets touched in this phase** beyond the file list, for the token changes alone (above); the pages' own
+  layouts and headings wait for Phases 17 to 19.
+- **The renders:** besides `build.py:91`, `core.frag` now turns the renders' inline `'Geist Mono', …` stack (47 files:
+  cluster counts and labels) into `var(--mono)` and the profile's inline `fill: #E2DFD6` into `var(--profile-fill)`, so
+  no map or chart keeps a Datum face or tint; `rendered/` is untouched.
+- **`prefers-contrast: more`** darkens `--rule` to `#767676` (the strong rule is ink already) where Datum darkened
+  `--rule-strong`.
+- **`--rule-strong` is ink:** every control frame that used it (the units switch's old frame, the search boxes, the
+  selects, the section band's frame, the copy field) is now a 1 px ink line, matching the ghost button.
+
+### Review
+
+An independent read-only review of the change (both Pythons, a linked build, the pages measured in a browser) found
+no broken script, id, ARIA reference or radio group, and these, all fixed in the commit:
+
+- The header without JavaScript (or with site.js failed) needed about 514 px for its caps links beside the name, so
+  from 480 to about 515 px it was two rows while still sticky and reserving 56 px: `.nav-l` now has a 20 px column gap
+  there (one row from about 460 px; measured one 56 px row, sticky, at 480, 500 and 515 px).
+- The empty `.site-h-u` stayed in that header with `margin-left: auto` and pulled the links to the name: it is hidden
+  without scripting too (and in its `:where(html:not(.js))` twin; a test now says so).
+- The Elevation and Speed keys still drew a route-red line on Datum's grey: they draw the chart's ink line on
+  `--profile-fill` now.
+- Two serif titles were under 22 px: the explorer's phone list view (16 px; now its scan line in the sans) and a
+  multi-day overview's head on a phone (20 px; now 26).
+- tests/test_phase16.py left files open (and an older test in test_phase14.py did too): closed.
+- Smaller: at 305 px (a 320 px window with a scrollbar) the tick list and map/ scrolled sideways by 13 px, from the
+  Mono-S spacing (a goal card's place could not wrap; the map table's phone date line; and a tab's hidden words, held
+  by `.tabs-x` rather than by its scrolling row): the place wraps, the date's spacing is tightened, the tab row holds
+  its own; no page of the sweep overflows at 305, 320 or 360 px. The bottom bar is white with caps labels; the selects
+  show a hover again (their frame is ink already); the day bar and the no-wide map use 1360. The multi-day profiles'
+  second day tint and the day labels' halo became tokens in `core.frag` too.
+- Left for the page phases, as planned: the page sheets' own headings (year heads, panel heads, month heads, the day
+  titles and numbers) are still Datum's sans; and with the menu open the header's units tabs and the menu's Units row
+  both show, as the spec asks for both.
+
+### Checks actually run
+
+| Check | Result (build or tree it ran on) |
+| --- | --- |
+| Both Pythons, `-W error` | 3,250 tests OK on 3.9.6 (122.8 s) and 3.12.11 (109.3 s), 12 skipped, no warning printed after the last fix (test_phase14 rerun alone on both); working tree at 19:55, as committed |
+| Node harnesses (in the suite, Node 25.8.2) | trips, ticklist, series, maplist, profile and viewer: passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without a goal.json), 346 notes |
+| Before and after builds compared (a scratch script) | 363 pages each, none gone or new; ids, fragment links, H1s, JSON-LD, `.prose` text and `<main>` text identical on every page |
+| `python3 tools/fonts.py --check` | `assets/css/fonts.css does not exist: the pages load Google Fonts` (as intended until decision 4) |
+| Google's stylesheet for the new `core.FONTS` against `FACES` (one read, nothing written) | five Latin blocks found, one per face |
+| Contact sheet | `.cache/redesign/16/index.html`: home, trips/, the Matterhorn report, a bare ride, the Haute Route, the PCT, map/, the Eastern Sierra region page, the tick list, About, the Ski page and the 404 at 1440, 1024 and 390 px, before and after; plus the open menu, the no-script header at 390, 500, 760 and 1024 px and forced colours at 1440 and 390 px. No console error and no sideways scroll in any capture |
+| Width sweep (headless Chrome) | ten pages at 305, 320 and 360 px: no sideways scroll after the fixes |
+| Lighthouse 13 (Chrome DevTools) on the before build (Datum: the baselines of Phases 17 to 19) | home mobile and desktop, the Matterhorn report mobile, trips/ mobile: 100 in accessibility, best practices, SEO and agentic browsing (home's weight-0 `label-content-name-mismatch` on the activity tiles, as on main) |
+
+Not run: Lighthouse on the after build (the page phases measure their pages); Safari, Firefox and a real phone; a screen
+reader; `tools/check.py` as one command (its three parts ran one by one).
+
+### Remaining issues and author inputs
+
+- **Yours:** the go-ahead for `python3 tools/fonts.py` (decision 4); a look at the contact sheet,
+  `.cache/redesign/16/index.html`.
+- **Next:** Phase 17 (home) on a branch from this one; decisions 1, 5 and 6 take their defaults unless you say
+  otherwise.
+- **Carried:** everything the publication of 2026-10-25 left open (VoiceOver, the real-phone look, the account checks
+  after a deploy, the actions' bump, `git gc`).

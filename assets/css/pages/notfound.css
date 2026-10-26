@@ -3,13 +3,13 @@
 .nf-grid { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 48px; }
 .nf-intro { display: flex; flex-direction: column; align-items: flex-start; }
 .nf-h { margin-top: 12px; }
-.nf-line { margin-top: 16px; max-width: 620px; font: 400 18px/28px var(--serif); font-optical-sizing: auto; color: var(--ink-2); text-wrap: pretty; }
+.nf-line { margin-top: 16px; max-width: 640px; font: 400 18px/28px var(--sans); color: var(--ink-2); text-wrap: pretty; }
 .nf-home { margin-top: 28px; }
 /* the search box (notfound.search_block): 48 px, the button beside it; the line above it is filled by notfound.js */
 .nf-ask { margin-top: 24px; font: 500 15px/22px var(--sans); color: var(--ink); }
 .nf-search { margin-top: 24px; width: 100%; max-width: 520px; display: flex; gap: 8px; }
 .nf-ask:not([hidden]) + .nf-search { margin-top: 8px; }
-.nf-q { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 2px;
+.nf-q { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 0;
   background: var(--surface); font: 400 16px/24px var(--sans); color: var(--ink); -webkit-appearance: none; appearance: none; }
 .nf-q::placeholder { color: var(--ink-3); }
 .nf-q:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; border-color: var(--ink); }

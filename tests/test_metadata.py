@@ -983,7 +983,7 @@ class DocumentHeadTests(TempCase):
                               '<meta property="og:description" content="Synthetic description.">'
                               '<meta property="og:site_name" content="Eric Sichak"><meta property="og:locale" content="en_US">'
                               '<meta property="og:url" content="%s"><meta name="twitter:card" content="summary">'
-                              '<meta name="theme-color" content="#F2F1EC">' % (canon, core.SITE_NAME, canon), html_)
+                              '<meta name="theme-color" content="#FFFFFF">' % (canon, core.SITE_NAME, canon), html_)
                 self.assertNotIn('og:image', html_)
                 self.assertNotIn('twitter:image', html_)
 

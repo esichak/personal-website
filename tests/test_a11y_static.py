@@ -2495,6 +2495,11 @@ def subject_class(rule):
     return simples[0][1] if len(simples) == 1 and simples[0][0] == 'cls' else None
 
 
+def header_h(width):
+    """--header-h with JavaScript at a width (Phase 16, Alpine: 56 px, 64 from 760, 72 from 1200)."""
+    return '72px' if width >= 1200 else '64px' if width >= 760 else '56px'
+
+
 class NoScriptTests(SiteFixture):
 
     def header(self, url):
@@ -2668,6 +2673,12 @@ class NoScriptTests(SiteFixture):
                 self.assertEqual(displayed(search, self.rules, e), nav_display == 'flex')
                 self.assertNotEqual(computed(units, 'display', self.rules, e), 'none')
                 self.assertNotEqual(computed(search, 'display', self.rules, e), 'none')
+                # the phone's units tabs (Phase 16) beside the menu button: shown exactly where the row is not
+                phone = self.header('').find('div', cls='site-h-u')
+                self.assertEqual(displayed(phone.find(cls='units'), self.rules, e), nav_display == 'none')
+                self.assertFalse(displayed(phone.find(cls='units'), self.rules, env(width, scripting='none')))
+                # ... and its empty holder goes too: left in the row, its margin-left: auto pushed the links to the name
+                self.assertFalse(displayed(phone, self.rules, env(width, scripting='none')), why(phone, 'display', self.rules, env(width, scripting='none')))
 
     def test_without_scripting_no_copy_control_and_no_share_row_is_displayed(self):
         seen = 0
@@ -2750,8 +2761,8 @@ class NoScriptTests(SiteFixture):
                     e = env(width, scripting='none')
                     phone = width < 480
                     self.assertEqual(computed(head, 'position', self.rules, e), 'static' if phone else 'sticky', why(head, 'position', self.rules, e))
-                    self.assertEqual(computed(root, '--header-h', self.rules, e), '0px' if phone else '72px' if width >= 1200 else '56px')
-                    # never lower than the header with JavaScript: 56 px, 72 px from 1200
+                    self.assertEqual(computed(root, '--header-h', self.rules, e), '0px' if phone else header_h(width))
+                    # never lower than the header with JavaScript: 56 px, 64 from 760, 72 from 1200
                     self.assertEqual(computed(inner, 'min-height', self.rules, e), '56px' if phone else 'var(--header-h)')
                     self.assertEqual(computed(root, 'scroll-padding-top', self.rules, e), 'calc(var(--header-h) + var(--sticky-extra, 0px) + 16px)')
         for key, bar_cls in (('journal', 'ser-mnav'), ('tour', 'mul-dnav')):
@@ -2802,7 +2813,8 @@ class NoScriptTests(SiteFixture):
         doc = page_doc('about/')
         switches = doc.find_all(cls='units')
         own = [u for u in switches if 'abo-units' in u.classes]
-        self.assertEqual((len(switches), len(own)), (3, 1))          # the header's, the menu's, the page's own
+        # the header's two (the row's, from 1000 px, and the phone's beside the menu button: Phase 16), the menu's, the page's own
+        self.assertEqual((len(switches), len(own)), (4, 1))
         self.assertFalse(inside(own[0], 'site-h'))
         self.assertEqual([b['data-units'] for b in own[0].find_all('button')], ['mi', 'km'])
         for width in self.NS_WIDTHS:
@@ -2815,9 +2827,9 @@ class NoScriptTests(SiteFixture):
                 # with JavaScript it is there as before, at every width
                 self.assertTrue(displayed(own[0], self.rules, on))
                 self.assertEqual(computed(own[0], 'display', self.rules, on), 'inline-flex')
-        # every other page has the header's two and no third
+        # every other page has the header's three and no fourth
         for url in ('', 'trips/', trip_url('story')):
-            self.assertEqual(len(page_doc(url).find_all(cls='units')), 2, url)
+            self.assertEqual(len(page_doc(url).find_all(cls='units')), 3, url)
 
     def test_with_scripting_none_of_this_touches_the_header(self):
         # every rule above sits in a (scripting: none) query: with JavaScript the header is what it was at every width
@@ -2828,13 +2840,13 @@ class NoScriptTests(SiteFixture):
                     e = env(width)
                     self.assertEqual(computed(head, 'position', self.rules, e), 'sticky')
                     self.assertEqual(computed(head, 'top', self.rules, e), '0')
-                    self.assertEqual(computed(root, '--header-h', self.rules, e), '72px' if width >= 1200 else '56px')
+                    self.assertEqual(computed(root, '--header-h', self.rules, e), header_h(width))
                     self.assertEqual(computed(inner, 'height', self.rules, e), 'var(--header-h)')
                     for prop in ('min-height', 'padding-block', 'padding', 'flex-wrap'):
                         self.assertIsNone(computed(inner, prop, self.rules, e), why(inner, prop, self.rules, e))
                     for row in (links, search_row):
                         self.assertEqual(computed(row, 'display', self.rules, e), 'flex')
-                        self.assertEqual(computed(row, 'gap', self.rules, e), '28px')
+                        self.assertEqual(computed(row, 'gap', self.rules, e), '32px')
                         for prop in ('flex-wrap', 'row-gap', 'min-width', 'overflow-x', 'overflow'):
                             self.assertIsNone(computed(row, prop, self.rules, e), why(row, prop, self.rules, e))
                     self.assertIsNone(computed(nav, 'min-width', self.rules, e))
@@ -2888,7 +2900,7 @@ class NoScriptTests(SiteFixture):
                 self.assertFalse(displayed(btn, self.rules, e), why(btn, 'display', self.rules, e))
                 for u in units:
                     self.assertFalse(displayed(u, self.rules, e))
-                self.assertEqual(computed(doc.find('html'), '--header-h', self.rules, e), '0px' if width < 480 else ('72px' if width >= 1200 else '56px'))
+                self.assertEqual(computed(doc.find('html'), '--header-h', self.rules, e), '0px' if width < 480 else header_h(width))
         # with the class, the header is the scripted one
         nav = page_doc('').find('nav', cls='nav')
         self.assertEqual(computed(nav, 'display', self.rules, env(390)), 'none')
@@ -2915,7 +2927,7 @@ class NoScriptTests(SiteFixture):
                 self.assertEqual([r.selector for r in stated if not off(r) and not short(r)], [])
         for selector, prop, values in (('.site-h', 'position', ['sticky', 'static', 'static']),
                                        ('.site-h-in', 'height', ['var(--header-h)', 'auto']),
-                                       (':root', '--header-h', ['56px', '72px', '0px', '0px'])):
+                                       (':root', '--header-h', ['56px', '64px', '72px', '0px', '0px'])):
             with self.subTest(selector=selector, prop=prop):
                 stated = [r for r in rules if r.selector == selector and prop in r.decls]
                 self.assertEqual([r.decls[prop][0] for r in stated], values)
@@ -3040,7 +3052,7 @@ class ShortViewportTests(SiteFixture):
             e = env(w, h)
             with self.subTest(size='%dx%d' % (w, h)):
                 self.assertEqual(computed(head, 'position', self.rules, e), 'static' if static else 'sticky')
-                self.assertEqual(computed(root, '--header-h', self.rules, e), '0px' if static else ('72px' if w >= 1200 else '56px'))
+                self.assertEqual(computed(root, '--header-h', self.rules, e), '0px' if static else header_h(w))
                 if static:
                     self.assertEqual(computed(inner, 'min-height', self.rules, e), '56px')
                 if w < 760:
@@ -3239,7 +3251,7 @@ class Phase13bCssTests(SiteFixture):
         plain = [r for r in self.rules if r.selector.startswith(':is(.prose, .hom-also') and r.selector.endswith(' a:hover')]
         self.assertEqual(len(plain), 1)
         self.assertEqual({k: v[0] for k, v in plain[0].decls.items()},
-                         {'color': 'var(--ink)', 'text-decoration': 'underline', 'text-decoration-thickness': '1px', 'text-underline-offset': '3px'})
+                         {'color': 'var(--ink)', 'text-decoration': 'underline', 'text-decoration-thickness': '1px', 'text-underline-offset': '4px'})
 
     def test_chips_and_tags_grow_with_their_words(self):
         # a11y-10: min-height, never a fixed height, so a text-only zoom does not spill the words
@@ -3259,7 +3271,7 @@ class Phase13bCssTests(SiteFixture):
             self.assertIn(size, got)
             self.assertEqual(computed(year, 'text-transform', self.rules, e), 'none')
         tick = page_doc('tick-list/').find('div', cls='trx-yr-h').find('h2')
-        self.assertEqual(computed(tick, 'font', self.rules, env(390)), '600 12px/16px var(--sans)')
+        self.assertEqual(computed(tick, 'font', self.rules, env(390)), '500 12px/16px var(--sans)')
         self.assertEqual(computed(tick, 'text-transform', self.rules, env(390)), 'uppercase')
         arc = page_doc('map/').find('div', cls='arc-yr-h').find('h3')
         self.assertIn('22px/28px', computed(arc, 'font', self.rules, env(390)))
@@ -3283,7 +3295,7 @@ class Phase13bCssTests(SiteFixture):
         self.assertIsNone(getattr(core, 'phone_row', None))
         self.assertEqual(len(page_doc('about/').find_all('dl', cls='dl-leader')), 1)
         lede = [r for r in self.rules if r.selector == '.t-lede']
-        self.assertEqual(lede[0].decls['font'][0], '400 17px/27px var(--serif)')
+        self.assertEqual(lede[0].decls['font'][0], '400 26px/1.25 var(--serif)')
 
     def test_the_print_sheet_comes_last_and_hides_the_chrome(self):
         # visual-13
@@ -4276,7 +4288,8 @@ class ForcedColoursTests(SiteFixture):
 
     def test_the_fixture_has_each_switch_in_both_states(self):
         got = sorted((where, b['aria-checked']) for where, b in self.buttons('about/'))
-        self.assertEqual(got, [(w, c) for w in ('header', 'menu', 'page') for c in ('false', 'true')])
+        # the header has two switches since Phase 16: the row's and the phone's beside the menu button
+        self.assertEqual(got, sorted([(w, c) for w in ('header', 'header', 'menu', 'page') for c in ('false', 'true')]))
         self.assertTrue(media_matches('(forced-colors: active)', self.forced(390)))
         self.assertFalse(media_matches('(forced-colors: active)', env(390)))
 

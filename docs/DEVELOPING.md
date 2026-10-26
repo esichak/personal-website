@@ -48,7 +48,8 @@ tools/render_sheet.py             a before/after page of a fixed sample of maps,
 tools/size_report.py              what the tracked tree, the history and a build weigh, by kind and by trip year, against
                                   GitHub's limits (read-only; Storage budget, below)
 tools/fonts.py                    makes the three typefaces the site's own files: assets/fonts/ and assets/css/fonts.css (needs the
-                                  internet, run once with Eric's go-ahead; --check is offline)
+                                  internet, run once with Eric's go-ahead; --check is offline, and says when fonts.css holds
+                                  other faces than FACES)
 tools/sitegen/author.py           content/author.json -> site['author'] (strict; no file, no contact): the address and profile links
 tools/sitegen/core.py             shared layout + components (header, footer, units, chips, maps, rows, …)
 tools/sitegen/curation.py         content/home.json -> site['featured'] (strict: unknown, draft, planned, duplicate slugs fail the build)
@@ -93,29 +94,84 @@ docs/CONTENT_GUIDE.md             how to feature trips, choose covers and lead p
 docs/PRIVACY_NOTES.md             what the site and its public repository disclose, as counts only, and the decisions that are the author's
 ```
 
-## Design: "Datum"
-Warm paper `#F2F1EC`, ink `#16171A`, one route red `#D2381A` used only for the GPX line (and 3px active bars).
-Since Phase 13B (visual-09) no hover turns a link route red: a plain text link hovers in ink with a 1 px underline
-3 px down (the `.prose a` idiom; base.css's `:is(.prose, .hom-also, …) a:hover`, and `.alink` and the site's name the
-same way), cards, rows and tiles keep their own hover (ink, an underlined title, a surface fill), a title chip's border
-turns ink, and `--route-ink` stays as a token only for the maps' label red (mapkit.py `ROUTE_INK`); a linked cluster
-on a map keeps its route-red ring under the pointer, as a marker of the route. Text is 12/16 at least on a phone
-(phone-15): labels, key rows, tags, the map's credit tag (on two lines under 360 px, clear of the scale), the day ruler
-and table heads. The exceptions are SVG text drawn on a map or a chart (mapkit's own, the full-screen scale
-`.fs-sc-t`, the hut numbers `.mul-hut text`) and the day bar's photo count (`.mul-dn-c`), which its 80 px chip already
-cuts off at 11 px.
-Archivo (display/UI, wdth 112 for headings) · Source Serif 4 (Eric's words) · Geist Mono (anything measured).
-Activity colours: ski `#4A8CCD`, climb `#70355E`, hike `#69883C`, mtb `#845011`, other `#1C7D78` — never the only cue
-(always with icon + word). Radii 0 for maps/cards/photos, 2px for chips/buttons. Touch targets ≥ 44px.
+## Design: "Alpine"
+Alpine replaced Datum in Phase 16 (2026-10-25; Concept C of the redesign canvas, `docs/redesign-c/PROMPT.md` section 2 is
+the full specification). A white page, one serif that only ever appears large, a plain sans for everything that is read,
+a mono for everything that is measured, photographs allowed to be big; hairline rules, no fills behind cards or rows, no
+radii, no shadows, and no colour but the route line and the activity marks.
 
-Type classes (phone → tablet ≥760 → desktop ≥1200 sizes are built in): `t-d1` (`t-d1--long` for titles > 28 chars),
-`t-d2`, `t-h2`, `t-h3`, `t-dek`, `t-lede` (the serif lead under a page's title), `t-body` (write-ups, max 620px via `.prose`), `t-excerpt`, `t-small`,
-`t-label` (caps overline), `t-data-xl`, `t-data-m`, `t-mono-s` (dates/meta; write Mono-S text in CAPS).
+Tokens (`assets/css/base.css` `:root`; the names are Datum's, so the page sheets kept working):
 
-Layout: `.wrap` (1248 max, page margins 16/40/48px), `.bleed` (full width up to 1440), `.sec` (section gap
-56/72/96px), `.grid12`. Breakpoints: phone < 760, tablet 760–1199, desktop ≥ 1200. Header nav collapses to the
-menu button below 1000px (1140 until Phase 13A, visual-17: the two-column layouts start at 1000, and the row fits there
-with 40 px to spare).
+| Token | Value | Used for |
+| --- | --- | --- |
+| `--paper` | `#FFFFFF` | the page (and `theme-color`) |
+| `--surface` | `#F7F7F5` | map paper behind a render, an image slot before it loads, the empty-map box |
+| `--sunk` | `#EFEFED` | a pressed control, a hovered band segment |
+| `--ink` | `#111111` | text, strong rules, filled buttons, the 2 px current-state bars |
+| `--ink-2` | `#5E5E5E` | secondary text: place lines, card summaries, captions, the footer (6.5:1 on white) |
+| `--ink-3` | `#6B6B6B` | labels, units, Mono-S meta lines (5.3:1 on white, 4.6:1 on `--sunk`) |
+| `--rule` | `#E6E6E6` | hairlines between rows, under the header, around a map from 560 px, chips and tags |
+| `--rule-strong` | `#111111` | the rule under a section's heading row, above the footer, under the stats strip; control frames |
+| `--route` | `#D2381A` | the GPX line and nothing else (no active bar, no hover); `--route-ink` `#B8300F` is the maps' label red (mapkit.py `ROUTE_INK`) |
+| `--map-paper`, `--profile-fill` | `#F7F7F5`, `#EFEFED` | a card's route tile; the area under the elevation line |
+| `--scrim`, `--on-photo` | a gradient to `rgba(17,17,17,.78)`, `#FFFFFF` | the band under text set over a photo, and that text (always white; a light photo gets a stronger band) |
+
+Activity colours: ski `#4A8CCD`, climb `#70355E`, hike `#69883C`, mtb `#845011`, other `#1C7D78`: a system, not a style,
+never the only cue (always with icon + word), never under text. `color-scheme` is `light`. Every text colour passes 4.5:1
+on what it sits on (the Phase 16 log lists the pairs). `@media (prefers-contrast: more)` gives `--ink-3` the value of
+`--ink-2` and darkens `--rule` to `#767676`; `@media (forced-colors: active)` keeps the rules below.
+
+Families (Google Fonts through `core.FONTS` until `tools/fonts.py` makes them the site's own files):
+`--serif` Instrument Serif, roman and italic, 400 only: display only, never under 22 px, never body text, never a label
+(page and report titles, section heads, card and row titles, the lead paragraph, the pager's titles, the footer's name,
+the menu's site links; its italic draws the maps' water labels). `--sans` Inter 400 / 500 / 600: body text, the
+navigation, buttons, labels, captions, meta lines that are words. `--mono` IBM Plex Mono 400 / 500, tabular figures:
+everything measured (the stats strip, stat columns, Mono-S lines, the units switch, chart and map labels, table cells,
+counts).
+
+Type classes (phone → tablet ≥760 → desktop ≥1200, built in): `t-d1` serif 48 / 76 / 96 px (`t-d1--long` 40 / 60 / 76 for
+titles over 28 characters), `t-d2` serif 40 / 52 / 60, `t-h2` serif 32 / 40 / 44, `t-h3` serif 26 / 30 / 34 (a card's
+title is 22 px beside a phone's thumbnail, 26 px in a grid, 30 px from 1200), `t-lede` serif 26 / 28 / 32 in ink (the
+lead paragraph), `t-dek` sans 16 / 18 in ink-2, `t-body` sans 17 / 18 / 19 (write-ups, at most 640 px wide via `.prose`),
+`t-excerpt` sans 15 / 16 in ink-2, `t-small` sans 13 / 14 in ink-3, `t-label` sans 500 12 px caps 0.12em in ink-3,
+`t-data-xl` mono 500 20 / 24 / 28, `t-data-m` mono 500 14 / 15, `t-mono-s` mono 12 px caps 0.1em in ink-3 (dates and
+meta; write Mono-S text in CAPS). Headings balance their lines and prose avoids one-word last lines. The `.shead` title,
+`.prose h3/h4` (28 px) and `.pager-n` (26 px) are serif too.
+
+Text is 12/16 at least on a phone (phone-15): labels, key rows, tags, the map's credit tag (on two lines under 360 px,
+clear of the scale), the day ruler and table heads; the specification's 11 px phone size for `t-label` and `t-mono-s`
+is not used. The exceptions are SVG text drawn on a map or a chart (mapkit's own, the full-screen scale `.fs-sc-t`, the
+hut numbers `.mul-hut text`), the day bar's photo count (`.mul-dn-c`, which its 80 px chip already cuts off at 11 px) and
+the journal's column heads (`.ser-cols`, not shown on a phone).
+
+Links: no colour change under the pointer; a plain text link gets a 1 px underline 4 px down (`text-decoration-thickness:
+1px; text-underline-offset: 4px`, the `.prose a` idiom; base.css's `:is(.prose, .hom-also, …) a:hover`, and `.alink` and
+the site's name the same way), all under `@media (hover: hover)`; cards, rows, table rows and the pager underline their
+title instead. A title chip's border turns ink. Focus is the 2 px ink outline, 2 px away. A linked cluster on a map keeps
+its route-red ring under the pointer, as a marker of the route.
+
+Components: radii 0 everywhere (photos, maps, cards, chips, buttons, inputs; a disc stays round). `.btn` is the ghost
+button (1 px ink frame on white, filled with ink under the pointer) and `.btn--ink` the filled one (ink with white words,
+`#000` under the pointer); both 44 px high. Chips and tags are square with a 1 px `--rule` frame, sans 500 12 px in caps;
+a filter chip (`.fchip`) that is chosen is ink with white words. Current states are 2 px ink bars (the header's link,
+tab rows, the day and month bars, the bottom bar, the menu's row). The header is white with a `--rule` under it: the name
+"Eric Sichak" in sans 600 15 px with nothing under it, the links in sans 500 13 px caps 0.12em with 32 px gaps, the
+search box a bare input with a 1 px ink line under it, the units switch two mono tabs (`.units`; the chosen one in ink
+over a 2 px ink bar), and below 1000 px a second switch beside the menu button (`.site-h-u`). The footer: a 1 px ink rule,
+the name in the serif at 26 px (the one place the name is serif), the facts line under it in sans 500 12 px caps
+(`BASED IN LAKE TAHOE · AVALANCHE TRAINING: AIARE 2 · GPS RECORDINGS VIA STRAVA`, the last item only while every
+published recording names the same service, `core.site_via`), then the link lists and the note. A map's frame is a 1 px
+`--rule` drawn over the render from 560 px (`.mv::after`), none on a phone. Charts: the line in ink at 1.5 px, the area in
+`--profile-fill` (`core.frag` rewrites the renders' fill), the grid in `--rule`, axis labels in ink-3. The stats strip
+shows each number above its label (the label stays first in the markup, as a screen reader reads it), one ink rule under
+the strip. Touch targets ≥ 44 px.
+
+Layout: `.wrap` (1360 max, page margins 16 / 40 / 40 px), `.bleed` (full width up to 1440), `.sec` (section gap
+56 / 72 / 96 px), `.grid12`; `--header-h` 56 / 64 / 72 px. Breakpoints: phone < 760, tablet 760–1199, desktop ≥ 1200. Header
+nav collapses to the menu button below 1000 px (1140 until Phase 13A, visual-17: the two-column layouts start at 1000).
+
+Datum (Phases 1 to 15, until 2026-10-25) was warm paper `#F2F1EC`, ink `#16171A`, Archivo, Source Serif 4 and Geist
+Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's entries up to Phase 15 describe it.
 
 ## Rules
 
@@ -207,7 +263,8 @@ with 40 px to spare).
   come back on the Ski list at 960-1099 px, where its cells are two by two; Other keeps each row's labels); the years
   of Trips, map/ and the region pages are 22/28 heads (24/30 from 760), the tick list's region heads stay labels
   (visual-04); a card without a photo fills its slot with its route tile on `--map-paper` (visual-01, step 1); About's
-  At a glance is `.dl-leader`; `.t-lede` is the serif lead of home and the sections; the filter bands fade at their
+  At a glance is `.dl-leader`; `.t-lede` is the serif lead (Alpine: a write-up's first paragraph, home's and a
+  section's lead); the filter bands fade at their
   right edge and section.js brings the chosen segment into the row by `scrollLeft` (qa-10).
   Phase 13C: a unit is shown abbreviated and read as its word (`core.unit_word` inside `core.U`'s unit span,
   `core.caps_unit` for the Mono-S caps lines: '12.8 MI' on screen, '12.8 miles' to a screen reader), the strip's
@@ -238,7 +295,7 @@ with 40 px to spare).
       height (`margin: -12px 0 -32px`): 12 px up into the footer's padding, 8 px down into the gap under the name. It
       is not a positioned box on purpose: `position: relative` on that link changed how the name was drawn at 1x;
     - the breadcrumb links: `.crumbs a::before { inset: -21px -4px -7px; }` gives the 16 px line a hit area 44 px
-      high (46 from 760 px, where the line is 18 px).
+      high (at every width since Phase 16, where the line stays 16 px; 46 from 760 px before).
 
     The crumb's inset is not the same above and below, on purpose. On a report the chip link sits 16 px
     under the crumbs and reaches 9 px up for its own hit area (`a.chip--title::before`), and where two areas overlap
@@ -247,10 +304,11 @@ with 40 px to spare).
     page widens its short `Map` crumb to 44 px (Region pages, Styles, below). A card's title link keeps its text
     height: the photo or tile link beside it opens the same page.
   - Without JavaScript the header shows only what works: `@media (scripting: none)` in base.css hides the menu button,
-    the units switches (the header's, the menu's and the About page's) and the Search box (on trips/ the Search link) with
-    the block that holds it (`.menu-btn`, `.site-h .units`, `.units.abo-units`, `.nav .nav-search`, `.nav-sep`, `.nav-sep + .nav-l`) and shows
+    the units switches (the header's two, the menu's and the About page's) and the Search box (on trips/ the Search link) with
+    the block that holds it (`.menu-btn`, `.site-h .units`, `.site-h-u`, `.units.abo-units`, `.nav .nav-search`, `.nav-sep`, `.nav-sep + .nav-l`) and shows
     the primary links (`.nav`) at every width. Where the links do not all fit beside the name they wrap onto a second
-    row (`.nav-l` gets `flex-wrap: wrap`, `.site-h-in` gets `height: auto` with `min-height: var(--header-h)`, and
+    row (`.nav-l` gets `flex-wrap: wrap` and, since Phase 16, a 20 px `column-gap` in place of the row's 32 px, so Alpine's
+    caps links still fit beside the name from about 460 px; `.site-h-in` gets `height: auto` with `min-height: var(--header-h)`, and
     `.site-h .brand` gets `flex: none`, so the name stays on one line and the links give way), so nothing scrolls
     sideways. A second block, `@media (scripting: none) and (max-width: 479.98px)`, takes the header out of its sticky
     position on a phone (`.site-h { position: static; }`) and sets `--header-h` to `0px`, so the scroll padding and the
@@ -1370,14 +1428,20 @@ with 40 px to spare).
   `assets/site.css?v=<hash>` and `assets/site.js?v=<hash>` (perf-01), so a browser that cached the old stylesheet for
   GitHub Pages' ten minutes never pairs it with a new page. The file names do not change, so a cached old page still
   finds them; the site check drops the query. Outside a build (a test calling `document()`) the names are bare.
-- Fonts (perf-02): while assets/css/fonts.css does not exist, every page loads Google Fonts' stylesheet as before. Once
-  `tools/fonts.py` has written it (with the four Latin woff2 files, fetched from fonts.gstatic.com only and at most
-  2 MB each, and the three SIL OFL texts in assets/fonts/),
-  `build.css_bundle` puts it first, the build copies assets/fonts/, `core._SELF_FONTS` is true for the build, and each
-  page drops the Google stylesheet and its preconnects. No face is preloaded (`core.FONT_PRELOADS` is empty): measured
-  2026-10-25, the site's own fonts moved desktop first paint from 316 to 56 ms on home and 312 to 48 ms on the
-  Matterhorn report (medians of 25 cold runs), and preloading two faces gained nothing there while holding the phone
-  profile's largest paint 780 ms behind the lead image. Deleting fonts.css goes back to Google Fonts.
+- Fonts (perf-02): while assets/css/fonts.css does not exist, every page loads Google Fonts' stylesheet (`core.FONTS`).
+  Once `tools/fonts.py` has written it (with the Latin woff2 file of each face of `fonts.FACES`, fetched from
+  fonts.gstatic.com only and at most 2 MB each, and the three SIL OFL texts in assets/fonts/), `build.css_bundle` puts it
+  first, the build copies assets/fonts/, `core._SELF_FONTS` is true for the build, and each page drops the Google
+  stylesheet and its preconnects and preloads `core.FONT_PRELOADS`. Deleting fonts.css goes back to Google Fonts.
+  Phase 16 (Alpine) did that: Datum's fonts.css and its four files (Archivo, Source Serif 4 roman and italic, Geist
+  Mono) were deleted, `FACES` names Alpine's five files (Instrument Serif roman and italic, Inter as one variable file
+  for 400-600, IBM Plex Mono 400 and 500; checked against Google's answer on 2026-10-25), and the pages load Google's
+  stylesheet until Eric says go for `python3 tools/fonts.py`. `fonts.py --check` reports a fonts.css that names other
+  faces than `FACES`. `FONT_PRELOADS` names the serif roman and Inter, as the specification asks; it is inert until the
+  fonts are the site's own. Measured on 2026-10-25 with Datum's files, the site's own fonts moved desktop first paint
+  from 316 to 56 ms on home and 312 to 48 ms on the Matterhorn report (medians of 25 cold runs), and preloading two
+  faces gained nothing there while holding the phone profile's largest paint 780 ms behind the lead image: measure
+  again once Alpine's files are the site's own, and empty `FONT_PRELOADS` if the phone pays the same.
 - The Ski page preloads its first panel region map's hillshade and base layer like the other section pages' featured
   maps (perf-07), each pair under the media where section.css shows it (`section.SKI_MEDIA`: the desktop render at
   560-759 px and from 1200 px in a window at least 760 px tall, the phone render elsewhere; `core.map_preloads(media=)`);

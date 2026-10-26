@@ -210,19 +210,26 @@ class FontHeadTests(unittest.TestCase):
             html_ = core.document('trips/syn-x/', 'Synthetic', '<p>Synthetic.</p>')
         self.assertNotIn('fonts.googleapis.com', html_)
         self.assertNotIn('fonts.gstatic.com', html_)
-        # no font preloads (core.FONT_PRELOADS, measured): a test that sets one sees it written with crossorigin
-        self.assertEqual(Doc(html_).find('head').find_all('link', attrs={'rel': 'preload'}), [])
+        # the two faces the first screen needs, the serif roman and Inter (Phase 16, core.FONT_PRELOADS), once they are the
+        # site's own; none while the pages load Google's stylesheet (above)
+        pre = Doc(html_).find('head').find_all('link', attrs={'rel': 'preload'})
+        self.assertEqual([(ln['href'], ln['as'], 'crossorigin' in ln) for ln in pre],
+                         [('../../assets/fonts/instrument-serif-latin.woff2', 'font', True), ('../../assets/fonts/inter-latin.woff2', 'font', True)])
+        self.assertEqual(set(f.split('/')[-1] for f in core.FONT_PRELOADS) <= set(f[3] for f in importlib.import_module('fonts').FACES), True)
         with mock.patch.object(core, '_SELF_FONTS', [True]), mock.patch.object(core, 'FONT_PRELOADS', ('assets/fonts/x.woff2',)):
             pre = Doc(core.document('trips/syn-x/', 'Synthetic', '<p>Synthetic.</p>')).find('head').find_all('link', attrs={'rel': 'preload'})
         self.assertEqual([(ln['href'], ln['as'], ln['type'], 'crossorigin' in ln) for ln in pre],
                          [('../../assets/fonts/x.woff2', 'font', 'font/woff2', True)])
 
 
+# Google's answer for core.FONTS, synthetic: a latin-ext and a latin block per face of the Alpine design (Phase 16), Inter
+# as one range, IBM Plex Mono as two weights
 GOOGLE_CSS = ''.join(
-    "/* %s */\n@font-face {\n  font-family: '%s';\n  font-style: %s;\n  font-weight: 400 700;\n  font-display: swap;\n"
-    "  src: url(https://fonts.gstatic.com/s/%s-%s-%s.woff2) format('woff2');\n  unicode-range: U+%s;\n}\n"
-    % (sub, fam, style, fam.replace(' ', ''), style, sub, rng, )
-    for fam, style in (('Archivo', 'normal'), ('Source Serif 4', 'normal'), ('Source Serif 4', 'italic'), ('Geist Mono', 'normal'))
+    "/* %s */\n@font-face {\n  font-family: '%s';\n  font-style: %s;\n  font-weight: %s;\n  font-display: swap;\n"
+    "  src: url(https://fonts.gstatic.com/s/%s-%s-%s-%s.woff2) format('woff2');\n  unicode-range: U+%s;\n}\n"
+    % (sub, fam, style, weight, fam.replace(' ', ''), style, weight.replace(' ', '-'), sub, rng)
+    for fam, style, weight in (('Instrument Serif', 'normal', '400'), ('Instrument Serif', 'italic', '400'), ('Inter', 'normal', '400 600'),
+                               ('IBM Plex Mono', 'normal', '400'), ('IBM Plex Mono', 'normal', '500'))
     for sub, rng in (('latin-ext', '0100-02AF'), ('latin', '0000-00FF')))
 
 
@@ -248,26 +255,45 @@ class FontsToolTests(unittest.TestCase):
         with mock.patch('sys.stdout'):
             self.assertEqual(self.fonts.main([], root=self.root, get=self.get), 0)
         self.assertEqual(sorted(os.listdir(os.path.join(self.root, 'assets', 'fonts'))),
-                         sorted([f[2] for f in self.fonts.FACES] + list(self.fonts.LICENSES)))
+                         sorted([f[3] for f in self.fonts.FACES] + list(self.fonts.LICENSES)))
         self.assertNotIn('latin-ext', ' '.join(self.asked))
-        css = open(os.path.join(self.root, 'assets', 'css', 'fonts.css')).read()
-        self.assertEqual(css.count('@font-face'), 4)
-        self.assertEqual(css.count('font-display: swap;'), 4)
-        self.assertEqual(css.count('unicode-range: U+0000-00FF;'), 4)
+        with open(os.path.join(self.root, 'assets', 'css', 'fonts.css')) as fh:
+            css = fh.read()
+        self.assertEqual(css.count('@font-face'), 5)
+        self.assertEqual(css.count('font-display: swap;'), 5)
+        self.assertEqual(css.count('unicode-range: U+0000-00FF;'), 5)
         for f in self.fonts.FACES:                                          # each face's copy, addressed from site.css
-            self.assertIn('src: url("fonts/%s") format("woff2");' % f[2], css)
+            self.assertIn('src: url("fonts/%s") format("woff2");' % f[3], css)
+        self.assertIn('font-weight: 400 600;', css)                        # Inter's one variable file
         self.assertEqual(self.fonts.check(self.root), [])
+
+    def test_a_sheet_written_for_other_faces_is_reported(self):
+        # Phase 16: FACES changed (Datum's faces to Alpine's) and fonts.py has not run since; the check says so rather
+        # than let the pages wear the old faces
+        with mock.patch('sys.stdout'):
+            self.fonts.main([], root=self.root, get=self.get)
+        path = os.path.join(self.root, 'assets', 'css', 'fonts.css')
+        with open(path) as fh:
+            old = fh.read().replace('inter-latin.woff2', 'archivo-latin.woff2')
+        with open(path, 'w') as fh:
+            fh.write(old)
+        with open(os.path.join(self.root, 'assets', 'fonts', 'archivo-latin.woff2'), 'wb') as fh:
+            fh.write(b'wOF2synthetic')
+        found = self.fonts.check(self.root)
+        self.assertEqual(len(found), 1)
+        self.assertIn('names other faces than FACES', found[0])
+        self.assertIn('run python3 tools/fonts.py', found[0])
 
     def test_nothing_is_written_unless_every_file_arrived(self):
         bad = lambda url: b'<html>not a font</html>' if url.endswith('.woff2') else self.get(url)  # noqa: E731
         with self.assertRaises(ValueError):
             self.fonts.download(self.root, bad)
-        short = lambda url: GOOGLE_CSS.replace('Geist Mono', 'Other Mono').encode('utf-8') if url == core.FONTS else self.get(url)  # noqa: E731
+        short = lambda url: GOOGLE_CSS.replace('IBM Plex Mono', 'Other Mono').encode('utf-8') if url == core.FONTS else self.get(url)  # noqa: E731
         with self.assertRaises(ValueError):
             self.fonts.download(self.root, short)
         # a stylesheet that names a file anywhere but Google's font host is not followed (file:, another site)
         for elsewhere in ('file:///synthetic/OFL.txt', 'https://fonts.example.test/x.woff2'):
-            odd = lambda url, e=elsewhere: GOOGLE_CSS.replace('https://fonts.gstatic.com/s/Archivo-normal-latin.woff2', e).encode('utf-8') \
+            odd = lambda url, e=elsewhere: GOOGLE_CSS.replace('https://fonts.gstatic.com/s/Inter-normal-400-600-latin.woff2', e).encode('utf-8') \
                 if url == core.FONTS else self.get(url)  # noqa: E731
             with self.assertRaises(ValueError):
                 self.fonts.download(self.root, odd)
@@ -419,7 +445,7 @@ class HeadExtrasTests(unittest.TestCase):
         self.assertNotIn('site-verification', plain)
         with mock.patch.object(core, 'VERIFY_TAGS', (('google-site-verification', 'syn-token'), ('msvalidate.01', 'SYN<"x">'))):
             html_ = core.document('trips/syn-x/', 'Synthetic', '<p>Synthetic.</p>')
-        self.assertIn('<meta name="theme-color" content="#F2F1EC"><meta name="google-site-verification" content="syn-token">'
+        self.assertIn('<meta name="theme-color" content="#FFFFFF"><meta name="google-site-verification" content="syn-token">'
                       '<meta name="msvalidate.01" content="SYN&lt;&quot;x&quot;&gt;">', html_)
         self.assertEqual(html_.replace('<meta name="google-site-verification" content="syn-token">', '')
                          .replace('<meta name="msvalidate.01" content="SYN&lt;&quot;x&quot;&gt;">', ''), plain)

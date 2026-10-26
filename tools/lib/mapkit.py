@@ -28,7 +28,11 @@ INK, INK2, INK3 = '#16171A', '#45474C', '#66686D'
 MAPPAPER = '#EEECE6'
 
 MONO = "'Geist Mono', ui-monospace, 'SF Mono', monospace"
-SANS = "Archivo, 'Helvetica Neue', system-ui, sans-serif"
+# the sans the map and chart rules name (Alpine's since Phase 16; Datum's "Archivo, 'Helvetica Neue', system-ui,
+# sans-serif" before it): build.css_bundle turns both into var(--sans). The mono and the serif stay as drawn; the committed
+# renders that name the mono inline get var(--mono) from core.frag (MONO_DRAWN)
+SANS = "Inter, system-ui, -apple-system, 'Helvetica Neue', sans-serif"
+MONO_DRAWN = MONO
 SERIF = "'Source Serif 4', Georgia, serif"
 
 # Shared CSS for map/profile SVG internals (goes in each artboard's <helmet><style>)

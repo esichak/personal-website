@@ -17,16 +17,16 @@
 @media (min-width: 1000px) and (min-height: 1600px) { .abo-nums { position: sticky; top: calc(var(--header-h) + 24px); } }
 
 /* words */
-.abo-lead { max-width: 612px; font: 400 18px/29px var(--serif); font-optical-sizing: auto; color: var(--ink); text-wrap: pretty; }
+.abo-lead { max-width: 640px; font: 400 18px/29px var(--sans); color: var(--ink); text-wrap: pretty; }
 @media (min-width: 760px) { .abo-lead { font-size: 20px; line-height: 32px; } }
 .abo-sec { display: flex; flex-direction: column; gap: 16px; }
 .abo-glance { margin-top: 32px; }
 /* content/about.md: its photo at 4:5 above its words, which take the lead's place and voice */
 .abo-portrait { max-width: 360px; margin-bottom: 32px; }
 .abo-portrait img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; background: var(--surface); }
-.abo-words { max-width: 612px; }
-.abo-words > p { font: 400 18px/29px var(--serif); font-optical-sizing: auto; color: var(--ink); }
-.abo-words h2, .abo-words h3 { font: 600 22px/28px var(--sans); font-stretch: 104%; margin-top: 40px; }
+.abo-words { max-width: 640px; }
+.abo-words > p { font: 400 18px/29px var(--sans); color: var(--ink); }
+.abo-words h2, .abo-words h3 { font: 400 28px/1.1 var(--serif); letter-spacing: -0.01em; margin-top: 40px; }
 @media (min-width: 760px) { .abo-words > p { font-size: 20px; line-height: 32px; } }
 .abo-more { display: flex; flex-direction: column; gap: 48px; }
 .abo-p { font: 400 15px/24px var(--sans); color: var(--ink); max-width: 612px; text-wrap: pretty; }

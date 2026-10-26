@@ -32,13 +32,14 @@ REPO_URL = 'https://github.com/esichak/personal-website'   # the public reposito
 AUTHOR_NAME = SITE_NAME          # the one author of every write-up (structured data); never a `party:` name
 AUTHOR_URL = SITE_URL + 'about/'
 STRUCTURED_MIN_CHARS = 100       # a report needs this much of Eric's own text to be marked up as a BlogPosting
-HOME_COORDS = '39.09°N 120.04°W · LAKE TAHOE'
 # the head's inline script (document): 'js' on <html> (resilience-01), then the units: the stored choice, else kilometers
 # for a browser whose language is set and is not English (gap6-03), else miles
 PREPAINT = ('var d=document.documentElement,u=null;d.classList.add("js");try{u=localStorage.getItem("units")}catch(e){}'
             'var l=navigator.language||"";if(u==="km"||(!u&&l&&!/^en/i.test(l)))d.classList.add("km")')
-FONTS = ('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..112,400..700'
-         '&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&family=Geist+Mono:wght@400..600&display=swap')  # serif: 400 only
+# Alpine's three families (Phase 16): Instrument Serif roman and italic (400 only, display), Inter 400-600 as one range
+# (one variable file), IBM Plex Mono 400 and 500 (static files)
+FONTS = ('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1'
+         '&family=Inter:wght@400..600&family=IBM+Plex+Mono:wght@400;500&display=swap')
 SUB_ICON = {'SUP': 'SUP', 'Rafting': 'RFT', 'Kayaking': 'KYK', 'Mountaineering': 'MTN'}
 SUB_WORD = {'SUP': 'Paddleboarding', 'Rafting': 'Rafting', 'Kayaking': 'Kayaking', 'Mountaineering': 'Mountaineering'}
 NAV = [('ski', 'Backcountry Skiing'), ('climb', 'Climbing'), ('hike', 'Hiking'), ('mtb', 'Mountain Biking'), ('other', 'Other')]
@@ -614,6 +615,10 @@ def frag(path, here, ns=None, drop=None, labels=False):
     if labels:
         s = relabel(s)
     s = s.replace('{{route}}', 'var(--route)')
+    # the renders' inline mono (cluster counts, distance labels) and the profile's area colour as tokens (Phase 16), so a
+    # new design reaches the committed maps and charts without a redraw, as build.css_bundle does for mapkit.MAP_CSS
+    s = (s.replace(mapkit.MONO_DRAWN, 'var(--mono)').replace('fill: #E2DFD6', 'fill: var(--profile-fill)')
+         .replace('fill: #EAE7DF', 'fill: var(--surface)').replace('stroke: #F2F1EC', 'stroke: var(--paper)'))
     s = s.replace('@@ROOT@@', prefix(here) if prefix(here) != './' else '')
     if ns:
         ids = set(_ID.findall(s))
@@ -978,9 +983,10 @@ KEY_SYMBOLS = {
     # the light planned line on region maps (#66686D 1.5px, dash 4/3 on a 3.5px casing, as render_site draws it)
     'planned_site': ('Planned route', '<path d="M1 5H15" style="stroke:#EEECE6;stroke-width:3.5"/><path d="M1 5H15" style="stroke:#66686D;stroke-width:1.5;stroke-dasharray:4 3"/>'),
     'ghost': ('Other days', '<path d="M1 5H15" style="stroke:var(--route);stroke-opacity:.35;stroke-width:2"/>'),
-    'hatch': ('Skin (ascent)', '<rect x="0" y="0" width="16" height="10" style="fill:#E2DFD6"/><path d="M0 4L4 0M0 10L10 0M6 10L16 0M12 10L16 6" style="stroke:#66686D;stroke-width:1"/>'),
-    'fill': ('Ski (descent)', '<rect x="0" y="2" width="16" height="8" style="fill:#E2DFD6"/><path d="M0 2H16" style="stroke:var(--route);stroke-width:2"/>'),
-    'speed': ('Speed', '<path d="M1 7L5 3L9 6L15 2" style="fill:none;stroke:var(--route);stroke-width:1.5"/>'),
+    'hatch': ('Skin (ascent)', '<rect x="0" y="0" width="16" height="10" style="fill:var(--profile-fill)"/><path d="M0 4L4 0M0 10L10 0M6 10L16 0M12 10L16 6" style="stroke:#66686D;stroke-width:1"/>'),
+    # the charts' line is ink since Phase 16 (base.css .cv .pf-line), their area --profile-fill: the keys say the same
+    'fill': ('Ski (descent)', '<rect x="0" y="2" width="16" height="8" style="fill:var(--profile-fill)"/><path d="M0 2H16" style="stroke:var(--ink);stroke-width:1.5"/>'),
+    'speed': ('Speed', '<path d="M1 7L5 3L9 6L15 2" style="fill:none;stroke:var(--ink);stroke-width:1.5"/>'),
 }
 
 
@@ -1977,7 +1983,7 @@ def goal_card(t, here):
         media = ('<div class="gcard-map gcard-map--none" aria-hidden="true"><span class="t-mono-s">%s</span></div>'
                  % ('MAP NOT RENDERED YET' if t['track'] else 'ROUTE NOT ADDED YET'))
     loc = t.get('place') or t.get('region') or ''
-    meta = meta_items([(nb(esc(loc).upper()), 'mi-w') if loc else '', nb(esc(act_word(t)).upper())])
+    meta = meta_items([(esc(loc).upper(), 'mi-w') if loc else '', nb(esc(act_word(t)).upper())])   # the place may wrap (mi-w)
     mid = 'gc-%s-m' % t['slug']
     notes = markdown.plain(t['body_md'], 600) if t.get('body_md') else ''
     text = _s.normalize(' '.join(x for x in [t['title'], t.get('place') or '', t.get('region') or ''] + g['tags'] + [g['why'], notes] if x))
@@ -2125,11 +2131,12 @@ _TRIPS_BY_URL = {}
 _ASSET_VERSION = {}
 _SELF_FONTS = [False]
 _AUTHOR = [None]      # content/author.json as sitegen.author.load read it (register_site): the contact rows, or None
-# fonts preloaded when they are the site's own: none. Measured on 2026-10-25 (25 desktop runs, the phone profile's median
-# of 3): preloading Archivo and Source Serif 4 (138 KB) left desktop first paint where it was (56 against 60 ms on home)
-# and held the phone's largest paint back 780 ms (2,524 against 1,740 ms), the fonts taking the slow line from the lead
-# image; found by the stylesheet, they arrive in time for desktop and after the image on a phone
-FONT_PRELOADS = ()
+# fonts preloaded when they are the site's own (tools/fonts.py has run): the serif roman and Inter, the two faces the
+# first screen needs (docs/redesign-c/PROMPT.md 2.3). Inert while the pages load Google's stylesheet. Re-measure once the
+# files are the site's own: on 2026-10-25 (25 desktop runs, the phone profile's median of 3) preloading Datum's two faces
+# (Archivo and Source Serif 4, 138 KB) left desktop first paint where it was and held the phone's largest paint back
+# 780 ms (2,524 against 1,740 ms), the fonts taking the slow line from the lead image; if Alpine's do the same, set ()
+FONT_PRELOADS = ('assets/fonts/instrument-serif-latin.woff2', 'assets/fonts/inter-latin.woff2')
 # search engines' site-verification tags, (name, content) pairs written into every head, e.g.
 # ('google-site-verification', '<token>') and ('msvalidate.01', '<token>') (seo-12; README.md 'Search Console'). The
 # tokens are public values. Empty: no tag.
@@ -2138,6 +2145,7 @@ _ON_MAPS = [None]     # the slugs a site map may still draw (gone_keys); None un
 _TITLES = {}          # slug -> title of the registered site's trips: the site maps' labels (relabel)
 _OTHER_SUBS = []
 _HAS_PCT = [False]
+_VIA = [None]         # the one service every published recording came through (site_via), or None
 
 
 def other_subtypes(ts):
@@ -2288,6 +2296,7 @@ def register_site(site, meta=None):
     feat = site.get('featured') or []
     _SITE_SHARE[0] = share_photo(feat[0]) if feat else None
     _OTHER_SUBS[:] = other_subtypes(site.get('published') or [t for t in site['trips'] if t['kind'] != 'planned'])
+    _VIA[0] = site_via(site.get('published') or [t for t in site['trips'] if t['kind'] != 'planned'])
     _REGION_PAGES.clear()
     if meta is not None:
         _REGION_PAGES.update({name: slug for name, slug, _ts in region_pages(site, meta)})
@@ -2298,6 +2307,14 @@ def register_site(site, meta=None):
     # a journal is left out: a day part written without a name is keyed by the journal's slug and labelled
     # '<title>, Day N' (render.py), which is not the title alone; its title stays in the site hash instead
     _TITLES.update({t['slug']: t['title'] for t in site['trips'] if t['kind'] != 'series'})
+
+
+def site_via(published):
+    """The one service every published trip with a recording came through (content.stats_source), for the footer's
+    'GPS RECORDINGS VIA <SERVICE>' (Alpine, Phase 16); None when a recording names another service or none, so the
+    footer says nothing the content does not give."""
+    found = {content.stats_source(t) for t in published if has_track(t)}
+    return next(iter(found)) if len(found) == 1 and None not in found else None
 
 
 def gone_keys(m):
@@ -2398,16 +2415,17 @@ def header(here, active=None, trip=None, page_bar=None):
               % (top_id, top_id, esc(bar_title), esc(bar_title), icon('arrow-up', 20)))
     return ('<a class="skip" href="#main">Skip to content</a>'
             '<header class="site-h"><div class="site-h-in">'
-            '<a class="brand" href="%s"><span class="brand-n">%s</span><span class="brand-c">%s</span></a>%s'
+            '<a class="brand" href="%s"><span class="brand-n">%s</span></a>%s'
             '<nav class="nav" aria-label="Main"><div class="nav-l">%s</div><span class="nav-sep" aria-hidden="true"></span>'
             '<div class="nav-l">%s</div>%s</nav>'
+            '<div class="site-h-u">%s</div>'
             '<button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu">%s%s</button>'
             '</div>'
             '<div class="menu" id="menu" hidden><nav aria-label="Menu">'
             '<div class="menu-units"><span class="t-label">Units</span>%s</div>'
             '<div class="menu-c1"><p class="t-label menu-l">By activity</p><ul class="menu-list">%s</ul></div>'
             '<div class="menu-c2"><p class="t-label menu-l">Site</p><ul class="menu-list menu-list--site">%s</ul></div></nav></div></header>'
-            % (link(here, ''), SITE_NAME, HOME_COORDS, ab, ''.join(items), search, units_control(),
+            % (link(here, ''), SITE_NAME, ab, ''.join(items), search, units_control(), units_control(),
                icon('menu', 24, 'i-open'), icon('close', 24, 'i-close'), units_control(), ''.join(menu_rows), ''.join(site_rows)))
 
 
@@ -2435,13 +2453,15 @@ def footer(here):
     email = author_email()
     mail = ('<a class="f-mail" href="mailto:%s">%s</a>' % (esc(email), esc(email))) if email else ''
     return ('<footer class="site-f"><div class="site-f-in">'
-            '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="t-mono-s">%s</span>%s</div>'
+            '<div class="f-brand"><a class="brand-n" href="%s">%s</a><span class="f-facts">%s</span>%s</div>'
             '<nav class="f-nav" aria-labelledby="f-rep"><p class="t-label" id="f-rep">By activity</p><ul>%s</ul></nav>'
             '<nav class="f-nav" aria-labelledby="f-site"><p class="t-label" id="f-site">Site</p><ul>%s</ul></nav>'
             '<div class="f-note"><p>Reports describe past conditions, not advice. Check the current avalanche forecast before you go.</p>'
             '<p class="t-mono-s">%s</p>'
             '<p class="t-mono-s">© %d ERIC SICHAK</p></div></div></footer>'
-            % (link(here, ''), SITE_NAME, meta_items([nb('BASED IN LAKE TAHOE'), nb('AVALANCHE TRAINING: AIARE 2')]), mail, reports, site,
+            % (link(here, ''), SITE_NAME, meta_items([nb('BASED IN LAKE TAHOE'), nb('AVALANCHE TRAINING: AIARE 2')]
+                                                     + ([nb('GPS RECORDINGS VIA %s' % esc(_VIA[0]).upper())] if _VIA[0] else [])),
+               mail, reports, site,
                meta_items([nb('MAPS: AWS TERRAIN TILES'), nb('© OPENSTREETMAP CONTRIBUTORS')]), date.today().year))
 
 
@@ -2499,7 +2519,7 @@ def document(here, title, body, description='', active=None, css_pages=(), image
             '<meta property="og:type" content="%s"><meta property="og:title" content="%s">'
             '<meta property="og:description" content="%s"><meta property="og:site_name" content="%s">'
             '<meta property="og:locale" content="en_US">%s%s'
-            '<meta name="theme-color" content="#F2F1EC">%s'
+            '<meta name="theme-color" content="#FFFFFF">%s'
             '<link rel="icon" href="%sassets/favicon.svg" type="image/svg+xml">%s'
             '<link rel="alternate" type="application/rss+xml" title="%s — trip reports" href="%sfeed.xml">'
             '%s'

@@ -89,6 +89,7 @@ def css_bundle():
     parts.append('/* map + profile internals (from tools/lib/mapkit.py) */\n' + mapkit.MAP_CSS.strip()
                  .replace("'Geist Mono', ui-monospace, 'SF Mono', monospace", 'var(--mono)')
                  .replace("Archivo, 'Helvetica Neue', system-ui, sans-serif", 'var(--sans)')
+                 .replace(mapkit.SANS, 'var(--sans)')
                  .replace("'Source Serif 4', Georgia, serif", 'var(--serif)'))
     for f in sorted(glob.glob(os.path.join(ROOT, 'assets', 'css', 'pages', '*.css'))):
         if conflict_copy(f):   # 'trips 2.css': its rules would be in the bundle twice

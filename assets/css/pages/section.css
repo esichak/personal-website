@@ -32,9 +32,9 @@
 /* a band wider than the screen scrolls sideways (qa-10): a fade at the right edge while more segments lie beyond, as a
    tab row has (base.css .tabs-x); section.js sets .is-scroll and .is-end */
 .sec-band::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 32px; pointer-events: none; opacity: 0;
-  transition: opacity .15s; background: linear-gradient(to right, rgba(250, 250, 247, 0), var(--surface)); }
+  transition: opacity .15s; background: linear-gradient(to right, rgba(247, 247, 245, 0), var(--surface)); }
 .sec-band.is-scroll:not(.is-end)::after { opacity: 1; }
-.sec-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper); }
+.sec-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--rule-strong); border-radius: 0; background: var(--paper); }
 .sec-seg-a { position: relative; min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
   font: 500 15px/20px var(--sans); color: var(--ink); }
 /* 44 x 44 px to press, with no box changed: a segment is 42 px high inside the frame's 1 px lines, and its hit area, out
@@ -53,7 +53,7 @@
 @media (hover: hover) { a.sec-seg-a:is([aria-checked="true"], [aria-current="true"]):hover {
   background: var(--ink); color: var(--paper); } }
 .sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .ic { color: var(--paper); }
-.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .sec-seg-n { color: #B9B6AD; }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .sec-seg-n { color: #C4C4C4; }
 .sec-seg-a:is([aria-checked="true"], [aria-current="true"]) + .sec-seg-a { border-left-color: var(--ink); }
 .sec-seg-a[aria-disabled="true"] { color: var(--ink-3); cursor: default; }
 .sec-seg-a[aria-disabled="true"] .ic { color: var(--ink-3); }
@@ -109,7 +109,7 @@
 .sec-feat-photo img { aspect-ratio: 506 / 400; object-fit: cover; }
 .sec-feat-h3 { margin-bottom: 12px; }
 .sec-feat-pics + .sec-feat-txt { margin-top: 24px; }
-.sec-prose { max-width: 620px; font: 400 18px/30px var(--serif); color: var(--ink); }
+.sec-prose { max-width: 640px; font: 400 18px/30px var(--sans); color: var(--ink); }
 .sec-prose.prose > * + * { margin-top: 16px; }
 .sec-read { margin-top: 8px; }
 .sec-feat-full { margin-top: 40px; }
@@ -251,7 +251,7 @@
   font: 500 15px/20px var(--sans); color: var(--ink-2); }
 @media (hover: hover) { .sec-tabs [role="tab"]:hover { color: var(--ink); } }
 .sec-tabs [role="tab"][aria-selected="true"] { color: var(--ink); }
-.sec-tabs [role="tab"][aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--route); }
+.sec-tabs [role="tab"][aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink); }
 .sec-tabs [role="tab"]:focus-visible { outline-offset: -2px; }
 .sec-tab-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
 .sec-maps { margin-top: 12px; }

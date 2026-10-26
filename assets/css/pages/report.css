@@ -31,7 +31,7 @@
   .rep-map { margin-top: 48px; }
   .rep-map .keyrow { padding-top: 16px; border-bottom: 1px solid var(--rule); padding-bottom: 16px; }
   /* no wide render (planned routes): the 718 column map sits on the page grid's left edge */
-  .rep-map .map--nowide { width: min(1248px, 100% - 2 * var(--m)); margin-inline: auto; }
+  .rep-map .map--nowide { width: min(1360px, 100% - 2 * var(--m)); margin-inline: auto; }
   .rep-map .map--nowide .mv--col { max-width: 718px; margin-inline: 0; }
 }
 
@@ -175,13 +175,13 @@
 .copy { position: relative; display: inline-flex; align-items: center; min-width: 0; }
 .copy-msg, .copy-pop { position: absolute; z-index: 3; top: 100%; left: 0; margin-top: 4px; }
 .copy-msg { white-space: nowrap; pointer-events: none; color: var(--paper); }
-.copy-msg:not(:empty) { padding: 4px 8px; border: 1px solid var(--ink); border-radius: 2px; background: var(--ink); }
+.copy-msg:not(:empty) { padding: 4px 8px; border: 1px solid var(--ink); border-radius: 0; background: var(--ink); }
 .rep-actions .copy-msg, .ser-wnav .copy-msg { left: auto; right: 0; }
 .rep-share .copy { gap: 12px; }
 .rep-share .copy-msg { position: static; margin: 0; padding: 0; border: 0; background: none; color: var(--ink-2); }
-.copy-pop { padding: 8px; border: 1px solid var(--rule-strong); border-radius: 2px; background: var(--paper); }
+.copy-pop { padding: 8px; border: 1px solid var(--rule-strong); border-radius: 0; background: var(--paper); }
 .copy-url { display: block; width: min(36ch, calc(100vw - 50px)); min-height: 44px; padding: 0 8px; border: 1px solid var(--rule-strong);
-  border-radius: 2px; font: 400 13px/20px var(--mono); color: var(--ink); background: var(--surface); }
+  border-radius: 0; font: 400 13px/20px var(--mono); color: var(--ink); background: var(--surface); }
 .rep-actions .copy { flex-shrink: 0; }
 /* phones and touch screens: 16 px, so iOS Safari does not zoom in when base.js focuses and selects the field (phone-09) */
 @media (max-width: 759.98px), (hover: none) and (pointer: coarse) { .copy-url { font-size: 16px; width: min(40ch, calc(100vw - 50px)); } }
@@ -194,14 +194,15 @@
 /* photos: justified rows (core.photo_rows, base.css .jrows) */
 .rep-sh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
 
-/* phone bottom bar (reports only); the current section gets a 3px route bar */
+/* phone bottom bar (reports only); the current section gets a 2 px ink bar */
 .bbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(var(--n, 4), 1fr);
-  padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--rule); }
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--rule); }
 .bbar a { position: relative; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  font: 500 12px/16px var(--sans); color: var(--ink-2); }
+  font: 500 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.bbar a .ic { width: 20px; height: 20px; }
 @media (hover: hover) { .bbar a:hover { color: var(--ink); } }
 .bbar a[aria-current] { color: var(--ink); }
-.bbar a[aria-current]::before { content: ""; position: absolute; top: -4px; left: 50%; width: 64px; margin-left: -32px; height: 3px; background: var(--route); }
+.bbar a[aria-current]::before { content: ""; position: absolute; top: -4px; left: 50%; width: 64px; margin-left: -32px; height: 2px; background: var(--ink); }
 body.p-report .site-f { padding-bottom: 72px; }
 /* a page without the bar needs no room for one: a report left with fewer than two things to jump to (report.bottom_bar
    then writes none), a goal that is only an idea. A browser that does not know :has() keeps the padding */
