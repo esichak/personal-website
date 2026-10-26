@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concept C, "Alpine Editorial": the home page at 1280 px (fluid)</title>
+<!-- Reference mock-up, written 2026-10-25 from the design canvas (project/C-Home.dc.html). A picture of the intent for
+     docs/redesign-c/PROMPT.md, not site code: no core.U units, no core.link links, no srcset, no script. The photos and
+     maps load from the live site; the route and the elevation profile are the committed render's own paths. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF;color:#111111;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
+</style>
+</head>
+<body>
+
+<div style="width: 100%; display: flex; flex-direction: column; font-family: Inter, system-ui, sans-serif; color: #111111; background: #FFFFFF">
+
+  <header style="border-bottom: 1px solid #E6E6E6">
+    <div style="max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; min-height: 72px">
+      <a href="#" style="font-family: Inter, system-ui, sans-serif; font-weight: 600; font-size: 15px; letter-spacing: 0.02em; display: inline-flex; align-items: center; min-height: 44px">Eric Sichak</a>
+      <nav aria-label="Primary" style="display: flex; gap: 32px; flex-wrap: wrap; font-size: 13px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase">
+        <a href="#" style="display: inline-flex; align-items: center; min-height: 44px">Reports</a>
+        <a href="#" style="display: inline-flex; align-items: center; min-height: 44px">Map</a>
+        <a href="#" style="display: inline-flex; align-items: center; min-height: 44px">Tick list</a>
+        <a href="#" style="display: inline-flex; align-items: center; min-height: 44px">PCT</a>
+        <a href="#" style="display: inline-flex; align-items: center; min-height: 44px">About</a>
+      </nav>
+      <div role="group" aria-label="Units" style="display: flex; gap: 2px; font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.08em">
+        <button type="button" aria-pressed="true" style="min-height: 44px; min-width: 44px; padding: 0 8px; background: none; color: #111111; border: 0; border-bottom: 2px solid #111111; font: inherit; cursor: pointer">MI</button>
+        <button type="button" aria-pressed="false" style="min-height: 44px; min-width: 44px; padding: 0 8px; background: none; color: #5E5E5E; border: 0; border-bottom: 2px solid transparent; font: inherit; cursor: pointer">KM</button>
+      </div>
+    </div>
+  </header>
+
+  <section style="position: relative; min-height: 720px; display: flex; align-items: flex-end; overflow: hidden; background: #111111">
+    <img src="https://esichak.github.io/personal-website/trips/matterhorn-peak-west-couloir/photos/01.webp" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(17, 17, 17, 0.0) 40%, rgba(17, 17, 17, 0.78) 100%)"></div>
+    <div style="position: relative; width: 100%; max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 48px 40px 56px; display: flex; flex-direction: column; gap: 18px; color: #FFFFFF">
+      <p style="margin: 0; font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #FFFFFF">Featured · Backcountry skiing · January 17, 2026</p>
+      <h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 104px; line-height: 0.94; letter-spacing: -0.025em; max-width: 14ch; text-wrap: balance">Matterhorn Peak – West Couloir</h1>
+      <p style="margin: 0; font-size: 18px; line-height: 1.5; color: #FFFFFF; max-width: 60ch; display: flex; gap: 10px 20px; flex-wrap: wrap">
+        <span>Sawtooth Ridge, Eastern Sierra</span>
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 14px; letter-spacing: 0.04em">12.8 MI · 5,302 FT · 6:34 MOVING</span>
+      </p>
+      <a href="#" style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; font-weight: 500; color: #FFFFFF; align-self: flex-start">Read the report <span aria-hidden="true">→</span></a>
+    </div>
+  </section>
+
+  <section style="width: 100%; max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 88px 40px 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px">
+    <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 60px; line-height: 1.02; letter-spacing: -0.02em; max-width: 18ch; text-wrap: balance">Trip reports from the Sierra, the Alps and beyond.</h2>
+    <p style="margin: 0; font-size: 18px; line-height: 1.6; color: #5E5E5E; max-width: 52ch; text-wrap: pretty">Backcountry skiing, climbing, hiking, mountain biking and other trips, each with the full GPX track and map, as recorded. 167 reports since 2021.</p>
+  </section>
+
+  <section style="width: 100%; max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 72px 40px 0; display: flex; flex-direction: column; gap: 0">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid #111111">
+      <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 44px; line-height: 1; letter-spacing: -0.015em">By the numbers</h2>
+      <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">2021 – 2026 · COUNTED FROM THE PUBLISHED REPORTS</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(168px, 100%), 1fr)); gap: 0 24px">
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; padding: 24px 0 18px; border-bottom: 1px solid #E6E6E6; min-width: 0">
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 64px; line-height: 0.9; letter-spacing: -0.02em">167</span>
+        <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E">Reports</span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; padding: 24px 0 18px; border-bottom: 1px solid #E6E6E6; min-width: 0">
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 64px; line-height: 0.9; letter-spacing: -0.02em">61</span>
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E"><span style="width: 8px; height: 8px; border-radius: 50%; background: #845011; display: inline-block"></span>Mountain biking</span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; padding: 24px 0 18px; border-bottom: 1px solid #E6E6E6; min-width: 0">
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 64px; line-height: 0.9; letter-spacing: -0.02em">51</span>
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E"><span style="width: 8px; height: 8px; border-radius: 50%; background: #4A8CCD; display: inline-block"></span>Backcountry skiing</span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; padding: 24px 0 18px; border-bottom: 1px solid #E6E6E6; min-width: 0">
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 64px; line-height: 0.9; letter-spacing: -0.02em">33</span>
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E"><span style="width: 8px; height: 8px; border-radius: 50%; background: #69883C; display: inline-block"></span>Hiking</span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; padding: 24px 0 18px; border-bottom: 1px solid #E6E6E6; min-width: 0">
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 64px; line-height: 0.9; letter-spacing: -0.02em">13</span>
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E"><span style="width: 8px; height: 8px; border-radius: 50%; background: #70355E; display: inline-block"></span>Climbing</span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; padding: 24px 0 18px; border-bottom: 1px solid #E6E6E6; min-width: 0">
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 64px; line-height: 0.9; letter-spacing: -0.02em">9</span>
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E"><span style="width: 8px; height: 8px; border-radius: 50%; background: #1C7D78; display: inline-block"></span>Other</span>
+      </a>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 24px 56px; align-items: flex-end; padding-top: 32px">
+      <div style="flex: 0 1 280px; display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E">Reports by year</span>
+        <span style="font-size: 15px; line-height: 1.5; color: #5E5E5E; text-wrap: pretty">2024 is the Pacific Crest Trail: one journal, Mexico to Canada, counted once.</span>
+      </div>
+      <div style="flex: 1 1 420px; display: flex; align-items: flex-end; gap: 16px; height: 150px">
+        <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; height: 100%"><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px">35</span><span style="width: 100%; max-width: 56px; height: 58px; background: #111111"></span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; color: #5E5E5E">2021</span></div>
+        <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; height: 100%"><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px">21</span><span style="width: 100%; max-width: 56px; height: 35px; background: #111111"></span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; color: #5E5E5E">2022</span></div>
+        <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; height: 100%"><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px">12</span><span style="width: 100%; max-width: 56px; height: 20px; background: #111111"></span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; color: #5E5E5E">2023</span></div>
+        <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; height: 100%"><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px">5</span><span style="width: 100%; max-width: 56px; height: 8px; background: #111111"></span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; color: #5E5E5E">2024</span></div>
+        <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; height: 100%"><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px">36</span><span style="width: 100%; max-width: 56px; height: 60px; background: #111111"></span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; color: #5E5E5E">2025</span></div>
+        <div style="flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; height: 100%"><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px">58</span><span style="width: 100%; max-width: 56px; height: 96px; background: #111111"></span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.06em; color: #111111">2026</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="width: 100%; max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 72px 40px 0; display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch">
+    <a href="#" style="flex: 2 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <span style="display: block; aspect-ratio: 3 / 2; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/pacific-crest-trail-2024/photos/d059-01.webp" alt="Pacific Crest Trail 2024, cover photo" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+      <span style="display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap">
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">01 · JOURNAL</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 40px; line-height: 1.05; letter-spacing: -0.015em">Pacific Crest Trail 2024</span>
+      </span>
+      <span style="font-size: 16px; line-height: 1.5; color: #5E5E5E">Mexico to Canada, April 22 – September 21, 2024. The journal, day by day.</span>
+    </a>
+    <div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 32px">
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+        <span style="display: block; aspect-ratio: 3 / 2; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/peak-bagging-szn/photos/04.webp" alt="PEAK BAGGING SZN, cover photo" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">02 · HIKING · SEP 20, 2026</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; line-height: 1.05; letter-spacing: -0.01em">PEAK BAGGING SZN</span>
+        <span style="font-size: 15px; line-height: 1.5; color: #5E5E5E">Lake Tahoe · 19.9 mi · 7,546 ft · 9:55 moving</span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+        <span style="display: block; aspect-ratio: 3 / 2; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/dunderberg-peak-and-black-mountain/photos/01.webp" alt="South Gully of Dunderberg Peak and East Face of Black Mountain, cover photo" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">03 · BACKCOUNTRY SKIING · MAR 28, 2026</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; line-height: 1.05; letter-spacing: -0.01em">South Gully of Dunderberg Peak &amp; East Face of Black Mountain</span>
+        <span style="font-size: 15px; line-height: 1.5; color: #5E5E5E">Virginia Lakes, Eastern Sierra · 7.4 mi · 4,734 ft · 4:19 moving</span>
+      </a>
+    </div>
+  </section>
+
+  <section style="width: 100%; max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 96px 40px 0; display: flex; flex-direction: column; gap: 0">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid #111111">
+      <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 44px; line-height: 1; letter-spacing: -0.015em">Recent written reports</h2>
+      <a href="#" style="display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase">All 167 reports →</a>
+    </div>
+    <a href="#" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; padding: 22px 0; border-bottom: 1px solid #E6E6E6">
+      <span style="flex: 0 0 132px; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/peak-bagging-szn/photos/04.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+      <span style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">SEP 20, 2026 · HIKING</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1.05; letter-spacing: -0.01em">PEAK BAGGING SZN</span>
+        <span style="font-size: 15px; color: #5E5E5E">Lake Tahoe · 4 photos</span>
+      </span>
+      <span style="flex: 0 1 260px; display: flex; gap: 24px; justify-content: flex-end; font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 14px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums"><span>19.9 <span style="color: #5E5E5E">mi</span></span><span>7,546 <span style="color: #5E5E5E">ft</span></span><span>9:55</span></span>
+    </a>
+    <a href="#" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; padding: 22px 0; border-bottom: 1px solid #E6E6E6">
+      <span style="flex: 0 0 132px; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/tahoe-mountain-loop/photos/01.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+      <span style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">SEP 15, 2026 · MOUNTAIN BIKING</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1.05; letter-spacing: -0.01em">Tahoe Mountain Loop</span>
+        <span style="font-size: 15px; color: #5E5E5E">Lake Tahoe · 2 photos</span>
+      </span>
+      <span style="flex: 0 1 260px; display: flex; gap: 24px; justify-content: flex-end; font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 14px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums"><span>14.7 <span style="color: #5E5E5E">mi</span></span><span>2,054 <span style="color: #5E5E5E">ft</span></span><span>1:51</span></span>
+    </a>
+    <a href="#" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; padding: 22px 0; border-bottom: 1px solid #E6E6E6">
+      <span style="flex: 0 0 132px; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/slow-tallac-lap-after-work/photos/01.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+      <span style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">AUG 26, 2026 · HIKING</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1.05; letter-spacing: -0.01em">Slow Tallac lap after work</span>
+        <span style="font-size: 15px; color: #5E5E5E">Lake Tahoe · 6 photos</span>
+      </span>
+      <span style="flex: 0 1 260px; display: flex; gap: 24px; justify-content: flex-end; font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 14px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums"><span>10.0 <span style="color: #5E5E5E">mi</span></span><span>3,304 <span style="color: #5E5E5E">ft</span></span><span>3:52</span></span>
+    </a>
+    <a href="#" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; padding: 22px 0; border-bottom: 1px solid #E6E6E6">
+      <span style="flex: 0 0 132px; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/lovers-leap-pop-bottle-surrealistic-pillar/photos/01.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+      <span style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">MAY 25, 2026 · CLIMBING</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1.05; letter-spacing: -0.01em">Lover's Leap: Pop Bottle &amp; Surrealistic Pillar</span>
+        <span style="font-size: 15px; color: #5E5E5E">Lake Tahoe · 3 photos</span>
+      </span>
+      <span style="flex: 0 1 260px; display: flex; gap: 24px; justify-content: flex-end; font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 14px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums"><span>4.4 <span style="color: #5E5E5E">mi</span></span><span>925 <span style="color: #5E5E5E">ft</span></span><span>2:16</span></span>
+    </a>
+    <a href="#" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; padding: 22px 0; border-bottom: 1px solid #E6E6E6">
+      <span style="flex: 0 0 132px; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: #F2F2F2"><img src="https://esichak.github.io/personal-website/trips/mount-wood/photos/01.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+      <span style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 12px; letter-spacing: 0.1em; color: #5E5E5E">MAR 14, 2026 · BACKCOUNTRY SKIING</span>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1.05; letter-spacing: -0.01em">Mount Wood</span>
+        <span style="font-size: 15px; color: #5E5E5E">June Lake Loop, Eastern Sierra · 9 photos</span>
+      </span>
+      <span style="flex: 0 1 260px; display: flex; gap: 24px; justify-content: flex-end; font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 14px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums"><span>11.8 <span style="color: #5E5E5E">mi</span></span><span>6,099 <span style="color: #5E5E5E">ft</span></span><span>5:52</span></span>
+    </a>
+  </section>
+
+  <section style="width: 100%; max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 96px 40px 0; display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+      <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 44px; line-height: 1; letter-spacing: -0.015em">Where I've been</h2>
+      <a href="#" style="display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase">Open the map →</a>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 24px">
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+        <span style="display: block; aspect-ratio: 718 / 620; overflow: hidden; border: 1px solid #E6E6E6; background: #F7F7F5"><img src="https://esichak.github.io/personal-website/assets/maps/region-lake-tahoe-desktop.webp" alt="Lake Tahoe region map with every route drawn" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+        <span style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px"><span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; letter-spacing: -0.01em">Lake Tahoe</span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 13px; letter-spacing: 0.08em; color: #5E5E5E">86 REPORTS</span></span>
+      </a>
+      <a href="#" style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+        <span style="display: block; aspect-ratio: 718 / 620; overflow: hidden; border: 1px solid #E6E6E6; background: #F7F7F5"><img src="https://esichak.github.io/personal-website/assets/maps/region-eastern-sierra-desktop.webp" alt="Eastern Sierra region map with every route drawn" style="width: 100%; height: 100%; object-fit: cover; display: block"></span>
+        <span style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px"><span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; letter-spacing: -0.01em">Eastern Sierra</span><span style="font-family: 'IBM Plex Mono', Menlo, monospace; font-size: 13px; letter-spacing: 0.08em; color: #5E5E5E">7 REPORTS</span></span>
+      </a>
+    </div>
+    <p style="margin: 0; font-size: 14px; color: #5E5E5E">Also Santa Cruz (45), Boise, the Bay Area, the Alps, the Tetons, Oregon and Utah. Maps for illustration, not navigation.</p>
+  </section>
+
+  <footer style="margin-top: 96px; border-top: 1px solid #111111">
+    <div style="max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 28px 40px 48px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: baseline">
+      <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 26px">Eric Sichak</span>
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #5E5E5E">Based in Lake Tahoe · Avalanche training: AIARE 2 · GPS recordings via Strava</span>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
