@@ -57,5 +57,18 @@
   "cwebp": "1.5.0",
   "date": "2026-10-25",
   "osm": "fetched"
+ },
+ "terrain": {
+  "gain_m": 2716,
+  "loss_m": 2417,
+  "high_m": 3041,
+  "low_m": 1800,
+  "samples": 1741,
+  "method": "ticklist-terrain-1",
+  "source": "AWS Terrain Tiles",
+  "zoom": 13,
+  "step_m": 20.0,
+  "file_elevation": "none",
+  "date": "2026-10-26"
  }
 }
