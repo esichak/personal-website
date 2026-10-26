@@ -57,7 +57,9 @@
 }
 
 /* legend */
-.arc-legend { display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid var(--rule); }
+/* above the map's lines in paint order: a line that runs off the map has a box reaching over the legend (the review
+   gate of 2026-10-26; .reg-acts in region.css) */
+.arc-legend { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid var(--rule); }
 .arc-legend-c { display: flex; flex-wrap: wrap; gap: 12px 32px; }
 .arc-legend ul { display: flex; flex-direction: column; gap: 10px; }
 .arc-legend li { display: flex; align-items: center; gap: 10px; min-height: 20px; font: 400 14px/20px var(--sans); color: var(--ink); }

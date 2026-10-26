@@ -138,6 +138,12 @@ class SheetTests(unittest.TestCase):
         self.assertIn('  .sec-band-in { width: min(1400px, 100% - 2 * var(--m) + 40px); padding-inline: 20px; scroll-padding-inline: 20px; }',
                       self.css['section'])
 
+    def test_the_region_heads_links_and_the_legend_lie_above_the_maps_lines(self):
+        # the review gate of 2026-10-26: a map line that runs off the map (the journal's on Eastern Sierra) has a box
+        # reaching over the head's activity links and the legend, and a tester counted them covered (target-size)
+        self.assertIn('.reg-acts { position: relative; z-index: 1;', self.css['region'])
+        self.assertIn('.arc-legend { position: relative; z-index: 1;', self.css['archive'])
+
     def test_a_rows_tile_keeps_its_own_height(self):
         self.assertIn('.trow-tile { width: 160px; align-self: start; }', self.base)
 
