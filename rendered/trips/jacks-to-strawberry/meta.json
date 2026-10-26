@@ -1,8 +1,8 @@
 {
- "hash": "b5927db427111d46afb0fa8c1367a59b0ace51f8",
+ "hash": "0801adfc189b905dc3586f722812cd0872414df6",
  "inputs": {
-  "fields": "d910564bd9f79c6b1f4e3bdb32e9438cacdec752",
-  "files": "519e85332ba998bcba02b220ec27411c6bd89606",
+  "fields": "a80e641eb32aeb8fc31f4aca999ca5e37e9ff215",
+  "files": "77f8e26367f9493c846a96f3ef8b4233ef982f5a",
   "version": 8
  },
  "slug": "jacks-to-strawberry",
@@ -56,6 +56,6 @@
   "python": "3.9.6",
   "cwebp": "1.5.0",
   "date": "2026-10-26",
-  "osm": "fetched"
+  "osm": "cached"
  }
 }
