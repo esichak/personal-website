@@ -405,6 +405,19 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     own lines, and is left alone). In archive.css, `.arc-legend .disc { forced-color-adjust: none; }` keeps the Map
     legend's discs in their own colours: they are the key to the track colours on the maps, which that mode leaves
     alone.
+  - Reflow (WCAG 1.4.10): no page scrolls sideways at 320 px.
+    - A Mono-S meta item never breaks (`core.nb`; `.ml > .mi` is `white-space: nowrap`), so a phone's line must hold
+      the longest item. Free text that can be long, such as a place, goes in `.mi-w`, which wraps.
+    - Some elements are absolutely placed with neither a left nor a right: `.sr` and the other visually hidden words.
+      Such an element stands where its text would. A box that clips sideways (`overflow` hidden, auto, scroll or clip:
+      a title cut to one line with an ellipsis, a row that scrolls) clips it only when that box, or a box inside it,
+      is positioned. Otherwise the element's containing block lies outside the box and it widens the page.
+    - So a clipping box that can hold hidden words is `position: relative`, as the tab rows' scroller is
+      (`.tabs-x > [role="tablist"]`), and the title of a card in the explorer's phone list view (`.trx--list
+      .tcard-t`) is since 2026-10-26. Before that, the title let a repeated title's date (`core.trip_card`) stand 2 px
+      past the page's edge at 320 px.
+    - tests/test_a11y_static.py `ReflowTests` (R4, `escapes()`) holds this on every fixture page at six widths, the
+      explorers' list views included. `tools/reflow.py` (Checking your work) measures the built pages in Chrome.
 - Copy: tracks are "GPS recordings via <service>", the service from `content.stats_source` (Strava on every trip
   today) — never name a device (some tracks are Strava GPX exports). Map
   captions go through `core.map_caption` and open with when the track was recorded, from `core.recorded(a, b=None)`:
@@ -2122,11 +2135,11 @@ window's top left, where none is offscreen. `--dump-dom --virtual-time-budget=10
 once each frame has loaded, its fonts are in and its scripts have had 300 ms. `--hide-scrollbars` is needed: without
 it a 15 px scrollbar narrows every frame. An element is named only when no box on its chain of containing blocks clips
 it. An absolutely placed `.sr` span inside a scroll box that is not positioned gets out of that box and widens the page
-all the same, so the verdict is the page's `scrollWidth` and the names only help to find the cause. The text is
-measured in Chrome's metrics on the Mac. Safari, a real phone and a larger text size can differ by a few pixels, so a
-line that ends a few pixels inside the edge here is not proven safe there. `REFLOW_TESTS=1 python3 -m unittest
-discover -s tests -p test_reflow.py` runs the measuring script in Chrome on a page of each kind of fault, and on
-decoys that must pass.
+all the same (the explorer's list view did: Accessibility and copy, Reflow, above), so the verdict is the page's
+`scrollWidth` and the names only help to find the cause. The text is measured in Chrome's metrics on the Mac. Safari,
+a real phone and a larger text size can differ by a few pixels, so a line that ends a few pixels inside the edge here
+is not proven safe there. `REFLOW_TESTS=1 python3 -m unittest discover -s tests -p test_reflow.py` runs the measuring
+script in Chrome on a page of each kind of fault, and on decoys that must pass.
 
 render.py (Phase 6; tests/test_render_goals.py, with the drawing and fetching stubbed): `render_trip` and `render_site`
 draw into `<folder>.tmp-<pid>` (`render.drawing_into`; `t['rendered']` points there while the trip is drawn) and swap
@@ -2309,7 +2322,9 @@ What the test files cover:
 - The phone-width check (2026-10-26): `tests/test_reflow.py`, with Chrome replaced by a stand-in that fetches the page
   of frames from the real server (the frames and their widths, each verdict, a page not measured or not in the build,
   `--all` in batches, `--page`, `--width`, `--km`, `--no-js`, and node's parse of the measuring script); its
-  `ChromeTests` run the script in Chrome with `REFLOW_TESTS=1`.
+  `ChromeTests` run the script in Chrome with `REFLOW_TESTS=1`. R4 in `tests/test_a11y_static.py`: `escapes()`, read on
+  small pages by `ReaderTests` and held on every fixture page by `ReflowTests`; the explorer's list view with a
+  repeated title in `tests/test_trips_page.py`.
 
 ## Render caches
 

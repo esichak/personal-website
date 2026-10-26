@@ -4034,3 +4034,65 @@ from `eb8eb20`, one commit, `b3be7a9`, pushed to `main` on its own at Eric's wor
 - This paragraph is a later commit on `main`, pushed on its own at Eric's word ("update the log entry's 'Not done'
   bullet with run 40384514538's results, commit it, and push it to main"). The log is on `pages.yml`'s ignore list,
   so that push starts no run.
+
+## Phone-width check (2026-10-26)
+
+Asked for by the Training section's session. Its phase-5 previews of the unmerged `training-section` branch found four
+phone-width faults that no test had caught (fixed there in 6c97706), and nothing in the repository checked sideways
+scrolling. Work branch `claude/infallible-curie-44d105` from `b784bcd`, two commits: `e11179b` (the tool) and the fix
+below. Not pushed.
+
+- **The tool.** `tools/reflow.py`, beside smoke.py, which it shares a server with (`smoke.serve(site, handler)`; the
+  server now polls for shutdown every 50 ms and says nothing when Chrome hangs up mid-answer). It opens a page of each
+  kind, and the two explorers' list views, in headless Chrome at 320 and 375 px. A page fails when
+  `document.documentElement.scrollWidth` is larger than its `clientWidth`. The report names the outermost elements
+  past the right edge that no box clips: an element's box, its text, or its `::before` / `::after`. It also takes
+  `--all`, `--page`, `--width`, `--km` and `--no-js`. How it measures is in DEVELOPING.md, Checking your work.
+- **Tried on faults made on purpose first.** Scratch pages, now `ChromeTests` in tests/test_reflow.py
+  (`REFLOW_TESTS=1`), each held one fault:
+  - a nowrap meta item;
+  - an unbreakable word;
+  - a `.sr` span escaping a scroll box that is not positioned;
+  - a hit area 20 px past the edge.
+
+  Two decoys had to pass: a fixed box past the edge, and a table in its own scroll box. A further scratch page held a
+  box placed absolutely past the edge. The tool named every fault and passed both decoys.
+- **What it found on `main`.** The one fault was in the explorer's list view at 320 px (`trips/?view=list`, also with
+  `sort=longest`), which was 2 px too wide. Each card with a repeated title carries its date for screen readers in a
+  visually hidden `.sr` span, which is absolutely placed. Two such titles were just too long for the phone's one-line
+  title (`overflow: hidden`, an ellipsis). That box was not positioned, so it did not clip the span, and the date
+  stood past the cut and outside the page. Everything else fit:
+  - every page as it loads (`--all`, 365 pages) at 320 and 375 px;
+  - the default pages in kilometers, without scripts, and both;
+  - the default pages and the list views at 340, 360, 390, 414, 430, 500 and 559 px;
+  - the explorer searched, sorted, with no result, and searched in the list view.
+- **The fix**, one declaration in trips.css: `position: relative` on `.trx--list .tcard-t`, the phone list view's
+  title. Its clip now holds the date, as the tab rows' scroller already held their hidden words. Afterwards every
+  default page fits at 320 and 375 px, and both list views fit at 320, 340, 375, 414 and 559 px.
+- **The rule behind it**, R4 in tests/test_a11y_static.py. `escapes()` returns the box that clips an absolutely placed
+  element with no left or right but does not hold it. It treats a positioned, transformed or contained box as a
+  holder, and so a modal dialog (the browser positions it). The clip of a flex or grid container around its own child
+  does not count, since that child stands at the container's start. Before that last rule, the section band's live
+  region was a false alarm. `ReaderTests` reads it on small pages. `ReflowTests` holds it on every fixture page at six
+  widths, the two list views included (about 1 s). The fixture site has no repeated title, so
+  `test_a_repeated_titles_date_stays_inside_its_title_in_the_phones_list_view` in tests/test_trips_page.py builds one;
+  it fails without the fix (`<h3 class="tcard-t">` at 320 px). Read over the real build (a scratch script, not
+  committed), the rule found every one of the 32 hidden dates in the explorer's card titles escaping at every width
+  under 560 px without the fix, though Chrome saw only the two whose titles end just past the cut widen the page.
+  With the fix it found none, and nothing else on any of the 365 pages, at six widths, list views included.
+- **Checks actually run.**
+  - `python3 tools/check.py` before each commit: validate, the suite on `/usr/bin/python3` 3.9 and on `python3.12`
+    with `-W error`, and the linked build check. All passed both times: for `e11179b` in 141 s and 120 s for the two
+    suites, and for the fix in 153 s and 121 s.
+  - `tools/reflow.py` on a linked build of the fix: the 17 default pages fit at 320 and 375 px, in kilometers and
+    without scripts too, and `--all` fit (365 pages, 2 min 10 s).
+  - `REFLOW_TESTS=1` `ChromeTests` passed (3 s).
+- **Not covered, and open.**
+  - Chrome's text metrics on the Mac only: Safari, a real phone and a larger text size can differ by a few pixels.
+  - States that need a press are not opened: the explorer's Filters panel, the menu, the photo viewer. The menu and the
+    viewer are fixed boxes, which cannot widen the page.
+  - The Training pages are not on `main`. Their faults are fixed on their branch; once it is merged, run
+    `tools/reflow.py --page training/`. The sealed body page shows its tables only after the passphrase, so the tool
+    sees only its locked form there; check that page on a plaintext preview, as the Training session did.
+  - Whether `tools/check.py` should run the reflow pass when Chrome is installed: Eric's call. It would add about 15 s
+    and a browser to a check that is deterministic today.

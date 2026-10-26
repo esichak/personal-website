@@ -115,10 +115,12 @@
 /* phones: List is the scan view (Cards is the photo view): a 64 px thumbnail or route drawing (4:3, as on the cards),
    the date line, the title on one line and the stats line; no excerpt, chip or tags; about 72 px a row, the text
    setting the height. Modelled on the Map page's table rows (base.css .rtab-r: a 64 px glyph, 72 px), not on
-   base.css's unused .rtab--compact */
+   base.css's unused .rtab--compact. The title is positioned so that its clip holds the date a repeated title carries
+   for readers (core.trip_card's .sr, absolute): without it the date stood past the cut, beyond the page's right edge */
 @media (max-width: 559.98px) {
   .trx--list .tcard { grid-template-columns: 64px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 6px 0; }
-  .trx--list .tcard-t { margin-top: 2px; font: 500 16px/20px var(--sans); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trx--list .tcard-t { position: relative; margin-top: 2px; font: 500 16px/20px var(--sans); letter-spacing: 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
   .trx--list .tcard-act { margin-top: 2px; }
   .trx--list .tcard-act > :not(.tcard-ps), .trx--list .tcard-ex, .trx--list .tcard-exl { display: none; }
 }

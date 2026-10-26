@@ -1167,6 +1167,23 @@ class Phase7PageTests(ExplorerFixture):
         # a title on one card alone has no such span
         self.assertIsNone(doc.find('li', attrs={'data-slug': 'west-couloir'}).find('h3').find('span', cls='sr'))
 
+    def test_a_repeated_titles_date_stays_inside_its_title_in_the_phones_list_view(self):
+        # tools/reflow.py, 2026-10-26: a phone's list view cuts a title to one line with an ellipsis (overflow: hidden),
+        # and the date after a repeated title, absolutely placed, stood past the cut and widened trips/?view=list by
+        # 2 px at 320 px. The title box is positioned, so it holds the date and clips it with the title
+        a11y = importlib.import_module('test_a11y_static')
+        helpers.make_trip(self.tmp, 'basin-loop-2', title='Basin Loop', activity='hike', date='2023-09-09', region='Eastern Sierra',
+                          track=True)
+        html_ = self.build(helpers.make_site(helpers.load_dir(self.tmp)))['trips/'].html
+        doc = Doc(html_.replace('<html lang="en">', '<html lang="en" class="js">', 1))
+        doc.by_id('trx-results').attrs['class'] += ' trx--list'             # what trips.js does for ?view=list
+        title = doc.find('li', attrs={'data-slug': 'basin-loop'}).find('h3')
+        rules = a11y.published_rules()[0]
+        for width in (320, 375, 559):
+            e = a11y.env(width, 700)
+            self.assertEqual(a11y.computed(title, 'overflow', rules, e), 'hidden')     # cut to one line
+            self.assertIsNone(a11y.escapes(title.find('span', cls='sr'), lambda n, p: a11y.computed(n, p, rules, e)), width)
+
 
 if __name__ == '__main__':
     unittest.main()

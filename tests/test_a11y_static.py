@@ -51,6 +51,10 @@ What is checked, and how far a static check can go:
                                          the map does not draw leaves it alone; archive.js scrolls the 'Show fewer'
                                          button into view when its list closes, and only then, and opening a list
                                          still focuses the first row it reveals
+  R4  sideways scrolling                 no absolutely placed element without a left or a right (the .sr words) gets
+      (tools/reflow.py, 2026-10-26)      out past a box that clips it: a positioned box at or inside every such box
+                                         holds it (escapes()), on every fixture page at six widths, the explorers'
+                                         list views included
 
 The CSS side uses a small reader written for this file (parse_css, matches, computed): selector -> declarations with
 the rules inside @media blocks, a selector matcher over the helpers.Doc tree, specificity and source order, and media
@@ -610,6 +614,45 @@ def displayed(node, rules, e):
     """False when the element or one of its ancestors has display: none: it is not rendered, cannot be focused and is
     not read out."""
     return hidden_by(node, rules, e) is None
+
+
+INSETS = ('left', 'right', 'inset', 'inset-inline', 'inset-inline-start', 'inset-inline-end')
+CLIPS = ('hidden', 'auto', 'scroll', 'clip')
+
+
+def clips_sideways(box, value):
+    """True when the box's overflow clips sideways: overflow-x (the shorthand's first value) is not visible, or it is
+    visible beside a y that scrolls, which makes it auto (CSS Overflow 3). visible beside clip stays visible."""
+    both = (value(box, 'overflow') or '').split()
+    x = value(box, 'overflow-x') or (both[0] if both else 'visible')
+    y = value(box, 'overflow-y') or (both[-1] if both else 'visible')
+    return x in CLIPS or (x == 'visible' and y in ('hidden', 'auto', 'scroll'))
+
+
+def escapes(node, value):
+    """R4: the box that clips sideways and still lets the element out past its edge, or None. value(element, prop) is
+    the declared value of prop for an element (computed() in one environment).
+
+    An absolutely placed element with neither a left nor a right stands where its text would (its static position),
+    but a box's overflow clips only the boxes whose chain of containing blocks passes through it (CSS 2.1, 11.1.1).
+    With no positioned box at or inside the box that clips, the element's containing block lies outside that box, and
+    words hidden after a title cut short with an ellipsis stand past the page's right edge and widen the page
+    (tools/reflow.py). Out of the question: an element inside a modal dialog (the browser positions it), a box that is
+    transformed or contained (a containing block too), and the clip of a flex or grid container around its own child,
+    which stands at the container's start whatever the container holds."""
+    if value(node, 'position') != 'absolute' or any(value(node, p) not in (None, 'auto') for p in INSETS):
+        return None
+    box = node.parent
+    start = box if re.search(r'\b(?:flex|grid)\b', value(box, 'display') or '') else None
+    while box is not None and box.tag not in ('#root', 'html', 'body'):
+        if (box.tag == 'dialog' or value(box, 'position') not in (None, 'static') or value(box, 'transform') not in (None, 'none')
+                or value(box, 'container-type') not in (None, 'normal')
+                or re.search(r'\b(?:paint|layout|strict|content)\b', value(box, 'contain') or '')):
+            return None
+        if box is not start and clips_sideways(box, value):
+            return box
+        box = box.parent
+    return None
 
 
 def _edges(value):
@@ -1297,6 +1340,40 @@ class ReaderTests(unittest.TestCase):
         self.assertIsNone(hidden_by(s, rules, env()))
         self.assertFalse(displayed(m, rules, env()))                           # the hidden attribute, with no rule against it
         self.assertTrue(displayed(m, parse_css('.menu { display: grid; }')[0], env()))
+
+    def test_escapes_finds_the_box_that_clips_an_absolute_element_without_holding_it(self):
+        d = self.doc('<div class="pos"><div class="clip"><a class="t">A title<span class="sr">, May 1</span></a></div></div>'
+                     '<div class="row"><span class="sr" id="row-sr">x</span></div>'
+                     '<div class="outer"><div class="row2"><span class="sr" id="deep-sr">y</span></div></div>'
+                     '<dialog class="lb"><p class="sr" id="lb-sr">z</p></dialog>')
+        sr, clip = d.find('a', cls='t').find('span', cls='sr'), d.find('div', cls='clip')
+
+        def esc(node, css, e=None):
+            rules = parse_css('.sr { position: absolute !important; overflow: hidden; } .pos { position: relative; } ' + css)[0]
+            return escapes(node, lambda n, p: computed(n, p, rules, e or env()))
+
+        self.assertIs(esc(sr, '.clip { white-space: nowrap; overflow: hidden; }'), clip)     # held by .pos, outside the clip
+        self.assertIs(esc(sr, '.clip { overflow-x: auto; }'), clip)
+        self.assertIs(esc(sr, '.clip { overflow: clip visible; }'), clip)
+        self.assertIs(esc(sr, '.clip { overflow: visible hidden; }'), clip)      # visible beside hidden is auto
+        self.assertIs(esc(sr, '.clip { overflow-y: scroll; }'), clip)
+        self.assertIsNone(esc(sr, '.clip { overflow: visible clip; }'))          # clipped above and below only
+        self.assertIsNone(esc(sr, '.clip { overflow: hidden; position: relative; }'))       # the box that clips holds it
+        self.assertIsNone(esc(sr, '.clip { overflow: hidden; } .t { position: relative; }'))  # a box inside the clip does
+        self.assertIsNone(esc(sr, '.clip { overflow: hidden; transform: translateX(0); }'))
+        self.assertIsNone(esc(sr, '.clip { overflow: hidden; contain: paint; }'))
+        self.assertIsNone(esc(sr, '.clip { overflow: hidden; } .sr { left: 0; }'))           # placed by its inset, not its text
+        self.assertIsNone(esc(sr, '.clip { overflow: visible; }'))
+        self.assertIsNone(esc(sr, ''))
+        clip_phone = '@media (max-width: 559.98px) { .clip { overflow: hidden; } }'
+        self.assertIs(esc(sr, clip_phone, env(320)), clip)
+        self.assertIsNone(esc(sr, clip_phone, env(800)))
+        # a flex container's own child stands at its start; a box around the container still counts
+        row, deep, outer = d.by_id('row-sr'), d.by_id('deep-sr'), d.find('div', cls='outer')
+        self.assertIsNone(esc(row, '.row { display: flex; overflow-x: auto; }'))
+        self.assertIs(esc(row, '.row { display: block; overflow-x: auto; }'), d.find('div', cls='row'))
+        self.assertIs(esc(deep, '.row2 { display: flex; } .outer { overflow-x: auto; }'), outer)
+        self.assertIsNone(esc(d.by_id('lb-sr'), '.lb { overflow: hidden; }'))                # the browser places a modal dialog
 
     def test_least_sizes(self):
         d = self.doc('<div class="v"><button class="k">A</button></div><a class="c">B</a><a class="m">C</a>')
@@ -2088,6 +2165,54 @@ class PageTests(SiteFixture):
                         while a is not None:
                             self.assertNotEqual(a['aria-hidden'], 'true', '%r can be tabbed to inside aria-hidden %r' % (node, a))
                             a = a.parent
+
+
+# ---------------------------------------------------------------- R4: nothing widens a phone's page (tools/reflow.py)
+
+class ReflowTests(SiteFixture):
+    """No page scrolls sideways at 320 px (WCAG 1.4.10). tools/reflow.py measures that in Chrome, by hand, on the real
+    site; this holds the one cause a static reading can see, on every fixture page at every width: an absolutely placed
+    element (visually hidden words) let out past the box that clips it (escapes()). The explorers' list views are
+    their scripts' (trips.js and ticklist.js put trx--list on the results), so those two pages are read with it too."""
+
+    LISTS = {'trips/': 'trx-results', 'tick-list/': 'tkl-results'}
+
+    def docs(self):
+        for url in sorted(self.pages):
+            yield url, page_doc(url)
+            if url in self.LISTS:
+                doc = Doc(self.pages[url].replace('<html lang="en">', '<html lang="en" class="js">', 1))
+                doc.by_id(self.LISTS[url]).attrs['class'] += ' trx--list'
+                yield url + ' in the list view', doc
+
+    def test_no_absolutely_placed_element_escapes_a_box_that_clips_it(self):
+        # the elements that some rule places absolutely: the subject compound of each such rule, as (tag, classes)
+        subjects = set()
+        for r in self.rules.declaring('position'):
+            last = r.parts[-1][1] if r.parts is not None else [('pe', '')]
+            if r.decls['position'][0] == 'absolute' and not any(s[0] == 'pe' for s in last):
+                subjects.add((next((s[1] for s in last if s[0] == 'tag' and s[1] != '*'), None),
+                              frozenset(s[1] for s in last if s[0] == 'cls')))
+        found, checked = [], 0
+        for url, doc in self.docs():
+            elements = [n for n in doc.root.walk() if any(tag in (None, n.tag) and cls <= set(n.classes) for tag, cls in subjects)]
+            mine = {}       # the rules that match an element, read once for every width
+
+            def value(n, prop):
+                key = (id(n), prop)
+                if key not in mine:
+                    mine[key] = [r for r in self.rules.declaring(prop) if r.parts is not None and matches(n, r.parts)]
+                r = winner(n, prop, mine[key], e)
+                return r.decls[prop][0] if r else None
+            for width in (320, 375) + WIDTHS[2:]:
+                e = env(width, 700)
+                for n in elements:
+                    box = escapes(n, value)
+                    checked += value(n, 'position') == 'absolute'
+                    if box is not None and displayed(n, self.rules, e):
+                        found.append('%s at %d px: %r gets out of %r' % (url or 'home', width, n, box))
+        self.assertEqual(found, [])
+        self.assertGreater(checked, 1000)       # a check that finds nothing to check passes nothing
 
 
 # ---------------------------------------------------------------- section pages: the filter band's role (section.js)
