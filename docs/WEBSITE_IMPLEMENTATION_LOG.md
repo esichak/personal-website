@@ -3479,3 +3479,164 @@ audits).
   The Storage budget's 1200 px copy for cover and lead photos ("only once a 3x phone shows the 800 px copy visibly
   short") is the remedy if a real phone shows it soft; nothing was added here.
 - **Carried:** the fonts' go-ahead (Phase 16), and everything listed there.
+
+## Phase 18 - Report pages (2026-10-25)
+
+Phase 18 of `docs/redesign-c/PROMPT.md`, built on branch `redesign-18-reports` from `redesign-17-home` at `7f45b59`, in
+the same session as Phases 16 and 17. One commit, 'Phase 18: Report pages', with the code, the tests, the docs and this
+entry. Nothing pushed, merged or rendered.
+
+### Author inputs
+
+- **Decision 2, the lead paragraph:** not answered; the default stands. The first paragraph of a write-up is set in
+  `t-lede` (the serif, 26 / 28 / 32 px). A write-up of one paragraph, such as the Matterhorn report's, is all lead.
+- **Interface copy to read:** the head's line, `Sat, Jan 17, 2026 · Sawtooth Ridge, Eastern Sierra · with Adam` (the
+  date in the long form the site already writes, the place and region as written, `with` and the party); a goal's
+  line gives `≈ 17.4 mi` where its strip does not. No other words are new; the Beta labels and the full-screen bar are
+  set in capitals by the sheet, not in the text.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `tools/sitegen/pages/report.py` | `head_line` (the sans line), `head_parts`, `title_block` in the new order (crumbs, title, line, chips, ask, actions), `hero_head` (the same parts over the lead photo), `hero(..., full=True)`, `date_slot(caps=False)`, `lead_paragraph`; `page` uses `hero_head` where it showed `hero` after the title block. |
+| `tools/sitegen/pages/multiday.py` | The overview's head is `hero_head` with a landscape cover, else `title_block`; its write-up leads with `lead_paragraph`. |
+| `tools/sitegen/core.py` | `REL_SIZES` for 'More like this', whose photos are 4:5 from 560 px (two across, three from 760). |
+| `assets/css/pages/report.css` | The head on white and over the photo (the frame, the band, the caption, the crumbs' 24 px boxes), the map in the 1360 column from 1200 px, the Beta and season lists, 4:5 'More like this' cards. |
+| `assets/css/pages/multiday.css` | The day bar as underline tabs in mono 12 px capitals, the day titles and numbers in the serif (smaller in the stuck rail and in a short window), the sparklines in ink. |
+| `assets/css/pages/home.css` | The home hero's band shallower under 700 px of height, as a report's. |
+| `assets/css/base.css` | The full-screen map page's bar in the sans at 12 px, capitals, on white. |
+| `assets/css/print.css` | A head over a photo prints as the title in ink on white with the photo under it. |
+| `docs/DEVELOPING.md`, `docs/CONTENT_GUIDE.md` | The head's parts and both forms, the lead paragraph, `REL_SIZES`; the order of a story page and the lead photo's crops as an author sees them. |
+| `tests/test_report_page.py`, `test_related.py`, `test_a11y_static.py` | The head's new order (the lead photo inside the head, the backlink under it), the caption under the frame, `hero(full=True)`, the write-up's lead, `REL_SIZES`, the crumbs on a photo. |
+| `tests/test_phase18.py` | New: the line, the lead paragraph, both heads, the multi-day head and lead, the sheets' rules (frame, band, Beta, cards, bar, print, day bar, sparklines). |
+
+### Behaviour
+
+- **A report whose cover is at least 6:5 wide** opens with the photo across the page, 500 px tall on a phone (less on
+  a short one, so the line stays above the bottom bar) and 72 % of the window's height (at most 820 px) from 760 px.
+  The crumbs, the title and the line sit over its foot on a dark band of their own; the caption, when the photo has
+  one, follows under the photo; then the chip, the route-shape and status tags, 'Ask about this trip' and the actions
+  on white. The photo still opens the viewer.
+- **Every other report, and every goal,** has the same parts on white: the crumbs, the title, the line, the chips, the
+  ask, the actions at the right from 1000 px.
+- **The write-up's first paragraph** is the lead (decision 2); the words are those of `markdown.to_html`, byte for
+  byte.
+- **From 1200 px the map** sits in the page's 1360 px column, framed by its hairline, rather than across the window.
+- **The Beta list** is a 110 px column of capital labels beside the values in the sans at 16 px, a hairline under each
+  row (a goal's season list too).
+- **More like this** shows its cards as 4:5 photos with 22 px serif titles from 560 px: three across from 760 px, two
+  at 560 to 759 px; phones keep all three with the thumbnail beside the words.
+- **The full-screen map page's bar** is in the sans at 12 px, capitals, on white.
+- **Multi-day pages** open like a report (the Haute Route over its landscape cover). The day bar is a row of underline
+  tabs in mono 12 px capitals on white, the current day with its 2 px ink bar; each day's number and title are in the
+  serif; the sparklines are drawn in ink.
+- **Printed,** a report with a lead photo shows the title and line in ink, then the photo, then the strip, as before.
+- **Unchanged:** every id, anchor, fragment link, `<h1>`, JSON-LD block and `.prose` text on the 363 pages compared
+  (below); the order of the sections; the bottom bar; the empty-map box and the `Track only` wording.
+
+### Where the work departs from the prompt
+
+- **The day titles** are 26 px on a phone, 30 px at 760 to 999 px and 26 px in the stuck rail from 1000 px (22 px under
+  720 px of height), rather than `t-h2`: in the rail (about 300 px wide) a 44 px title took four lines, and the rail's
+  GPX button has to stay in view down to 620 px of height (gap2-03).
+- **The lead paragraph** is on single-day reports and a multi-day trip's overview write-up, not on each day's write-up
+  (a day continues the trip's write-up; the journal's days wait for Phase 19).
+- **More like this** keeps its three cards. The spec's "two 4:5 photo cards" holds at 560 to 759 px, where the third is
+  left out (a lone card under two left a hole); from 760 px all three stand in one row, and phones list all three.
+- **A new `sizes` string**, against section 2.7, which freezes them: `REL_SIZES` declares each 4:5 slot's width times
+  1.67, what a 4:3 cover takes to fill it (730 px from 1200, a third of the row from 760, half of it below). With the
+  frozen `RELATED_SIZES` a 2x screen would stretch the 800 px copy about 1.7 times. Phones keep the 112 px thumbnail
+  and its `.th` source; the region pages keep `RELATED_SIZES`. Yours to undo if 2.7 should win.
+- **The words over the photo** have a band of their own (0.68 where the words start, 0.78 at the foot), as on the home
+  hero, rather than the photo's scrim alone; the white crumbs, title and line keep 7.4:1 on the brightest pixel under
+  them.
+- **The crumbs over the photo** are 24 px boxes (4 px above and below their line, taken back by margins): they lie over
+  the photo's link, and Lighthouse's target-size audit found no free space round a 16 px line there (97 on desktop
+  until this).
+- **The actions** are today's (`View route` to `#map` or `Read the report`, `Download GPX` filled, `Copy link`), as
+  the spec's "as today" allows; there is no separate `Open the map` button.
+- **The bottom bar's labels** stay at 12 px (the spec says 10): 12 px is the floor Phase 16 set for capitals.
+- **A place that is its region** is said once in the line (`Lake Tahoe`, not `Lake Tahoe, Lake Tahoe`); no trip has
+  that today.
+- **The photo's caption** is a paragraph under the frame, not a figcaption, since the photo fills the frame.
+
+### Review
+
+An independent read-only review ran on a fresh build of the change. It compared all 168 trip pages with the before build:
+the facts of the new line, the chips, the crumbs, the h1s, the JSON-LD, the ids, the anchors and the write-ups. It also
+measured the pages in a browser. It found no fact lost or invented, no sideways scroll at 320 to 1440 px, the tab order
+words first, then photo, then chips and actions, and the viewer still opening from the photo. It reported these
+defects, all fixed in the commit and measured again:
+
+- **The multi-day rail's GPX button.** The serif day title made the stuck rail taller. At 1000 to 1440 × 620, five of
+  the Haute Route's six "Day N GPX" buttons ended below the window, which the short-window rule (gap2-03) promises not
+  to do. The rail's title is now 26 px from 1000 px and 22 px under 720 px of height. The buttons end at 611 px at most
+  at 620 px high (613 before the change), and 709 at 1440 × 720.
+- **The photo's focus ring.** It was drawn under the words' band, so its white turned grey along the foot (about
+  1.4:1). The ring now lies over the band and lets presses through. Sampled at 1440 px, it is pure white on all four
+  sides, with its ink edges.
+- **The hero on short windows.** On a landscape phone (844 × 390) the line fell below the fold. On a 320 × 568 phone the
+  bottom bar covered it. At 1024 × 600, only 47 to 120 px of photo showed above the band. A phone's frame now ends
+  above the bottom bar, and under 700 px of height the band's fade is 64 px. On a landscape phone the title is 40 px.
+  The line is now on the first screen at 844 × 390, 320 × 568 (above the bar), 1024 × 600, 1440 × 700 and 390 × 844.
+  The photo shows 155 px above the band at 1024 × 600 and 199 px at 1440 × 700. The home hero's band follows the same
+  rule.
+- **More like this from 560 to 1199 px.** Three 4:5 cards in two columns left the third alone on a second row. They are
+  three across from 760 px, and two at 560 to 759 px, where the third is left out. `REL_SIZES` follows (730 px from
+  1200, a third of the row from 760, half below), which is a new `sizes` string where section 2.7 freezes them (above).
+- **A dead selector.** `.rep-hero + .rep-strip` no longer matched, so the strip after a head over a photo lost its
+  spacing. It is `.rep-title--hero ~ .rep-strip` now.
+- **Stale words.** The multi-day module's docstring, `beta_list`'s docstring, and DEVELOPING.md on where 'Ask about this
+  trip' sits and where a report's region link comes from were out of date. So were both guides on the frame's height
+  (it grows in a short window) and CONTENT_GUIDE's "taller than it is wide" (not so at 560 to 759 px). All are
+  corrected.
+
+Left as they are:
+
+- **Pressing the band.** A press on the title or the line opens the viewer, as the photo's link lies under them, and
+  the title cannot be selected with a mouse.
+- **The phone's copy of the photo.** It is drawn larger than before (below).
+- **The caption.** It is a paragraph under the frame rather than the figure's caption; no published cover has one.
+- **A long Beta value.** One unbroken word of 220 px could scroll at 320 px, as before the change; no content does.
+- **The day titles' size.** 26 / 30 px rather than `t-h2`; above.
+
+The review also found the served build one print rule behind the tree. Every check below ran on a build of the
+committed tree.
+
+### Checks actually run
+
+| Check | Result (build or tree it ran on) |
+| --- | --- |
+| Both Pythons, `-W error` | 3,275 tests OK on 3.9.6 (125.1 s) and 3.12.11 (109.8 s), 12 skipped, no warning printed, on the tree as committed |
+| Node harnesses (in the suite, Node 25.8.2) | trips, ticklist, series, maplist, profile and viewer: passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without a goal.json), 346 notes |
+| Before (`7f45b59`) and after builds compared (a scratch script) | 363 pages each, none gone or new. Ids, fragment links, H1s, JSON-LD and `.prose` text are identical on every page. `<main>` text differs on the 168 trip pages, and a word count shows what went: on each, one copy of the date (the old head wrote it twice, one copy hidden at every width) and nothing else |
+| Hero contrast (headless Chrome, the words hidden, the pixels behind each line) | the Matterhorn report, the photo-only Tallac report and the Haute Route at 390, 1024 and 1440 px: worst pixel 7.4:1 or more for the crumbs, the title and the line |
+| Replays (headless Chrome, real clicks, key presses and touches; the same script on both builds, 1440, 1024 and 390 px) | 24 steps a width: the explorer (search, a facet, the sort by type-ahead, the view switch, zero results, Clear, Back and Forward), the header search from a report, the 404's search, the tick list's filter, the journal (a month tab, the write-ups filter, the first written entry, Back, Continue reading), map/'s cluster and legend, a region page's pin, the units switch. No console error or exception on either build. 65 of 72 outcomes agree; the other 7 are the script's typing steps on trips/, which raced the page's start and failed on one build or the other, both ways. The phone's header search step failed on both (the script missed the menu's box; fixed for Phase 19) |
+| Short windows (headless Chrome) | the hero's line on the first screen at 844 × 390, 320 × 568 (above the bottom bar), 1024 × 600, 1440 × 700 and 390 × 844; the multi-day rail's last button inside the window at 1000, 1024, 1199 and 1440 × 620, 1024 × 700 and 1440 × 700, 720 and 900 |
+| Focus ring on the lead photo (keyboard Tab, a screenshot at 1440 × 900) | white on all four sides of the photo, over the words' band, with its ink edges |
+| Lighthouse 13 (Chrome DevTools) | the Matterhorn report, mobile and desktop: 100 in accessibility, best practices, SEO and agentic browsing (desktop was 97 until the crumbs over the photo became 24 px boxes); the Haute Route, desktop: 100 in all four |
+| Print preview (Chrome, headless print to PDF) | the Matterhorn report before and after: the title, its line, the photo, the strip, Beta, the write-up, the map and the chart, without the header, the buttons or the bottom bar; after the fix, the head prints in ink on white |
+| Width sweep (headless Chrome) | the nine captured pages at 1440, 1024 and 390 px: no sideways scroll, no console error |
+| Screen-reader proxy | `tests/test_phase13c.py` (in the suite): passed |
+| Contact sheet | `.cache/redesign/18/index.html`: the Matterhorn report, a portrait-cover report, a track-only report, a written-first report, a photo-only report, the Crystal Range goal, the full-screen map and the Haute Route at 1440, 1024 and 390 px, before and after; the print preview before and after |
+
+Not run: VoiceOver (the session cannot drive one; the static proxy above stands in); Safari, Firefox and a real phone;
+`tools/check.py` as one command (its parts ran one by one); Lighthouse on the before build's report (the Phase 16
+baseline was 100 on mobile).
+
+### Remaining issues and author inputs
+
+- **Yours:** decision 2 as it looks (the Matterhorn report's one paragraph is all lead); a look at
+  `.cache/redesign/18/index.html`; the interface copy above.
+- **The lead photo on a phone** fills a 390 × 500 frame, taller than wide, so a landscape cover loses its sides and the
+  focal point matters more (CONTENT_GUIDE section 7.3 says so). `HERO_SIZES` is frozen by section 2.7, so a phone still
+  takes the 800 px copy, now drawn about 667 px wide: on a 3x phone about 2.5 device pixels per photo pixel, against
+  about 1.5 in the old 4:3 frame. The remedy is the Storage budget's 1200 px copy for cover and lead photos, or a phone
+  part of `HERO_SIZES` that says the drawn width; yours to choose after a look on a real phone.
+- **The journal** shares `title_block`, so its head on white is in the new order already (crumbs, title, line,
+  chips, ask, actions); its lead photo is still the old framed figure under it, and its actions sit on a row of their
+  own. Phase 19 sets its hero.
+- **Carried:** the fonts' go-ahead (Phase 16), decision 1 (Phase 17), and everything listed there.

@@ -605,15 +605,19 @@ line), and the Overview's line counts them (`4 WRITE-UPS · 23 PHOTOS`). It also
 
 A written-first page has the same order without item 2.
 
-1. The title block. Its buttons are "View route" (jumps to the map), "Download GPX" and "Copy link" (7.6).
-2. The lead photo, with its caption when the photo has one. A cover narrower than 6:5 does not lead (7.3), and the
-   page then goes from the title block straight to the stats strip.
+1. The head: the breadcrumb, the title, and one line with the date, the place and region, and the party; under it the
+   activity chip and the route-shape tag, "Ask about this trip", and the buttons "View route" (jumps to the map),
+   "Download GPX" and "Copy link" (7.6).
+2. With a lead photo, the head is set over it: the photo across the page, with the breadcrumb, the title and the line
+   over its foot, and its caption, when it has one, under the photo; the chip and the buttons follow on white. A
+   cover narrower than 6:5 does not lead (7.3), and the head is on white.
 3. The stats strip.
 4. A row of section links in the order of the page: Report, Map, Elevation (Speed for flat water), Photos. Map is
    listed only when the trip has a track, Elevation only when its chart is drawn, and Photos only when the page has a
    Photos section. No link in the row is marked as the current section. The row is hidden on phones, where the bottom
    bar does the same job.
-5. The write-up under "Report", word for word, with the Beta block beside it.
+5. The write-up under "Report", word for word, with the Beta block beside it. Its first paragraph is set as the lead,
+   larger and in the serif; a write-up of one paragraph is all lead. The words are unchanged.
 6. The map with its key and caption (7.4), then the elevation profile (the speed chart for flat water).
 7. Photos: every photo except the lead.
 8. On phones only, "Copy link to this page" (7.6).
@@ -695,8 +699,10 @@ PCT (section 9).
   in `index.md` that is at least 6:5 wide, else the first that is at least as wide as tall, else the first photo. A
   square first photo therefore does not keep a later landscape from leading the page. It is the first file that fits,
   not a choice. On reports that matter, look at the photos and set `cover_photo`.
-- **One focal point, several crops.** The lead photo's frame is 4:3 on screens under 560 px wide and 3:2 from 560 px
-  (the 2:1 frame wide screens had until Phase 10 cut too much off most covers), and the card crops differ again. All of them are anchored on `cover_focal_x` /
+- **One focal point, several crops.** The lead photo fills a frame about 500 px tall on a phone, taller than it is
+  wide on most phones held upright, and 72 % of the window's height, at most 820 px, from 760 px wide (the title and
+  its line can make it taller in a short window), so a landscape cover loses its sides on a phone and some of its top
+  and foot on a wide screen. The card crops differ again. All of them are anchored on `cover_focal_x` /
   `cover_focal_y`. Look at the report at phone width and at desktop width in the preview before settling on the numbers.
 - **The lead photo is left out of the Photos grid.** The grid shows the other photos in their original order, and its
   heading counts only those: "6 PHOTOS" for a trip with seven. The lead photo and the grid open in the same viewer,

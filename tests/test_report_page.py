@@ -599,7 +599,11 @@ class LayoutTests(ReportFixture):
                 rep = self.main(slug).by_id('report')
                 self.assertEqual(rep.find('h2').text(), 'Report')
                 self.assertEqual(rep.find('h2')['id'], 'report-h')
-                self.assertIn('<div class="prose t-body">%s</div>' % markdown.to_html(self.by[slug]['body_md']), self.page(slug).html)
+                # Alpine (decision 2): the first <p> markdown wrote carries t-lede, and nothing else differs
+                raw = markdown.to_html(self.by[slug]['body_md'])
+                self.assertIn('<div class="prose t-body">%s</div>' % self.report.lead_paragraph(raw), self.page(slug).html)
+                self.assertEqual(self.report.lead_paragraph(raw).replace(' class="t-lede"', '', 1), raw)
+                self.assertEqual(rep.find('p')['class'], 't-lede')
                 self.assertEqual(self.main(slug).text().count('Second synthetic paragraph'), 1)
 
     def test_the_title_block_is_the_shared_one(self):
@@ -614,10 +618,10 @@ class LayoutTests(ReportFixture):
                                  ['Reports', 'Hiking', REGION])
 
     def test_the_tick_list_backlink_stays_under_the_title_block(self):
-        # section 2 (goal / multi-day paragraph): report.tick_backlink follows the title block, so on a story it sits
-        # above the lead photo
+        # section 2 (goal / multi-day paragraph): report.tick_backlink follows the head. Alpine (Phase 18): the lead photo
+        # is part of the head (report.hero_head), so on a story the backlink sits under the photo, above the strip
         seq = marks(self.main('syn-story'))
-        self.assertInOrder(seq, ['title', '.rep-tick', 'hero', 'stats'])
+        self.assertInOrder(seq, ['title', 'hero', '.rep-tick', 'stats'])
         self.assertNotIn('.rep-tick', marks(self.main('syn-one')))
 
     def test_the_stats_strip_is_unchanged(self):
@@ -922,16 +926,18 @@ class HeroTests(ReportFixture):
                 self.assertEqual(a['data-lb-group'], 'photos')
                 self.assertIs(a.parent, self.hero(slug))
 
-    def test_a_captioned_cover_gets_data_cap_and_a_figcaption(self):
-        # section 2.2: data-cap="<caption>" and <figcaption class="t-small"> when the cover photo has a caption
+    def test_a_captioned_cover_gets_data_cap_and_a_caption_under_the_photo(self):
+        # section 2.2: data-cap="<caption>" on the link when the cover photo has a caption. Alpine (Phase 18): the photo
+        # fills the head's frame, so its caption is a paragraph under the frame (p.rep-hero-cap), not a figcaption
         fig = self.hero('syn-story')
         self.assertEqual(fig.find('a')['data-cap'], CAPTION)
-        cap = fig.find('figcaption')
-        self.assertIsNotNone(cap)
-        self.assertEqual(cap.classes, ['t-small'])
+        self.assertIsNone(fig.find('figcaption'))
+        head = self.main('syn-story').find('section', cls='rep-title--hero')
+        cap = head.find('p', cls='rep-hero-cap')
+        self.assertEqual(cap.classes, ['wrap', 't-small', 'rep-hero-cap'])
         self.assertEqual(cap.text(), CAPTION)
-        self.assertIs(cap.parent, fig)
-        self.assertIsNone(fig.find('a').find('figcaption'))   # the caption is not inside the link
+        self.assertIs(cap.parent, head)
+        self.assertEqual(self.page("syn-story").html.count(core.esc(CAPTION)), 2)      # the link's data-cap and the caption
 
     def test_an_uncaptioned_cover_gets_neither(self):
         # section 2.2: the caption attribute and the figcaption only when the cover photo has a caption
@@ -940,6 +946,7 @@ class HeroTests(ReportFixture):
                 fig = self.hero(slug)
                 self.assertNotIn('data-cap', fig.find('a'))
                 self.assertIsNone(fig.find('figcaption'))
+                self.assertIsNone(self.main(slug).find('p', cls='rep-hero-cap'))
 
     def test_the_hero_keeps_the_covers_focal_point(self):
         # section 6: object-fit cover honours the focal point core.cover_img sets
@@ -956,16 +963,19 @@ class HeroTests(ReportFixture):
 
     def test_page_uses_report_hero(self):
         # sections 2.2 and 9: the figure on the page is report.hero(t, here), with photos_anchor=True when the lead photo
-        # is the report's only photo
+        # is the report's only photo. Alpine (Phase 18): full=True, inside the head's frame (report.hero_head)
         hero = need(self, self.report, 'hero')
         for slug in HERO:
             with self.subTest(slug):
                 try:
-                    html_ = hero(self.by[slug], self.here(slug), photos_anchor=slug in ONLY_HERO)
+                    html_ = hero(self.by[slug], self.here(slug), photos_anchor=slug in ONLY_HERO, full=True)
                 except TypeError as ex:
-                    self.fail('report.hero takes no photos_anchor= argument (contract section 9): %s' % ex)
-                self.assertTrue(html_.startswith('<figure class="rep-hero'))
+                    self.fail('report.hero takes no photos_anchor= or full= argument (contract section 9): %s' % ex)
+                self.assertTrue(html_.startswith('<figure class="rep-hero rep-hero--full" id="hero">'))
                 self.assertEqual(self.page(slug).html.count(html_), 1)
+                frame = self.main(slug).find('div', cls='rep-hero-frame')
+                self.assertIs(frame.parent, self.main(slug).find('section', cls='rep-title--hero'))
+                self.assertIs(self.hero(slug).parent, frame)
 
     def test_a_lone_lead_photo_keeps_the_photos_anchor(self):
         # section 9: no Photos section, but the hero figure starts with <span class="rep-anchor" id="photos"></span>, so
@@ -2027,10 +2037,10 @@ class MultiDayPageTests(ReportFixture):
         self.assertEqual(self.mpage.url, 'trips/syn-tour/')
 
     def test_tick_backlink_follows_the_title_block(self):
-        # section 2 (multi-day pages): report.tick_backlink follows the title block
+        # section 2 (multi-day pages): report.tick_backlink follows the head (Alpine: with the lead photo in it)
         seq = marks(self.mmain)
-        self.assertInOrder(seq, ['title', '.rep-tick', 'stats', 'map'])
-        self.assertEqual(seq[seq.index('title') + 1], '.rep-tick')
+        self.assertInOrder(seq, ['title', 'hero', '.rep-tick', 'stats', 'map'])
+        self.assertEqual(seq[seq.index('title') + 1:seq.index('title') + 3], ['hero', '.rep-tick'])
 
     def test_related_block_sits_before_the_pager(self):
         # section 2 (multi-day pages) / sections 3 and 10.3: the related block, built without the two reports of the
@@ -4200,8 +4210,13 @@ class CoverSrcsetTests(ReportFixture):
         self.assertEqual(cards['syn-rel-plain']['srcset'], ', '.join([base % 'syn-rel-plain' + '01.sm.webp 800w', base % 'syn-rel-plain' + '01.webp 1600w']))
         self.assertNotIn('srcset', cards['syn-rel-none'])
         sizes = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
-        self.assertEqual(need(self, core, 'RELATED_SIZES'), sizes)                 # the card strings are unchanged
-        self.assertEqual((cards['syn-rel-th']['sizes'], cards['syn-rel-plain']['sizes']), (sizes, sizes))
+        self.assertEqual(need(self, core, 'RELATED_SIZES'), sizes)                 # the region pages' card string is unchanged
+        # Alpine (Phase 18): 'More like this' has its own string, for its 4:5 photos, still ending with the phone slot
+        rel = ('(min-width: 1200px) 730px, (min-width: 760px) calc((100vw - 128px) * 0.56), '
+               '(min-width: 560px) calc((100vw - 56px) * 0.84), 112px')
+        self.assertEqual(need(self, core, 'REL_SIZES'), rel)
+        self.assertTrue(rel.endswith(', ' + core.CARD_PHONE_SLOT))
+        self.assertEqual((cards['syn-rel-th']['sizes'], cards['syn-rel-plain']['sizes']), (rel, rel))
         for slug, img in cards.items():
             self.assertEqual(img['src'], base % slug + '01.webp')                  # the fallback src is still the full file
             self.assertEqual(img['loading'], 'lazy')
@@ -4539,7 +4554,7 @@ class CardSourceTests(ReportFixture):
                         self.assertEqual(first, '../../%s%s' % (t['url'], t['cover']['photo']['th']))
                         self.assertTrue(os.path.isfile(os.path.join(self.tmp, t['slug'], t['cover']['photo']['th'])))
                         # the card's cover is core.cover_img at the card string, to the character
-                        self.assertEqual(html_.count(core.cover_img(t, 'trips/%s/' % slug, core.RELATED_SIZES)), 1)
+                        self.assertEqual(html_.count(core.cover_img(t, 'trips/%s/' % slug, core.REL_SIZES)), 1)
                 # the lead photo (a story with a landscape cover) is the bare <img>, and the preload repeats it
                 hero = doc.find('figure', cls='rep-hero')
                 if hero is not None:

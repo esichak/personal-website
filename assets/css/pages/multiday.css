@@ -41,18 +41,23 @@ body.p-multiday { --dnav-h: 48px; }
 /* a short viewport (a phone on its side) cannot give the header, this bar and the bottom bar 170 px: the bar scrolls away
    under 500 px of height, where a phone's header does too (base.css, phone-10) */
 @media (max-height: 500px) { .mul-dnav { position: static; } }
+/* underline tabs (Alpine): white, one hairline under the row, the words in mono 12 px uppercase, the current day with
+   the 2 px ink bar under it (below) and a hairline-grey one under the pointer */
 .mul-dn-in { width: min(1360px, 100% - 2 * var(--m)); margin-inline: auto; height: var(--dnav-h); display: flex;
-  background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  background: var(--paper); border-bottom: 1px solid var(--rule); }
 .mul-dn-i { position: relative; min-width: 0; padding: 0 16px; display: flex; flex-direction: column; justify-content: center;
   gap: 2px; color: var(--ink); }
-.mul-dn-i + .mul-dn-i { border-left: 1px solid var(--rule); }
-@media (hover: hover) { .mul-dn-i:hover { color: var(--ink); background: var(--paper); } }
+@media (hover: hover) {
+  .mul-dn-i:hover { color: var(--ink); }
+  .mul-dn-i:not([aria-current]):hover::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--rule); }
+}
 .mul-dn-i:focus-visible { outline-offset: -2px; }
 .mul-dn-ov { flex: 0 0 208px; }
 .mul-dn-day { flex: 1 1 0; }
 .mul-dn-top { height: 20px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .mul-dn-d { font: 500 12px/16px var(--mono); color: var(--ink-2); white-space: nowrap; }
-.mul-dn-date { font: 500 15px/20px var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mul-dn-date { font: 400 12px/16px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mul-dn-dist { font: 400 12px/16px var(--mono); color: var(--ink-2); white-space: nowrap; }
 .mul-dn-i .mul-dshort { display: none; }
 /* what a day holds (day_content): a written day's dot beside its number on every screen, the words on a fourth line from
@@ -68,11 +73,16 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-dn-c { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 }
 .mul-dn-i[aria-current] .mul-dn-d, .mul-dn-i[aria-current] .mul-dn-dist { color: var(--ink); font-weight: 600; }
+.mul-dn-i[aria-current] .mul-dn-date { color: var(--ink); }
 .mul-dn-i[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink); }
 .mul-sp svg { width: 64px; height: 16px; }
 .mul-sp .sp-c { display: none; }
 .mul-dn-i[aria-current] .mul-sp .sp-n { display: none; }
 .mul-dn-i[aria-current] .mul-sp .sp-c { display: block; }
+/* the sparklines are charts (Alpine): the current day's in ink at its 2 px, the others in the third ink at 1.5 px (the
+   renders draw them route red and #45474C, inline, hence !important) */
+.mul-sp .sp-c path { stroke: var(--ink) !important; }
+.mul-sp .sp-n path { stroke: var(--ink-3) !important; }
 @media (min-width: 1000px) and (max-width: 1199.98px) { .mul-dn-ov { flex-basis: 150px; } .mul-dn-i { padding: 0 12px; } }
 @media (min-width: 760px) and (max-width: 999.98px) {
   .mul-dn-ov { flex-basis: 112px; }
@@ -88,12 +98,10 @@ body.p-multiday { --dnav-h: 48px; }
     border-left: 0; border-right: 0; }
   .mul-dn-in::-webkit-scrollbar { display: none; }
   .mul-dn-i { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 6px; padding: 0 12px; }
-  .mul-dn-i + .mul-dn-i { border-left: 0; }
   .mul-dn-ov { padding-left: 0; }
   .mul-dn-ov .mul-dn-top, .mul-dn-dist, .mul-dn-top .mul-sp { display: none; }
   .mul-dn-top { height: auto; }
-  .mul-dn-d { font-size: 13px; }
-  .mul-dn-date { font-size: 15px; }
+  .mul-dn-d { font-size: 12px; }
   .mul-dn-i .mul-dlong { display: none; }
   .mul-dn-i .mul-dshort { display: inline; }
   .mul-dn-ov[aria-current]::after { left: 0; }
@@ -186,10 +194,13 @@ body.p-multiday { --dnav-h: 48px; }
 .mul-day-in { border-top: 1px solid var(--ink); padding-top: 28px; scroll-margin-top: var(--dnav-h); }
 .mul-rail { display: flex; flex-direction: column; }
 .mul-rail-h { display: flex; align-items: center; gap: 16px; }
-.mul-num { flex-shrink: 0; font: 700 64px/64px var(--sans); font-stretch: 112%; letter-spacing: -0.03em; color: var(--ink); }
+.mul-num { flex-shrink: 0; font: 400 64px/56px var(--serif); letter-spacing: -0.02em; font-variant-numeric: lining-nums; color: var(--ink); }
 .mul-rail-t { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .mul-dlabel { color: var(--ink-3); }
-.mul-dtitle { font: 600 18px/24px var(--sans); font-stretch: 104%; text-wrap: balance; }
+/* the day's title in the serif (Alpine): 26 px on a phone, 30 px from 760 px, 26 px again in the stuck rail from 1000 px
+   (a t-h2 would fill it, and the rail's GPX button has to stay in view down to 620 px of height: 22 px under 720) */
+.mul-dtitle { font: 400 26px/1.1 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
+@media (min-width: 760px) and (max-width: 999.98px) { .mul-dtitle { font-size: 30px; } }
 .mul-hut { margin-top: 12px; display: flex; align-items: center; gap: 10px; font: 500 15px/20px var(--sans); color: var(--ink); }
 .mul-hut svg { flex-shrink: 0; }
 .mul-hut rect { fill: var(--ink); }
@@ -265,7 +276,7 @@ body.p-multiday { --dnav-h: 48px; }
   .mul-day-in { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); align-items: start; }
   .mul-rail { grid-column: 1 / span 3; grid-row: 1 / span 4; position: sticky; top: calc(var(--header-h) + var(--dnav-h) + 24px); }
   .mul-rail-h { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .mul-num { font-size: 96px; line-height: 88px; }
+  .mul-num { font-size: 96px; line-height: 84px; }
   .mul-ds { display: flex; flex-direction: column; margin-top: 20px; border-top: 1px solid var(--rule); border-bottom: 0; }
   .mul-ds-r, .mul-ds-r.pc-r, .mul-ds-r:first-child { min-height: 48px; padding: 8px 0; border-left: 0 !important;
     border-bottom: 1px solid var(--rule); flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
@@ -279,7 +290,8 @@ body.p-multiday { --dnav-h: 48px; }
 /* a short window (gap2-03): a smaller number and tighter stat rows take about 88 px off the rail, so its 'Day N GPX'
    button stays in view down to 620 px of height; under 600 the rail scrolls with the chapter */
 @media (min-width: 1000px) and (max-height: 719.98px) {
-  .mul-num { font-size: 56px; line-height: 52px; }
+  .mul-num { font-size: 56px; line-height: 50px; }
+  .mul-dtitle { font-size: 22px; }   /* the serif title (Alpine) at 30 px took the GPX button below 620 px of height */
   .mul-ds-r, .mul-ds-r.pc-r, .mul-ds-r:first-child { min-height: 40px; padding: 4px 0; }
   .mul-ds { margin-top: 8px; }
 }

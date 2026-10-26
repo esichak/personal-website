@@ -3653,8 +3653,9 @@ class TargetSizeTests(SiteFixture):
         # stays where it is. It may not reach into the next crumb's area (half the gap each side at most), not under
         # the header (the padding above the crumbs), and not into the hit area of the chip link under it on a report.
         seen = 0
-        for url, holder in (('ski/', 'sec-head'), ('other/', 'sec-head'), (trip_url('story'), 'rep-title'), (trip_url('goal'), 'rep-title'),
-                            (trip_url('tour'), 'rep-title'), (trip_url('journal'), 'rep-title'),
+        # Alpine (Phase 18): a report whose lead photo leads has its crumbs on the photo, in the head's band (.rep-hero-bi)
+        for url, holder in (('ski/', 'sec-head'), ('other/', 'sec-head'), (trip_url('story'), 'rep-hero-bi'), (trip_url('goal'), 'rep-title'),
+                            (trip_url('tour'), 'rep-hero-bi'), (trip_url('journal'), 'rep-title'),
                             (REGION_PAGES[0], 'reg-head'), (REGION_PAGES[1], 'reg-head')):      # contract-phase5.md: .reg-head has the room
             crumbs = self.nodes(url, cls='crumbs', tag='nav')[0]
             links = crumbs.find_all('a')
@@ -3665,7 +3666,7 @@ class TargetSizeTests(SiteFixture):
             for width in (320,) + WIDTHS:
                 e = env(width)
                 if not displayed(crumbs, self.rules, e):
-                    self.assertEqual((holder, width < 760), ('rep-title', True))       # a report's crumbs are off on a phone
+                    self.assertEqual((holder in ('rep-title', 'rep-hero-bi'), width < 760), (True, True))   # a report's crumbs are off on a phone
                     continue
                 for a in links:
                     with self.subTest(page=url, width=width, link=a.text()):
@@ -3679,8 +3680,14 @@ class TargetSizeTests(SiteFixture):
                         line = line_height(crumbs, self.rules, e)
                         self.assertIn(line, (16.0, 18.0))
                         self.assertGreaterEqual(up + line + down, 44, 'the hit area is %g px high' % (up + line + down))
-                        # the visible text is where it was: the link itself gets no size, padding or margin
-                        for prop in ('padding', 'padding-block', 'margin', 'margin-block', 'min-height', 'height', 'display', 'line-height', 'font'):
+                        # the visible text is where it was: the link itself gets no size, padding or margin. On the lead
+                        # photo (Phase 18) it is a 24 px box (4 px above and below its line, taken back by margins), since
+                        # it lies over the photo's link and a tester then finds no free space round it
+                        props = ('padding', 'padding-block', 'margin', 'margin-block', 'min-height', 'height', 'display', 'line-height', 'font')
+                        if holder == 'rep-hero-bi':
+                            self.assertEqual((computed(a, 'padding-block', self.rules, e), computed(a, 'margin-block', self.rules, e)), ('4px', '-4px'))
+                            props = tuple(p_ for p_ in props if p_ not in ('padding-block', 'margin-block'))
+                        for prop in props:
                             self.assertIsNone(computed(a, prop, self.rules, e), why(a, prop, self.rules, e))
                         # two crumbs' areas do not overlap
                         self.assertEqual(computed(crumbs, 'display', self.rules, e), 'flex')
@@ -3695,14 +3702,14 @@ class TargetSizeTests(SiteFixture):
                                 self.assertIsNone(computed_pseudo(a, 'before', prop, self.rules, e), prop)      # nothing else moves a side
                         # it stays below the header: the block's own padding is above the crumbs
                         self.assertLessEqual(up, px(computed(box, 'padding-top', self.rules, e)), why(box, 'padding-top', self.rules, e))
-                        # and above the hit area of the link under it
+                        # and what lies under it is a heading, nothing to press. Alpine (Phase 18): on a report that is the
+                        # title (the chip moved under it), so the area ends inside the title's first line
                         after = box.elements()[1]
-                        chip = after.find('a', cls='chip--title') if 'rep-chips' in after.classes else None
-                        if holder == 'rep-title':
-                            self.assertIsNotNone(chip, '%s has no chip link under its crumbs' % url)
-                            chip_up = -sides(computed_pseudo(chip, 'before', 'inset', self.rules, e))[0]
-                            space = px(computed(after, 'margin-top', self.rules, e))
-                            self.assertLessEqual(down + chip_up, space, 'the crumb reaches %g px down, the chip %g px up, %g px apart' % (down, chip_up, space))
+                        if holder in ('rep-title', 'rep-hero-bi'):
+                            h1 = after if after.tag == 'h1' else after.elements()[0].elements()[0]
+                            self.assertEqual(h1.tag, 'h1', url)
+                            self.assertEqual([n for n in [h1] + list(h1.walk()) if focusable(n)], [])
+                            self.assertLess(down, 40, 'the crumb reaches %g px down, past the title\'s first line' % down)
                         else:
                             self.assertEqual([n for n in [after] + list(after.walk()) if focusable(n)], [])     # a heading: nothing to press
         self.assertGreater(seen, 40)
@@ -4179,7 +4186,13 @@ class TargetSizeTests(SiteFixture):
                 for prop in ('margin-top', 'font', 'font-size', 'line-height', 'letter-spacing', 'text-transform', 'color'):
                     self.assertEqual(computed(stats, prop, self.rules, e), computed(sec_stats, prop, self.rules, e), prop)
                     self.assertIsNotNone(computed(stats, 'font', self.rules, e))
+                # Alpine (Phase 18): 'More like this' is three 4:5 cards across from 760 px; the region page's Featured
+                # row stays the 3:2 grid of two across until 1200 px (section 2.6, region pages), so the two part there
                 for prop in ('display', 'grid-template-columns', 'gap', 'row-gap', 'margin-top'):
+                    if prop == 'grid-template-columns' and 760 <= width < 1200:
+                        self.assertEqual((computed(cards, prop, self.rules, e), computed(related, prop, self.rules, e)),
+                                         ('repeat(2, minmax(0, 1fr))', 'repeat(3, minmax(0, 1fr))'))
+                        continue
                     self.assertEqual(computed(cards, prop, self.rules, e), computed(related, prop, self.rules, e), prop)
 
     def test_region_css_is_in_the_published_stylesheet(self):

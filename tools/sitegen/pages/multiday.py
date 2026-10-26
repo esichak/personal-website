@@ -1,6 +1,7 @@
 """Multi-day trip report (kind: multi-day) — /trips/<slug>/.
 
-Title block, the lead photo (report.hero, when the cover is at least 6:5 wide), trip strip, full-bleed overview map,
+The head (report.hero_head over the lead photo when the cover is at least 6:5 wide, else report.title_block), trip
+strip, full-bleed overview map,
 then one block that carries the sticky day nav: the stitched elevation profile, the Overview (stage table, the phone
 day list and the photo strip: one square per day with photos) and one chapter per day file (#day-N), each with its
 mile table. Ends with More like this and the site pager.
@@ -643,7 +644,7 @@ def photo_strip(t, here):
 
 
 def overview(t, here):
-    prose = ('<div class="prose t-body mul-ov-p">%s</div>' % markdown.to_html(t['body_md'])) if t['body_md'] else ''
+    prose = ('<div class="prose t-body mul-ov-p">%s</div>' % report.lead_paragraph(markdown.to_html(t['body_md']))) if t['body_md'] else ''
     return ('<section class="wrap mul-ov" id="overview" aria-labelledby="overview-h">'
             '<div class="shead"><h2 class="shead-t" id="overview-h">Overview</h2><span class="shead-m t-mono-s">%s</span></div>'
             '%s%s%s%s</section>' % (ml(days_meta(t, content=True)), prose, stage_table(t, here), day_index(t, here), photo_strip(t, here)))
@@ -828,9 +829,9 @@ def page(t, site):
     actions += core.copy_link(core.SITE_URL + here)
     # the cover (a day photo, content.resolve_cover) leads when it is a landscape, as on a single-day story (report-11)
     lead = report.lead_photo(t)
-    body = [report.title_block(t, here, actions, ask=report.ask_link(t)), report.tick_backlink(t, here, site)]
-    if lead:
-        body.append(report.hero(t, here))
+    top = (report.hero_head(t, here, actions, ask=report.ask_link(t)) if lead
+            else report.title_block(t, here, actions, ask=report.ask_link(t)))
+    body = [top, report.tick_backlink(t, here, site)]
     body += ['<div class="wrap rep-strip" id="stats">%s%s</div>' % (strip(t), stats_note(t, here=here)),
              overview_map(t, here, meta, eager=lead is None)]
     chapters = ''.join(chapter(t, here, meta, d) for d in t['days'])

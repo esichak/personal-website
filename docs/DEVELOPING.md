@@ -837,24 +837,42 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   section the page lacks. Phase 10 reversed plan 9.1 and the Phase 3 note on two points, where their reason (no page
   manufactures content) did not apply: a photo-only report shows its own photo first, and a written report without a
   photo shows its own words first.
-  - Story and written-first order: `title_block` (its actions are `View route`, a link to `#map`, and the ink
-    `Download GPX`, both only when the trip has a track, then `core.copy_link`), then `tick_backlink`, `report.hero`
-    (story only, with a lead photo: `lead_photo` below), `#stats`, `report.section_nav`, `.rep-body` (Beta rail
+  - Story and written-first order: the head, `report.hero_head` (story only, with a lead photo: `lead_photo` below)
+    or `report.title_block` (its actions are `View route`, a link to `#map`, and the ink `Download GPX`, both only when
+    the trip has a track, then `core.copy_link`), then `tick_backlink`, `#stats`, `report.section_nav`, `.rep-body` (Beta rail
     `#beta`, `#report`), `#map` (only with a track), `#profile`, `gallery` (`#photos`), `report.published_line`,
     `report.share_row`, `core.related_block` and `pager`.
-  - Compact order: `title_block` (`Read the report`, a link to `#report`, when there is a write-up, `Download GPX` when
-    the trip has a track, `core.copy_link`), then `tick_backlink`, `report.hero` (a photo-only report with a lead
-    photo), `#stats`, `#map` (only with a track), `#profile`, `.rep-body`, `gallery`, `published_line`, `share_row`,
+  - Compact order: the head, `hero_head` for a photo-only report with a lead photo, else `title_block` (`Read the
+    report`, a link to `#report`, when there is a write-up, `Download GPX` when the trip has a track,
+    `core.copy_link`), then `tick_backlink`, `#stats`, `#map` (only with a track), `#profile`, `.rep-body`, `gallery`, `published_line`, `share_row`,
     `related_block` and `pager`.
   - `#stats`: `report.page` builds the strip section when `has_stats = bool(cells) or has_map`, where `cells` is
     `core.strip_cells(t)`. So a report with a track always has it, as before, and a report without a track has it only
     when it has a stats value to show. Without the strip the page has no `id="stats"`, `section_nav` and `bottom_bar`
     are passed `has_stats=False`, and the Beta block keeps its `Track` row (`report.beta_list(t, noted=has_stats)`; with
     a strip that row is left out of the block because the strip's footnote prints it).
-  - `report.hero(t, here, photos_anchor=False)` → `<figure class="rep-hero wrap" id="hero"><a class="jph jph--l
+  - The head (Alpine, Phase 18). `report.head_parts` gives its six parts: the crumbs, `h1#title` (`t-d1`, or
+    `t-d1--long` past 28 characters), the sans line `p.rep-place`, the chips (`core.chip` and the tags), `Ask about
+    this trip` and the actions. `report.head_line(t, here, strip_follows=False)` is that line: the date
+    (`date_slot(t, caps=False)`, so `Sat, Jan 17, 2026`, or a goal's `≈ 17.4 mi`, left out when its strip states it),
+    the place and the region as written (the region a link, `core.region_link`; the place left out when it equals the
+    region), and `with <party>`, as one `.ml` line. `title_block` sets them on white: crumbs, then `.rep-head` (the
+    title, the line, the chips and the ask on the left; the actions at the right from 1000 px). `hero_head(t, here,
+    actions, photos_anchor=False, ask='')` sets them over the lead photo: `section.rep-title.rep-title--hero` holds
+    `div.rep-hero-frame`, which holds `div.rep-hero-b` (the crumbs, the title and the line, first in the markup, on a
+    band of their own that lets a press through but for their own links) and then `report.hero(..., full=True)`; under
+    the frame the photo's caption (`p.rep-hero-cap`) and `.rep-hero-under` with the chips, the ask and the actions. A
+    goal never gets it. The frame's least height is 500 px on a phone (`min(500px, 100svh - header - 96px)`, so a
+    short phone's bottom bar leaves the line in view) and `min(72vh, 820px)` from 760 px; the words set it when they
+    need more (a short window), and under 700 px of height their band is shallower (64 px of fade, not 96 or 128).
+  - The write-up's lead (decision 2): `report.lead_paragraph(html)` puts `class="t-lede"` on the first `<p>` that
+    `markdown.to_html` wrote and changes nothing else, so the `.prose` text is the same byte for byte. Single-day
+    reports and a multi-day trip's overview write-up use it; the days' write-ups do not (they continue the trip's).
+  - `report.hero(t, here, photos_anchor=False, full=False)` → `<figure class="rep-hero wrap" id="hero"><a class="jph jph--l
     rep-hero-a" href="<trip url + cover file>" data-lb-group="photos">` + `core.cover_img(t, here, report.HERO_SIZES,
     eager=True)` + `</a></figure>`, with `data-cap` and a `<figcaption class="t-small">` when the cover photo has a
-    caption, and `aria-label="Lead photo, full size"` on the link when it has no alt text. `photos_anchor=True` puts
+    caption, and `aria-label="Lead photo, full size"` on the link when it has no alt text. `full=True` (the head's
+    form) writes `rep-hero rep-hero--full` in place of `wrap` and no figcaption. `photos_anchor=True` puts
     `<span class="rep-anchor" id="photos"></span>` first in the figure. `HERO_SIZES` is `'(min-width: 1200px) 1248px,
     ' + core.PHONE_FULL`, that is `(min-width: 1200px) 1248px, (min-width: 560px) 100vw, 55vw`; a lead photo wider than
     8:5 is drawn with `(min-width: 1200px) 1248px, 100vw` (`core.phone_sizes`, under Photos below). series.py calls the
@@ -938,7 +956,7 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     `core.related_block` before the pager, and the share image is `multiday.share_image(t)`, which returns
     `core.share_photo(t)` (the cover's dict, or None). Multi-day pages keep their map-first layout and get no section row
     (the day nav is one). Since Phase 10 (report-11, reversing the Phase 3 note) a landscape cover leads them
-    (`report.hero` after the title block, `core.cover_preload` in place of the overview's preloads), and the Overview
+    (`report.hero_head` as their head, `core.cover_preload` in place of the overview's preloads), and the Overview
     ends with `multiday.photo_strip`: one card-size square per day with photos, linking to `#day-N`. The day nav marks a
     written day with a dot and says `WRITE-UP · N PHOTOS` (a fourth line from 1200 px, read out below that), the phone
     rows say the same, and the Overview head counts them (`days_meta(t, content=True)`).
@@ -955,10 +973,13 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   class="rep-related wrap sec" aria-labelledby="rel-h">` with the h2 `More like this` (`id="rel-h"`), a meta line of
   what the picked reports share with the page (visual-03, since Phase 10): `EASTERN SIERRA · BACKCOUNTRY SKIING` when all
   share its region and activity, the region or the activity word when all share only that, else `N REPORTS`; and `<ul
-  class="rep-rel tgrid">` of `core.trip_card(x, here, core.RELATED_SIZES, ns='rel')`. Called by `report.page` (every
+  class="rep-rel tgrid">` of `core.trip_card(x, here, core.REL_SIZES, ns='rel')`. Called by `report.page` (every
   layout) and `multiday.page`, before the pager, with `skip=report.neighbours(t, site)`: the block leaves out the two
-  reports the pager right under it links as Newer / Older. Never on goal or series pages. `RELATED_SIZES = '(min-width: 1200px) 400px,
-  (min-width: 560px) calc((100vw - 104px) / 2), 112px'`.
+  reports the pager right under it links as Newer / Older. Never on goal or series pages. From 560 px each card's photo
+  is 4:5 (Alpine, Phase 18), so `REL_SIZES = '(min-width: 1200px) 667px, (min-width: 560px) calc((100vw - 104px) *
+  0.84), 112px'` declares the slot's width times 1.67, what a 4:3 cover takes to fill it; it ends with the phone slot,
+  so phones keep the 112 px thumbnail and its `.th` source. The region pages' Featured row keeps `RELATED_SIZES =
+  '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'`.
 - Copy link: `core.copy_link(url, label='Copy link', cls='btn', of='', share=None)` → `<span
   class="copy"><button type="button" class="<cls> copy-btn" data-copy="<url>" data-share="<share>">` + the link and the
   share icons (`.copy-ic--link`, `.copy-ic--share`; base.css shows one) + `<span class="copy-l"><label></span></button><span
@@ -1155,7 +1176,7 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     `core.cover_img` and `core.cover_preload`, lists the same two for a cover. The `.th` copy is never a candidate of
     an `<img>` or a preload. A row thumbnail (`trip_row(..., photo=True)`) offers it at every width, in a `<source>` with
     no `media` (`core._thumb_source`), since the slot is 132 px at most. Otherwise it is offered to phones only: for a card cover (a `sizes` string that ends with
-    `core.CARD_PHONE_SLOT`, 112 px: `trips.TRX_SIZES`, `core.RELATED_SIZES`) whose photo has the
+    `core.CARD_PHONE_SLOT`, 112 px: `trips.TRX_SIZES`, `core.RELATED_SIZES`, `core.REL_SIZES`) whose photo has the
     file, `core.cover_img` wraps the image in `<picture class="cover-pic">` with the `<source>` of
     `core._card_source`: `media="(max-width: 559.98px)"` (`core.CARD_PHONE_MEDIA`), the three copies as candidates and
     `sizes="106px"` (`core.CARD_PHONE_SIZES`, `core.THUMB_EDGE // 3`). The slot is 112 px wide and the source
@@ -1486,8 +1507,8 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   like content/home.json; `checks._author_findings` reports what the build would refuse. With an address, About's
   section is 'Follow & contact' (an 'Email' button and the address as text), the footer's brand block gains one 44 px
   row (`.f-mail`), and every title block gets 'Ask about this trip' (`report.ask_link`: a mailto whose subject is the
-  title and the date, or 'PLANNED', URL-encoded) under the place line (`title_block(ask=)`, `.rep-ask-p`; not in the
-  button row, which would take its width from the title). On phones the share row of single-day, goal and multi-day
+  title and the date, or 'PLANNED', URL-encoded) under the chips (`title_block(ask=)`, `hero_head(ask=)`,
+  `.rep-ask-p`; not in the button row, which would take its width from the title). On phones the share row of single-day, goal and multi-day
   pages carries it instead (`report.share_row(here, ask)`: `.rep-share--ask` stays shown without scripting, the copy
   control does not); the journal keeps it under its title. The address may hold only letters, digits, `. _ + -`, an
   `@` and a host, so nothing in it is read as part of the mailto. Profile links show on About only, rel="me noopener".
@@ -1511,8 +1532,8 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     plain region link for a trip no list rows, `core._LISTED`, else None); `core.see_on_map(here, t)`, 'See on the
     <Region> map', after a report's map caption and a multi-day overview's (with a track only); the goal pagers' region
     cell; `series.region_parts`, the journal's parts under its overview map. `core.region_link(here, region)` is the
-    region page or map/, which the place line's region (ia-09, `core.place_line(..., here)`, an `.mi-a` with a 44 px
-    `::before` hit area) and a section head's region names (ia-12, `section.areas(ts, here)`; one region's places stay
+    region page or map/, which a report's head line's region (ia-09, `report.head_line(t, here)`; a card's or a row's
+    place line, `core.place_line(..., here)`; an `.mi-a` with a 44 px `::before` hit area) and a section head's region names (ia-12, `section.areas(ts, here)`; one region's places stay
     text) link to; so do the ski panel's region labels, which show without JavaScript only. `region.activity_items` is the region head's activities line
     (ia-10), each to `trips/?region=<slug>&activity=<key>`, inside `.reg-x` (hidden without scripting).
   - Map interactions: `archive.inject_acts` puts `data-act` on every track, pin and journal line of a panel's inlined map

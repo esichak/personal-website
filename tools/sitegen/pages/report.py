@@ -52,21 +52,29 @@ def lead_photo(t):
     return c['photo']
 
 
-def hero(t, here, photos_anchor=False):
+def hero(t, here, photos_anchor=False, full=False):
     """The lead photo of a story, of a photo-only report, of a multi-day trip or of the journal: the cover
     (content.resolve_cover) at full width, linked to its file so the viewer opens it; data-lb-group ties it to a report's
     Photos grid, so the viewer counts every photo of the trip once. A multi-day trip and the journal have no such grid,
     so there it opens on its own, and the photo shows again in its day.
     photos_anchor: the report's only photo is this one, so there is no Photos section below; an empty #photos target here
-    keeps an old link to trips/<slug>/#photos landing on the photo."""
+    keeps an old link to trips/<slug>/#photos landing on the photo. full=True (hero_head, Phase 18): the photo across the
+    page under the title, without .wrap and without its caption, which hero_head sets under the frame."""
     c = t['cover']
     p = c['photo']
     cap = (' data-cap="%s"' % esc(p['caption'])) if p.get('caption') else ''
-    fc = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if p.get('caption') else ''
+    fc = ('<figcaption class="t-small">%s</figcaption>' % esc(p['caption'])) if (p.get('caption') and not full) else ''
     name = '' if p.get('alt') else ' aria-label="Lead photo, full size"'
     anchor = '<span class="rep-anchor" id="photos"></span>' if photos_anchor else ''
-    return ('<figure class="rep-hero wrap" id="hero">%s<a class="jph jph--l rep-hero-a" href="%s%s" data-lb-group="photos"%s%s>%s</a>%s</figure>'
-            % (anchor, link(here, t['url']), p['file'], cap, name, core.cover_img(t, here, HERO_SIZES, eager=True), fc))
+    return ('<figure class="rep-hero %s" id="hero">%s<a class="jph jph--l rep-hero-a" href="%s%s" data-lb-group="photos"%s%s>%s</a>%s</figure>'
+            % ('rep-hero--full' if full else 'wrap', anchor, link(here, t['url']), p['file'], cap, name,
+               core.cover_img(t, here, HERO_SIZES, eager=True), fc))
+
+
+def lead_paragraph(html_):
+    """A write-up's HTML (markdown.to_html) with its first paragraph set as the lead (Alpine, decision 2): the class
+    t-lede on the first <p> the converter wrote, and nothing else changed, so the words are the same byte for byte."""
+    return html_.replace('<p>', '<p class="t-lede">', 1)
 
 
 def published_line(t):
@@ -130,13 +138,15 @@ def section_nav(has_report, has_gallery, has_map=True, chart=''):
             % ''.join('<li><a class="rep-toc-a" href="%s">%s</a></li>' % (h, label(h, chart)) for h in items))
 
 
-def date_slot(t):
-    """The Mono-S value after the chips: the date, or the planned distance for a planned route (it has no date; the
-    PLANNED tag chip before it already says so)."""
+def date_slot(t, caps=True):
+    """The date, or the planned distance for a planned route (it has no date; the PLANNED tag chip already says so).
+    caps=False: the head's line (head_line), 'Sat, Jan 17, 2026' and '≈ 17.4 mi'."""
     if t['kind'] == 'planned':
         mi, km = core.dist_vals(t['stats'].get('distance_km'))
-        return U(core.caps_unit('≈ ' + mi, 'MI'), core.caps_unit('≈ ' + km, 'KM')) if mi else ''
-    return core.trip_date(t)
+        if not mi:
+            return ''
+        return U(core.caps_unit('≈ ' + mi, 'MI'), core.caps_unit('≈ ' + km, 'KM')) if caps else U('≈ ' + mi, '≈ ' + km, ' mi', ' km')
+    return core.trip_date(t, caps=caps)
 
 
 def crumb_items(t, here):
@@ -162,31 +172,71 @@ def dup_title(t, site):
     return bool(t['date']) and title_counts(site).get(t['title'].casefold(), 0) > 1
 
 
-def title_block(t, here, actions, strip_follows=False, ask=''):
-    """Shared by single-day, planned, multi-day and series pages. Phones (< 760) drop the crumbs and the date slot; the date
-    then leads the place line (Phone-Report-A). strip_follows: a goal page whose strip states the ≈ distance, which the
-    date slot then leaves out (said once, visual-19). ask: 'Ask about this trip' (ask_link), under the place line, not
-    among the buttons, whose row would take it from the title's width (report.css hides it on phones where the share
-    row carries it)."""
-    act = t['activity']
-    sec = link(here, core.section_url(act))
+def head_line(t, here, strip_follows=False):
+    """The sans line under a report's title (Alpine, Phase 18): 'Sat, Jan 17, 2026 · Sawtooth Ridge, Eastern Sierra ·
+    with Adam'. The date (core.trip_date; a goal: its approximate distance, date_slot, left out when its strip states
+    it: strip_follows), the place and the region as written (the region a link to its page or its panel on map/, ia-09;
+    the place left out when it is the region), the party. One .ml line of the items there are."""
+    items = []
+    date_ = '' if (strip_follows and t['kind'] == 'planned') else date_slot(t, caps=False)
+    if date_:
+        items.append((date_, 'rep-pdate'))
+    region = t.get('region')
+    rtext = esc(region) if region else ''
+    rhref = core.region_link(here, region) if region else None
+    if rhref:
+        rtext = '<a class="mi-a" href="%s">%s</a>' % (rhref, rtext)
+    place = t.get('place') if (t.get('place') and (not region or t['place'].strip().casefold() != region.strip().casefold())) else ''
+    loc = ', '.join(x for x in (esc(place) if place else '', rtext) if x)
+    if loc:
+        items.append((loc, 'mi-w'))
+    if t.get('party'):
+        items.append(core.nb('with ' + esc(t['party'])))
+    return core.meta_items(items)
+
+
+def head_parts(t, here, actions, strip_follows=False, ask=''):
+    """(crumbs, the h1, the line, the chips, the ask line, the actions) of a report's head, as HTML."""
+    sec = link(here, core.section_url(t['activity']))
     if t['kind'] == 'planned':
         tags = core.tag('Planned route') + core.goal_tags(t['goal'])
     else:
         tags = core.trip_tags(t)
     long_ = len(t['title']) > 28
-    date_ = '' if (strip_follows and t['kind'] == 'planned') else date_slot(t)
-    # one meta line: the date item leads it on phones only (>= 760 the date sits in the chip row)
-    place = core.meta_items(([(date_, 'rep-pdate')] if date_ else []) + core.place_line(t, items=True, here=here))
-    return ('<section class="rep-title wrap" aria-labelledby="title">'
-            '<nav class="crumbs" aria-label="Breadcrumb">%s</nav>'
-            '<div class="chips rep-chips">%s%s%s</div>'
-            '<div class="rep-head"><div class="rep-head-t"><h1 id="title" class="t-d1%s">%s</h1>'
-            '<p class="t-mono-s rep-place">%s</p>%s</div><div class="rep-actions">%s</div></div></section>'
-            % (core.crumbs(here, crumb_items(t, here))[0], core.chip(t, href=sec), tags,
-               ('<span class="t-mono-s">%s</span>' % date_) if date_ else '',
-               ' t-d1--long' if long_ else '', core.title_html(t['title']), place,
-               ('<p class="rep-ask-p">%s</p>' % ask) if ask else '', actions))
+    return ('<nav class="crumbs" aria-label="Breadcrumb">%s</nav>' % core.crumbs(here, crumb_items(t, here))[0],
+            '<h1 id="title" class="t-d1%s">%s</h1>' % (' t-d1--long' if long_ else '', core.title_html(t['title'])),
+            '<p class="rep-place">%s</p>' % head_line(t, here, strip_follows),
+            '<div class="chips rep-chips">%s%s</div>' % (core.chip(t, href=sec), tags),
+            ('<p class="rep-ask-p">%s</p>' % ask) if ask else '',
+            '<div class="rep-actions">%s</div>' % actions)
+
+
+def title_block(t, here, actions, strip_follows=False, ask=''):
+    """The head of a report, a goal, a multi-day trip or the journal on white (Alpine, Phase 18): the crumbs, the title,
+    the date-place-party line (head_line), the activity chip and the tags under it, 'Ask about this trip', and the actions
+    in one row. Phones (< 760) drop the crumbs. strip_follows: a goal page whose strip states the ≈ distance, which the
+    line then leaves out (said once, visual-19). ask: 'Ask about this trip' (ask_link), under the chips, not among the
+    buttons (report.css hides it on phones where the share row carries it). hero_head has the same parts over a photo."""
+    crumbs, h1, line, chips, ask_p, acts = head_parts(t, here, actions, strip_follows, ask)
+    return ('<section class="rep-title wrap" aria-labelledby="title">%s'
+            '<div class="rep-head"><div class="rep-head-t">%s%s%s%s</div>%s</div></section>'
+            % (crumbs, h1, line, chips, ask_p, acts))
+
+
+def hero_head(t, here, actions, photos_anchor=False, ask=''):
+    """The head of a report whose lead photo can lead (lead_photo, at least 6:5 wide; never a goal): the photo across the
+    page (hero(full=True); 72vh at most 820 px from 760 px, 500 px on a phone) with the crumbs, the title and the
+    date-place-party line over its foot on the scrim, white; the photo's caption, when it has one, under it; then the
+    chips, 'Ask about this trip' and the actions on white. The words come first in the markup, so a reader meets the
+    title before the photo; the photo link stays the viewer's way in (the words let a press through, but for the
+    crumbs' links)."""
+    crumbs, h1, line, chips, ask_p, acts = head_parts(t, here, actions, False, ask)
+    p = t['cover']['photo']
+    cap = ('<p class="wrap t-small rep-hero-cap">%s</p>' % esc(p['caption'])) if p.get('caption') else ''
+    return ('<section class="rep-title rep-title--hero" aria-labelledby="title"><div class="rep-hero-frame">'
+            '<div class="rep-hero-b"><div class="wrap rep-hero-bi">%s%s%s</div></div>%s</div>%s'
+            '<div class="wrap rep-hero-under"><div class="rep-head"><div class="rep-head-t">%s%s</div>%s</div></div></section>'
+            % (crumbs, h1, line, hero(t, here, photos_anchor, full=True), cap, chips, ask_p, acts))
 
 
 def key_items(t, meta, phone=False):
@@ -280,8 +330,9 @@ def summit_item(s):
 
 
 def beta_list(t, noted=True):
-    """The rail's Beta block: dotted leaders drawn by the dt (base.css .dl-leader), values right-aligned and balanced.
-    The trip's summits: (Phase 9) are its last row, Summits, one per line when there are two or more."""
+    """The rail's Beta block (base.css .dl-leader; on a report, report.css's Alpine grid: a 110 px column of capital
+    labels beside the values, a hairline under each row). The trip's summits: (Phase 9) are its last row, Summits, one
+    per line when there are two or more."""
     rows = beta_rows(t, noted)
     summits = [summit_item(s) for s in t.get('summits') or []]
     if not rows and not summits:
@@ -673,7 +724,9 @@ def page(t, site):
     if gpx_href:
         actions += '<a class="btn btn--ink" href="%s" download>%sDownload GPX</a>' % (gpx_href, icon('download', 18))
     actions += core.copy_link(core.SITE_URL + here)
-    body = [title_block(t, here, actions, ask=ask_link(t)), tick_backlink(t, here, site)]
+    top = (hero_head(t, here, actions, photos_anchor=not has_gallery, ask=ask_link(t)) if show_hero
+            else title_block(t, here, actions, ask=ask_link(t)))
+    body = [top, tick_backlink(t, here, site)]
     # a recorded report has stats (tools/add_trip.py writes them from the track). One without a track may have none:
     # then there is no strip, rather than an empty list under a "Stats" label with links leading to it
     cells = core.strip_cells(t)
@@ -699,7 +752,7 @@ def page(t, site):
     main = ''
     if has_report:
         main = ('<div class="rep-main" id="report"><h2 class="t-h3 rep-h" id="report-h">%s</h2><div class="prose t-body">%s</div></div>'
-                % (LABELS['#report'], markdown.to_html(t['body_md'])))
+                % (LABELS['#report'], lead_paragraph(markdown.to_html(t['body_md']))))
     aside = aside_photo(t, here, lone) if lone else ''
     # the rail holds the Beta block only: its old Contents list needed a write-up and a Photos section on one compact
     # page, and a report with both is a story, whose section row (section_nav) does that job
@@ -707,8 +760,6 @@ def page(t, site):
     if beta or main or aside:
         rep_body = ('<div class="rep-body wrap sec%s"><aside class="rep-rail">%s</aside>%s%s</div>'
                     % (' rep-body--ph' if aside else '', beta, main or '<div class="rep-main"></div>', aside))
-    if show_hero:
-        body.append(hero(t, here, photos_anchor=not has_gallery))
     if story or written:
         body += [strip_, section_nav(has_report, has_gallery, has_map, has_chart(meta)), rep_body, map_, profile]
     else:

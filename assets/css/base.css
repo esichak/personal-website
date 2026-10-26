@@ -497,7 +497,10 @@ picture.cover-pic { display: contents; }
 .trow.is-map-hl .trow-t, .rtab-r.is-map-hl .rtab-tt { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 
 /* full-screen map page (trips/<slug>/map/) */
-.p-fsmap .fs-bar { padding: 12px 0 8px; display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; }
+.p-fsmap .fs-bar { padding: 12px 0 8px; display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; background: var(--paper); }
+/* the bar's words in the sans at 12 px, uppercase (Alpine); the map is untouched */
+.p-fsmap .fs-bar .btn { font-size: 12px; line-height: 16px; letter-spacing: 0.12em; text-transform: uppercase; }
+.fs-pan, .fs-nav { font: 500 12px/16px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; }
 /* every full-screen map is wider than a phone that can reach the page, so the hint shows without a script; base.js
    hides it when the map fits after all (a wide screen) */
 .fs-pan { color: var(--ink-3); margin-left: 12px; }

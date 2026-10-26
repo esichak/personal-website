@@ -454,7 +454,9 @@ class RelatedBlockTests(RelatedFixture):
     def setUp(self):
         super().setUp()
         self.related_block = need(self, core, 'related_block')
-        self.sizes = need(self, core, 'RELATED_SIZES')
+        # Alpine (Phase 18): 'More like this' has its own sizes string for its 4:5 photos (core.RELATED_SIZES stays the
+        # region pages' Featured row's)
+        self.sizes = need(self, core, 'REL_SIZES')
 
     def block(self, slug=SUBJECT, **kw):
         t = self.by[slug]
@@ -508,7 +510,7 @@ class RelatedBlockTests(RelatedFixture):
         self.assertEqual(len(cards), 3)
 
     def test_cards_are_the_shared_trip_card(self):
-        # section 3: core.trip_card(x, here, core.RELATED_SIZES, ns='rel')
+        # section 3: core.trip_card(x, here, core.REL_SIZES, ns='rel')
         html_ = self.block()
         cards = ''.join(core.trip_card(x, HERE, self.sizes, ns='rel') for x in self.related(self.t, self.site))
         self.assertIn('<ul class="rep-rel tgrid">%s</ul>' % cards, html_)
@@ -541,9 +543,10 @@ class RelatedBlockTests(RelatedFixture):
         self.assertEqual(top.find('li', cls='tcard').find('h3').find('a')['href'], 'trips/rel-near-after/')
 
     def test_card_cover_uses_related_sizes(self):
-        # section 3: core.RELATED_SIZES is the sizes attribute of a related card's cover
+        # section 3: core.REL_SIZES is the sizes attribute of a related card's cover; it ends with the phone's card slot,
+        # so a phone is still offered the .th copy (core._card_source)
         self.assertIsInstance(self.sizes, str)
-        self.assertTrue(self.sizes.strip())
+        self.assertTrue(self.sizes.endswith(', ' + core.CARD_PHONE_SLOT))
         img = Doc(self.block()).find('li', attrs={'data-slug': 'rel-near-after'}).find('img', cls='cover-img')
         self.assertEqual(img['sizes'], self.sizes)
         self.assertEqual(img['loading'], 'lazy')   # never the page's lead image

@@ -1845,6 +1845,12 @@ def trip_card(t, here, sizes, ns='tc', cls='', summary=False, repeated=(), list_
 
 
 RELATED_SIZES = '(min-width: 1200px) 400px, (min-width: 560px) calc((100vw - 104px) / 2), 112px'
+# 'More like this' (Alpine, Phase 18): from 560 px each card's photo is 4:5 (two across to 759 px, three from 760), so a
+# landscape cover is drawn wider than its slot. These widths are the slot's times 1.67, the width a 4:3 cover takes to
+# fill a 4:5 slot (437 px at 1200: 730 px), so a 2x screen is not handed a copy it must stretch; phones keep the 112 px
+# thumbnail (and the .th source of CARD_PHONE_SLOT)
+REL_SIZES = ('(min-width: 1200px) 730px, (min-width: 760px) calc((100vw - 128px) * 0.56), '
+             '(min-width: 560px) calc((100vw - 56px) * 0.84), 112px')
 
 
 _NAME_WORDS = [None, frozenset()]   # [the published list they were worked out from, the words]: held, so never a reused id
@@ -1934,7 +1940,7 @@ def related_block(t, here, site, k=3, skip=()):
     shared = ([nb(esc(region.upper()))] if region else []) + ([nb(esc(ACT[act][0].upper()))] if act else [])
     return ('<section class="rep-related wrap sec" aria-labelledby="rel-h"><div class="shead"><h2 class="shead-t" id="rel-h">More like this</h2>'
             '<span class="shead-m t-mono-s">%s</span></div><ul class="rep-rel tgrid">%s</ul></section>'
-            % (meta_items(shared or [nb(_plural(len(rel), 'REPORT'))]), ''.join(trip_card(x, here, RELATED_SIZES, ns='rel') for x in rel)))
+            % (meta_items(shared or [nb(_plural(len(rel), 'REPORT'))]), ''.join(trip_card(x, here, REL_SIZES, ns='rel') for x in rel)))
 
 
 def copy_link(url, label='Copy link', cls='btn', of='', share=None):

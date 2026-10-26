@@ -38,8 +38,9 @@
   .hom-hero { min-height: 720px; }
   .hom-hero-b { gap: 18px; padding-bottom: 56px; }
 }
-/* a short window: the hero leaves the next section in view */
+/* a short window: the hero leaves the next section in view, and the words' band is shallower (as a report's) */
 @media (min-width: 760px) and (max-height: 800px) { .hom-hero { min-height: min(720px, calc(100svh - var(--header-h) - 40px)); } }
+@media (max-height: 700px) { .hom-hero-f { --hero-pt: 64px; } }
 /* a first feature without a cover: its parts as a title block on white. Two classes, so the sizes above (one class,
    later in the sheet) do not win; nothing clipped, so the focus ring under the last link shows */
 .hom-hero.hom-hero--plain { min-height: 0; overflow: visible; background: none; color: var(--ink); }

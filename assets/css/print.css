@@ -15,5 +15,14 @@
   .jph img { max-height: 3.4in; object-fit: contain; }
   .photo, .jph img { background: none; }
   h1, h2, h3, h4 { break-after: avoid; }
+  /* a report's head over its lead photo (Alpine, Phase 18): on paper the words in ink on white, then the photo under
+     them in its 3:2 frame, as the head on white prints; no dark band, no frame height */
+  .rep-hero-frame { display: block; min-height: 0; overflow: visible; background: none; }
+  .rep-hero-b { background: none; color: #000; }
+  .rep-hero-b .crumbs, .rep-hero-b .crumbs a, .rep-hero-b .rep-place { color: #000; }
+  .rep-hero-bi { padding: 0 0 16px; }
+  .rep-hero.rep-hero--full, .rep-hero--full .rep-hero-a { position: static; }
+  .rep-hero.rep-hero--full { margin: 0 var(--m); }   /* the words' margins (.wrap) */
+  .rep-hero--full .cover-img { height: auto; aspect-ratio: 3 / 2; }
   .prose a[href^="http"]::after { content: " (" attr(href) ")"; }
 }
