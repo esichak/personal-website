@@ -1980,7 +1980,7 @@ and on `python3.12` with `-W error` (without python3.12 one line says `brew inst
 wall time, the end of a failed step's output, and exit status 1 when any failed. No git hook runs it: the first
 deploy failed on a patch release of Python the Mac does not have, which no local hook would have caught.
 
-CI (`.github/workflows/pages.yml`, Python 3.12, Node 22 through `actions/setup-node@v4`) builds with `build.py --check`
+CI (`.github/workflows/pages.yml`, Python 3.12, Node 22 through `actions/setup-node@v7`) builds with `build.py --check`
 on every push to `main` and publishes only when it passes. It runs the unit tests first when `tools/`, `tests/`,
 `assets/`, `.github/` or `docs/PRIVACY_NOTES.md` changed since the last push run on `main` that succeeded, and on every
 manual run: the step `changed` (`shell: bash`, so `-eo pipefail`) asks `gh run list --workflow pages.yml --branch main
@@ -2067,7 +2067,7 @@ not a package, and `helpers` is found only because `discover -s tests` puts that
 The suite takes about 80 s on this Mac and about 100 s on the runner, half of it the tests that start Node harnesses.
 CI runs the plain command, without `-W error`, on the patch release of Python 3.12 that the runner installs (3.12.15 on
 2026-10-12, when two tests that relied on how 3.12.11 parses a malformed declaration failed there; a test must not
-depend on the patch release), and on Node 22 (`actions/setup-node@v4`, `node-version: '22'`; before Phase 8 the runner
+depend on the patch release), and on Node 22 (`actions/setup-node@v7`, `node-version: '22'`; before Phase 8 the runner
 image's own Node). The tests that run a Node harness skip only where `node` is not installed, which is also why
 `tests/test_js_bundle.py` (`node --check` on `build.js_bundle()` and on each page script) is skipped there.
 
@@ -2448,28 +2448,45 @@ The caps the plan attached to the derived files it proposed, should any of them 
 ## Yearly upkeep
 
 Once a year, with the first trip of the year (ADDING-TRIPS.md says so at its end), go down this list. Each item has
-the value it had on 2026-10-25, when the list was first written, and what to do if it has changed; write the new value
-in place of the old one and the date at the top of the list.
+the value it had on 2026-10-25, when the list was first written (items 2 and 3: 2026-10-26, when the actions were
+bumped), and what to do if it has changed; write the new value in place of the old one and the date at the top of the
+list.
 
 1. **Size.** `python3 tools/size_report.py` and `git count-objects -vH`, and update the Storage budget table above.
    2026-10-25: tracked 228.4 MB, history 224.2 MB repacked (272.5 MB as stored), the site 243.8 MB. Run `git gc`
    when the loose objects pass 1,000 (it packs them, and removes only objects that nothing has reached for two weeks):
    on 2026-10-25 they were 7,610, so it is due.
 2. **Workflow actions.** For each `uses:` in `.github/workflows/pages.yml`, look up the newest major release and any
-   deprecation notice on its repository's releases page (`gh api repos/actions/<name>/releases/latest --jq .tag_name`).
-   2026-10-25, pinned → newest: checkout v4 → v7, setup-python v5 → v7, setup-node v4 → v7, configure-pages v5 → v6,
-   upload-pages-artifact v3 → v5, download-artifact v4 → v8, deploy-pages v4 → v5; none had stopped working, but
-   that day's run warned that they target Node.js 20, which is deprecated (GitHub ran them on Node.js 24), so the
-   bump is due. Bump them all in one commit, read each release note for a changed input, and prove the commit with a
+   deprecation notice on its repository's releases page (`gh api repos/actions/<name>/releases/latest --jq .tag_name`),
+   and read a recent run's annotations (`gh run view <run id>`): a "Node.js N is deprecated" line names the actions
+   that are due. 2026-10-26: all seven on their newest major, each running on Node.js 24, bumped in one commit after
+   that day's run warned that the old pins targeted the deprecated Node.js 20 (GitHub was already running them on 24):
+   checkout v4 → v7, setup-python v5 → v7, setup-node v4 → v7, configure-pages v5 → v6, upload-pages-artifact v3 → v5,
+   download-artifact v4 → v8, deploy-pages v4 → v5. `tests/test_workflow.py` pins the set. No input the workflow uses
+   changed; what the release notes changed for it:
+   - upload-pages-artifact v4 leaves dotfiles out of the artifact, so `_site/.nojekyll` (`build.BUILD_MARK`) is no
+     longer published. Pages builds from this workflow and runs no Jekyll, so nothing there reads it;
+     `include-hidden-files: true` would bring dotfiles back if the site ever needs one (a `.well-known/`, say).
+   - The smoke job's download-artifact must read what upload-pages-artifact uploads: v5 uploads `artifact.tar` through
+     upload-artifact v7, which download-artifact v8 unzips to `artifact.tar` as before. Bump the two together. v8 also
+     fails the job on a digest mismatch where v4 warned.
+   - checkout v6 keeps its credentials in a file of their own; the `changed` step's `git fetch` still finds them.
+   - setup-node v5 caches packages on its own when a `package.json` names a package manager; the repository has none.
+
+   Bump them all in one commit, read each release note for a changed input, and prove the commit with a
    `workflow_dispatch` run (ADDING-TRIPS.md, "When something goes wrong") on a quiet day, not with a trip push.
 3. **Runner.** Read the `ubuntu-latest` image README
-   (https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md). 2026-10-25: image
-   20261023.334.3, Ubuntu 24.04.5 LTS, Node.js 22.23.3 (the `node-version: '22'` the Node-run tests use), Python 3.12.3
-   on the image and 3.12.15 in its tool cache (what `setup-python` installs for `'3.12'`); that day's run said the
-   `ubuntu-latest` label moves to Ubuntu 26 from 2026-10-19 (actions/runner-images issue 14748). If the image's Node
-   or Python major moved, run the unit tests on that version before the next push of code. CPython 3.12 stops getting
-   security fixes in October 2028: move `pages.yml` to a newer Python before then, and keep the tools 3.9-compatible as
-   long as the Mac's `/usr/bin/python3` is 3.9.6.
+   (https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2604-Readme.md, Ubuntu2404-Readme.md before
+   the move below). 2026-10-26: the label is moving from Ubuntu 24.04 to Ubuntu 26.04 between 2026-10-19 and
+   2026-11-19 (actions/runner-images issue 14748), and that day's run still got 24.04.5 (image 20261012.334). The
+   workflow keeps `ubuntu-latest` rather than pinning `ubuntu-24.04`: it brings its own Python and Node, and both
+   images hold the same Python 3.12.15 (what `setup-python` installs for `'3.12'`) and Node.js 22.23.3 (the
+   `node-version: '22'` the Node-run tests use) in their tool cache, with Google Chrome for the smoke job, the GitHub
+   CLI for the `changed` step, git and bash; 26.04's own Python 3.14 and Node.js 24 are not used. If a run on the new
+   image fails where 24.04 passed, `runs-on: ubuntu-24.04` on the three jobs goes back to the old image while the cause
+   is found. If the tool cache's Node or Python moved, run the unit tests on that version before the next push of
+   code. CPython 3.12 stops getting security fixes in October 2028: move `pages.yml` to a newer Python before then,
+   and keep the tools 3.9-compatible as long as the Mac's `/usr/bin/python3` is 3.9.6.
 4. **GitHub's limits.** Re-read the two pages the Storage budget cites and change the table, `size_report.LIMITS`
    and `size_report.LIMITS_READ` if a number moved. 2026-10-25: as in the table (site 1 GB, deploy 10 minutes, 100 GB a
    month, repository 1 GB recommended and 5 GB strongly, files warned over 50 MiB and blocked over 100 MiB).

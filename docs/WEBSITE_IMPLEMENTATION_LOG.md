@@ -3975,3 +3975,48 @@ docs/redesign-c out." The fonts and their checks are in the gate's entry above (
   sharpness above all; the open points of the gate's entry.
 - This entry is a later commit on `main`, pushed on its own at Eric's word ("Push the publication log entry to
   main."). The log is on `pages.yml`'s ignore list, so that push starts no run.
+
+## Workflow actions on Node.js 24 (2026-10-26)
+
+Yearly upkeep, items 2 and 3, done early: the pinned actions in `pages.yml` moved to their newest majors so the deploy
+stops warning about Node.js 20, and the `ubuntu-latest` move was looked at. Work branch `claude/magical-benz-0f4eb2`
+from `eb8eb20`; nothing pushed.
+
+- **The warnings.** Run 40375179148 (the push of `eb8eb20`) has one annotation per job, "Node.js 20 is deprecated.
+  The following actions target Node.js 20 but are being forced to run on Node.js 24": in the build job checkout@v4,
+  configure-pages@v5, setup-node@v4, setup-python@v5 and upload-artifact@v4 (the one inside
+  upload-pages-artifact@v3); in the smoke job checkout@v4, download-artifact@v4 and setup-python@v5; in the deploy
+  job deploy-pages@v4. Each job also has the notice that `ubuntu-latest` migrates to Ubuntu 26 from 2026-10-19; all
+  three still ran on Ubuntu 24.04 (image 20261012.334).
+- **Changed files.** `.github/workflows/pages.yml`: the seven `uses:` lines, and a comment at the upload step on the
+  dotfiles it leaves out. `tests/test_workflow.py`: the two pins it already read, and
+  `test_the_actions_are_the_majors_that_run_on_node_24`, which pins the set. `docs/DEVELOPING.md`: the two sentences
+  that named `setup-node@v4`, and Yearly upkeep items 2 and 3.
+
+| Action | Was | Now | What the release notes between the two change for this workflow |
+| --- | --- | --- | --- |
+| `actions/checkout` | v4 | v7 | v5 runs on Node.js 24. v6 keeps the credentials in a file of their own, which the `changed` step's `git fetch` still uses. v7 refuses fork pull requests under `pull_request_target` and `workflow_run`, events this workflow does not have. |
+| `actions/setup-python` | v5 | v7 | v6 runs on Node.js 24. v7 removes the `pip-install` input, which the workflow does not use; `python-version: '3.12'` is read as before. |
+| `actions/setup-node` | v4 | v7 | v5 runs on Node.js 24 and caches packages on its own when a `package.json` names a package manager (the repository has no `package.json`); v6 limits that to npm; v7 stops exporting a dummy `NODE_AUTH_TOKEN` (no registry here). |
+| `actions/configure-pages` | v5 | v6 | Node.js 24 only. |
+| `actions/upload-pages-artifact` | v3 | v5 | v4 leaves dotfiles out of the artifact, so `_site/.nojekyll` (`build.BUILD_MARK`) is no longer published: Pages builds from this workflow (`build_type: workflow`) and runs no Jekyll, so nothing reads it. v5 uploads through upload-artifact v7 and adds `include-hidden-files`, left at `false`. |
+| `actions/download-artifact` | v4 | v8 | v5 changes the path of a download by id (this one is by name). v7 runs on Node.js 24. v8 fails on a digest mismatch where v4 warned, and leaves alone a file uploaded unzipped (this artifact is zipped, so `artifact.tar` arrives as before). |
+| `actions/deploy-pages` | v4 | v5 | v5 runs on Node.js 24; v5.0.1 polls the deployment with backoff. Same inputs, none used. |
+
+- **Pairing.** The smoke job's download must read what the build's upload wrote: upload-pages-artifact v5 tars
+  `_site` into `artifact.tar` and uploads it zipped with upload-artifact v7, and download-artifact v8 unzips it into
+  the job's folder, where `tar -xf artifact.tar -C _site` finds it. The Pages docs of Hugo and Nuxt and r-lib's
+  examples pair upload-pages-artifact@v5 with deploy-pages@v5.
+- **The runner: kept `ubuntu-latest`.** The label moves to Ubuntu 26.04 between 2026-10-19 and 2026-11-19
+  (actions/runner-images issue 14748). The workflow brings its own Python and Node, and the 26.04 image's tool cache
+  holds the same Python 3.12.15 and Node.js 22.23.3 as the 24.04 one, with Google Chrome (the smoke job), the GitHub
+  CLI (the `changed` step), git and bash. Pinning `ubuntu-24.04` would only put the move off; if a run on the new image
+  fails where 24.04 passed, that pin on the three jobs is the way back (DEVELOPING.md, Yearly upkeep, item 3).
+- **Checks actually run.** `python3 tools/check.py`: validate, the suite on `/usr/bin/python3` 3.9 and on
+  `python3.12` with `-W error`, and `build.py --check`, all passed (4 min 36 s). The build's only dotfile is
+  `.nojekyll` (`find .cache/check -name '.*'`), so it is all the new upload leaves out. The release notes were read
+  with `gh api repos/actions/<name>/releases/tags/<tag>`, and each new major's `action.yml` says `using: node24`.
+- **Not done.** No run has used the new pins, since nothing was pushed. The first run on `main` after this commit is
+  the proof: it runs the unit tests (`.github/` changed), its annotations should have no Node.js 20 line, and the smoke
+  job should unpack `artifact.tar` as before. DEVELOPING.md's advice stands: push it on its own on a quiet day, or
+  prove it with a `workflow_dispatch` run, not with a trip.

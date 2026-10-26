@@ -1,9 +1,10 @@
-"""The deploy workflow (.github/workflows/pages.yml) after Phase 8: Node pinned before the tests, the unit tests only
-when code changed since the last successful push run, the dispatch input that builds a past commit, the paths a push
-may change without starting a run, and the Chrome smoke job that never gates the deploy. The 'changed' step's own shell
-script is taken out of the file and run with bash -eo pipefail in a temporary git repository, with a stand-in `gh` on
-PATH that answers the last successful run's commit: a content push, a code push, a content push after a code push that
-failed, no successful run yet, an answer that is no commit, a commit that cannot be fetched, and a manual run."""
+"""The deploy workflow (.github/workflows/pages.yml) after Phase 8: the actions' majors, Node pinned before the tests,
+the unit tests only when code changed since the last successful push run, the dispatch input that builds a past commit,
+the paths a push may change without starting a run, and the Chrome smoke job that never gates the deploy. The 'changed'
+step's own shell script is taken out of the file and run with bash -eo pipefail in a temporary git repository, with a
+stand-in `gh` on PATH that answers the last successful run's commit: a content push, a code push, a content push after
+a code push that failed, no successful run yet, an answer that is no commit, a commit that cannot be fetched, and a
+manual run."""
 import os
 import re
 import shutil
@@ -36,10 +37,19 @@ def changed_script(text):
 
 class WorkflowShapeTests(unittest.TestCase):
 
+    def test_the_actions_are_the_majors_that_run_on_node_24(self):
+        # bumped together (docs/DEVELOPING.md, Yearly upkeep, item 2); upload-pages-artifact@v5 uploads through
+        # upload-artifact@v7, which the smoke job's download-artifact@v8 reads
+        uses = re.findall(r'uses: (\S+)', flow())
+        self.assertEqual(sorted(set(uses)), ['actions/checkout@v7', 'actions/configure-pages@v6',
+                                             'actions/deploy-pages@v5', 'actions/download-artifact@v8',
+                                             'actions/setup-node@v7', 'actions/setup-python@v7',
+                                             'actions/upload-pages-artifact@v5'])
+
     def test_node_22_is_set_up_before_the_tests(self):
         build = job(flow(), 'build')
-        self.assertIn("uses: actions/setup-node@v4\n        with:\n          node-version: '22'", build)
-        self.assertLess(build.index('actions/setup-node@v4'), build.index('name: Unit tests'))
+        self.assertIn("uses: actions/setup-node@v7\n        with:\n          node-version: '22'", build)
+        self.assertLess(build.index('actions/setup-node@v7'), build.index('name: Unit tests'))
 
     def test_the_tests_run_only_when_the_changed_step_says_code(self):
         build = job(flow(), 'build')
@@ -73,7 +83,7 @@ class WorkflowShapeTests(unittest.TestCase):
         self.assertIn('needs: build\n', deploy)
         self.assertNotIn('smoke', deploy)
         # the deploy job is as it was
-        self.assertIn('uses: actions/deploy-pages@v4', deploy)
+        self.assertIn('uses: actions/deploy-pages@v5', deploy)
 
 
 class ChangedStepTests(unittest.TestCase):
