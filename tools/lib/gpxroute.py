@@ -20,6 +20,11 @@ import geo
 MAX_BYTES = 30_000_000
 MAX_POINTS = 500_000
 METHOD = 'ticklist-gpx-1'
+# measure_terrain: what render.py reads for a goal whose file has no elevation, or only some. A change to any of the three
+# is a new TERRAIN_METHOD, and render.py then estimates every such goal again (meta.json 'terrain' records the method)
+TERRAIN_METHOD = 'ticklist-terrain-1'
+TERRAIN_ZOOM = 13        # AWS Terrain Tiles zoom: about 15 m a pixel at 40 degrees, the finest render.py's maps read
+TERRAIN_STEP_M = 20.0    # the longest stretch of line between two samples, about a pixel at that zoom
 # A published goal file is served from the site's own origin as XML, so it must hold nothing a browser could run or
 # fetch: no DTD or entity declarations (and no other <! markup but comments and CDATA), no processing instruction but
 # the XML declaration (an xml-stylesheet instruction loads and applies XSLT), no XHTML / SVG / MathML namespace (script
@@ -455,22 +460,57 @@ def measure(segments):
     elevation = 'full' if pts and len(eles) == len(pts) else ('partial' if eles else 'none')
     gain = loss = None
     if elevation == 'full':
-        g = l = 0.0
-        for seg in segments:
-            ref = seg[0][2]
-            for p in seg[1:]:
-                e = p[2]
-                if e - ref >= 3:
-                    g += e - ref
-                    ref = e
-                elif ref - e >= 3:
-                    l += ref - e
-                    ref = e
+        g, l = _climb([[p[2] for p in seg] for seg in segments])
         gain, loss = int(round(g)), int(round(l))
     return {'distance_km': round(dist / 1000.0, 2), 'gain_m': gain, 'loss_m': loss,
             'high_m': int(round(max(eles))) if eles else None, 'low_m': int(round(min(eles))) if eles else None,
             'elevation': elevation, 'times': any(p[3] is not None for p in pts), 'points': len(pts),
             'segments': len(segments), 'sparse': len(pts) < 10}
+
+
+def _climb(series):
+    """(gain, loss) in metres over elevation series, one per segment, with the 3 m hysteresis tracks.compute_stats uses.
+    Each segment starts afresh, so the climb or drop across a gap between two segments is never counted."""
+    g = l = 0.0
+    for es in series:
+        if not es:
+            continue
+        ref = es[0]
+        for e in es[1:]:
+            if e - ref >= 3:
+                g += e - ref
+                ref = e
+            elif ref - e >= 3:
+                l += ref - e
+                ref = e
+    return g, l
+
+
+def along(seg, step_m=TERRAIN_STEP_M):
+    """The (lat, lon) points measure_terrain samples on one segment: every point of it, and between two points farther
+    apart than step_m evenly spaced ones at most step_m apart, on the straight line between them (as the map draws it)."""
+    out = [(seg[0][0], seg[0][1])]
+    for a, b in zip(seg, seg[1:]):
+        k = max(1, int(math.ceil(geo.hav(a, b) / step_m)))
+        for i in range(1, k + 1):
+            f = i / float(k)
+            out.append((a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f))
+    return out
+
+
+def measure_terrain(segments, sample, step_m=TERRAIN_STEP_M):
+    """Approximate gain, loss, high and low of the ground under the line, for a goal whose file has no elevation or only
+    some: sample(lat, lon) gives the terrain's height in metres (geo.DEM(TERRAIN_ZOOM).sample in render.py), read along
+    each segment of more than one point on its own (along()), the gap between two segments never bridged, with
+    measure()'s 3 m hysteresis. An estimate from a terrain model, never a measurement from the file; the elevations in
+    the file, where there are any, are not read. None when there is no such segment."""
+    series = [[sample(lat, lon) for lat, lon in along(seg, step_m)] for seg in segments if len(seg) > 1]
+    eles = [e for es in series for e in es]
+    if not eles:
+        return None
+    g, l = _climb(series)
+    return {'gain_m': int(round(g)), 'loss_m': int(round(l)), 'high_m': int(round(max(eles))),
+            'low_m': int(round(min(eles))), 'samples': len(eles)}
 
 
 def _layout(data):

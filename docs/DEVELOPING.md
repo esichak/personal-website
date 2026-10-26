@@ -192,6 +192,10 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
 ### Facts, dates and structured data
 
 - Facts only from the content files. Never invent stats, grades, conditions, bios or captions. Hide empty fields.
+  The one number shown that no content file states is a tick-list goal's terrain estimate (`core.goal_heights`): the
+  gain, loss and high point render.py reads from terrain tiles for a goal whose GPX has no elevation, kept in
+  rendered/ (never in `stats`, which stay the numbers measured from the file) and labelled `(terrain)` wherever it is
+  shown.
 - Eric's write-ups are verbatim (`markdown.to_html(t['body_md'])`), and so are his other words: the About page's from
   `content/about.md` (in place of the computed lede, its photo shown only with its alt) and a region page's
   introduction from `content/regions/<slug>.md`. Without those files the pages say nothing of his.
@@ -814,7 +818,9 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     completed until a new completed outing.
   - `core.goal_card(t, here)` is the one goal card (`data-slug / act / region / status / priority / months / gpx / archived /
     added / text`); the route tile is its image, with 'Map not rendered yet' / 'Route not added yet' fallbacks. Its stats
-    line (`core.goal_stats_line`) is the ≈ distance, gain and high point; under it `core.goal_aim(goal)` lists the
+    line (`core.goal_stats_line`) is the ≈ distance, gain and high point (`core.goal_heights`: the file's own, else the
+    terrain estimate, then `GAIN (TERRAIN)` / `HIGH POINT (TERRAIN)` in an item that may wrap before the mark alone,
+    `.mi-w`); under it `core.goal_aim(goal)` lists the
     author's `objective` and `peaks` (route order, one meta line), each only when set, and both are in `data-text`. The
     phone list view hides them with the tags.
   - ticklist.js state keys: `q, activity, region, status, priority, month, gpx (1), scope (active | shortlisted | completed
@@ -833,7 +839,9 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     (`ticklist.with_form(site)`); below that the page lists the active goals alone, with no controls, and an address
     with `?status=` or `?scope=` changes nothing (ticklist.js finds no form and returns).
   - A goal page (`report.goal_page`) says Planned route and Planning notes, never Trip report: an approximate stats strip
-    (≈, gain and loss only with full elevation, never a moving time, a note naming the source kind and scope), the
+    (≈, gain and loss from the file only with full elevation, else the terrain estimate as `Gain (terrain)`, `Loss
+    (terrain)` and, without a high point in the file, `High point (terrain)`; never a moving time; a note naming the
+    source kind and scope, and saying which values come from terrain data, not the file), the
     rendered map or an honest fallback, Objective and peaks (the author's objective and numbered peaks, the heading
     naming only what is there) · Why · Planning notes · Season and commitment (only approved field_evidence is
     published) · Route source · References · Still to check (read-only) · Outings. The download is the published source
@@ -849,6 +857,17 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     own map and on the region maps (`goal_lines`, `start_of`, `site_tracks`); goals get no elevation chart. A goal without
     a GPX (`no_route(t)`) is skipped, and a render left from an earlier route is removed; region maps draw active goals
     only. tests/test_render_goals.py covers these with the drawing and OpenStreetMap functions stubbed.
+  - A goal whose GPX has no elevation, or only some (`renderkey.file_elevation`, `wants_terrain`), gets
+    `meta['terrain']` from `render.terrain_block`: `gpxroute.measure_terrain` samples `geo.DEM(TERRAIN_ZOOM)` (13)
+    along each segment (`gpxroute.along`: every point, samples no more than `TERRAIN_STEP_M`, 20 m, apart), never
+    across a gap, with `measure`'s 3 m hysteresis (`gpxroute._climb`, shared), and records `gain_m`, `loss_m`, `high_m`,
+    `low_m`, `samples`, `method` (`TERRAIN_METHOD`), `source`, `zoom`, `step_m`, `file_elevation` and `date`. It is not
+    part of the render hash: a render that lacks it, or holds one by another `TERRAIN_METHOD`, is pending
+    (`renderkey.terrain_reason`, read by `pending_reason`, `--status` and the content checks' warning), and
+    `render_trip` then adds the estimate alone (`add_terrain`: meta.json rewritten in place, every map left as it is).
+    Change the zoom, the step or the hysteresis by bumping `TERRAIN_METHOD`, which re-estimates every such goal and
+    draws nothing. `core.goal_terrain(t)` reads it at build time for a planned trip only. tests/test_terrain_gain.py
+    covers it with the tile reads replaced by a synthetic terrain.
   - `ticklist.py add` names `"rendered/trips/<slug>"` in its closing `Next:` line only when that folder holds a
     meta.json after the run. When it published a track and no map was drawn, it first prints `  no map was drawn
     (render.py leaves drafts out): once "draft: true" is removed, run python3 tools/render.py <slug> and add

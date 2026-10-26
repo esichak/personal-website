@@ -470,34 +470,42 @@ def bottom_bar(t, here, gpx_href, has_beta, has_report, has_gallery, chart='', s
 
 def goal_strip(t):
     """The approximate numbers a goal has (distance; gain and loss only with full elevation; the file's high point), each marked ≈,
-    with a note saying where they come from and what is unknown. Never a moving time: a plan has none."""
+    with a note saying where they come from and what is unknown. Where the file has no gain or high point, the terrain
+    estimate takes its place (core.goal_heights), labelled 'Gain (terrain)' / 'Loss (terrain)' / 'High point (terrain)',
+    and the note says it comes from terrain data, not the file. Never a moving time: a plan has none."""
     g, st = t['goal'], t['stats']
     cells = []
     mi, km = core.dist_vals(st.get('distance_km'))
     if mi:
         cells.append(('Distance', '≈ ' + U(mi, km, 'mi', 'km'), U_sub(mi, km, 'mi', 'km')))
-    if st.get('gain_m') is not None:
-        v = st['gain_m']
-        cells.append(('Gain', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
-        if st.get('loss_m') is not None:
-            v = st['loss_m']
-            cells.append(('Loss', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
-    if st.get('high_m') is not None:
-        v = st['high_m']
-        cells.append(('High point', '≈ ' + U(n(v * FT), n(v), 'ft', 'm'), U_sub(n(v * FT), n(v), 'ft', 'm')))
+    hs = core.goal_heights(t)
+    for k, word in core.GOAL_HEIGHTS:
+        if k in hs:
+            v, ter = hs[k]
+            cells.append((word.capitalize() + (' (terrain)' if ter else ''), '≈ ' + U(n(v * FT), n(v), 'ft', 'm'),
+                          U_sub(n(v * FT), n(v), 'ft', 'm')))
     if not cells:
         return ''
+    ter = core.goal_terrain(t)
+    elevation = g['route']['elevation'] if g.get('route') else (ter or {}).get('file_elevation')
     if g.get('route'):
         src = goals.SOURCE_LABELS[g['route_source']['kind']]
         bits = ['Approximate, measured from the planned route (%s, %s).' % (src, goals.SCOPE_LABELS[g['route_scope']])]
-        if g['route']['elevation'] == 'none':
-            bits.append('The file has no elevation, so no gain is shown.')
-        elif g['route']['elevation'] == 'partial':
-            bits.append('Elevation covers only part of the route, so no gain is shown.')
     else:
         bits = ['Approximate values from the planned route file.']
-    if st.get('high_m') is not None:
-        bits.append('The high point is the highest point in the file, not a surveyed summit.')
+    by_terrain = [word.lower() for k, word in core.GOAL_HEIGHTS if hs.get(k, (0, False))[1]]
+    if by_terrain:
+        what = ', '.join(by_terrain[:-1]) + (' and ' if len(by_terrain) > 1 else '') + by_terrain[-1]
+        bits.append('%s, so the %s %s estimated from terrain data (%s) under the line, not measured from the file.'
+                    % ('Elevation covers only part of the route' if elevation == 'partial' else 'The file has no elevation',
+                       what, 'is' if len(by_terrain) == 1 else 'are', esc(ter.get('source') or 'AWS Terrain Tiles')))
+    elif elevation == 'none':
+        bits.append('The file has no elevation, so no gain is shown.')
+    elif elevation == 'partial':
+        bits.append('Elevation covers only part of the route, so no gain is shown.')
+    if 'high' in hs:
+        bits.append('The high point is the highest ground under the line, not a surveyed summit.' if hs['high'][1]
+                    else 'The high point is the highest point in the file, not a surveyed summit.')
     return ('<section class="wrap rep-strip" id="stats" aria-label="Approximate stats">%s<p class="strip-note">%s</p></section>'
             % (core.strip(cells, label='Approximate stats'), ' '.join(bits)))
 

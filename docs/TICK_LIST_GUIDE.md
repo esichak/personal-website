@@ -23,8 +23,10 @@ Adding a finished trip is in [ADDING-TRIPS.md](../ADDING-TRIPS.md); homepage fea
 - **Status is intent, not readiness.** `shortlisted` means you want to do it soon; it never means safe, in condition
   or within your ability. The site shows status as a read-only badge. There is no public checkbox, upload form or
   login, and nothing a visitor does changes your list.
-- **Unknown stays unknown.** A route with no elevation in its file has no gain, not zero gain. A goal without a
-  track shows "Route not added yet". The site never invents a date, a duration, a grade or a summit.
+- **Unknown stays unknown, and an estimate says it is one.** A route with no elevation in its file has no measured
+  gain, not zero gain. Once its map is drawn, the site shows the gain the terrain under the line gives instead, marked
+  "(terrain)" wherever it appears (section 6). A goal without a track shows "Route not added yet". The site never
+  invents a date, a duration, a grade or a summit.
 - **Everything committed is public**, including `draft: true` goals, sidecars and GPX files. Section 7.
 - The planned routes that were on the site before the tick list (for example a folder with only `index.md` and
   `track.gpx`) keep working with default goal metadata (`idea`, `normal`, nothing else) until you give them a
@@ -39,7 +41,8 @@ content/trips/<slug>/
   index.md      kind: planned; title, activity, place, region, approximate stats; body = planning notes
   goal.json     intent, provenance, references, checklist, outings (optional; defaults apply without it)
   track.gpx     the approved public copy of the route (optional)
-rendered/trips/<slug>/   maps, tile and glyph, drawn on your Mac by render.py
+rendered/trips/<slug>/   maps, tile and glyph, drawn on your Mac by render.py; for a GPX without elevation, meta.json
+                         also holds the terrain estimate of the gain (section 6)
 ```
 
 Nothing is written twice: `index.md` holds what every trip has (title, activity, place, region, stats, the body);
@@ -104,7 +107,7 @@ message naming the field if a value is wrong (section 9). A `goal.json` beside a
 | `draft: true` | on creation | Off the site until removed. Not a goal status and not a privacy control. |
 | `place`, `region` | no | "Desolation Wilderness", "Lake Tahoe". Reuse an existing region name so the goal joins that group; without one it sits under "No region yet". Coordinates alone never become a place name. |
 | `route_shape` | no | `loop`, `out-and-back`, `point-to-point`, when you know it. |
-| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM): on the tick list, the goal page, the Hiking page's Planned rows (the other activity pages count a planned route and do not list it) and the rows and table of the map page and of the goal's region page, where the top of the line is labelled "High point", not "GPS max". A tick-list card shows the distance, the gain and the high point ("≈ 28.4 MI · ≈ 13,993 FT GAIN · ≈ 9,970 FT HIGH POINT"); the goal page's strip adds the loss beside the gain. "Highest point in the file" is not "summit elevation". |
+| `stats` | importer only | `distance_km` always; `gain_m` / `loss_m` only when every point in the file has an elevation; `high_m` / `low_m` when any does. These are the numbers measured from the file; a terrain estimate (section 6) is never written here. Written by `--publish-track`; shown everywhere as approximate ("≈ 12.3 MI · ≈ 2,100 FT GAIN", in MI or KM): on the tick list, the goal page, the Hiking page's Planned rows (the other activity pages count a planned route and do not list it) and the rows and table of the map page and of the goal's region page, where the top of the line is labelled "High point", not "GPS max". A tick-list card shows the distance, the gain and the high point ("≈ 28.4 MI · ≈ 13,993 FT GAIN · ≈ 9,970 FT HIGH POINT"); the goal page's strip adds the loss beside the gain. "Highest point in the file" is not "summit elevation". |
 | body | no | Planning notes, shown under the heading "Planning notes" (never "Trip report"). `add --notes` writes the first version. |
 
 **In `goal.json`:**
@@ -383,8 +386,8 @@ guidebook, and an unnamed top is never listed, so read the list against your pla
 
    `validate.py` and every build check each goal, drafts included. What they say about a goal is in section 9; the
    flags, the other messages and the lines `--check` prints are in CONTENT_GUIDE.md, section 5. Look at the card on
-   the list, the goal page's stats strip (every value marked approximate, no gain unless the file had full
-   elevation), the "Route source" section and the map. A goal with a track shows "Map not rendered yet" until its map
+   the list, the goal page's stats strip (every value marked approximate; for a file without full elevation, the gain
+   only once the map is drawn, marked "(terrain)"), the "Route source" section and the map. A goal with a track shows "Map not rendered yet" until its map
    is drawn, and none was drawn while it was a draft: run `python3 tools/render.py <slug>` (needs internet) and stage
    what it drew with the goal (step 4).
 
@@ -436,10 +439,23 @@ choice, not a privacy measure; the files are still in the repository's history (
   never bridged, on the map or in the number. Two unrelated tracks in one file are two candidates, not one traverse.
 - **Several candidates need a choice.** With more than one track or route you pass `--select trk:N` or
   `--select rte:N`; nothing is concatenated silently. With exactly one candidate, no choice is needed.
-- **No elevation means no gain.** `gain_m` and `loss_m` are written only when every point has an `<ele>`;
-  `elevation: "partial"` or `"none"` in the `route` block says why not, and the stats strip says "No elevation in the
-  file" or "Partial elevation". High and low points appear when any point has one. No elevation service is queried
-  and no points are made up.
+- **No elevation in the file means no measured gain.** `gain_m` and `loss_m` are written only when every point has
+  an `<ele>`; `elevation: "partial"` or `"none"` in the `route` block says why not. High and low points are written
+  when any point has one. The importer queries no elevation service, makes up no points and never adds an `<ele>` to
+  the file.
+- **The gain of such a file is estimated from terrain, and labelled so.** When `render.py` draws a goal whose file
+  has no elevation, or only some, it also reads the terrain under the line from the AWS Terrain Tiles it draws the maps
+  with (zoom 13, about 15 m a pixel; samples no more than 20 m apart along each segment, the gap between two segments
+  never bridged, the same 3 m hysteresis as the importer) and writes the gain, loss, high and low to the goal's
+  `rendered/trips/<slug>/meta.json` under `terrain`, with the method, source, zoom and day. `index.md` and `goal.json`
+  are not touched. The card and the goal page show these values only where the file has none, each labelled
+  `(terrain)`: "≈ 8,900 FT GAIN (TERRAIN)" on the card, "Gain (terrain)", "Loss (terrain)" and "High point (terrain)"
+  in the strip, whose note says they are estimated from terrain data under the line, not measured from the file. With
+  partial elevation the gain and loss come from the terrain and the high point stays the file's. A goal whose file has
+  full elevation shows the file's numbers alone, as before. Until the map is drawn there is no estimate, and the strip
+  says "no gain is shown". A terrain model smooths ridges and gullies, and a drawn line that strays off the crest
+  samples the slope beside it: read the number as a rough guide, like everything else on the goal. On a route with
+  full elevation in its file (2026-10) the estimate came out about 6% below the file's gain.
 - **Times are not a date.** A recorder's timestamps are kept in the file if they were there, and ignored
   otherwise: the goal gets no `date` and no moving time, and the recording's day is nobody's trip date. The report
   says whether the file has them, whatever time zone they are written in.
@@ -479,8 +495,10 @@ choice, not a privacy measure; the files are still in the repository's history (
     line, cut at 60 to 100 characters. Control and invisible characters, stacked accents and right-to-left letters
     are written as `\uXXXX`, because they can forge, hide or reorder what the report shows. If you see `\u…` in a
     name, the file contains characters you would not otherwise notice.
-- **Rendering is local.** Maps, tiles and glyphs come from `tools/render.py` on your Mac, which downloads terrain
-  and OpenStreetMap data; GitHub never renders. Planned routes are drawn segment by segment in the planned style, with
+- **Rendering is local.** Maps, tiles, glyphs and the terrain estimate come from `tools/render.py` on your Mac, which
+  downloads terrain and OpenStreetMap data; GitHub never renders. A goal drawn before render.py made the estimate is
+  listed by `render.py --status` ("no terrain estimate of the gain yet"); a run then adds the estimate to its
+  `meta.json` and leaves its maps as they are. Planned routes are drawn segment by segment in the planned style, with
   no elevation profile. Until a render exists (or if it fails), the goal is still valid and its card and page show
   "Map not rendered yet"; with no track at all they show "Route not added yet" / "No route added yet".
 
@@ -604,6 +622,7 @@ the goal's folder name; the dates and `your-report-slug` are examples.
 | `WARNING`, `goal.json` | `outings[0].date 2027-06-14 is in the future (today is 2026-10-10); an outing is something that happened` | An outing dated after today; `log-outing --date` does not refuse one. `outings[0]` is the first entry | Correct the date in `goal.json`. |
 | `WARNING`, `goal.json` | `outings[1].report_slug 'your-report-slug' is already named by outings[0]` | Two outings of one goal name the same report, for example an attempt and a completion logged with one `--report-slug` | If that is not what happened, set `report_slug` to `null` on one of them. |
 | `WARNING`, `index.md` | `no rendered map (rendered/trips/<slug>/meta.json is missing); run python3 tools/render.py <slug> (until then the page shows "Map not rendered yet")` | A published goal has a `track.gpx` whose map has not been drawn; its page shows "Map not rendered yet". A new goal with a track is in this state once `draft: true` is removed, because no map is drawn for a draft | Run the command it gives (needs internet), then stage `rendered/trips/<slug>` and `rendered/site` with the goal (section 5, step 4). |
+| `WARNING`, `index.md` | `no terrain estimate of the gain yet (the file has no elevation); run python3 tools/render.py <slug> (it writes the estimate into meta.json and leaves the maps as they are)` | A published goal whose GPX has no elevation (or, in the line's words, `elevation for only part of the line`) has its map drawn, but its `meta.json` holds no terrain estimate: it was drawn before render.py made one. The card and page show no gain. After a change of the estimate's method the line reads `terrain estimate made by an older method (…)` and the old estimate is shown until then | Run the command it gives (needs internet; it reads the terrain tiles and draws nothing), then stage `rendered/trips/<slug>/meta.json` (section 6). |
 | `WARNING`, the copy itself | `looks like an iCloud conflict copy (the name ends in a space and a number): nothing reads it, but git add of the folder would stage it; delete it` | The file named, such as `content/trips/<slug>/goal 2.json`, is an iCloud conflict copy of a file in the goal's folder | Delete it (section 5, step 4). For a copy of `index.md` or `goal.json`, compare it with the original first: the copy may hold your newer text. |
 | `WARNING`, `index.md` | `the site maps under rendered/site/ still draw this trip, which is a draft: the build leaves its own pin and line out of them; run python3 tools/render.py --site when online (and commit rendered/site/) to redraw the maps, their merged pins and counts` | A goal that a region map was drawn with is a draft again (section 5), or was completed or archived. After the goal's folder was removed the line reads `which has no folder under content/trips any more` and still names its `index.md`; after its `track.gpx` was removed, `which has no track any more`. The build leaves the goal's own line and pin out of the maps, so `build.py --check` passes | When online, run `python3 tools/render.py --site`, then stage `rendered/site` with the goal's folder, as step 5 of ADDING-TRIPS.md gives. |
 

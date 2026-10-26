@@ -136,6 +136,53 @@ def goal_has_line(t):
     return any(len(seg) > 1 for c in gpxroute.candidates(gpxroute.inspect(t['track'])) for seg in c['segments'])
 
 
+_ELEVATION = {}
+
+
+def file_elevation(t):
+    """'full', 'partial' or 'none': how much of a tick-list goal's published line has an elevation (gpxroute.measure over
+    every segment render.py draws), cached by the file's size and time. None for a report, for a goal without a GPX and
+    for a file gpxroute refuses (the content checks report that one)."""
+    if t['kind'] != 'planned' or not t['track']:
+        return None
+    try:
+        st = os.stat(t['track'])
+    except OSError:
+        return None
+    key = (t['track'], st.st_size, st.st_mtime)
+    if key not in _ELEVATION:
+        import gpxroute
+        try:
+            segs = [seg for c in gpxroute.candidates(gpxroute.inspect(t['track'])) for seg in c['segments']]
+        except gpxroute.GpxError:
+            segs = []
+        _ELEVATION[key] = gpxroute.measure(segs)['elevation'] if segs else None
+    return _ELEVATION[key]
+
+
+def wants_terrain(t):
+    """Whether render.py estimates a goal's gain from terrain data (meta.json 'terrain', gpxroute.measure_terrain): a goal
+    whose published line has no elevation, or only some. A goal whose file has full elevation keeps the numbers measured
+    from the file alone; a report never gets one."""
+    return file_elevation(t) in ('none', 'partial')
+
+
+def terrain_reason(t, meta):
+    """Why a goal's meta.json needs its terrain estimate (written again), or None: render.py --status and render_trip ask
+    this when the maps themselves are up to date, and the content checks for a published goal. meta: the meta.json
+    object."""
+    if not wants_terrain(t):
+        return None
+    have = meta.get('terrain') if isinstance(meta, dict) else None
+    if not isinstance(have, dict):
+        return 'no terrain estimate of the gain yet (the file has %s)' % (
+            'no elevation' if file_elevation(t) == 'none' else 'elevation for only part of the line')
+    import gpxroute
+    if have.get('method') != gpxroute.TERRAIN_METHOD:
+        return 'terrain estimate made by an older method (%s, now %s)' % (have.get('method'), gpxroute.TERRAIN_METHOD)
+    return None
+
+
 def journal_parts(trips):
     """{region: [part]}: a journal (kind: series) spans many regions and is filed under none of them; its region_days
     (content.py) say which days lie where, and those days are drawn on that region's map. A part is the content's own

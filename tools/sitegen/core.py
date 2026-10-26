@@ -1977,9 +1977,46 @@ def goal_tags(goal):
     return ''.join(out)
 
 
+def goal_terrain(t):
+    """The terrain estimate render.py made for a goal whose GPX has no elevation, or only some (rendered/trips/<slug>/
+    meta.json 'terrain': gain_m, loss_m, high_m, low_m, source, zoom, file_elevation, ...), or None: for a report, a
+    goal whose file has full elevation, and a goal not drawn yet. Never written into index.md, whose stats stay the
+    numbers measured from the file."""
+    if t.get('kind') != 'planned':
+        return None
+    tb = render_meta(t).get('terrain')
+    if not isinstance(tb, dict) or not all(isinstance(tb.get(k), int) for k in ('gain_m', 'loss_m', 'high_m')):
+        return None
+    return tb
+
+
+def goal_heights(t):
+    """{'gain' | 'loss' | 'high': (metres, from_terrain)}: a goal's gain and loss and its high point, each from its
+    stats when the file measured it (gain and loss only with full elevation, the high point when any point has one),
+    else from the terrain estimate (goal_terrain), which then says so wherever it is shown. Gain and loss always come
+    from the same place, and a loss is never shown without its gain."""
+    st, ter, out = t['stats'], goal_terrain(t), {}
+    if st.get('gain_m') is not None:
+        out['gain'] = (st['gain_m'], False)
+        if st.get('loss_m') is not None:
+            out['loss'] = (st['loss_m'], False)
+    elif ter:
+        out['gain'], out['loss'] = (ter['gain_m'], True), (ter['loss_m'], True)
+    if st.get('high_m') is not None:
+        out['high'] = (st['high_m'], False)
+    elif ter:
+        out['high'] = (ter['high_m'], True)
+    return out
+
+
+GOAL_HEIGHTS = (('gain', 'GAIN'), ('loss', 'LOSS'), ('high', 'HIGH POINT'))   # goal_heights' keys and their words
+
+
 def goal_stats_line(t):
     """'≈ 12.3 MI · ≈ 2,100 FT GAIN · ≈ 9,970 FT HIGH POINT' (gain only when the file had full elevation, the high point
-    when any point had one; a legacy goal shows what its front matter says), 'ROUTE NOT ADDED' with no track."""
+    when any point had one; a legacy goal shows what its front matter says), 'ROUTE NOT ADDED' with no track. A goal
+    whose file lacks them shows the terrain estimate in their place, each marked: '≈ 8,911 FT GAIN (TERRAIN)'
+    (goal_heights). Such an item may wrap before '(TERRAIN)' alone, so a phone's narrow card never cuts it off."""
     if not t['track']:
         return meta_items([nb('ROUTE NOT ADDED')])
     st = t['stats']
@@ -1987,10 +2024,12 @@ def goal_stats_line(t):
     items = []
     if mi:
         items.append(U(caps_unit('≈ ' + mi, 'MI'), caps_unit('≈ ' + km, 'KM')))
-    if st.get('gain_m') is not None:
-        items.append(U(caps_unit('≈ ' + n(st['gain_m'] * FT), 'FT', 'GAIN'), caps_unit('≈ ' + n(st['gain_m']), 'M', 'GAIN')))
-    if st.get('high_m') is not None:
-        items.append(U(caps_unit('≈ ' + n(st['high_m'] * FT), 'FT', 'HIGH POINT'), caps_unit('≈ ' + n(st['high_m']), 'M', 'HIGH POINT')))
+    hs = goal_heights(t)
+    for k, word in GOAL_HEIGHTS:
+        if k in hs and k != 'loss':
+            v, ter = hs[k]
+            imp, met = caps_unit('≈ ' + n(v * FT), 'FT', word), caps_unit('≈ ' + n(v), 'M', word)
+            items.append((U(imp + ' (TERRAIN)', met + ' (TERRAIN)'), 'mi-w') if ter else U(imp, met))
     return meta_items(items)
 
 

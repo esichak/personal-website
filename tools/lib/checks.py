@@ -925,7 +925,7 @@ def _trip_findings(t, rec, today, rendered_dir, out):
             _warn(out, file, 'no rendered map (rendered/trips/%s/meta.json is missing); run python3 tools/render.py %s%s'
                   % (slug, slug, '' if kind == 'series' else ' (until then the page shows "Map not rendered yet")'))
         else:
-            stale = _render_staleness(t, meta_file)
+            stale = _render_staleness(t, meta_file) or (kind == 'planned' and _terrain_staleness(t, meta_file))
             if stale:
                 _warn(out, file, stale)
     if kind != 'planned' and t['track'] and t.get('timezone') == 'UTC' and t.get('start_time'):
@@ -981,6 +981,22 @@ def _render_staleness(t, meta_file):
         return ('maps were drawn from other inputs (the track, the title, activity, kind, map: or stats changed since): '
                 'run python3 tools/render.py %s' % t['slug'])
     return None
+
+
+def _terrain_staleness(t, meta_file):
+    """Why a goal whose GPX has no elevation, or only some, shows no terrain estimate of its gain (renderkey.terrain_reason:
+    meta.json has none, or one made by an older method), or None. Its maps are up to date (_render_staleness said
+    nothing), so render.py makes the estimate alone. A track iCloud Drive has offloaded is not read."""
+    if _offloaded([t['track']]):
+        return None
+    try:
+        with open(meta_file, encoding='utf-8') as fh:
+            meta = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    why = renderkey.terrain_reason(t, meta)
+    return ('%s; run python3 tools/render.py %s (it writes the estimate into meta.json and leaves the maps as they are)'
+            % (why, t['slug'])) if why else None
 
 
 _INPUTS = {}

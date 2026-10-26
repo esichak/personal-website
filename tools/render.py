@@ -15,6 +15,8 @@ Needs the internet (AWS Terrain Tiles + OpenStreetMap Overpass); downloads are c
 A trip whose render fails keeps its last good maps, the run goes on with the others, and it ends with exit status 1.
 Every meta.json records what drew it (meta['renderer']: VERSION, Python, cwebp, the day, whether OpenStreetMap came from
 the cache); a run stops before drawing when cwebp is missing (--allow-png draws all the same, with PNG hillshades).
+A tick-list goal whose GPX has no elevation, or only some, also gets meta['terrain']: its gain, loss, high and low
+estimated from the terrain tiles along the line (terrain_block); a goal drawn before that gets the estimate alone.
 """
 import argparse
 import json
@@ -37,7 +39,7 @@ import mapkit  # noqa: E402
 import renderkey  # noqa: E402
 from mapkit import Track, render_map, render_profile, render_glyph, render_tile, render_sparkline, render_speed_chart  # noqa: E402
 # the input hashes (and the rules they need) live in lib/renderkey.py, where the content checks read them too
-from renderkey import VERSION, MIN_REGION_TRIPS, file_hash, trip_inputs, no_route, no_track, journal_parts  # noqa: E402,F401
+from renderkey import VERSION, MIN_REGION_TRIPS, file_hash, trip_inputs, no_route, no_track, journal_parts, terrain_reason  # noqa: E402,F401
 from sitegen.sitecheck import conflict_copy  # noqa: E402
 
 MI, FT = geo.MI, geo.FT
@@ -248,6 +250,52 @@ def planned_tracks(t):
     return gpxroute.as_tracks(t['track'], t['slug'], t['cat'])
 
 
+TERRAIN_SOURCE = 'AWS Terrain Tiles'
+
+
+def terrain_block(t):
+    """meta['terrain'] for a goal whose published file has no elevation, or only some (renderkey.wants_terrain): the
+    approximate gain, loss, high and low of the ground under its line, read from AWS Terrain Tiles at
+    gpxroute.TERRAIN_ZOOM along every segment, gaps never bridged (gpxroute.measure_terrain), with the method, source,
+    zoom, sample step, the file's own elevation ('none' or 'partial') and the day. None for every other trip. The
+    build shows these values marked as terrain estimates and only where the file has none; index.md's stats stay the
+    numbers measured from the file."""
+    if not renderkey.wants_terrain(t):
+        return None
+    segs = [seg for c in gpxroute.candidates(gpxroute.inspect(t['track'])) for seg in c['segments']]
+    got = gpxroute.measure_terrain(segs, geo.DEM(gpxroute.TERRAIN_ZOOM).sample)
+    if got is None:
+        return None
+    return dict(got, method=gpxroute.TERRAIN_METHOD, source=TERRAIN_SOURCE, zoom=gpxroute.TERRAIN_ZOOM,
+                step_m=gpxroute.TERRAIN_STEP_M, file_elevation=renderkey.file_elevation(t), date=date.today().isoformat())
+
+
+def add_terrain(t, mf):
+    """A goal whose maps are up to date but whose meta.json lacks its terrain estimate (renderkey.terrain_reason: drawn
+    before render.py made one, or by an older method): the estimate alone is made and meta.json rewritten in place
+    (written beside it, then renamed over it), every map left as it is. True when it was written."""
+    if not renderkey.wants_terrain(t):
+        return False
+    try:
+        with open(mf, encoding='utf-8') as fh:
+            meta = json.load(fh)
+    except (OSError, ValueError):
+        return False
+    if not isinstance(meta, dict) or not terrain_reason(t, meta):
+        return False
+    t0 = time.time()
+    block = terrain_block(t)
+    if block is None:
+        return False
+    meta['terrain'] = block
+    tmp = '%s.tmp-%d' % (mf, os.getpid())
+    with open(tmp, 'w') as fh:
+        json.dump(meta, fh, indent=1, default=str)
+    os.replace(tmp, mf)
+    print('terrain  %-40s %5.0fs  (≈ %d m gain, maps unchanged)' % (t['slug'], time.time() - t0, block['gain_m']))
+    return True
+
+
 def render_single(t, meta):
     act, cat = t['activity'], t['cat']
     planned = t['kind'] == 'planned'
@@ -293,6 +341,10 @@ def render_single(t, meta):
         meta['maps'][s['name']] = {'w': s['w'], 'h': s['h'], 'png': m.get('png'), 'base': m.get('base'), 'interval_ft': m.get('interval_ft'),
                                    'outbound_only': m.get('outbound_only'), 'base_gz_kb': m.get('base_gz_kb')}
     single_charts(t, meta, tr)
+    if planned:
+        terrain = terrain_block(t)
+        if terrain:
+            meta['terrain'] = terrain
     multi = [{'track': x, 'style': 'planned', 'cat': cat, 'width': 2.5, 'trim': mapkit.DEFAULT_TRIM} for x in drawn] if len(drawn) > 1 else None
     render_tile('tile', tr, 200, 152, cat, osm_detail=None, osm_data=osm, planned=planned, tracks=multi)
     # the card drawing (visual-01 step 2): a card's 3:2 slot without a photo, its line drawn for that size
@@ -495,7 +547,7 @@ def render_trip(t, force=False):
     mf = os.path.join(t['rendered'], 'meta.json')
     h = trip_inputs(t)
     if not force and stored_hash(mf) == h:
-        return False
+        return add_terrain(t, mf)   # the maps are up to date; a goal may still lack its terrain estimate
     final = t['rendered']
     t0 = time.time()
     with drawing_into(final) as tmp:
@@ -771,7 +823,8 @@ def draw_site(folder, h, jobs, groups, mapped):
 def pending_reason(t, force=False):
     """Why a plain run would draw this (non-draft) trip, or None when its maps are up to date: the test render_trip
     makes, read from content/ and rendered/ only. A trip with nothing to draw is pending only while a render is left
-    from when it had a route or a track (render_trip then removes it)."""
+    from when it had a route or a track (render_trip then removes it). A goal whose maps are up to date is pending while
+    its meta.json lacks the terrain estimate its file needs (renderkey.terrain_reason); a run then makes that alone."""
     if no_route(t) or no_track(t):
         return ('the %s has no %s now: its old render is removed' % (('goal', 'route') if no_route(t) else ('report', 'track'))
                 if os.path.exists(t['rendered']) else None)
@@ -789,7 +842,7 @@ def pending_reason(t, force=False):
     if stored is None or meta.get('osm_failed'):
         return 'OSM missing last time (drawn with terrain only)'
     if stored == trip_inputs(t):
-        return None
+        return terrain_reason(t, meta)   # None for every trip but a goal whose file lacks elevation and meta.json the estimate
     had = meta.get('inputs') if isinstance(meta.get('inputs'), dict) else {}
     if not had and stored in {trip_inputs(t, v) for v in range(max(1, VERSION - 3), VERSION)}:
         return 'renderer changed'      # drawn before the inputs were recorded: the same trip, an older renderer
