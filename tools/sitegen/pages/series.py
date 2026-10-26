@@ -578,11 +578,12 @@ def page(t, site):
     # 'Continue reading: Day N · title' (features-08): series.js fills and shows it when this browser has opened an entry
     # before (localStorage); empty and hidden otherwise, so nothing shows without JavaScript or a stored entry
     actions += '<a class="alink ser-continue" href="#days" hidden></a>'
-    body = [report.title_block(t, here, actions, ask=report.ask_link(t)), report.tick_backlink(t, here, site)]   # on phones too
     cover = t.get('cover')
     lead = bool(cover) and report.lead_photo(t) is not None   # a portrait cover fronts the cards but does not lead the page
-    if lead:
-        body.append(report.hero(t, here))
+    # the head (Alpine, Phase 19): over the lead photo as a report's (report.hero_head), else on white
+    top = (report.hero_head(t, here, actions, ask=report.ask_link(t)) if lead
+           else report.title_block(t, here, actions, ask=report.ask_link(t)))
+    body = [top, report.tick_backlink(t, here, site)]   # on phones too
     body += [strip(t), intro(t, here, months), highlights(t, here), day_log(t, here, months), report.published_line(t),
              report.pager(t, here, site)]
     n_wu = sum(1 for d in t['days'] if written(d))

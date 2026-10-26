@@ -23,7 +23,7 @@
 .abo-glance { margin-top: 32px; }
 /* content/about.md: its photo at 4:5 above its words, which take the lead's place and voice */
 .abo-portrait { max-width: 360px; margin-bottom: 32px; }
-.abo-portrait img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; background: var(--surface); }
+.abo-portrait img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; background: var(--surface); border: 0; }
 .abo-words { max-width: 640px; }
 .abo-words > p { font: 400 18px/29px var(--sans); color: var(--ink); }
 .abo-words h2, .abo-words h3 { font: 400 28px/1.1 var(--serif); letter-spacing: -0.01em; margin-top: 40px; }
@@ -34,6 +34,8 @@
 /* At a glance is base.css's .dl-leader (the report's Beta list; Phase 13B, visual-10). Below the two-column layout the
    list would span the whole measure (688px at 760): cap it like the report's Beta rail */
 @media (max-width: 999.98px) { .abo-glance .dl-leader { max-width: 480px; } }
+/* Alpine: the values in mono, as the site's other figures */
+.abo-glance .dl-leader dd { font: 400 15px/24px var(--mono); }
 
 .abo-ol { display: flex; flex-direction: column; gap: 12px; }
 .abo-ol li { display: flex; align-items: baseline; gap: 16px; font: 400 15px/24px var(--sans); color: var(--ink); max-width: 612px; text-wrap: pretty; }
@@ -83,7 +85,8 @@
 @media (hover: hover) { .abo-act-a:hover { color: var(--ink); background: var(--surface); } }
 @media (hover: hover) { .abo-act-a:hover .abo-act-n { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .abo-act-w { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.abo-act-n { font: 600 17px/22px var(--sans); }
+/* a row's name in the serif (Alpine), as the site's other row titles */
+.abo-act-n { font: 400 22px/1.1 var(--serif); letter-spacing: -0.01em; }
 .abo-act-m { text-transform: uppercase; }
 .abo-act-d { flex-shrink: 0; text-align: right; white-space: nowrap; }
 .abo-act-d .unit { font: 400 12px/16px var(--mono); margin-left: 2px; }

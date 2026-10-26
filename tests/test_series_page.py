@@ -1547,7 +1547,8 @@ class UnchangedTests(JournalPageFixture):
         self.assertIsNotNone(main.find('nav', cls='pager'))   # the newer / older pager stays
 
     def test_tick_list_backlink_follows_the_title_block(self):
-        # contract 5: report.tick_backlink(t, here, site) follows the title block (before the hero)
+        # contract 5: report.tick_backlink(t, here, site) follows the head; Alpine (Phase 19): the lead photo is part of
+        # the head (report.hero_head), so the line sits under the photo and above the strip
         helpers.make_trip(self.tmp, 'syn-j-goal', title='Synthetic Goal', activity='hike', kind='planned')
         goal = helpers.load(self.tmp, 'syn-j-goal')
         site = helpers.make_site([self.t, goal])
@@ -1557,7 +1558,7 @@ class UnchangedTests(JournalPageFixture):
         self.assertIsNotNone(line, 'the series page has no "On the tick list" line')
         a = line.find('a')
         self.assertEqual((a['href'], a.text()), ('../../trips/syn-j-goal/', 'Synthetic Goal'))
-        pos = positions(main, main.by_id('title'), line, main.by_id('hero'), main.by_id('stats'))
+        pos = positions(main, main.by_id('title'), main.by_id('hero'), line, main.by_id('stats'))
         self.assertEqual(pos, sorted(pos))
         # a journal no goal names has no line
         self.assertNotIn('On the tick list', self.main.text())

@@ -5,7 +5,7 @@
 body.p-series { --ser-track: #949494; --ser-nav-h: 52px; }
 @media (min-width: 760px) { body.p-series { --ser-nav-h: 64px; } }
 
-/* the lead photo (report.hero, styled in report.css .rep-hero) sits between the title block and the strip */
+/* the lead photo leads the head (report.hero_head, styled in report.css), as on a report */
 body.p-series .rep-strip { margin-top: 24px; }
 /* three title actions: under the title at every width, so 'Pacific Crest Trail 2024' keeps its line beside none of them */
 @media (min-width: 1000px) {
@@ -45,7 +45,8 @@ body.p-series .rep-strip { margin-top: 24px; }
   .ser-intro { margin-top: 48px; grid-template-columns: 560px minmax(0, 1fr); column-gap: 72px; }
 }
 .ser-intro-t { min-width: 0; }
-.ser-lede { margin-top: 20px; max-width: 600px; font: 400 17px/27px var(--sans); color: var(--ink-2); }
+.ser-lede { margin-top: 20px; max-width: 600px; font: 400 16px/1.5 var(--sans); color: var(--ink-2); }   /* t-dek */
+@media (min-width: 760px) { .ser-lede { font-size: 18px; } }
 .ser-lede-prose { margin-top: 20px; }
 .ser-bym { display: block; margin-top: 40px; padding-bottom: 8px; }
 .ser-mi { border-top: 1px solid var(--rule); }
@@ -55,7 +56,7 @@ body.p-series .rep-strip { margin-top: 24px; }
 @media (hover: hover) { .ser-mi-a:hover { color: var(--ink); background: var(--surface); } }
 @media (hover: hover) { .ser-mi-a:hover .ser-mi-m { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .ser-mi-h { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 2px; min-width: 0; }
-.ser-mi-m { font: 600 18px/24px var(--sans); }
+.ser-mi-m { font: 400 24px/1.1 var(--serif); letter-spacing: -0.01em; }
 .ser-mi-s { text-transform: uppercase; }
 .ser-mi-v { font: 500 17px/22px var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .ser-mi-v .unit { font: 400 12px/16px var(--mono); }
@@ -76,7 +77,8 @@ body.p-series .rep-strip { margin-top: 24px; }
 /* ---------------------------------------------------------------- highlights (index.md journal_highlights, series.highlights) */
 .ser-high-l { margin-top: 16px; display: grid; row-gap: 24px; }
 .ser-high-a { display: flex; flex-direction: column; gap: 4px; min-height: 44px; color: var(--ink); }
-.ser-high-t { font: 600 19px/25px var(--sans); text-wrap: balance; }
+.ser-high-t { font: 400 26px/1.1 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
+@media (min-width: 1200px) { .ser-high-t { font-size: 30px; } }
 @media (hover: hover) { .ser-high-a:hover .ser-high-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .ser-high-l .t-mono-s { margin-top: 6px; text-transform: uppercase; }
 .ser-high-l .t-excerpt { margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -111,15 +113,18 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-only-short { display: none; }
 @media (max-width: 759.98px) { .ser-only-long { display: none; } .ser-only-short { display: inline; } }
 
-.ser-mnav { position: sticky; top: var(--header-h); z-index: 30; margin-top: 24px; background: var(--surface);
-  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+/* underline tabs (Alpine): white, one hairline under the row, mono capitals, the current month's 2 px ink bar */
+.ser-mnav { position: sticky; top: var(--header-h); z-index: 30; margin-top: 24px; background: var(--paper);
+  border-bottom: 1px solid var(--rule); }
 .ser-mnav ol { display: grid; grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr)); }
 .ser-mnav li { min-width: 0; }
-.ser-mnav li + li { border-left: 1px solid var(--rule); }
 .ser-mnav a { position: relative; height: var(--ser-nav-h); display: flex; flex-direction: column; justify-content: center; gap: 2px;
   padding: 0 16px; color: var(--ink-2); white-space: nowrap; }
-@media (hover: hover) { .ser-mnav a:hover { color: var(--ink); background: var(--paper); } }
-.ser-mn-m { font: 500 15px/20px var(--sans); }
+@media (hover: hover) {
+  .ser-mnav a:hover { color: var(--ink); }
+  .ser-mnav a:not([aria-current]):hover::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--rule); }
+}
+.ser-mn-m { font: 400 12px/16px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
 .ser-mn-s { font: 400 12px/16px var(--mono); letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3); }
 .ser-mnav a[aria-current] { color: var(--ink); }
 .ser-mnav a[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink); }
@@ -148,11 +153,11 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-month:first-of-type { margin-top: 32px; }
 .ser-mh { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: 16px; row-gap: 4px;
   padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
-.ser-mh-t { font: 650 22px/28px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; }
+.ser-mh-t { font: 400 32px/1.05 var(--serif); letter-spacing: -0.01em; }
 .ser-mh-m { text-transform: uppercase; }
-@media (min-width: 760px) { .ser-month { margin-top: 72px; } .ser-mh-t { font-size: 24px; line-height: 30px; } }
-.ser-cols { display: none; font: 600 11px/14px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
-@media (min-width: 760px) { .ser-cols { font-size: 12px; line-height: 16px; } }
+@media (min-width: 760px) { .ser-month { margin-top: 72px; } .ser-mh-t { font-size: 40px; } }
+@media (min-width: 1200px) { .ser-mh-t { font-size: 44px; } }
+.ser-cols { display: none; font: 500 12px/16px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
 
 /* ---------------------------------------------------------------- day rows (phone: glyph · text · GPX; sparkline under the glyph) */
 .ser-day { border-bottom: 1px solid var(--rule); scroll-margin-top: calc(var(--ser-nav-h) + 8px); }
@@ -168,10 +173,12 @@ body.p-series .rep-strip { margin-top: 24px; }
 .ser-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 44px; grid-template-areas: "g n x" "g t x" "sp st st";
   column-gap: 16px; row-gap: 2px; align-items: start; padding: 14px 0; }
 .ser-g { grid-area: g; }
-.ser-g svg { width: 64px; height: 48px; background: var(--surface); }
+.ser-g svg { width: 64px; height: 48px; background: var(--map-paper); }
 .ser-n { grid-area: n; font: 400 12px/16px var(--mono); letter-spacing: 0.02em; color: var(--ink-3); text-transform: uppercase; }
 .ser-dd:not(:empty)::before { content: " · "; content: " · " / ""; }   /* drawn, not read: a hidden ', ' is read (qa-01) */
-.ser-t { grid-area: t; font: 600 17px/22px var(--sans); color: var(--ink); }
+/* the day's title in the serif (Alpine): 22 px on a phone, 26 px from 760 px; a day without one keeps its Mono-S state */
+.ser-t { grid-area: t; font: 400 22px/1.15 var(--serif); letter-spacing: -0.01em; color: var(--ink); }
+@media (min-width: 760px) { .ser-t { font-size: 26px; line-height: 1.1; } }
 /* a day without a Strava title: the title cell states what the day holds (TRACK ONLY / N PHOTOS / WRITE-UP), in Mono-S ink-3,
    so the TITLE column no longer repeats the DAY column; the label line keeps "DAY 42 · SUN, JUN 2" */
 .ser-t-none { display: block; padding-top: 2px; color: var(--ink-3); }
@@ -237,7 +244,7 @@ body.p-series .rep-strip { margin-top: 24px; }
   .ser-dw { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .ser-dd::before, .ser-dd:not(:empty)::before { content: none; }
   .ser-dd { font: 400 13px/18px var(--mono); }
-  .ser-t { grid-column: 4; font-size: 16px; line-height: 21px; }
+  .ser-t { grid-column: 4; }
   .ser-st { grid-column: 5 / span 4; display: grid; grid-template-columns: 64px 72px 56px 80px; column-gap: var(--ser-g); margin: 0;
     clip-path: none; font: 500 15px/20px var(--mono); letter-spacing: 0; color: var(--ink); text-transform: none; }
   .ser-st > div::before { content: none; }
@@ -253,7 +260,6 @@ body.p-series .rep-strip { margin-top: 24px; }
   body.p-series { --ser-c: 64px 64px 118px minmax(0, 1fr) 80px 88px 72px 80px 96px 44px; --ser-g: 24px; }
   .ser-n { grid-template-columns: 64px 118px; }
   .ser-st { grid-template-columns: 80px 88px 72px 80px; }
-  .ser-t { font-size: 17px; line-height: 22px; }
   .ser-body { padding-left: calc(64px + 64px + 118px + 3 * var(--ser-g)); }
 }
 

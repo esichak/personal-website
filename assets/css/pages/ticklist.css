@@ -11,13 +11,14 @@
 
 /* ---------------------------------------------------------------- goal card (core.goal_card): map-led, read-only */
 .gcard { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: 14px; align-items: start; min-width: 0; }
-.gcard-map { display: block; aspect-ratio: 200 / 152; background: var(--surface); border: 1px solid var(--rule); overflow: hidden; }
+.gcard-map { display: block; aspect-ratio: 200 / 152; background: var(--map-paper); border: 0; overflow: hidden; }
 .gcard-map .gl { width: 100%; height: 100%; }
 .gcard-map--none { display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; background: var(--sunk); }
 .gcard-map--none .t-mono-s { font-size: 12px; line-height: 16px; color: var(--ink-2); }   /* 7:1 on --sunk (ink-3 is 4.47:1) */
 .gcard-b { display: flex; flex-direction: column; min-width: 0; }
 .gcard-meta { text-transform: uppercase; }
-.gcard-t { margin-top: 4px; font: 600 17px/22px var(--sans); text-wrap: balance; }
+/* the goal's title in the serif (Alpine): 22 px beside a phone's map, 26 px in a grid from 560 px, 30 px from 1200 */
+.gcard-t { margin-top: 6px; font: 400 22px/1.1 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
 .gcard-t a { color: var(--ink); }
 @media (hover: hover) { .gcard-t a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 /* the trip card's tag metrics (base.css .tcard-act .tag), so the two card types read as one family */
@@ -30,7 +31,8 @@
   .tgrid .gcard-map { aspect-ratio: 200 / 152; }
   .tgrid .gcard-b { padding-top: 12px; }
 }
-@media (min-width: 760px) { .gcard-t { font-size: 19px; line-height: 25px; } .gcard-map--none .t-mono-s { font-size: 12px; line-height: 16px; } }
+@media (min-width: 560px) { .tgrid .gcard-t { font-size: 26px; line-height: 1.05; } }
+@media (min-width: 1200px) { .tgrid .gcard-t { font-size: 30px; } }
 /* list view: one row per goal at every width */
 .trx--list .gcard { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: 14px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--rule); }
 .trx--list .gcard-b { padding-top: 0; }
@@ -41,7 +43,7 @@
 @media (max-width: 559.98px) {
   .trx--list .gcard { grid-template-columns: 64px minmax(0, 1fr); column-gap: 12px; align-items: center; padding: 6px 0; }
   .trx--list .gcard-map { aspect-ratio: 4 / 3; }
-  .trx--list .gcard-t { margin-top: 2px; font-size: 16px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trx--list .gcard-t { margin-top: 2px; font: 500 16px/20px var(--sans); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .trx--list .gcard-tags, .trx--list .gcard-go { display: none; }
   .trx--list .gcard-stats { margin-top: 2px; }
 }

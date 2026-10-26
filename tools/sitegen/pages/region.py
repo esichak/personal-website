@@ -93,7 +93,7 @@ def head(name, here, pub, planned, intro=None, slug=None):
     crumbs = core.crumbs(here, crumb_items(name, here))[0]
     return ('<section class="reg-head wrap" aria-labelledby="reg-title">'
             '<nav class="crumbs t-mono-s" aria-label="Breadcrumb">%s</nav>'
-            '<h1 id="reg-title" class="t-d1">%s</h1>'
+            '<h1 id="reg-title" class="t-d2">%s</h1>'
             '<p class="reg-stats">%s</p>%s%s</section>'
             % (crumbs, esc(name), core.meta_items(first + place_items(pub), br_after=len(first) - 1),
                # .reg-x: like the page's other links into the explorer, hidden when scripting is off (region.css)

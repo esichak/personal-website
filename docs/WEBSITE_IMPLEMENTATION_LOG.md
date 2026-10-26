@@ -3640,3 +3640,146 @@ baseline was 100 on mobile).
   chips, ask, actions); its lead photo is still the old framed figure under it, and its actions sit on a row of their
   own. Phase 19 sets its hero.
 - **Carried:** the fonts' go-ahead (Phase 16), decision 1 (Phase 17), and everything listed there.
+
+## Phase 19 - Lists and the rest (2026-10-25)
+
+Phase 19 of `docs/redesign-c/PROMPT.md`, built on branch `redesign-19-lists` from `redesign-18-reports` at `b8c3aa0`, in
+the same session as Phases 16 to 18. One commit, 'Phase 19: Lists and the rest', with the code, the tests, the docs and
+this entry. Nothing pushed, merged or rendered.
+
+### Author inputs
+
+- **No decision of section 3 belongs to this phase.**
+- **Interface copy to read:** none is new. The phase changes how the pages look, not what they say: the `<main>` text of
+  every page is the same as before (below). The view switch, the filter band and the month bar show their words in
+  capitals by the sheets.
+
+### Changed files
+
+| File | Change |
+| --- | --- |
+| `assets/css/pages/trips.css` | The search box and the selects bare over a 1 px ink line; the view switch as underline tabs; the active filters in mono capitals in a hairline frame; the years and a found journal day's title in the serif. |
+| `assets/css/pages/section.css` | The filter band as underline tabs in mono capitals (focus rings inside the tabs, the scroll box padded 20 px from 760 px); the season and year heads and the ski panel's title in the serif; the Featured block from 1200 px as the photo card in two thirds (with the chart under it) beside the map panel in the last third. |
+| `assets/css/pages/series.css` | The month bar as underline tabs; the month heads, the month index's names, the highlights' and the day rows' titles in the serif; the introduction as a dek; the column heads at 12 px. |
+| `assets/css/pages/archive.css` | map/'s and a region page's rows, the journal card and the years of 'All reports' in the serif; the short regions' names as labels. |
+| `assets/css/pages/region.css`, `ticklist.css`, `about.css`, `notfound.css` | The region introduction's heads and the goal cards' titles in the serif; the goal map without its frame; About's At a glance values in mono and its rows' names in the serif; the 404's search box bare. |
+| `assets/css/base.css` | A list row's tile keeps its own height beside a taller text column. |
+| `tools/sitegen/pages/series.py` | The journal's head is `report.hero_head` over its lead photo, as a report's. |
+| `tools/sitegen/pages/section.py`, `region.py`, `archive.py` | Their `<h1>` in `t-d2`; the Featured block's one photo, its `sizes` the slot's width from 1200 px (`FEAT_SIZES`), each map render preloaded where it shows (`FEAT_MAP_MEDIA`). |
+| `docs/DEVELOPING.md` | The pages' type and tabs, the Featured block, the journal's order, the switch's and the band's hit areas. |
+| `tests/test_a11y_static.py`, `test_region_page.py`, `test_series_page.py` | The view switch and the band as tabs (44 px, hit areas to half the gap), the year heads in the serif, the 12 px floor, the journal's crumbs on its photo and its backlink under it, the region head's class. |
+| `tests/test_phase19.py` | New: the journal's head, the heads' classes, the sheets' rules. |
+
+### Behaviour
+
+- **Trips:** the title in `t-d1` as before; the search box bare, 18 px words over an ink line; the selects bare
+  likewise; Cards and List as underline tabs in mono capitals; the active filters in mono capitals; each year in the
+  serif (32 / 40 / 44 px) over its ink rule. The list view on a phone keeps its sans scan line.
+- **Section pages:** the head in `t-d2` with its disc; the filter band as underline tabs (`ALL`, the seasons, the
+  sub-types, the years) with their counts; the season and year heads and the ski panel's title in the serif. From
+  1200 px the Featured block is the photo card in two thirds (the photo at 3:2, the write-up under it, the elevation or
+  speed chart under both) beside the map panel in the last third (the map's phone render, its key and caption).
+- **Region pages and map/:** the head in `t-d2`; the rows beside the map with serif titles; the years of 'All reports'
+  in the serif; the journal's card on white.
+- **Tick list:** the goal cards' titles in the serif, the goal's map without a frame.
+- **The PCT journal:** it opens like a report, the lead photo across the page with the crumbs, the title and the line
+  over its foot; the facts-only introduction as a dek; the month index's names, the highlights' titles, the month
+  heads and the day rows' titles in the serif; the month bar as underline tabs in mono capitals on white; a day without
+  a title keeps its `TRACK ONLY` or `N PHOTOS` state in mono.
+- **About:** At a glance's values in mono; the rows' names in the serif. **The 404:** the search box bare; its rows
+  (About's) with serif names.
+- **Printed:** the families follow; the journal prints its title in ink above the photo.
+- **Unchanged:** every page's ids, fragment links, `<h1>` text, JSON-LD, `.prose` text and `<main>` text (all 363
+  compared, below), so every list shows the same trips in the same order; the scripts, their URL state, the radio
+  groups and the sticky rules.
+
+### Where the work departs from the prompt
+
+- **The journal's highlights** stay text cards, with their titles in the home grid's serif, rather than the home's
+  photo grid: `journal_highlights` names days, not photos, and picking a day's photo would be a choice the content
+  does not make.
+- **The sort** stays a select, bare over an ink line, rather than a row of tabs: its keys, its URL value and its
+  history are the explorer script's, which this phase does not touch.
+- **The region tabs** on map/ and beside the ski list keep their sans words: they are place names, and the other tab
+  rows' mono capitals would make 'Eastern Sierra 7' hard to read.
+- **The Featured block** shows one photo at every width: the text-left variant showed a second photo beside a desktop
+  map, which the two-thirds photo card has no room for; it is gone from the markup too. The photo's `sizes` follows
+  its slot from 1200 px (739 px at 1200, 899 at 1440), against section 2.7's frozen strings, for the same reason as
+  Phase 18's `REL_SIZES`.
+- **The years and seasons under a section's own head** (the section pages' seasons, map/'s and a region page's years)
+  use the `t-h3` sizes, a step under the `t-h2` of Trips' and the journal's years.
+- **The journal's day titles** are 22 px on a phone (the spec says 26): the phone row's title column is about 220 px.
+- **The 404's search** keeps its button beside the bare box.
+
+### Review
+
+An independent read-only review ran on a fresh build of the change and replayed the scripts on both builds at 1440,
+1024 and 390 px, with real clicks, taps and key presses:
+
+- **Trips:** search, a chip, the view switch, zero results, Clear all, Back, Back, Forward, and the Filters button on a
+  phone.
+- **The section band:** clicks, the arrow keys, Home, End and wrap-around, checked against the hash, the rows shown and
+  the band's scroll position.
+- **The journal:** the month tabs and their scrollspy, the write-ups filter, and Continue reading after a reload.
+- **The rest:** map/'s clusters, region tabs and legend; the units switch, the tick list's chip, and the 404's and the
+  header's searches.
+
+Behaviour matched apart from scroll offsets, with no console errors. Ids, ARIA, links, heading order and JSON-LD
+matched on the pages it compared. Nothing new scrolls sideways at 305 to 1440 px. Forced colours keep every chosen tab.
+The text contrast (ink-2 6.6:1, ink-3 5.3:1, the boxes' ink line about 18:1), the sticky parts on short windows and the
+print previews are fine. It reported these, all fixed in the commit and measured again:
+
+- **The band's focus ring.** The ring sat 4 px outside the tab, and the band's scroll box (44 px, no padding) cut it
+  down to one or two thin bars. It is drawn inside the tab now. Reached with Tab at 390, 1024 and 1440 px, it is
+  whole: no side clipped.
+- **'All' in the band.** From 760 px it was 37 × 44 px to press. The word is 25 px, and the scroll box clipped the hit
+  area's reach into the margin. From 760 px the box now reaches 20 px into the page margin with 20 px of padding, so the
+  tabs stay on the page's column. Scanned with `elementFromPoint`, 'All' is 56 × 44 px from 768 px and 53 × 44 on a
+  phone. The static test now models the box's padding, and the docs say what it does.
+- **The Featured block's map from 1200 px.** The head preloaded the column render, which is hidden there, about 52 KB
+  for nothing. It did not preload the phone render shown instead. Each render is now preloaded where it shows
+  (`FEAT_MAP_MEDIA`).
+- **The Featured photo's `sizes`.** A flat 898 px fetched the 1600 px file at 1200 to 1279 px, where the 800 px copy
+  serves at 1x (310 KB against 76). `FEAT_SIZES` now follows the slot: 739 px at 1200, 899 at 1440.
+- **The leftover second photo.** The text-left variant still wrote a second photo, hidden at every width. It is gone
+  from the markup, with its CSS and the stale comments.
+
+Before the review, a check of the hiking page at 1440 px had found the elevation chart squeezed into the map's third
+column. The chart now sits under the photo card, at its width.
+
+Left as they are, and listed above: the sort as a bare select rather than tabs, and the highlights as text cards.
+
+- **A select's hover.** It thickens its line to 2 px inside its 44 px box, moving its text about 1 px; minor, kept.
+- **The journal's actions on a short window.** They are under the photo, as on a report.
+- **trips/?view=list at 305 and 320 px.** It scrolls sideways by 2 px in both builds, so it predates this phase. It is
+  noted for Phase 20.
+
+### Checks actually run
+
+| Check | Result (build or tree it ran on) |
+| --- | --- |
+| Both Pythons, `-W error` | 3,285 tests OK on 3.9.6 (126.1 s) and 3.12.11 (105.8 s), 12 skipped, no warning printed, on the tree as committed |
+| Node harnesses (in the suite, Node 25.8.2) | trips, ticklist, series, maplist, profile and viewer: passed |
+| `python3 tools/build.py --out <scratch> --link --check` | 365 pages, 168 trips, link check OK |
+| `python3 tools/validate.py` | 0 errors, 1 warning (the planned route without a goal.json), 346 notes |
+| Before (`b8c3aa0`) and after builds compared (a scratch script) | 363 pages each, none gone or new; ids, fragment links, H1s, JSON-LD, `.prose` text and `<main>` text identical on every page |
+| Replays (headless Chrome, real clicks, key presses and touches; the same script on both builds, 1440, 1024 and 390 px; before the review's fixes, which change no script) | 24 steps a width: the explorer (search, a facet, the sort by type-ahead, the view switch, the Filters button on a phone, zero results, Clear, Back and Forward), the header search from a report (the menu's box on a phone), the 404's search, the tick list's filter, the journal (a month tab, the write-ups filter, the first written entry, Back, Continue reading), map/'s cluster selection and legend, a region page's pin, the units switch. No console error or exception on either build. 67 of 72 outcomes agree; the other 5 were the script's typing on trips/ racing the page's start, and with a wait for the explorer's script all 18 search, zero-result and Clear steps (three runs at 1440 and 390 px) agree on both builds. On a phone the script's touch events got no answer from Chrome on either build; Chrome's tap gesture on a region map's pin (390 px, a coarse pointer) went through on both, and both left the page, the focus and the highlights the same, so the tap's own effect was not seen either way |
+| Lighthouse 13 (Chrome DevTools), mobile, before and after | trips/, map/, the Eastern Sierra page and the PCT page: 100 in accessibility, best practices, SEO and agentic browsing before and after (map/ keeps its weight-0 `label-content-name-mismatch` on a cluster and a 0.99 layout-shift audit, as before); the PCT page on desktop after: 100 in all four |
+| The band after the review's fixes (headless Chrome) | Tab to the band on ski/ and other/ at 390, 1024 and 1440 px: the focus ring whole, nothing clipped; 'All' 56 × 44 px to press from 768 px and 53 × 44 on a phone (an `elementFromPoint` scan) |
+| The Featured block (hiking/, Lighthouse 13 desktop and mobile) | 100 in all four (its rows' weight-0 `label-content-name-mismatch`, as on every list page); the head preloads the column render for 560 to 1199 px and the phone render on a phone and from 1200 px |
+| Print preview (Chrome, headless print to PDF) | trips/ and the PCT page before and after: the families follow; the journal prints its title in ink above the photo; no chrome |
+| Width sweep (headless Chrome) | the captured pages at 1440, 1024 and 390 px: no sideways scroll, no console error |
+| Contact sheet | `.cache/redesign/19/index.html`: trips/ (cards, a search, the list view with a filter), the ski and hiking pages, the Eastern Sierra page, map/, the tick list, the PCT page (whole, and with its month bar stuck), About and the 404 at 1440, 1024 and 390 px, before and after; the print previews |
+
+Not run: Safari, Firefox and a real phone; a screen reader; `tools/check.py` as one command (its parts ran one by one).
+
+### Remaining issues and author inputs
+
+- **Yours:** a look at `.cache/redesign/19/index.html` (each page before and after at 1440, 1024 and 390 px, the
+  journal with its month bar stuck, the print previews); whether the Featured block's single photo and the 898 px
+  `sizes` should stand.
+- **Carried:** the fonts' go-ahead (Phase 16); decision 1 (Phase 17); decision 2's look, `REL_SIZES` and the phone
+  hero's sharpness (Phase 18); and everything listed there.
+- **For Phase 20:** trips/ in the list view scrolls sideways by 2 px at 305 and 320 px, as it did before this phase.
+- **Next:** Phase 20, the review gate before publication, run on these four branches; nothing is pushed until you say
+  so there.

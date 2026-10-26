@@ -3217,7 +3217,8 @@ class Phase13bCssTests(SiteFixture):
         # SVG text drawn on a map or a chart (mapkit's .mk-* and .pf-ax, the full-screen scale, the hut numbers), the
         # journal's column heads (not shown on a phone), and the day bar's photo count, which an 80 px chip already cuts
         # off at 11 px (listed in the log)
-        self.assertEqual([x for x in small if not x.startswith(('.mk-', '.pf-'))], ['.fs-sc-t', '.mul-dn-c', '.mul-hut text', '.ser-cols'])
+        # the journal's column heads came up to the label's 12 px in Phase 19
+        self.assertEqual([x for x in small if not x.startswith(('.mk-', '.pf-'))], ['.fs-sc-t', '.mul-dn-c', '.mul-hut text'])
         for url, cls in (('', 't-label'), (trip_url('story'), 'keyrow'), (trip_url('story'), 'eltab')):
             for n in page_doc(url).find_all(cls=cls)[:3]:
                 self.assertGreaterEqual(self.font_px(n, e) or 12, 12, (url, cls))
@@ -3263,9 +3264,9 @@ class Phase13bCssTests(SiteFixture):
                 self.assertTrue(any('min-height' in r.decls for r in stated))
 
     def test_the_year_heads_of_trips_and_the_map_page_are_heads_and_the_tick_lists_stay_labels(self):
-        # visual-04
+        # visual-04; Alpine (Phase 19): the years in the serif, t-h2 sizes on trips/, t-h3 under map/'s 'All reports'
         year = page_doc('trips/').find('section', cls='trx-yr').find('h2')
-        for w, size in ((390, '22px/28px'), (800, '24px')):
+        for w, size in ((390, '32px/1.05'), (800, '40px')):
             e = env(w)
             got = computed(year, 'font', self.rules, e) if w < 760 else computed(year, 'font-size', self.rules, e)
             self.assertIn(size, got)
@@ -3274,7 +3275,8 @@ class Phase13bCssTests(SiteFixture):
         self.assertEqual(computed(tick, 'font', self.rules, env(390)), '500 12px/16px var(--sans)')
         self.assertEqual(computed(tick, 'text-transform', self.rules, env(390)), 'uppercase')
         arc = page_doc('map/').find('div', cls='arc-yr-h').find('h3')
-        self.assertIn('22px/28px', computed(arc, 'font', self.rules, env(390)))
+        self.assertIn('26px/1.05', computed(arc, 'font', self.rules, env(390)))
+        self.assertIn('var(--serif)', computed(arc, 'font', self.rules, env(390)))
 
     def test_a_card_without_a_photo_fills_its_slot_with_its_tile(self):
         # visual-01, step 1
@@ -3494,8 +3496,9 @@ class TargetSizeTests(SiteFixture):
                     self.assertLessEqual(2 * self.hit_box(a, 24.0, 44.0, e)[2], 20.0)
 
     def test_the_view_switch(self):
-        # The switch is 44 px high with its border, like the chips and selects in its row (46 px pushed the row and all
-        # under it down), so a button is 42 px: its hit area takes in the 1 px line above and below.
+        # Alpine (Phase 19): underline tabs, 44 px high like the chips and selects in its row, no frame. A button is the
+        # row's height; its hit area reaches half the 20 px gap to either side, so 'Cards' (about 40 px of capitals) is
+        # 44 px wide or more to press and the two areas meet without overlapping.
         for url in ('trips/', 'tick-list/'):
             buttons = self.nodes(url, tag='button', within='trx-view')
             self.assertEqual([b['data-view'] for b in buttons], ['cards', 'list'])
@@ -3506,24 +3509,25 @@ class TargetSizeTests(SiteFixture):
                 e = env(width)
                 with self.subTest(page=url, width=width):
                     self.assertEqual(computed(box, 'height', self.rules, e), '44px', why(box, 'height', self.rules, e))
-                    self.assertEqual(computed(box, 'border', self.rules, e).split()[0], '1px')
+                    self.assertEqual(computed(box, 'border', self.rules, e), '0')
+                    self.assertEqual(computed(box, 'gap', self.rules, e), '20px')
                     self.assertIsNone(computed(box, 'padding', self.rules, e))
-                    self.assertIsNone(computed(box, 'overflow', self.rules, e))               # the area over the border is not clipped
+                    self.assertIsNone(computed(box, 'overflow', self.rules, e))               # the areas past the words are not clipped
                     for node in beside:
                         self.assertEqual(computed(node, 'height', self.rules, e), '44px')
                     for b in buttons:
-                        self.assertEqual(min_block(b, self.rules, e), 42.0)                   # 44 less the two lines
                         self.assertEqual(computed(b, 'height', self.rules, e), '100%')
                         self.assertSizeUntouched(b, e)
-                        for words in (69.7, 84.0):
-                            wide, high, left, right, up, down = self.hit_box(b, words, 42.0, e)
-                            self.assertEqual((wide, high), (words, 44.0))
-                            self.assertEqual((left, right, up, down), (0.0, 0.0, 1.0, 1.0))  # the lines of the frame, no further
+                        for words in (40.0, 52.0):
+                            wide, high, left, right, up, down = self.hit_box(b, words, 44.0, e)
+                            self.assertEqual((wide, high), (words + 20.0, 44.0))
+                            self.assertEqual((left, right, up, down), (10.0, 10.0, 0.0, 0.0))   # half the gap each side, no further
 
     def test_season_and_type_radios_of_the_section_pages(self):
-        # A segment is 42 px high inside the frame's 1 px lines, as before the phase (44 px made the strip 46 px, 1 px
-        # proud of its band each way and 2 px taller on a phone): its hit area takes in the two lines. 'All' is 37.6 px
-        # wide on a phone: its area also reaches left, over the frame's line and into the page margin, to 44 px.
+        # Alpine (Phase 19): underline tabs in the 44 px band, 24 px apart, no frame. A segment is 44 px high; its hit area
+        # reaches half the gap to either side (never into the next segment's), and the first's reaches left only as far
+        # as 44 px ('All' is about 25 px of capitals: 19 px). The band is a scroll box, which clips what lies outside its
+        # padding box: on a phone its padding is the page margin, from 760 px 20 px of its own.
         for url in ('ski/', 'other/'):
             segs = [a for a in self.nodes(url, cls='sec-seg-a', tag='a')]
             self.assertGreaterEqual(len(segs), 3)
@@ -3533,27 +3537,31 @@ class TargetSizeTests(SiteFixture):
             for width in (320,) + WIDTHS:
                 e = env(width)
                 with self.subTest(page=url, width=width):
-                    self.assertEqual(computed(strip, 'border', self.rules, e).split()[0], '1px')
+                    self.assertEqual(computed(strip, 'border', self.rules, e), '0')
+                    self.assertEqual(computed(strip, 'gap', self.rules, e), '24px')
                     self.assertIsNone(computed(strip, 'overflow', self.rules, e))
-                    # the band has room for the strip and no more: 64 px, less its padding, is 42 px and the two lines
+                    # the band is the tabs' height
                     band = strip.parent
                     self.assertIn('sec-band-in', band.classes)
-                    self.assertEqual(computed(band, 'min-height', self.rules, e), '64px')
+                    self.assertEqual(computed(band, 'min-height', self.rules, e), '44px')
                     for a in segs:
-                        self.assertEqual(computed(a, 'min-height', self.rules, e), '42px', why(a, 'min-height', self.rules, e))
+                        self.assertEqual(computed(a, 'min-height', self.rules, e), '44px', why(a, 'min-height', self.rules, e))
                         self.assertSizeUntouched(a, e)
-                        self.assertEqual(computed(a, 'justify-content', self.rules, e), 'center' if width < 760 else None)
                         first = a is segs[0]
-                        for words in (37.6, 49.6, 70.6, 103.6):
-                            wide, high, left, right, up, down = self.hit_box(a, words, 42.0, e)
-                            self.assertEqual((high, up, down), (44.0, 1.0, 1.0))
-                            self.assertEqual(right, 0.0)                                       # never into the next segment
-                            self.assertAlmostEqual(wide, max(words, 44.0) if first else words)
-                            self.assertAlmostEqual(left, max(0.0, 44.0 - words) if first else 0.0)
-                    # on a phone the page margin is the room 'All' reaches into: 6.4 px of 16
+                        for words in (25.0, 30.0, 49.6, 70.6, 103.6):
+                            wide, high, left, right, up, down = self.hit_box(a, words, 44.0, e)
+                            self.assertEqual((high, up, down), (44.0, 0.0, 0.0))
+                            self.assertEqual(right, 12.0)                                      # half the gap: never into the next one's
+                            self.assertAlmostEqual(left, max(0.0, 44.0 - words) if first else 12.0)
+                            self.assertAlmostEqual(wide, words + left + right)
+                    if width >= 760:
+                        self.assertEqual(computed(band, 'padding-inline', self.rules, e), '20px')
+                    # on a phone the page margin is the room 'All' reaches into: of its 19 px, the 16 px margin is kept,
+                    # so with the 12 px to its right it is 53 px wide to press
                     if width < 760:
                         self.assertEqual(computed(band, 'padding-inline', self.rules, e), 'var(--m)')
-                        self.assertGreaterEqual(px(computed(page_doc(url).find('html'), '--m', self.rules, e)), 44.0 - 37.6 + 1)
+                        m = px(computed(page_doc(url).find('html'), '--m', self.rules, e))
+                        self.assertGreaterEqual(25.0 + min(19.0, m) + 12.0, 44.0)
 
     def test_the_footer_brand(self):
         # The name is one 24 px line that fills its column, as before the phase (min-height: 44px made every footer 20 px
@@ -3655,7 +3663,7 @@ class TargetSizeTests(SiteFixture):
         seen = 0
         # Alpine (Phase 18): a report whose lead photo leads has its crumbs on the photo, in the head's band (.rep-hero-bi)
         for url, holder in (('ski/', 'sec-head'), ('other/', 'sec-head'), (trip_url('story'), 'rep-hero-bi'), (trip_url('goal'), 'rep-title'),
-                            (trip_url('tour'), 'rep-hero-bi'), (trip_url('journal'), 'rep-title'),
+                            (trip_url('tour'), 'rep-hero-bi'), (trip_url('journal'), 'rep-hero-bi'),
                             (REGION_PAGES[0], 'reg-head'), (REGION_PAGES[1], 'reg-head')):      # contract-phase5.md: .reg-head has the room
             crumbs = self.nodes(url, cls='crumbs', tag='nav')[0]
             links = crumbs.find_all('a')

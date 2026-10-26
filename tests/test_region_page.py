@@ -712,7 +712,7 @@ class RuleTests(RegionFixture):
         self.assertEqual(names(self.region_pages(self.site, self.meta)), [RANGE, twin, PEAKS])
         self.assertEqual(core._REGION_PAGES, {RANGE: SLUG[RANGE], twin: SLUG[COAST], PEAKS: SLUG[PEAKS]})
         self.assertIsNone(self.href('', COAST))
-        self.assertEqual(self.html(COAST).count('<h1 id="reg-title" class="t-d1">Synthetic coast</h1>'), 1)
+        self.assertEqual(self.html(COAST).count('<h1 id="reg-title" class="t-d2">Synthetic coast</h1>'), 1)
         self.assertEqual(helpers.slugs(self.group(twin)), ['syn-r-twin-2', 'syn-r-twin-1', 'syn-r-twin-0', 'syn-r-twin'])
 
     def test_an_earlier_name_that_gets_no_page_does_not_take_the_slug(self):
@@ -1097,7 +1097,7 @@ class HeadTests(RegionFixture):
                 self.assertEqual((sec.tag, sec.classes, sec['aria-labelledby']), ('section', ['reg-head', 'wrap'], 'reg-title'))
                 # Phase 12 (ia-10): the activities line under the counts, hidden without scripting like the explorer links
                 self.assertEqual([(n.tag, n.classes) for n in sec.elements()],
-                                 [('nav', ['crumbs', 't-mono-s']), ('h1', ['t-d1']), ('p', ['reg-stats']),
+                                 [('nav', ['crumbs', 't-mono-s']), ('h1', ['t-d2']), ('p', ['reg-stats']),
                                   ('p', ['t-mono-s', 'reg-acts', 'reg-x'])])
                 self.assertIs(self.one(name, 'reg-title'), sec.find('h1'))
 
@@ -1142,14 +1142,14 @@ class HeadTests(RegionFixture):
                 h1 = self.one(name, 'reg-title')
                 self.assertEqual(h1.children, [name])                             # one text node: no tag, no count, no link
                 self.assertEqual(h1.text(clean=False), name)
-        self.assertIn('<h1 id="reg-title" class="t-d1">Synthetic Range</h1>', self.html(RANGE))
+        self.assertIn('<h1 id="reg-title" class="t-d2">Synthetic Range</h1>', self.html(RANGE))
 
     def test_a_region_name_is_escaped_wherever_the_head_writes_it(self):
         html_ = need(self, self.region, 'head')(PEAKS, self.here(PEAKS), self.pub(PEAKS), self.planned(PEAKS))
         escaped = 'Synthetic O&#x27;Brien &amp; &lt;Peaks&gt;'
         self.assertEqual(escaped, esc(PEAKS))
         self.assertIn('<span aria-current="page">%s</span>' % escaped, html_)
-        self.assertIn('<h1 id="reg-title" class="t-d1">%s</h1>' % escaped, html_)
+        self.assertIn('<h1 id="reg-title" class="t-d2">%s</h1>' % escaped, html_)
         self.assertEqual(html_.count(escaped), 2)
         for raw in ('<Peaks>', '<PEAKS>', "O'Brien", '& <', '&amp;amp;', '&amp;lt;', '&amp;#x27;'):
             self.assertNotIn(raw, html_)

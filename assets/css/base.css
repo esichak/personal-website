@@ -668,7 +668,7 @@ html:has(body.p-fsmap) { scroll-padding-top: calc(50svh + 100px); }
 .trow-ps { display: none; text-transform: uppercase; }  /* the phone stats line (core.row_stats_line) */
 @media (min-width: 560px) {
   .trow-a { grid-template-columns: 160px minmax(0, 1fr); gap: 20px; }
-  .trow-tile { width: 160px; }
+  .trow-tile { width: 160px; align-self: start; }   /* its own height beside a taller text column (Alpine, Phase 19) */
 }
 @media (min-width: 760px) {
   .trow-a { grid-template-columns: 200px minmax(0, 1fr); gap: 24px; padding: 22px 0; }

@@ -96,7 +96,7 @@
 @media (hover: hover) { .arc-row a:hover .arc-row-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; } }
 .arc-row-g { width: 64px; height: 48px; flex-shrink: 0; }
 .arc-row-b { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.arc-row-t { font: 500 15px/20px var(--sans); }
+.arc-row-t { font: 400 20px/1.15 var(--serif); letter-spacing: -0.01em; }   /* Alpine: a row's title in the serif */
 .arc-row-m { display: flex; align-items: flex-start; gap: 6px; text-transform: uppercase; }
 /* the icon strokes currentColor, so its wrapper carries the colour; it sits on the first line when the meta wraps (1000–1199) */
 .arc-row-i { display: flex; flex-shrink: 0; margin-top: 1px; color: var(--ink-2); }
@@ -122,13 +122,13 @@
    a scroll-margin here would add a second header height */
 .arc-series-w { margin-top: 16px; }
 .arc-series { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: start; column-gap: 16px;
-  padding: 16px 16px 4px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); }
+  padding: 16px 16px 4px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); }
 @media (hover: hover) { .arc-series:hover { color: var(--ink); border-color: var(--rule-strong); } }
 @media (hover: hover) { .arc-series:hover .arc-series-t { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; } }
 .arc-series-g { display: block; width: 64px; margin-top: 2px; }
 .arc-series-g :is(svg, img) { width: 100%; height: auto; aspect-ratio: 200 / 152; }
 .arc-series-b { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.arc-series-t { font: 600 18px/24px var(--sans); }
+.arc-series-t { font: 400 26px/1.1 var(--serif); letter-spacing: -0.01em; }
 .arc-series-m { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 4px; }
 .arc-series-m .t-mono-s { text-transform: uppercase; }
 .arc-series-go { grid-column: 2; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 4px;
@@ -137,7 +137,7 @@
 .arc-oreg-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding-bottom: 8px;
   border-bottom: 1px solid var(--ink); }
 .arc-oreg-h .t-mono-s { text-transform: uppercase; margin-left: auto; text-align: right; }
-.arc-oreg-n { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.arc-oreg-n { font: 500 12px/16px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); }
 @media (min-width: 760px) {
   .arc-other { margin-top: 40px; }
   .arc-series { grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; column-gap: 24px; padding: 16px 24px 16px 16px; }
@@ -173,8 +173,9 @@
 .arc-yr-h { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 .arc-yr-h .t-label { color: var(--ink); }
 /* the years of 'All reports' as heads (visual-04), on map/ and on the region pages, which share the table */
-.p-archive .arc-yr-h h3, .p-region .arc-yr-h h3 { font: 650 22px/28px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; text-transform: none; }
-@media (min-width: 760px) { .p-archive .arc-yr-h h3, .p-region .arc-yr-h h3 { font-size: 24px; line-height: 30px; } }
+.p-archive .arc-yr-h h3, .p-region .arc-yr-h h3 { font: 400 26px/1.05 var(--serif); letter-spacing: -0.01em; text-transform: none; }
+@media (min-width: 760px) { .p-archive .arc-yr-h h3, .p-region .arc-yr-h h3 { font-size: 30px; } }
+@media (min-width: 1200px) { .p-archive .arc-yr-h h3, .p-region .arc-yr-h h3 { font-size: 34px; } }
 /* phones: a folded year (archive.js, phone-03): its list hidden under the 'Show N reports' button */
 .arc-rows2.arc-collapsed { display: none; }
 .arc-yr-btn { margin-top: 4px; }
@@ -264,7 +265,7 @@
 }
 @media (max-width: 759.98px) {
   .arc-row a { min-height: 88px; padding: 12px 0; }
-  .arc-row-t { font: 600 17px/22px var(--sans); }
+  .arc-row-t { font-size: 22px; }
   .arc-wd { display: none; }
   .arc-row-m { align-items: center; }
   .arc-row-i { margin-top: 0; }

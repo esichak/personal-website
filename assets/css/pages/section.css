@@ -24,41 +24,35 @@
 }
 
 /* ---------------------------------------------------------------- filter band (segmented links) */
-.sec-band { position: relative; margin-top: 32px; background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
-.sec-band-in { min-height: 64px; display: flex; align-items: center; overflow-x: auto; scrollbar-width: none; padding: 10px 0;
+/* Alpine (Phase 19): underline tabs in mono 12 px capitals on white, one hairline under the row, the chosen one in ink
+   with a 2 px ink bar; the radio group, its keys and its links are section.js's as before */
+.sec-band { position: relative; margin-top: 32px; background: var(--paper); border-bottom: 1px solid var(--rule); }
+.sec-band-in { min-height: 44px; display: flex; align-items: center; overflow-x: auto; scrollbar-width: none; padding: 0;
   scroll-snap-type: x proximity; }
 .sec-band-in::-webkit-scrollbar { display: none; }
 .sec-seg-a { scroll-snap-align: start; }
 /* a band wider than the screen scrolls sideways (qa-10): a fade at the right edge while more segments lie beyond, as a
    tab row has (base.css .tabs-x); section.js sets .is-scroll and .is-end */
 .sec-band::after { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 32px; pointer-events: none; opacity: 0;
-  transition: opacity .15s; background: linear-gradient(to right, rgba(247, 247, 245, 0), var(--surface)); }
+  transition: opacity .15s; background: linear-gradient(to right, rgba(255, 255, 255, 0), var(--paper)); }
 .sec-band.is-scroll:not(.is-end)::after { opacity: 1; }
-.sec-seg { display: inline-flex; flex-shrink: 0; border: 1px solid var(--rule-strong); border-radius: 0; background: var(--paper); }
-.sec-seg-a { position: relative; min-height: 42px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
-  font: 500 15px/20px var(--sans); color: var(--ink); }
-/* 44 x 44 px to press, with no box changed: a segment is 42 px high inside the frame's 1 px lines, and its hit area, out
-   of the flow, takes in the line above and below it. 'All' is three letters, 37.6 px wide with a phone's 10 px of
-   padding each side: its area also reaches left, over the frame's line and into the page margin, until it is 44 px
-   wide; never right, where the next segment begins */
-.sec-seg-a::before { content: ""; position: absolute; inset: -1px 0; }
+.sec-seg { display: inline-flex; flex-shrink: 0; gap: 24px; border: 0; border-radius: 0; background: none; }
+.sec-seg-a { position: relative; min-height: 44px; padding: 0; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  font: 400 12px/16px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+/* 44 px high, and 44 px wide to press however short the word: the hit area, out of the flow, reaches half the 24 px gap
+   to either side ('All' is about 30 px of text); the first reaches left into the page margin instead of before it */
+.sec-seg-a::before { content: ""; position: absolute; inset: 0 -12px; }
 .sec-seg-a:first-child::before { left: min(0px, 100% - 44px); }
-.sec-seg-a + .sec-seg-a { border-left: 1px solid var(--rule); }
-.sec-seg-a .ic { width: 20px; height: 20px; color: var(--ink-2); }
-.sec-seg-n { font: 400 12px/16px var(--mono); color: var(--ink-3); }
+.sec-seg-a .ic { width: 16px; height: 16px; color: var(--ink-2); }
+.sec-seg-n { font: 400 12px/16px var(--mono); letter-spacing: 0; color: var(--ink-3); }
 /* the chosen segment: aria-checked once section.js has made the band a radio group; aria-current (All) without JS */
-@media (hover: hover) { a.sec-seg-a[href]:hover { color: var(--ink); background: var(--sunk); } }
-.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) {
-  background: var(--ink); color: var(--paper); }
-@media (hover: hover) { a.sec-seg-a:is([aria-checked="true"], [aria-current="true"]):hover {
-  background: var(--ink); color: var(--paper); } }
-.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .ic { color: var(--paper); }
-.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .sec-seg-n { color: #C4C4C4; }
-.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) + .sec-seg-a { border-left-color: var(--ink); }
+@media (hover: hover) { a.sec-seg-a[href]:hover { color: var(--ink); } }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .ic { color: var(--ink); }
+.sec-seg-a:is([aria-checked="true"], [aria-current="true"]) .sec-seg-n { color: var(--ink-2); }
 .sec-seg-a[aria-disabled="true"] { color: var(--ink-3); cursor: default; }
 .sec-seg-a[aria-disabled="true"] .ic { color: var(--ink-3); }
-.sec-seg-a:focus-visible { outline-offset: -3px; }
-.sec-seg-a:is([aria-checked="true"], [aria-current="true"]):focus-visible { outline-color: var(--paper); }  /* ink ring on the ink segment would vanish */
+.sec-seg-a:focus-visible { outline-offset: -2px; }   /* inside the tab: the band's scroll box would clip a ring outside it */
 @media (forced-colors: active) {
   .sec-seg-a[aria-checked="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
   .sec-seg-a[aria-checked="true"] .ic, .sec-seg-a[aria-checked="true"] .sec-seg-n { color: HighlightText; }
@@ -66,11 +60,15 @@
 @media (max-width: 759.98px) {
   /* phones scroll the control edge to edge (it peeks off the screen instead of being clipped at the margin) */
   .sec-band-in { width: 100%; padding-inline: var(--m); scroll-padding-inline: var(--m); }
-  .sec-seg { min-width: 100%; }
-  .sec-seg-a { flex: 1 0 auto; justify-content: center; padding: 0 10px; }
+  .sec-seg-a { flex: 0 0 auto; }
 }
-@media (min-width: 760px) { .sec-band { margin-top: 40px; } .sec-seg-a { padding: 0 16px; } }
-@media (min-width: 1200px) { .sec-band { margin-top: 48px; } .sec-band-in { padding: 0; } }
+/* from 760 px the scroll box reaches 20 px into the page margin on each side, padded by as much, so the tabs stay on
+   the page's column and the first tab's hit area (up to 19 px left of a short 'All') is not clipped by the box */
+@media (min-width: 760px) {
+  .sec-band { margin-top: 40px; }
+  .sec-band-in { width: min(1400px, 100% - 2 * var(--m) + 40px); padding-inline: 20px; scroll-padding-inline: 20px; }
+}
+@media (min-width: 1200px) { .sec-band { margin-top: 48px; } }
 /* Other: the sub-types without reports, one line under the band */
 .sec-none { margin-top: 12px; color: var(--ink-3); }
 
@@ -113,7 +111,6 @@
 .sec-prose.prose > * + * { margin-top: 16px; }
 .sec-read { margin-top: 8px; }
 .sec-feat-full { margin-top: 40px; }
-@media (max-width: 1199.98px) { .sec-feat-pics .photo + .photo { display: none; } }  /* 2nd photo only beside a desktop map */
 /* 560–1199: the map (and the MTB profile row) take the report's left-aligned 860 column, so map labels stay near 13px;
    the strip and the photo / write-up row keep the full width */
 @media (min-width: 560px) and (max-width: 1199.98px) { .sec-feat-map, .sec-feat-full { max-width: var(--col-max); } }
@@ -154,18 +151,30 @@
 }
 /* 760–999: photo about 276 wide, write-up about 388 (about 44 characters a line); 1:1 from 1000 */
 @media (min-width: 760px) and (max-width: 999.98px) { .sec-feat-side { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } }
+/* from 1200 px (Alpine, section 2.6): the photo card takes two thirds (the photo at 3:2, the words under it), the map
+   panel the last third, in its 390 px phone render (1.1x there) with its key and caption. One photo, as below 1200 px */
 @media (min-width: 1200px) {
-  .sec-feat-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); row-gap: 0; }
-  .sec-feat-map { grid-column: 1 / span 7; grid-row: 1; }
-  .sec-feat-side { grid-column: 8 / span 5; display: block; }
+  /* the map column's parts join the block's grid: the map, its key and its caption in the last third (rows 1 to 3), the
+     elevation or speed chart under the photo card at its width (row 5), where the 718 px render reads at 1.25x */
+  .sec-feat-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto auto 1fr auto; column-gap: var(--gap); row-gap: 0; }
+  .sec-feat-side { grid-column: 1 / span 8; grid-row: 1 / span 4; display: block; }
+  .sec-feat-map { display: contents; }
+  .sec-feat-map > * { grid-column: 9 / span 4; min-width: 0; }
+  .sec-feat-map > .map { grid-row: 1; }
+  .sec-feat-map > .keyrow { grid-row: 2; }
+  .sec-feat-map > .mapcap { grid-row: 3; }
+  .sec-feat-map > .sec-prof { grid-column: 1 / span 8; grid-row: 5; margin-top: 48px; }
+  .sec-feat-map .map--nowide .mv--col { display: none; }
+  .sec-feat-map .mv--phone { display: block; }
+  /* the key of the render shown: the phone render's */
+  .sec-feat-map .keyrow--d { display: none; }
+  .sec-feat-map .keyrow--p { display: flex; }
+  .sec-feat-photo img { aspect-ratio: 3 / 2; }
   .sec-feat-pics + .sec-feat-txt { margin-top: 32px; }
   .sec-feat-full { margin-top: 48px; }
-  /* text-left variant: write-up under the map (20/32 in the 718 column), photos stacked on the right */
-  .sec-feat-grid--txtl { grid-template-rows: auto 1fr; }
-  .sec-feat-grid--txtl .sec-feat-side { display: contents; }
-  .sec-feat-grid--txtl .sec-feat-pics { grid-column: 8 / span 5; grid-row: 1 / span 2; align-self: start; }
-  .sec-feat-grid--txtl .sec-feat-txt { grid-column: 1 / span 7; grid-row: 2; margin-top: 48px; align-self: start; }
+  /* the text-left variant: the same card, its words at 20 / 32 */
   .sec-feat-grid--txtl .sec-prose { font-size: 20px; line-height: 32px; }
+  .sec-feat-grid--nophoto .sec-feat-side { grid-column: 1 / span 8; }
 }
 
 /* charts inside / under the featured block */
@@ -221,7 +230,9 @@
 .sec-list > .sec-season:not(.sec-season:not(.is-off) ~ *) { margin-top: 0; }
 .sec-more > .sec-season:not(.sec-season:not(.is-off) ~ *) { margin-top: 24px; }
 .sec-div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
-.sec-div-t { font: 600 12px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.sec-div-t { font: 400 26px/1.05 var(--serif); letter-spacing: -0.01em; color: var(--ink); }
+@media (min-width: 760px) { .sec-div-t { font-size: 30px; } }
+@media (min-width: 1200px) { .sec-div-t { font-size: 34px; } }
 /* one column header per group (visual-11, section.stat_cols): from 760 px the rows' stat labels stand once, on a line
    under the group's heading (or under a flat list's head, .sec-colrow), lined up with the rows' stat columns (the text
    column starts after the 200 px tile and its 24 px gap; 120 px columns), and the rows keep theirs for screen readers
@@ -242,8 +253,8 @@
   .sec-panel { margin: 0 0 32px; }
 }
 @media (min-width: 760px) and (max-width: 959.98px) { .sec-panel { margin-bottom: 40px; } }
-.sec-panel-h { margin-bottom: 8px; font: 650 20px/26px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; }
-@media (min-width: 760px) { .sec-panel-h { font-size: 28px; line-height: 34px; margin-bottom: 12px; } }
+.sec-panel-h { margin-bottom: 8px; font: 400 26px/1.1 var(--serif); letter-spacing: -0.01em; }
+@media (min-width: 760px) { .sec-panel-h { font-size: 30px; margin-bottom: 12px; } }
 /* region tabs biggest first; the row scrolls sideways inside .tabs-x (base.css / base.js) instead of widening the page */
 .sec-tabs { display: flex; gap: 16px; border-bottom: 1px solid var(--rule); }
 @media (min-width: 1200px) { .sec-tabs { gap: 24px; } }

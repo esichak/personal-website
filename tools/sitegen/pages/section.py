@@ -130,7 +130,7 @@ def header(act, here, ts, intro='', planned=()):
     crumbs = core.crumbs(here, crumb_items(act, here))[0]
     return ('<section class="sec-head wrap" aria-labelledby="sec-title">'
             '<nav class="crumbs t-mono-s" aria-label="Breadcrumb">%s</nav>'
-            '<div class="sec-h1row">%s<h1 id="sec-title" class="t-d1">%s</h1></div>'
+            '<div class="sec-h1row">%s<h1 id="sec-title" class="t-d2">%s</h1></div>'
             '<p class="sec-stats">%s</p>%s</section>'
             % (crumbs, core.disc(act, 48), esc(lab), totals_line(ts, act, planned, here),
                ('<p class="sec-intro t-lede">%s</p>' % esc(intro)) if intro else ''))
@@ -159,9 +159,10 @@ def featured(t, here, full_row='', fkey=None):
     """Datum featured anatomy: label → chips → H2 row (Download GPX bottom-aligned) → place line → strip → map, key row,
     caption | photo + write-up.
 
-    With no chart under the map, the write-up moves under the map on desktop and a second photo fills the right column
-    (ClimbingIndex artboard), so neither column ends in a large blank. Phones (< 760) get the compact block (CSS): no GPX
-    button, strip sub-lines, footnote or charts (the report keeps them), one photo and four lines of the write-up.
+    One photo. From 1200 px (Alpine, Phase 19) the photo card takes two thirds of the row (the photo, the write-up, a
+    chart under both) beside the map panel in the last third (section.css); with no chart the write-up is set larger
+    (sec-feat-grid--txtl). Phones (< 760) get the compact block (CSS): no GPX button, strip sub-lines, footnote or charts
+    (the report keeps them), one photo and four lines of the write-up.
     The map is the page's LCP image: eager, with page() preloading it (core.map_preloads). fkey: the block's filter key
     (data-f; the year on MTB / Hiking), default the sub-type (Other)."""
     act = t['activity']
@@ -186,8 +187,8 @@ def featured(t, here, full_row='', fkey=None):
     if 'speed-col' in ch:
         chart += speed_block(t, here)
     text_left = not chart and bool(t['photos'])
-    photos = t['photos'][:2 if text_left else 1]
-    pics = ''.join(core.photo(t, p, here, sizes='(min-width: 1200px) 506px, (min-width: 760px) 50vw, ' + core.PHONE_FULL,
+    photos = t['photos'][:1]
+    pics = ''.join(core.photo(t, p, here, sizes=FEAT_SIZES,
                               cls='sec-feat-photo' + (' sec-feat-photo--p' if core.photo_ar(p) < 1 else ''))
                    for p in photos)
     body = writeup(t)
@@ -456,6 +457,11 @@ def ski_body(ts, here):
 # without JS every region map shows (no tabs), so below 960 the panel moves under the list
 # where the Ski panel shows each variant of its map (section.css): the 506 x 680 'desktop' render at 560-759 px and from
 # 1200 px in a window at least 760 px tall, the 390 x 480 'phone' render everywhere else; its preloads follow (perf-07)
+# the Featured block (Alpine, Phase 19): from 1200 px the photo is two thirds of the 1360 column, (2/3) x column - 8 px
+# (739 px at 1200, 899 at 1440), and the map panel shows the phone render, so each render is preloaded where it shows
+FEAT_SIZES = ('(min-width: 1440px) 899px, (min-width: 1200px) calc((100vw - 80px) * 0.667 - 8px), (min-width: 760px) 50vw, '
+              + core.PHONE_FULL)
+FEAT_MAP_MEDIA = {'col': core.PRELOAD_MEDIA['col'], 'phone': '(max-width: 559.98px), (min-width: 1200px)'}
 SKI_MEDIA = {'desktop': '(min-width: 560px) and (max-width: 759.98px), (min-width: 1200px) and (min-height: 760px)',
              'phone': '(max-width: 559.98px), (min-width: 760px) and (max-width: 1199.98px), '
                       '(min-width: 1200px) and (max-height: 759.98px)'}
@@ -583,7 +589,7 @@ def page(act, site):
             body.append(featured(feat, here, full_row=full, fkey=year_key(feat) if by_year else None))
             # the featured map is the LCP image: preload the variant each breakpoint shows
             extra_head = core.map_preloads(feat, here, [('map-col', 'col'), ('map-phone', 'phone')], feat['url'] + 'map/',
-                                           nowide=True)
+                                           media=FEAT_MAP_MEDIA)
         if ser:
             body.append(series_block(ser, here, fkey=' '.join(years_of(ser)) if by_year else None))
         # the panel's regions and counts from every report its map draws: the featured one too (the journal is no pin)

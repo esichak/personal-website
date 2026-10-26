@@ -166,6 +166,20 @@ published recording names the same service, `core.site_via`), then the link list
 shows each number above its label (the label stays first in the markup, as a screen reader reads it), one ink rule under
 the strip. Touch targets ≥ 44 px.
 
+The pages (Phases 17 to 19): heads in the serif (`t-d1` on home's hero, a report, Trips, the tick list, About and the
+404; `t-d2` on the section pages, the region pages and map/); year, season and month heads in the serif (`t-h2` sizes on
+Trips and the journal, `t-h3` sizes under a section's own head: the section pages' seasons, map/'s and a region's years);
+row and card titles in the serif (a phone's scan list keeps the sans); the text boxes (the Trips page's, the 404's) and
+the explorer's selects bare with a 1 px ink line under them; every row of choices that is not a set of chips is a row of
+underline tabs in mono 12 px caps (the view switch, the section pages' filter band, the day and month bars), the chosen
+one in ink over its 2 px ink bar, the rest in ink-2. The scripts, the radio groups and the URLs behind them are as they
+were. A section page's Featured block from 1200 px is the photo card in two thirds (one photo at 3:2, `section.FEAT_SIZES`
+the slot's width there, the write-up under it, the elevation or speed chart under both at that width) beside the map panel in the last
+third (the map's 390 px phone render, the phone render's key, the caption; `.sec-feat-map` is `display: contents` there,
+so its parts take their places in the block's grid; `section.FEAT_MAP_MEDIA` preloads each render where it shows); the
+journal opens like a report (`report.hero_head`); a list row's
+tile keeps its own height beside a taller text column.
+
 Layout: `.wrap` (1360 max, page margins 16 / 40 / 40 px), `.bleed` (full width up to 1440), `.sec` (section gap
 56 / 72 / 96 px), `.grid12`; `--header-h` 56 / 64 / 72 px. Breakpoints: phone < 760, tablet 760–1199, desktop ≥ 1200. Header
 nav collapses to the menu button below 1000 px (1140 until Phase 13A, visual-17: the two-column layouts start at 1000).
@@ -261,8 +275,8 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   `core.group_stat_labels`, the labels of the longest row when every row's labels start the same; a line under a ski
   season's or a year's heading, `.sec-colrow` under a flat list's head; the rows' `dt` go to screen readers only, and
   come back on the Ski list at 960-1099 px, where its cells are two by two; Other keeps each row's labels); the years
-  of Trips, map/ and the region pages are 22/28 heads (24/30 from 760), the tick list's region heads stay labels
-  (visual-04); a card without a photo fills its slot with its route tile on `--map-paper` (visual-01, step 1); About's
+  of Trips, map/ and the region pages are heads (since Phase 19 in the serif: Trips' at the `t-h2` sizes, map/'s and a
+  region page's at the `t-h3` sizes), the tick list's region heads stay labels (visual-04); a card without a photo fills its slot with its route tile on `--map-paper` (visual-01, step 1); About's
   At a glance is `.dl-leader`; `.t-lede` is the serif lead (Alpine: a write-up's first paragraph, home's and a
   section's lead); the filter bands fade at their
   right edge and section.js brings the chosen segment into the row by `scrollLeft` (qa-10).
@@ -287,10 +301,13 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
     - the browse links on trips/ (`.trx-bgroup a`: activities, regions, years) and the home page's `ALSO` links
       (`.hom-also a`) are 44 px high as before, and `a::before { inset: 0 min(0px, (100% - 44px) / 2); }` widens a
       link under 44 px by the same amount on each side, to exactly 44; a wider link gets nothing;
-    - the two buttons of the view switch are 42 px inside the 44 px `.trx-view` frame, and the segments of the section
-      pages' filter band are 42 px (`.sec-seg-a`: ski seasons, Other sub-types, years): `::before { inset: -1px 0; }`
-      takes in the frame's line above and below. `All` in the band is under 38 px wide with a phone's padding, so its
-      area also reaches left to 44 px (`.sec-seg-a:first-child::before`), never right;
+    - the two buttons of the view switch and the segments of the section pages' filter band (`.sec-seg-a`: ski
+      seasons, Other sub-types, years) are underline tabs 44 px high (Phase 19); their hit areas reach half the gap to
+      either side (`.trx-view button::before { inset: 0 -10px; }` in a 20 px gap, `.sec-seg-a::before { inset: 0 -12px; }`
+      in a 24 px gap), so no two meet. `All` in the band is about 25 px of capitals: as the first, its area reaches 19 px
+      left (`.sec-seg-a:first-child::before`). The band (`.sec-band-in`) is a scroll box and clips what lies outside its
+      padding: on a phone its padding is the page margin (16 px kept, 53 px to press), and from 760 px it reaches 20 px
+      into the margin with 20 px of padding (56 px to press); its tabs' focus rings are drawn inside them (offset -2 px);
     - the footer's brand link (`.f-brand a.brand-n::before`) is an in-flow block 44 px high whose margins cancel its
       height (`margin: -12px 0 -32px`): 12 px up into the footer's padding, 8 px down into the gap under the name. It
       is not a positioned box on purpose: `position: relative` on that link changed how the name was drawn at 1x;
@@ -997,8 +1014,9 @@ Mono, 2 px radii on chips and buttons and 3 px route-red current bars; the log's
   Phase 13A so does its twin when the bundle did not run (`:where(html:not(.js))`; the header's no-script rules, above).
 - Journal page (`tools/sitegen/pages/series.py`; `body_cls` stays `p-series`; day articles, month sections, ids, GPX
   hrefs and `download` names are unchanged):
-  - Page order: `title_block`, then `tick_backlink`, `report.hero` (when `t['cover']` and `report.lead_photo(t)`), the
-    strip, `intro`, `highlights`, `day_log`, `report.published_line` and `pager`. With a lead photo the head carries
+  - Page order: the head, `report.hero_head` when `t['cover']` and `report.lead_photo(t)` (Phase 19; the photo inside
+    the head, as on a report), else `report.title_block`; then `tick_backlink`, the strip, `intro`, `highlights`,
+    `day_log`, `report.published_line` and `pager`. With a lead photo the head carries
     `core.cover_preload(t, here, report.HERO_SIZES)` in place of `ov_preloads`; a portrait, square or near-square cover
     gives no hero, and `ov_preloads` stay. The share image is the cover file whenever `t['cover']` exists, lead or not
     (`core.share_photo(t)`), and the page passes `report=t` as the other report pages do. The hero is alone in its

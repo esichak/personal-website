@@ -123,7 +123,7 @@ def head_block(site, regs, meta):
     years = sorted({t['date'].year for t in pub if t['date']} | {t['end_date'].year for t in pub if t.get('end_date')})
     if years:
         bits.append(str(years[0]) if years[0] == years[-1] else '%d–%d' % (years[0], years[-1]))
-    return ('<section class="arc-head wrap" aria-labelledby="arc-title"><h1 id="arc-title" class="t-d1">Map</h1>'
+    return ('<section class="arc-head wrap" aria-labelledby="arc-title"><h1 id="arc-title" class="t-d2">Map</h1>'
             '<p class="t-mono-s arc-stats">%s</p></section>' % core.meta_items(bits))
 
 

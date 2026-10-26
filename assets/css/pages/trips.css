@@ -1,4 +1,6 @@
-/* Trips explorer (/trips/) — head, browse links, search form, status row, year groups of trip cards (base.css .tcard). */
+/* Trips explorer (/trips/) — head, browse links, search form, status row, year groups of trip cards (base.css .tcard).
+   Alpine (Phase 19): the search box bare with an ink rule under it, the sort bare likewise, the view switch as underline
+   tabs, the status and the active filters in mono capitals, the year heads in the serif. */
 .trx-head { padding-top: 24px; }
 .trx-stats { margin-top: 8px; text-transform: uppercase; }
 @media (min-width: 760px) { .trx-stats { margin-top: 12px; font-size: 15px; line-height: 20px; color: var(--ink-2); } }
@@ -21,30 +23,30 @@
 
 /* ---------------------------------------------------------------- search form */
 .trx-form { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
-.trx-q { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 0; background: var(--surface);
-  font: 400 16px/24px var(--sans); color: var(--ink); -webkit-appearance: none; appearance: none; }
+.trx-q { width: 100%; height: 52px; padding: 0 2px; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0; background: none;
+  font: 400 18px/24px var(--sans); color: var(--ink); -webkit-appearance: none; appearance: none; }
 .trx-q::placeholder { color: var(--ink-3); text-overflow: ellipsis; }
 .trx-q { text-overflow: ellipsis; }   /* a placeholder longer than a narrow phone's box ends in an ellipsis, not mid-word */
 .trx-q:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; border-color: var(--ink); }
 .trx-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .trx-acts { display: flex; flex-wrap: wrap; gap: 8px; flex: 0 1 100%; }
 .trx-sel { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 500 14px/20px var(--sans); color: var(--ink-2); }
-.trx-sel select { height: 44px; padding: 0 32px 0 12px; border: 1px solid var(--rule-strong); border-radius: 0; background: var(--paper)
+.trx-sel select { height: 44px; padding: 0 28px 0 2px; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0; background: transparent
   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2316171A' stroke-width='1.5'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E")
-  no-repeat right 10px center; -webkit-appearance: none; appearance: none; font: 500 15px/20px var(--sans); color: var(--ink); max-width: 100%; }
-@media (hover: hover) { .trx-sel select:hover { border-color: var(--ink); background-color: var(--sunk); } }
+  no-repeat right 4px center; -webkit-appearance: none; appearance: none; font: 500 15px/20px var(--sans); color: var(--ink); max-width: 100%; }
+@media (hover: hover) { .trx-sel select:hover { border-bottom-width: 2px; } }
 /* phones: iOS Safari zooms the page into a control under 16 px when it takes the focus (phone-09); a touch screen at
    any width, as a phone on its side is wider than 760 px */
 @media (max-width: 759.98px), (hover: none) and (pointer: coarse) { .trx-sel select { font-size: 16px; padding-right: 34px; } }
 .trx-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 500 15px/20px var(--sans); color: var(--ink); cursor: pointer; }
 .trx-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
-.trx-view { display: inline-flex; height: 44px; border: 1px solid var(--rule-strong); border-radius: 0; margin-left: auto; }
-/* 44 px with its border, as tall as the chips and selects beside it, so a button is 42 px: its hit area, out of the flow,
-   takes in the 1 px of border above and below it (44) */
-.trx-view button { position: relative; height: 100%; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; font: 500 14px/20px var(--sans); color: var(--ink-2); }
-.trx-view button::before { content: ""; position: absolute; inset: -1px 0; }
-.trx-view button + button { border-left: 1px solid var(--rule); }
-.trx-view button[aria-checked="true"] { background: var(--sunk); color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+/* underline tabs (Alpine): 44 px high, the words in mono capitals, the chosen one in ink with a 2 px ink bar under it */
+.trx-view { display: inline-flex; gap: 20px; height: 44px; border: 0; border-radius: 0; margin-left: auto; }
+.trx-view button { position: relative; height: 100%; padding: 0 2px; display: inline-flex; align-items: center; gap: 6px;
+  font: 400 12px/16px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.trx-view button::before { content: ""; position: absolute; inset: 0 -10px; }   /* 44 px wide at least, half the 20 px gap each side */
+@media (hover: hover) { .trx-view button:hover { color: var(--ink); } }
+.trx-view button[aria-checked="true"] { background: none; color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
 .trx-view .ic { width: 16px; height: 16px; }
 @media (min-width: 760px) {
   .trx-form { margin-top: 32px; }
@@ -58,8 +60,8 @@
 @media (hover: hover) { .trx-count a:hover { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
 .trx-chips { display: flex; flex-wrap: wrap; gap: 12px 8px; }
 .trx-chips:empty { display: none; }
-.trx-chip { position: relative; min-height: 32px; padding: 0 8px 0 10px; display: inline-flex; align-items: center; gap: 6px; border-radius: 0; background: var(--sunk);
-  font: 500 13px/16px var(--sans); color: var(--ink); white-space: nowrap; }
+.trx-chip { position: relative; min-height: 32px; padding: 0 8px 0 10px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule);
+  border-radius: 0; background: none; font: 400 12px/16px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
 .trx-chip::before { content: ""; position: absolute; inset: -6px 0; }  /* a 44px hit area on a 32px chip (as a.chip--title) */
 .trx-chip .ic { width: 14px; height: 14px; color: var(--ink-3); }
 @media (hover: hover) { .trx-chip:hover .ic { color: var(--ink); } }
@@ -78,8 +80,9 @@
 .trx-yr-n { text-transform: uppercase; }
 /* a year is a head, not a caps label (visual-04): the one landmark between dozens of cards. Scoped to the Trips page:
    the tick list's region heads share the markup and stay labels ('Journal days' and the hidden 'Results' follow) */
-.p-trips .trx-yr-h h2 { font: 650 22px/28px var(--sans); font-stretch: 108%; letter-spacing: -0.01em; text-transform: none; }
-@media (min-width: 760px) { .p-trips .trx-yr-h h2 { font-size: 24px; line-height: 30px; } }
+.p-trips .trx-yr-h h2 { font: 400 32px/1.05 var(--serif); letter-spacing: -0.01em; text-transform: none; }
+@media (min-width: 760px) { .p-trips .trx-yr-h h2 { font-size: 40px; } }
+@media (min-width: 1200px) { .p-trips .trx-yr-h h2 { font-size: 44px; } }
 .trx-grid { margin-top: 16px; display: grid; row-gap: 20px; }
 #trx-sorted { margin-top: 24px; }
 @media (min-width: 560px) { .trx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--gap); } }
@@ -91,11 +94,11 @@
 .trx-day { padding: 14px 0; border-bottom: 1px solid var(--rule); }
 .trx-day-a { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-height: 44px; color: var(--ink); }
 .trx-day-m { text-transform: uppercase; }
-.trx-day-t { font: 600 17px/22px var(--sans); }
+.trx-day-t { font: 400 22px/1.15 var(--serif); letter-spacing: -0.01em; }
 @media (hover: hover) { .trx-day-a:hover .trx-day-t { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } }
 .trx-day-x { margin-top: 6px; max-width: 720px; }   /* the words around the hit, whole: a clamp would cut the hit off on a phone */
 .trx-days-more { margin-top: 4px; }
-@media (min-width: 760px) { .trx-days { margin-top: 40px; } .trx-day-t { font-size: 19px; line-height: 25px; } }
+@media (min-width: 760px) { .trx-days { margin-top: 40px; } .trx-day-t { font-size: 24px; } }
 
 /* list view: one row per trip at every width, thumbnail beside the text (the .tcard row layout) */
 .trx--list .trx-grid { grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 4px; }
