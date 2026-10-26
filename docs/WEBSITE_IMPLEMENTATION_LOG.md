@@ -3980,7 +3980,7 @@ docs/redesign-c out." The fonts and their checks are in the gate's entry above (
 
 Yearly upkeep, items 2 and 3, done early: the pinned actions in `pages.yml` moved to their newest majors so the deploy
 stops warning about Node.js 20, and the `ubuntu-latest` move was looked at. Work branch `claude/magical-benz-0f4eb2`
-from `eb8eb20`; nothing pushed.
+from `eb8eb20`, one commit, `b3be7a9`, pushed to `main` on its own at Eric's word (Pushed and run, below).
 
 - **The warnings.** Run 40375179148 (the push of `eb8eb20`) has one annotation per job, "Node.js 20 is deprecated.
   The following actions target Node.js 20 but are being forced to run on Node.js 24": in the build job checkout@v4,
@@ -4016,7 +4016,21 @@ from `eb8eb20`; nothing pushed.
   `python3.12` with `-W error`, and `build.py --check`, all passed (4 min 36 s). The build's only dotfile is
   `.nojekyll` (`find .cache/check -name '.*'`), so it is all the new upload leaves out. The release notes were read
   with `gh api repos/actions/<name>/releases/tags/<tag>`, and each new major's `action.yml` says `using: node24`.
-- **Not done.** No run has used the new pins, since nothing was pushed. The first run on `main` after this commit is
-  the proof: it runs the unit tests (`.github/` changed), its annotations should have no Node.js 20 line, and the smoke
-  job should unpack `artifact.tar` as before. DEVELOPING.md's advice stands: push it on its own on a quiet day, or
-  prove it with a `workflow_dispatch` run, not with a trip.
+- **Pushed and run.** Eric's word in the session: "Yes, push b3be7a9 to main and check the run's annotations
+  afterwards." `main` was fast-forwarded `eb8eb20..b3be7a9` (no merge commit). Run 40384514538 ('Deploy site', on the
+  push): build 19:11:37 to 19:15:23 UTC with the unit tests (the `changed` step compared with `eb8eb20` and said
+  code; 3,307 tests, OK), smoke 19:15:25 to 19:16:00, deploy 19:15:26 to 19:16:15; all three green, all three on
+  Ubuntu 24.04. The run downloaded exactly the seven new majors (and upload-artifact v7, by SHA, inside
+  upload-pages-artifact v5).
+  - **Annotations:** no Node.js 20 line in any job (`Node.js 20` appears nowhere in the run's log). The one left is
+    the notice, in each job, that `ubuntu-latest` migrates to Ubuntu 26, which stays until the label has moved.
+  - **Smoke:** download-artifact v8 fetched `github-pages`, `artifact.tar` unpacked as before, and all five pages
+    passed in Chrome.
+  - **Deploy:** deploy-pages v5 reported success. On the live site the home page, the Matterhorn report and
+    `404.html` answer 200 and `/.nojekyll` answers 404, as the new upload leaves dotfiles out.
+  - **Left in the log:** two Node deprecation lines from the actions' own dependencies, not annotations: `Buffer()`
+    in download-artifact v8 and `punycode` in deploy-pages v5 (the old pins printed `punycode` in nearly every step).
+    Nothing in this repository to change.
+- This paragraph is a later commit on `main`, pushed on its own at Eric's word ("update the log entry's 'Not done'
+  bullet with run 40384514538's results, commit it, and push it to main"). The log is on `pages.yml`'s ignore list,
+  so that push starts no run.
