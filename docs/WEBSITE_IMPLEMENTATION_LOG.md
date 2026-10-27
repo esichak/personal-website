@@ -4039,8 +4039,8 @@ from `eb8eb20`, one commit, `b3be7a9`, pushed to `main` on its own at Eric's wor
 
 Asked for by the Training section's session. Its phase-5 previews of the unmerged `training-section` branch found four
 phone-width faults that no test had caught (fixed there in 6c97706), and nothing in the repository checked sideways
-scrolling. Work branch `claude/infallible-curie-44d105` from `b784bcd`, two commits: `e11179b` (the tool) and the fix
-below. Not pushed.
+scrolling. Work branch `claude/infallible-curie-44d105` from `b784bcd`, two commits: `e11179b` (the tool) and `b008969`
+(the fix below), pushed to `main` at Eric's word (Pushed and run, below).
 
 - **The tool.** `tools/reflow.py`, beside smoke.py, which it shares a server with (`smoke.serve(site, handler)`; the
   server now polls for shutdown every 50 ms and says nothing when Chrome hangs up mid-answer). It opens a page of each
@@ -4096,3 +4096,16 @@ below. Not pushed.
     sees only its locked form there; check that page on a plaintext preview, as the Training session did.
   - Whether `tools/check.py` should run the reflow pass when Chrome is installed: Eric's call. It would add about 15 s
     and a browser to a check that is deterministic today.
+- **Pushed and run.** Eric's word in the session: "Fast-forward main to b008969 (the two phone-width commits) and push
+  it." `main` was fast-forwarded `b784bcd..b008969` (no merge commit) and pushed at 16:56:18 PDT. Run 40423107492
+  ('Deploy site', on the push): all three jobs green, still on Ubuntu 24.04.
+  - **Build** 23:56:22 to 00:00:00 UTC, with the unit tests: the `changed` step compared with `b784bcd` and said code;
+    3,358 tests OK, one skipped (`ChromeTests`); 367 pages built and the link check OK.
+  - **Smoke** 00:00:02 to 00:00:43: the five pages OK in Chrome, served by smoke.py's changed server.
+  - **Deploy** 00:00:04 to 00:00:20, so the site was live about 4 minutes after the push.
+  - **Annotations:** only the notice, in each job, that `ubuntu-latest` migrates to Ubuntu 26.
+  - **The live site:** `trips/` and `assets/site.css?v=cad6dc33` are byte-identical to the linked build that
+    `tools/reflow.py` passed (Checks actually run, above), so the phone list view's title is positioned on the site.
+- The paragraph above is a later commit on `main`, pushed on its own at Eric's word ("Update the Phone-width check log
+  entry with the push and run 40423107492, commit it, and push it to main."). The log is on `pages.yml`'s ignore list,
+  so that push starts no run.
