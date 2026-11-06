@@ -20,23 +20,23 @@
     "label": null,
     "checked_at": null,
     "public_copy_approved": true,
-    "approximation_note": "A planning sketch, not a travelled line: trail geometry to the Bullfrog Lake approach, hand-drawn from USGS topography beyond; crossings and couloir alignment unverified. Elevations are smoothed bare-earth estimates, not snow surface."
+    "approximation_note": "A planning sketch, not a travelled line: trail geometry to Kearsarge Pass, then a hand-drawn crossing of the Pinnacles 9-10 notch and descent to Bubbs Creek (provisional, no skiable exit verified); the return by Bullfrog Lake. Elevations are smoothed bare-earth estimates, not snow surface."
   },
   "references": [],
   "field_evidence": {},
   "checklist": [],
   "outings": [],
   "route": {
-    "source_sha256": "731ab6f0d0d2ff869c6a95c566785fd32af3badb9e01e347a633cf8afe4377f3",
+    "source_sha256": "3f68131b868e99a5d9943022bd77e92c7425b0c93af9f8517d00a7be23890d67",
     "method": "ticklist-gpx-1",
     "selected": {
       "type": "trk",
       "index": 0,
-      "name": "Round trip - planning corridor, Onion Valley to NE couloir notch and back"
+      "name": "Round trip - out by the Kearsarge Pinnacles 9-10 notch, back by Bullfrog Lake"
     },
     "alternatives": 1,
     "segments": 1,
-    "points": 2669,
+    "points": 2664,
     "elevation": "full",
     "times": false,
     "waypoints": 0
