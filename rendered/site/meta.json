@@ -1,5 +1,5 @@
 {
- "hash": "862185c0c84f186770cfd8dc99a735e621acf9b4",
+ "hash": "7277df4023afdc4f527a0bdcad1c9f781df34e77",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
@@ -1476,7 +1476,7 @@
    "h": 620,
    "png": "region-eastern-sierra-desktop.webp",
    "base": "region-eastern-sierra-desktop.base.svg",
-   "base_gz_kb": 8.8,
+   "base_gz_kb": 14.6,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1485,56 +1485,66 @@
     "matterhorn-peak-west-couloir",
     "green-creek-virginia-pass",
     "post-skimo-shakeout",
-    "mammoth-caldera-burn-skimo-race"
+    "mammoth-caldera-burn-skimo-race",
+    "deerhorn-ne-couloir-from-onion-valley"
    ],
    "clusters": [
     {
-     "x": 310.8608250540087,
-     "y": 254.4184343666634,
+     "x": 242.76598558035374,
+     "y": 119.47829897382036,
      "n": 1,
      "keys": [
       "false-white-mountain"
      ]
     },
     {
-     "x": 300.77999822778384,
-     "y": 153.38153251770663,
-     "n": 1,
+     "x": 248.3012534225966,
+     "y": 96.5945686929868,
+     "n": 2,
      "keys": [
-      "dunderberg-peak-and-black-mountain"
+      "dunderberg-peak-and-black-mountain",
+      "green-creek-virginia-pass"
      ]
     },
     {
-     "x": 402.1567723331899,
-     "y": 410.2092466194489,
+     "x": 277.42050131108084,
+     "y": 178.5278021017952,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 217.8405067352049,
-     "y": 62.31481924385599,
+     "x": 207.75251232824064,
+     "y": 46.508208852699944,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
      ]
     },
     {
-     "x": 291.6955068971147,
-     "y": 95.66832122159781,
-     "n": 1,
-     "keys": [
-      "green-creek-virginia-pass"
-     ]
-    },
-    {
-     "x": 496.85070224132744,
-     "y": 542.9288271548194,
+     "x": 322.97560277265814,
+     "y": 244.0666045868913,
      "n": 2,
      "keys": [
       "post-skimo-shakeout",
       "mammoth-caldera-burn-skimo-race"
+     ]
+    },
+    {
+     "x": 502.8212801187044,
+     "y": 537.5842920990361,
+     "n": 1,
+     "keys": [
+      "deerhorn-ne-couloir-from-onion-valley"
+     ]
+    },
+    {
+     "x": 329.49074588161477,
+     "y": 318.189877746488,
+     "n": 1,
+     "keys": [
+      "pacific-crest-trail-2024:pacific-crest-trail"
      ]
     }
    ],
@@ -1562,7 +1572,7 @@
    "h": 480,
    "png": "region-eastern-sierra-phone.webp",
    "base": "region-eastern-sierra-phone.base.svg",
-   "base_gz_kb": 5.3,
+   "base_gz_kb": 9.2,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1571,56 +1581,66 @@
     "matterhorn-peak-west-couloir",
     "green-creek-virginia-pass",
     "post-skimo-shakeout",
-    "mammoth-caldera-burn-skimo-race"
+    "mammoth-caldera-burn-skimo-race",
+    "deerhorn-ne-couloir-from-onion-valley"
    ],
    "clusters": [
     {
-     "x": 160.82525871501772,
-     "y": 184.55501793763148,
+     "x": 110.53350985737917,
+     "y": 83.86422536163687,
      "n": 1,
      "keys": [
       "false-white-mountain"
      ]
     },
     {
-     "x": 148.10420310677387,
-     "y": 95.73311292289557,
-     "n": 1,
+     "x": 116.3711565485798,
+     "y": 72.5509842337334,
+     "n": 2,
      "keys": [
-      "dunderberg-peak-and-black-mountain"
+      "dunderberg-peak-and-black-mountain",
+      "green-creek-virginia-pass"
      ]
     },
     {
-     "x": 225.63765697763506,
-     "y": 295.116239536382,
+     "x": 135.4897210940337,
+     "y": 125.582349163965,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 94.78870290868399,
-     "y": 48.22342010854297,
+     "x": 85.54727189388525,
+     "y": 32.15801798969632,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
      ]
     },
     {
-     "x": 147.21950434986596,
-     "y": 71.89364731855318,
-     "n": 1,
-     "keys": [
-      "green-creek-virginia-pass"
-     ]
-    },
-    {
-     "x": 292.8623354126013,
-     "y": 389.30432894857995,
+     "x": 169.41202563174602,
+     "y": 177.2085580939235,
      "n": 2,
      "keys": [
       "post-skimo-shakeout",
       "mammoth-caldera-burn-skimo-race"
+     ]
+    },
+    {
+     "x": 307.49817269230726,
+     "y": 400.24343723247637,
+     "n": 1,
+     "keys": [
+      "deerhorn-ne-couloir-from-onion-valley"
+     ]
+    },
+    {
+     "x": 174.03970375292107,
+     "y": 229.81217130395976,
+     "n": 1,
+     "keys": [
+      "pacific-crest-trail-2024:pacific-crest-trail"
      ]
     }
    ],
@@ -1648,7 +1668,7 @@
    "h": 680,
    "png": "ski-eastern-sierra-desktop.webp",
    "base": "ski-eastern-sierra-desktop.base.svg",
-   "base_gz_kb": 6.9,
+   "base_gz_kb": 12.2,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1656,48 +1676,57 @@
     "mount-wood",
     "matterhorn-peak-west-couloir",
     "post-skimo-shakeout",
-    "mammoth-caldera-burn-skimo-race"
+    "mammoth-caldera-burn-skimo-race",
+    "deerhorn-ne-couloir-from-onion-valley"
    ],
    "clusters": [
     {
-     "x": 200.20219522052568,
-     "y": 279.03957317634047,
+     "x": 126.42475124820636,
+     "y": 132.52775686694778,
      "n": 1,
      "keys": [
       "false-white-mountain"
      ]
     },
     {
-     "x": 189.14580450789197,
-     "y": 168.2249066323234,
+     "x": 123.30016167258307,
+     "y": 89.96419747753274,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 300.3332341718857,
-     "y": 449.90691564713745,
+     "x": 164.44414866988987,
+     "y": 197.28482525355787,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 98.1799106128054,
-     "y": 68.34528562229372,
+     "x": 87.98284140798579,
+     "y": 52.51974259691102,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
      ]
     },
     {
-     "x": 404.19109278081066,
-     "y": 595.4703265568986,
+     "x": 213.48937078291536,
+     "y": 267.6859534178808,
      "n": 2,
      "keys": [
       "post-skimo-shakeout",
       "mammoth-caldera-burn-skimo-race"
+     ]
+    },
+    {
+     "x": 410.7394685172887,
+     "y": 589.6085784312008,
+     "n": 1,
+     "keys": [
+      "deerhorn-ne-couloir-from-onion-valley"
      ]
     }
    ]
@@ -1707,7 +1736,7 @@
    "h": 480,
    "png": "ski-eastern-sierra-phone.webp",
    "base": "ski-eastern-sierra-phone.base.svg",
-   "base_gz_kb": 5.3,
+   "base_gz_kb": 9.2,
    "region": "Eastern Sierra",
    "trips": [
     "false-white-mountain",
@@ -1715,48 +1744,57 @@
     "mount-wood",
     "matterhorn-peak-west-couloir",
     "post-skimo-shakeout",
-    "mammoth-caldera-burn-skimo-race"
+    "mammoth-caldera-burn-skimo-race",
+    "deerhorn-ne-couloir-from-onion-valley"
    ],
    "clusters": [
     {
-     "x": 160.82525871501772,
-     "y": 184.55501793763148,
+     "x": 110.53350985737917,
+     "y": 83.86422536163687,
      "n": 1,
      "keys": [
       "false-white-mountain"
      ]
     },
     {
-     "x": 148.10420310677387,
-     "y": 95.73311292289557,
+     "x": 108.72041014928807,
+     "y": 56.25785440752369,
      "n": 1,
      "keys": [
       "dunderberg-peak-and-black-mountain"
      ]
     },
     {
-     "x": 225.63765697763506,
-     "y": 295.116239536382,
+     "x": 135.4897210940337,
+     "y": 125.582349163965,
      "n": 1,
      "keys": [
       "mount-wood"
      ]
     },
     {
-     "x": 94.78870290868399,
-     "y": 48.22342010854297,
+     "x": 85.54727189388525,
+     "y": 32.15801798969632,
      "n": 1,
      "keys": [
       "matterhorn-peak-west-couloir"
      ]
     },
     {
-     "x": 292.8623354126013,
-     "y": 389.30432894857995,
+     "x": 169.41202563174602,
+     "y": 177.2085580939235,
      "n": 2,
      "keys": [
       "post-skimo-shakeout",
       "mammoth-caldera-burn-skimo-race"
+     ]
+    },
+    {
+     "x": 307.49817269230726,
+     "y": 400.24343723247637,
+     "n": 1,
+     "keys": [
+      "deerhorn-ne-couloir-from-onion-valley"
      ]
     }
    ]
@@ -2754,8 +2792,8 @@
  "renderer": {
   "version": 8,
   "python": "3.9.6",
-  "cwebp": "1.5.0",
-  "date": "2026-10-26",
-  "osm": "cached"
+  "cwebp": "1.6.0",
+  "date": "2026-11-06",
+  "osm": "fetched"
  }
 }

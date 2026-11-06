@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "status": "idea",
+  "priority": "normal",
+  "archived": false,
+  "tags": [],
+  "why": "",
+  "objective": "Deerhorn Mountain's NE couloir on skis from Onion Valley",
+  "peaks": [],
+  "added_at": "2026-11-06",
+  "target_months": [],
+  "target_year": null,
+  "time_commitment": null,
+  "season_notes": "",
+  "difficulty": null,
+  "route_scope": "full-intended-route",
+  "route_source": {
+    "kind": "author-drawn",
+    "url": null,
+    "label": null,
+    "checked_at": null,
+    "public_copy_approved": true,
+    "approximation_note": "A planning sketch, not a travelled line: trail geometry to the Bullfrog Lake approach, hand-drawn from USGS topography beyond; crossings and couloir alignment unverified. Elevations are smoothed bare-earth estimates, not snow surface."
+  },
+  "references": [],
+  "field_evidence": {},
+  "checklist": [],
+  "outings": [],
+  "route": {
+    "source_sha256": "d6f8af4d331cde7741fe0e63dac4f8f0609eb9c8162cc91d71c1301517e42c67",
+    "method": "ticklist-gpx-1",
+    "selected": {
+      "type": "trk",
+      "index": 0,
+      "name": "01 OUTBOUND - planning corridor to NE couloir notch"
+    },
+    "alternatives": 2,
+    "segments": 1,
+    "points": 1335,
+    "elevation": "full",
+    "times": false,
+    "waypoints": 15
+  }
+}
