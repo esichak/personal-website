@@ -1,5 +1,5 @@
 {
- "hash": "7277df4023afdc4f527a0bdcad1c9f781df34e77",
+ "hash": "48d0622857751e787a941119d622ca008b8e7985",
  "maps": {
   "region-lake-tahoe-desktop": {
    "w": 718,
@@ -2794,6 +2794,6 @@
   "python": "3.9.6",
   "cwebp": "1.6.0",
   "date": "2026-11-06",
-  "osm": "fetched"
+  "osm": "cached"
  }
 }

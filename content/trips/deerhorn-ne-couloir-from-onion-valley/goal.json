@@ -27,18 +27,18 @@
   "checklist": [],
   "outings": [],
   "route": {
-    "source_sha256": "d6f8af4d331cde7741fe0e63dac4f8f0609eb9c8162cc91d71c1301517e42c67",
+    "source_sha256": "731ab6f0d0d2ff869c6a95c566785fd32af3badb9e01e347a633cf8afe4377f3",
     "method": "ticklist-gpx-1",
     "selected": {
       "type": "trk",
       "index": 0,
-      "name": "01 OUTBOUND - planning corridor to NE couloir notch"
+      "name": "Round trip - planning corridor, Onion Valley to NE couloir notch and back"
     },
-    "alternatives": 2,
+    "alternatives": 1,
     "segments": 1,
-    "points": 1335,
+    "points": 2669,
     "elevation": "full",
     "times": false,
-    "waypoints": 15
+    "waypoints": 0
   }
 }

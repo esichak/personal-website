@@ -5,9 +5,9 @@ kind: planned
 route_shape: out-and-back
 region: Eastern Sierra
 stats:
-  distance_km: 18.23
-  gain_m: 1941
-  loss_m: 756
+  distance_km: 36.45
+  gain_m: 2694
+  loss_m: 2694
   high_m: 3984
   low_m: 2799
 ---
